@@ -1,12 +1,10 @@
 import { promises as fs } from 'fs'
 import { basename, dirname, join } from 'path'
-import { createCipheriv, createDecipheriv, randomBytes } from 'crypto'
 import { Libp2p } from 'libp2p'
 import { xml, Element, Parser } from '@xmpp/xml'
 import { EventEmitter } from 'events'
-import * as openpgp from 'openpgp'
 import { XmppStream } from './xmpp-stream.js'
-import { loadOmemoModule } from './omemo-runtime.js'
+import * as openpgp from 'openpgp'
 import {
   buildCapsElement,
   buildDiscoInfoQuery,
@@ -41,6 +39,35 @@ import {
   type XmppOmemoBundle
 } from './xmpp-omemo-state.js'
 import {
+  handlePubSubPayload as handlePubSubPayloadFromModule,
+  handlePubSubMessageElement as handlePubSubMessageElementFromModule,
+  type XmppPubSubContext
+} from './xmpp-pubsub.js'
+import {
+  fetchOpenPgpPublicKey as fetchOpenPgpPublicKeyFromModule,
+  getPeerOpenPgpKey as getPeerOpenPgpKeyFromModule,
+  handleSecureMessageStanza as handleSecureMessageStanzaFromModule,
+  publishEncrypted as publishEncryptedFromModule,
+  registerPeerOpenPgpPublicKey as registerPeerOpenPgpPublicKeyFromModule,
+  sendEncryptedMessage as sendEncryptedMessageFromModule,
+  type XmppSecureContext
+} from './xmpp-secure.js'
+import {
+  loadAttachmentHistoryState,
+  loadCollectionState,
+  loadFeedHistoryState,
+  loadFollowerState,
+  loadRosterState,
+  loadSubscriptionState,
+  persistAttachmentHistoryState,
+  persistCollectionState,
+  persistFeedHistoryState,
+  persistFollowerState,
+  persistOpenPgpState as persistOpenPgpStateFile,
+  persistRosterState,
+  persistSubscriptionState
+} from './xmpp-persistence.js'
+import {
   buildAttachmentSummary,
   attachmentHistoryKey,
   collectionHistoryKey,
@@ -71,7 +98,6 @@ import {
   type XmppCollectionPost,
   type XmppCollectionSubscription,
   jidFromPeerId,
-  type XmppMessage,
   type XmppOpenPgpPublicKeyResponse,
   type XmppOpenPgpStateFile,
   type XmppPubSubMessage,
@@ -95,8 +121,7 @@ import {
   subscriptionToFlags
 } from './xmpp-records.js'
 import type {
-  OmemoDirection,
-  OmemoAddress
+  OmemoDirection
 } from './omemo-runtime.js'
 import { multiaddr, Multiaddr } from '@multiformats/multiaddr'
 import { TopicValidatorResult } from '@libp2p/gossipsub'
@@ -114,7 +139,6 @@ const OMEMO_DEVICES_XMLNS = 'urn:xmpp:omemo:2:devices'
 const OMEMO_BUNDLES_XMLNS = 'urn:xmpp:omemo:2:bundles'
 const OMEMO_DEVICES_NODE = 'urn:xmpp:omemo:2:devices'
 const OMEMO_BUNDLES_NODE = 'urn:xmpp:omemo:2:bundles'
-const OMEMO_PTE_XMLNS = 'urn:xmpp:pte:0'
 const OPENPGP_XMLNS = 'urn:xmpp:openpgp:0'
 const OPENPGP_PUBSUB_XMLNS = 'urn:xmpp:openpgp:pubsub:0'
 
@@ -234,151 +258,119 @@ export class XmppNode extends EventEmitter {
     }
   }
 
-  private async loadRoster(): Promise<void> {
-    try {
-      const raw = await fs.readFile(this.rosterPath, 'utf8')
-      const parsed = JSON.parse(raw) as XmppRosterFile | XmppRosterEntry[]
-      const entries = Array.isArray(parsed) ? parsed : parsed.entries
-      for (const entry of entries ?? []) {
-        const normalized = this.normalizeRosterEntry(entry)
-        this.roster.set(normalized.jid, normalized)
-      }
-    } catch (err: any) {
-      if (err?.code !== 'ENOENT') {
-        console.error(`[XMPP] Failed to load roster from ${this.rosterPath}:`, err)
-      }
+  private getPersistenceLoadContext() {
+    return {
+      rosterPath: this.rosterPath,
+      feedPath: this.feedPath,
+      subscriptionPath: this.subscriptionPath,
+      followerPath: this.followerPath,
+      collectionPath: this.collectionPath,
+      attachmentPath: this.attachmentPath,
+      openPgpPath: this.openPgpPath,
+      roster: this.roster,
+      feedHistory: this.feedHistory,
+      feedSubscriptions: this.feedSubscriptions,
+      followers: this.followers,
+      collections: this.collections,
+      collectionHistory: this.collectionHistory,
+      attachmentHistory: this.attachmentHistory,
+      normalizeRosterEntry: this.normalizeRosterEntry.bind(this),
+      normalizeFeedPost: this.normalizeFeedPost.bind(this),
+      normalizeFeedSubscription: this.normalizeFeedSubscription.bind(this),
+      normalizeFollower: this.normalizeFollower.bind(this),
+      normalizeCollection: this.normalizeCollection.bind(this),
+      normalizeCollectionPost: this.normalizeCollectionPost.bind(this),
+      normalizeAttachment: this.normalizeAttachment.bind(this),
+      feedHistoryKey: this.feedHistoryKey.bind(this),
+      feedSubscriptionKey: this.feedSubscriptionKey.bind(this),
+      followerKey: this.followerKey.bind(this),
+      collectionHistoryKey: this.collectionHistoryKey.bind(this),
+      attachmentHistoryKey: this.attachmentHistoryKey.bind(this),
+      restoreFeedSubscriptions: this.restoreFeedSubscriptions.bind(this),
+      restoreFollowerSubscriptions: this.restoreFollowerSubscriptions.bind(this),
+      restoreCollectionSubscriptions: this.restoreCollectionSubscriptions.bind(this),
+      onCollectionLoaded: this.indexCollectionMembers.bind(this)
     }
+  }
+
+  private getPersistenceSaveContext() {
+    return {
+      rosterPath: this.rosterPath,
+      feedPath: this.feedPath,
+      subscriptionPath: this.subscriptionPath,
+      followerPath: this.followerPath,
+      collectionPath: this.collectionPath,
+      attachmentPath: this.attachmentPath,
+      openPgpPath: this.openPgpPath,
+      roster: this.roster,
+      feedHistory: this.feedHistory,
+      feedSubscriptions: this.feedSubscriptions,
+      followers: this.followers,
+      collections: this.collections,
+      collectionHistory: this.collectionHistory,
+      attachmentHistory: this.attachmentHistory,
+      openPgpState: this.openPgpState
+    }
+  }
+
+  private async loadRoster(): Promise<void> {
+    await loadRosterState(this.getPersistenceLoadContext())
   }
 
   private async loadFeedHistory(): Promise<void> {
-    try {
-      const raw = await fs.readFile(this.feedPath, 'utf8')
-      const parsed = JSON.parse(raw) as XmppFeedFile | XmppFeedPost[]
-      const posts = Array.isArray(parsed) ? parsed : parsed.posts
-      for (const post of posts ?? []) {
-        const normalized = this.normalizeFeedPost(post)
-        this.feedHistory.set(this.feedHistoryKey(normalized.topic, normalized.id), normalized)
-      }
-      while (this.feedHistory.size > FEED_HISTORY_LIMIT) {
-        const oldestKey = this.feedHistory.keys().next().value as string | undefined
-        if (!oldestKey) {
-          break
-        }
-        this.feedHistory.delete(oldestKey)
-      }
-    } catch (err: any) {
-      if (err?.code !== 'ENOENT') {
-        console.error(`[XMPP] Failed to load feed history from ${this.feedPath}:`, err)
-      }
-    }
+    await loadFeedHistoryState(this.getPersistenceLoadContext(), FEED_HISTORY_LIMIT)
   }
 
   private async loadSubscriptionState(): Promise<void> {
-    try {
-      const raw = await fs.readFile(this.subscriptionPath, 'utf8')
-      const parsed = JSON.parse(raw) as XmppSubscriptionFile | XmppFeedSubscriptionRecord[]
-      const subscriptions = Array.isArray(parsed) ? parsed : parsed.subscriptions
-      for (const subscription of subscriptions ?? []) {
-        const normalized = this.normalizeFeedSubscription(subscription)
-        this.feedSubscriptions.set(normalized.topic, normalized)
-      }
-
-      while (this.feedSubscriptions.size > SUBSCRIPTION_HISTORY_LIMIT) {
-        const oldestKey = this.feedSubscriptions.keys().next().value as string | undefined
-        if (!oldestKey) {
-          break
-        }
-        this.feedSubscriptions.delete(oldestKey)
-      }
-
-      await this.restoreFeedSubscriptions()
-    } catch (err: any) {
-      if (err?.code !== 'ENOENT') {
-        console.error(`[XMPP] Failed to load subscription state from ${this.subscriptionPath}:`, err)
-      }
-    }
+    await loadSubscriptionState(this.getPersistenceLoadContext(), SUBSCRIPTION_HISTORY_LIMIT)
   }
 
   private async loadFollowerState(): Promise<void> {
-    try {
-      const raw = await fs.readFile(this.followerPath, 'utf8')
-      const parsed = JSON.parse(raw) as XmppFollowerFile | XmppFeedFollower[]
-      const followers = Array.isArray(parsed) ? parsed : parsed.followers
-      for (const follower of followers ?? []) {
-        const normalized = this.normalizeFollower(follower)
-        this.followers.set(this.followerKey(normalized.feedPeerId, normalized.followerPeerId), normalized)
-      }
-
-      while (this.followers.size > SUBSCRIPTION_HISTORY_LIMIT) {
-        const oldestKey = this.followers.keys().next().value as string | undefined
-        if (!oldestKey) {
-          break
-        }
-        this.followers.delete(oldestKey)
-      }
-
-      await this.restoreFollowerSubscriptions()
-    } catch (err: any) {
-      if (err?.code !== 'ENOENT') {
-        console.error(`[XMPP] Failed to load follower state from ${this.followerPath}:`, err)
-      }
-    }
+    await loadFollowerState(this.getPersistenceLoadContext(), SUBSCRIPTION_HISTORY_LIMIT)
   }
 
   private async loadCollectionState(): Promise<void> {
-    try {
-      const raw = await fs.readFile(this.collectionPath, 'utf8')
-      const parsed = JSON.parse(raw) as XmppCollectionFile | XmppCollectionNode[]
-      const collections = Array.isArray(parsed) ? parsed : parsed.collections
-      const posts = Array.isArray(parsed) ? [] : parsed.posts
-
-      for (const collection of collections ?? []) {
-        const normalized = this.normalizeCollection(collection)
-        this.collections.set(normalized.id, normalized)
-        this.indexCollectionMembers(normalized)
-      }
-
-      for (const post of posts ?? []) {
-        const normalized = this.normalizeCollectionPost(post)
-        this.collectionHistory.set(this.collectionHistoryKey(normalized.collectionId, normalized.id), normalized)
-      }
-
-      while (this.collectionHistory.size > COLLECTION_HISTORY_LIMIT) {
-        const oldestKey = this.collectionHistory.keys().next().value as string | undefined
-        if (!oldestKey) {
-          break
-        }
-        this.collectionHistory.delete(oldestKey)
-      }
-
-      await this.restoreCollectionSubscriptions()
-    } catch (err: any) {
-      if (err?.code !== 'ENOENT') {
-        console.error(`[XMPP] Failed to load collection state from ${this.collectionPath}:`, err)
-      }
-    }
+    await loadCollectionState(this.getPersistenceLoadContext(), COLLECTION_HISTORY_LIMIT)
   }
 
   private async loadAttachmentHistory(): Promise<void> {
-    try {
-      const raw = await fs.readFile(this.attachmentPath, 'utf8')
-      const parsed = JSON.parse(raw) as XmppAttachmentFile | XmppAttachment[]
-      const attachments = Array.isArray(parsed) ? parsed : parsed.attachments
-      for (const attachment of attachments ?? []) {
-        const normalized = this.normalizeAttachment(attachment)
-        this.attachmentHistory.set(this.attachmentHistoryKey(normalized.topic, normalized.targetId, normalized.from), normalized)
-      }
+    await loadAttachmentHistoryState(this.getPersistenceLoadContext(), ATTACHMENT_HISTORY_LIMIT)
+  }
 
-      while (this.attachmentHistory.size > ATTACHMENT_HISTORY_LIMIT) {
-        const oldestKey = this.attachmentHistory.keys().next().value as string | undefined
-        if (!oldestKey) {
-          break
-        }
-        this.attachmentHistory.delete(oldestKey)
-      }
-    } catch (err: any) {
-      if (err?.code !== 'ENOENT') {
-        console.error(`[XMPP] Failed to load attachment history from ${this.attachmentPath}:`, err)
+  private getPubSubContext(): XmppPubSubContext {
+    return {
+      feedTopicForPeer: this.feedTopicForPeer.bind(this),
+      getEncryptedTopicSecret: (topic: string) => this.encryptedTopicSecrets.get(topic)?.secret,
+      removeFollower: this.removeFollower.bind(this),
+      recordFollower: this.recordFollower.bind(this),
+      recordAttachment: this.recordAttachment.bind(this),
+      recordCollectionPost: this.recordCollectionPost.bind(this),
+      recordFeedPost: this.recordFeedPost.bind(this),
+      emitPubSubMessage: (message) => this.emit('pubsub:message', message),
+      emitError: (error) => this.emit('error', error)
+    }
+  }
+
+  private getSecureContext(): XmppSecureContext {
+    return {
+      jid: this.jid,
+      ready: this.ready,
+      jidFromPeerId: this.jidFromPeerId.bind(this),
+      getOrCreateStream: this.getOrCreateStream.bind(this),
+      sendIqRequest: this.sendIqRequest.bind(this),
+      emitMessage: (message) => this.emit('message', message),
+      emitError: (error) => this.emit('error', error),
+      getOmemoDeviceIdOrThrow: this.getOmemoDeviceIdOrThrow.bind(this),
+      getOmemoStore: this.getOmemoStore.bind(this),
+      getPeerOmemoDevices: this.getPeerOmemoDevices.bind(this),
+      getPeerOmemoBundle: this.getPeerOmemoBundle.bind(this),
+      getOpenPgpPrivateKeyOrThrow: this.getOpenPgpPrivateKeyOrThrow.bind(this),
+      getPubSubService: this.getPubSubService.bind(this),
+      ensureTopicValidator: (topic, kind) => this.ensureTopicValidator(topic, kind),
+      getEncryptedTopicSecret: (topic: string) => this.encryptedTopicSecrets.get(topic)?.secret,
+      getPeerOpenPgpArmoredKey: (peerId: string) => this.peerOpenPgpKeys.get(peerId),
+      cachePeerOpenPgpKey: (peerId: string, armoredKey: string) => {
+        this.peerOpenPgpKeys.set(peerId, armoredKey)
       }
     }
   }
@@ -477,12 +469,7 @@ export class XmppNode extends EventEmitter {
   }
 
   private async persistOpenPgpState(): Promise<void> {
-    if (!this.openPgpState) {
-      return
-    }
-
-    await fs.mkdir(dirname(this.openPgpPath), { recursive: true })
-    await fs.writeFile(this.openPgpPath, `${JSON.stringify(this.openPgpState, null, 2)}\n`, 'utf8')
+    await persistOpenPgpStateFile(this.openPgpPath, this.openPgpState)
   }
 
   private scheduleOpenPgpPersist(): Promise<void> {
@@ -534,13 +521,7 @@ export class XmppNode extends EventEmitter {
   }
 
   private async persistRoster(): Promise<void> {
-    const payload: XmppRosterFile = {
-      version: 1,
-      entries: Array.from(this.roster.values()).sort((a, b) => a.jid.localeCompare(b.jid))
-    }
-
-    await fs.mkdir(dirname(this.rosterPath), { recursive: true })
-    await fs.writeFile(this.rosterPath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8')
+    await persistRosterState(this.getPersistenceSaveContext())
   }
 
   private scheduleRosterPersist(): Promise<void> {
@@ -554,13 +535,7 @@ export class XmppNode extends EventEmitter {
   }
 
   private async persistFeedHistory(): Promise<void> {
-    const payload: XmppFeedFile = {
-      version: 1,
-      posts: Array.from(this.feedHistory.values()).sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
-    }
-
-    await fs.mkdir(dirname(this.feedPath), { recursive: true })
-    await fs.writeFile(this.feedPath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8')
+    await persistFeedHistoryState(this.getPersistenceSaveContext())
   }
 
   private async publishSubscriptionDeclaration(subscription: XmppFeedSubscriptionRecord, action: 'upsert' | 'remove') {
@@ -616,44 +591,19 @@ export class XmppNode extends EventEmitter {
   }
 
   private async persistSubscriptionState(): Promise<void> {
-    const payload: XmppSubscriptionFile = {
-      version: 1,
-      subscriptions: Array.from(this.feedSubscriptions.values()).sort((a, b) => a.subscribedAt.localeCompare(b.subscribedAt))
-    }
-
-    await fs.mkdir(dirname(this.subscriptionPath), { recursive: true })
-    await fs.writeFile(this.subscriptionPath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8')
+    await persistSubscriptionState(this.getPersistenceSaveContext())
   }
 
   private async persistFollowerState(): Promise<void> {
-    const payload: XmppFollowerFile = {
-      version: 1,
-      followers: Array.from(this.followers.values()).sort((a, b) => a.subscribedAt.localeCompare(b.subscribedAt))
-    }
-
-    await fs.mkdir(dirname(this.followerPath), { recursive: true })
-    await fs.writeFile(this.followerPath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8')
+    await persistFollowerState(this.getPersistenceSaveContext())
   }
 
   private async persistCollectionState(): Promise<void> {
-    const payload: XmppCollectionFile = {
-      version: 1,
-      collections: Array.from(this.collections.values()).sort((a, b) => a.id.localeCompare(b.id)),
-      posts: Array.from(this.collectionHistory.values()).sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
-    }
-
-    await fs.mkdir(dirname(this.collectionPath), { recursive: true })
-    await fs.writeFile(this.collectionPath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8')
+    await persistCollectionState(this.getPersistenceSaveContext())
   }
 
   private async persistAttachmentHistory(): Promise<void> {
-    const payload: XmppAttachmentFile = {
-      version: 1,
-      attachments: Array.from(this.attachmentHistory.values()).sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
-    }
-
-    await fs.mkdir(dirname(this.attachmentPath), { recursive: true })
-    await fs.writeFile(this.attachmentPath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8')
+    await persistAttachmentHistoryState(this.getPersistenceSaveContext())
   }
 
   private scheduleFeedPersist(): Promise<void> {
@@ -1227,262 +1177,16 @@ export class XmppNode extends EventEmitter {
     return this.feedSubscriptions.get(topic)
   }
 
-  private parseFeedPost(topic: string, itemEl: Element, from: string, node?: string): XmppFeedPost | undefined {
-    const id = itemEl.attrs.id
-    if (!id) {
-      return undefined
-    }
-
-    const entryEl = (itemEl.children as any[]).find(child => child?.name === 'entry' && child?.attrs?.xmlns === FEED_XMLNS) as Element | undefined
-    const bodyEl = (itemEl.children as any[]).find(child => child?.name === 'body') as Element | undefined
-    const contentEl = entryEl?.getChild('content')
-    const publishedEl = entryEl?.getChild('published')
-    const titleEl = entryEl?.getChild('title')
-    const authorEl = entryEl?.getChild('author')
-    const body = contentEl?.text() || bodyEl?.text()
-    if (!body) {
-      return undefined
-    }
-
-    return this.normalizeFeedPost({
-      id,
-      topic,
-      from,
-      body,
-      node,
-      publishedAt: publishedEl?.text(),
-      title: titleEl?.text(),
-      author: authorEl?.text(),
-      receivedAt: new Date().toISOString()
-    })
-  }
-
-  private parseCollectionPost(topic: string, itemEl: Element, from: string): XmppCollectionPost | undefined {
-    const collectionId = itemEl.attrs.collectionId
-    const sourceTopic = itemEl.attrs.sourceTopic
-    if (!collectionId || !sourceTopic) {
-      return undefined
-    }
-
-    const feedPost = this.parseFeedPost(topic, itemEl, from, sourceTopic)
-    if (!feedPost) {
-      return undefined
-    }
-
-    return {
-      ...feedPost,
-      collectionId,
-      sourceTopic
-    }
-  }
-
-  private parseAttachment(topic: string, itemEl: Element, from: string): XmppAttachment | undefined {
-    const targetId = itemEl.attrs.targetId
-    if (!targetId) {
-      return undefined
-    }
-
-    const noticedEl = itemEl.getChild('noticed')
-    if (noticedEl && noticedEl.attrs.xmlns === ATTACHMENT_XMLNS) {
-      return this.normalizeAttachment({
-        id: itemEl.attrs.id,
-        topic,
-        targetId,
-        from,
-        kind: 'noticed',
-        value: noticedEl.text() || noticedEl.attrs.value,
-        publishedAt: noticedEl.attrs.publishedAt,
-        receivedAt: new Date().toISOString()
-      })
-    }
-
-    const reactionsEl = itemEl.getChild('reactions')
-    if (reactionsEl && reactionsEl.attrs.xmlns === ATTACHMENT_XMLNS) {
-      const reactionEl = (reactionsEl.children as any[]).find(child => child?.name === 'reaction') as Element | undefined
-      const value = reactionEl?.attrs.emoji || reactionEl?.text() || reactionsEl.text()
-      return this.normalizeAttachment({
-        id: itemEl.attrs.id,
-        topic,
-        targetId,
-        from,
-        kind: 'reaction',
-        value,
-        publishedAt: reactionEl?.attrs.publishedAt,
-        receivedAt: new Date().toISOString()
-      })
-    }
-
-    return undefined
-  }
-
-  private async handlePubSubMessageElement(topic: string, element: Element): Promise<void> {
-    const eventEl = element.getChild('event')
-    if (!eventEl || eventEl.attrs.xmlns !== PUBSUB_EVENT_XMLNS) {
-      return
-    }
-
-    const itemsEl = eventEl.getChild('items')
-    const nodeName = itemsEl?.attrs.node
-    const itemEls = (itemsEl?.children as any[] ?? []).filter(child => child?.name === 'item') as Element[]
-    for (const itemEl of itemEls) {
-      const subscriptionEl = itemEl.getChild('subscription')
-      if (subscriptionEl && subscriptionEl.attrs.xmlns === PAM_XMLNS) {
-        const followerPeerId = itemEl.attrs.followerPeerId
-        const feedPeerId = itemEl.attrs.feedPeerId
-        const visibility = itemEl.attrs.visibility === 'public' ? 'public' : 'private'
-        const action = itemEl.attrs.action === 'remove' ? 'remove' : 'upsert'
-        const followerJid = itemEl.attrs.followerJid || element.attrs.from || 'unknown'
-        if (feedPeerId && followerPeerId) {
-          if (action === 'remove') {
-            void this.removeFollower(feedPeerId, followerPeerId).catch(err => this.emit('error', err))
-          } else {
-            void this.recordFollower({
-              followerPeerId,
-              followerJid,
-              feedPeerId,
-              feedTopic: this.feedTopicForPeer(feedPeerId),
-              visibility,
-              subscribedAt: itemEl.attrs.subscribedAt || new Date().toISOString(),
-              updatedAt: itemEl.attrs.updatedAt || new Date().toISOString()
-            }).catch(err => this.emit('error', err))
-          }
-        }
-        continue
-      }
-
-      const attachment = this.parseAttachment(topic, itemEl, element.attrs.from || 'unknown')
-      if (attachment) {
-        void this.recordAttachment(attachment).catch(err => this.emit('error', err))
-        continue
-      }
-
-      const encrypted = await this.parseEncryptedPubSubItem(topic, itemEl, element.attrs.from || 'unknown')
-      if (encrypted) {
-        this.emit('pubsub:message', encrypted)
-        continue
-      }
-
-      const bodyEl = itemEl.getChild('body')
-      if (bodyEl) {
-        const pubSubMsg: XmppPubSubMessage = {
-          topic,
-          node: nodeName,
-          from: element.attrs.from || 'unknown',
-          body: bodyEl.text(),
-          itemId: itemEl.attrs.id
-        }
-        this.emit('pubsub:message', pubSubMsg)
-      }
-
-      const collectionPost = this.parseCollectionPost(topic, itemEl, element.attrs.from || 'unknown')
-      if (collectionPost) {
-        void this.recordCollectionPost(collectionPost).catch(err => this.emit('error', err))
-        continue
-      }
-
-      const feedPost = this.parseFeedPost(topic, itemEl, element.attrs.from || 'unknown', nodeName)
-      if (feedPost) {
-        void this.recordFeedPost(feedPost).catch(err => this.emit('error', err))
-      }
-    }
-  }
-
-  private async parseEncryptedPubSubItem(topic: string, itemEl: Element, from: string): Promise<XmppPubSubMessage | undefined> {
-    const encryptedEl = itemEl.getChild('encrypted')
-    if (!encryptedEl || encryptedEl.attrs.xmlns !== OPENPGP_PUBSUB_XMLNS) {
-      return undefined
-    }
-
-    const keyId = encryptedEl.attrs.key
-    const payload = encryptedEl.text().trim()
-    if (!payload) {
-      return undefined
-    }
-
-    const secret = this.encryptedTopicSecrets.get(topic)?.secret
-    if (!secret) {
-      return undefined
-    }
-
-    const bytes = Buffer.from(payload, 'base64')
-    const message = await openpgp.readMessage({ binaryMessage: bytes })
-    const decrypted = await openpgp.decrypt({
-      message,
-      passwords: secret,
-      format: 'utf8'
-    })
-    const body = typeof decrypted.data === 'string' ? decrypted.data : new TextDecoder().decode(decrypted.data as Uint8Array)
-    return {
-      topic,
-      node: itemEl.attrs.node,
-      from,
-      body,
-      itemId: itemEl.attrs.id,
-      encrypted: true,
-      encryption: 'openpgp',
-      keyId
-    }
-  }
-
-  private async decryptOpenPgpMessage(payload: string): Promise<string> {
-    await this.ready
-    const bytes = Buffer.from(payload.trim(), 'base64')
-    const message = await openpgp.readMessage({ binaryMessage: bytes })
-    const decrypted = await openpgp.decrypt({
-      message,
-      decryptionKeys: this.getOpenPgpPrivateKeyOrThrow(),
-      format: 'utf8'
-    })
-    return typeof decrypted.data === 'string' ? decrypted.data : new TextDecoder().decode(decrypted.data as Uint8Array)
-  }
-
   async fetchOpenPgpPublicKey(peerAddr: string | Multiaddr): Promise<XmppOpenPgpPublicKeyResponse> {
-    const xmppStream = await this.getOrCreateStream(peerAddr)
-    const id = Math.random().toString(36).substring(2, 11)
-    const toJid = xmppStream.remotePeer.toString() + '@p2p'
+    return await fetchOpenPgpPublicKeyFromModule(peerAddr, this.getSecureContext())
+  }
 
-    const iq = xml(
-      'iq',
-      {
-        to: toJid,
-        from: this.jid,
-        type: 'get',
-        id
-      },
-      xml('query', { xmlns: OPENPGP_IQ_XMLNS })
-    )
-
-    const result = await this.sendIqRequest(peerAddr, iq)
-    const query = result.getChild('query')
-    if (!query) {
-      throw new Error('OpenPGP key response missing query payload')
-    }
-
-    const pubkeyEl = query.getChild('pubkey')
-    const publicKey = pubkeyEl?.text().trim()
-    const fingerprint = pubkeyEl?.attrs.fingerprint || ''
-    if (!publicKey || !fingerprint) {
-      throw new Error('OpenPGP key response missing public key material')
-    }
-
-    return { fingerprint, publicKey }
+  private async getPeerOpenPgpKey(peerAddr: string | Multiaddr): Promise<openpgp.PublicKey> {
+    return await getPeerOpenPgpKeyFromModule(peerAddr, this.getSecureContext())
   }
 
   private async handlePubSubPayload(topic: string, xmlStr: string): Promise<void> {
-    try {
-      const p = new Parser()
-      p.write('<stream:stream>')
-      p.on('element', (element: Element) => {
-        if (element.name !== 'message') {
-          return
-        }
-
-        void this.handlePubSubMessageElement(topic, element).catch(err => this.emit('error', err))
-      })
-      p.write(xmlStr)
-    } catch (err) {
-      // ignore parsing error for malformed pubsub elements
-    }
+    await handlePubSubPayloadFromModule(topic, xmlStr, this.getPubSubContext())
   }
 
   private async propagateFeedToCollections(feedPost: XmppFeedPost): Promise<void> {
@@ -2054,73 +1758,12 @@ export class XmppNode extends EventEmitter {
     if (element.name === 'message') {
       const eventEl = element.getChild('event')
       if (eventEl && eventEl.attrs.xmlns === PUBSUB_EVENT_XMLNS) {
-        await this.handlePubSubMessageElement(peerId, element)
+        await handlePubSubMessageElementFromModule(peerId, element, this.getPubSubContext())
         return
       }
 
-      const omemoEl = element.getChild('encrypted')
-      if (omemoEl && omemoEl.attrs.xmlns === OMEMO_XMLNS) {
-        const headerEl = omemoEl.getChild('header')
-        const payloadEl = omemoEl.getChild('payload')
-        const sid = Number(headerEl?.attrs.sid ?? 0)
-        const ivEl = headerEl?.getChild('iv')
-        const keysEl = (headerEl?.children as any[] ?? []).filter(child => child?.name === 'keys') as Element[]
-        const payload = payloadEl?.text().trim()
-        const iv = ivEl?.text().trim()
-        const rid = this.getOmemoDeviceIdOrThrow()
-        const keyEl = keysEl
-          .flatMap(keys => (keys.children as any[]).filter(child => child?.name === 'key'))
-          .find((child: Element) => Number(child.attrs.rid ?? 0) === rid)
-
-        if (headerEl && payload && iv && keyEl && Number.isFinite(sid) && sid > 0) {
-          const omemo = await loadOmemoModule()
-          const remoteAddress = new omemo.OMEMOAddress(fromJid, sid)
-          const encryptedKey = keyEl.text().trim()
-          const payloadKey = await this.decryptOmemoKey(remoteAddress, encryptedKey)
-          const body = this.decryptOmemoPayload(payload, payloadKey, iv)
-          const message: XmppMessage = {
-            from: fromJid,
-            to: toJid,
-            body,
-            id: element.attrs.id,
-            type: element.attrs.type || 'chat',
-            encrypted: true,
-            encryption: 'omemo'
-          }
-          this.emit('message', message)
-          return
-        }
-      }
-
-      const openPgpEl = element.getChild('openpgp')
-      if (openPgpEl && openPgpEl.attrs.xmlns === OPENPGP_XMLNS) {
-        const payload = openPgpEl.text().trim()
-        if (payload) {
-          const body = await this.decryptOpenPgpMessage(payload)
-          const message: XmppMessage = {
-            from: fromJid,
-            to: toJid,
-            body,
-            id: element.attrs.id,
-            type: element.attrs.type || 'chat',
-            encrypted: true,
-            encryption: 'openpgp'
-          }
-          this.emit('message', message)
-          return
-        }
-      }
-
-      const bodyEl = element.getChild('body')
-      if (bodyEl) {
-        const message: XmppMessage = {
-          from: fromJid,
-          to: toJid,
-          body: bodyEl.text(),
-          id: element.attrs.id,
-          type: element.attrs.type || 'chat'
-        }
-        this.emit('message', message)
+      if (await handleSecureMessageStanzaFromModule(element, fromJid, toJid, this.getSecureContext())) {
+        return
       }
       return
     }
@@ -2517,89 +2160,8 @@ export class XmppNode extends EventEmitter {
     return await this.fetchOmemoBundle(peerAddr, deviceId)
   }
 
-  private async ensureOmemoSession(peerAddr: string | Multiaddr, deviceId: number): Promise<void> {
-    const xmppStream = await this.getOrCreateStream(peerAddr)
-    const peerJid = this.jidFromPeerId(xmppStream.remotePeer.toString())
-    const omemo = await loadOmemoModule()
-    const remoteAddress = new omemo.OMEMOAddress(peerJid, deviceId)
-    const store = this.getOmemoStore()
-    const sessionCipher = new omemo.SessionCipher(store, remoteAddress)
-    const hasOpenSession = await sessionCipher.hasOpenSession()
-    if (hasOpenSession) {
-      return
-    }
-
-    const bundle = await this.getPeerOmemoBundle(peerAddr, deviceId)
-    const sessionBuilder = new omemo.SessionBuilder(store, remoteAddress)
-    await sessionBuilder.processPreKey({
-      registrationId: bundle.registrationId,
-      identityKey: this.base64ToArrayBuffer(bundle.identityKey),
-      signedPreKey: {
-        keyId: bundle.signedPreKeyId,
-        publicKey: this.base64ToArrayBuffer(bundle.signedPreKey),
-        signature: this.base64ToArrayBuffer(bundle.signedPreKeySignature)
-      },
-      preKey: bundle.preKeys[0]
-        ? {
-            keyId: bundle.preKeys[0].keyId,
-            publicKey: this.base64ToArrayBuffer(bundle.preKeys[0].publicKey)
-          }
-        : undefined
-    })
-  }
-
   async sendEncryptedMessage(peerAddr: string | Multiaddr, body: string): Promise<string> {
-    await this.ready
-    const xmppStream = await this.getOrCreateStream(peerAddr)
-    const peerId = xmppStream.remotePeer.toString()
-    const toJid = `${peerId}@p2p`
-    const itemId = Math.random().toString(36).substring(2, 11)
-    const devices = await this.getPeerOmemoDevices(peerAddr)
-    if (devices.length === 0) {
-      throw new Error(`No OMEMO devices available for ${toJid}`)
-    }
-
-    const payloadKeyBytes = randomBytes(16)
-    const iv = randomBytes(12)
-
-    const cipher = createCipheriv('aes-128-gcm', payloadKeyBytes, iv)
-    const ciphertext = Buffer.concat([cipher.update(body, 'utf8'), cipher.final()])
-    const authTag = cipher.getAuthTag()
-    const payload = Buffer.concat([ciphertext, authTag]).toString('base64')
-
-    const keys: Element[] = []
-    for (const deviceId of devices) {
-      await this.ensureOmemoSession(peerAddr, deviceId)
-      const omemo = await loadOmemoModule()
-      const remoteAddress = new omemo.OMEMOAddress(toJid, deviceId)
-      const sessionCipher = new omemo.SessionCipher(this.getOmemoStore(), remoteAddress)
-      const encryptedKey = await sessionCipher.encrypt(payloadKeyBytes)
-      keys.push(xml('key', { rid: String(deviceId) }, Buffer.from(encryptedKey.body, 'binary').toString('base64')))
-    }
-
-    const stanza = xml(
-      'message',
-      {
-        to: toJid,
-        from: this.jid,
-        type: 'chat',
-        id: itemId
-      },
-      xml(
-        'encrypted',
-        { xmlns: OMEMO_XMLNS },
-        xml(
-          'header',
-          { sid: String(this.getOmemoDeviceIdOrThrow()) },
-          xml('keys', { jid: toJid }, ...keys),
-          xml('iv', {}, iv.toString('base64'))
-        ),
-        xml('payload', {}, payload)
-      )
-    )
-
-    xmppStream.send(stanza)
-    return itemId
+    return await sendEncryptedMessageFromModule(peerAddr, body, this.getSecureContext())
   }
 
   async getOmemoDeviceId(): Promise<number> {
@@ -2633,35 +2195,6 @@ export class XmppNode extends EventEmitter {
     }
   }
 
-  private async decryptOmemoKey(remoteAddress: OmemoAddress, payload: string): Promise<ArrayBuffer> {
-    const omemo = await loadOmemoModule()
-    const store = this.getOmemoStore()
-    const sessionCipher = new omemo.SessionCipher(store, remoteAddress)
-    try {
-      return await sessionCipher.decryptPreKeyWhisperMessage(payload, 'base64')
-    } catch (preKeyErr) {
-      try {
-        return await sessionCipher.decryptWhisperMessage(payload, 'base64')
-      } catch (whisperErr) {
-        throw whisperErr instanceof Error ? whisperErr : preKeyErr
-      }
-    }
-  }
-
-  private decryptOmemoPayload(payload: string, payloadKey: ArrayBuffer, ivB64: string): string {
-    const bytes = Buffer.from(payload, 'base64')
-    if (bytes.byteLength < 16) {
-      throw new Error('OMEMO payload is too short')
-    }
-
-    const tag = bytes.subarray(bytes.byteLength - 16)
-    const ciphertext = bytes.subarray(0, bytes.byteLength - 16)
-    const iv = Buffer.from(ivB64, 'base64')
-    const decipher = createDecipheriv('aes-128-gcm', Buffer.from(payloadKey), iv)
-    decipher.setAuthTag(tag)
-    return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8')
-  }
-
   async getOpenPgpPublicKey(): Promise<string> {
     await this.ready
     return this.openPgpState?.publicKey ?? ''
@@ -2673,11 +2206,7 @@ export class XmppNode extends EventEmitter {
   }
 
   async registerPeerOpenPgpPublicKey(peerAddr: string | Multiaddr, armoredKey: string): Promise<string> {
-    const xmppStream = await this.getOrCreateStream(peerAddr)
-    const peerId = xmppStream.remotePeer.toString()
-    const key = await openpgp.readKey({ armoredKey })
-    this.peerOpenPgpKeys.set(peerId, armoredKey)
-    return key.getFingerprint()
+    return await registerPeerOpenPgpPublicKeyFromModule(peerAddr, armoredKey, this.getSecureContext())
   }
 
   async setEncryptedPubSubSecret(topic: string, keyId: string, secret: string): Promise<void> {
@@ -2690,48 +2219,7 @@ export class XmppNode extends EventEmitter {
   }
 
   async publishEncrypted(topic: string, body: string, options: { keyId?: string; secret?: string; itemId?: string } = {}): Promise<string> {
-    const pubsub = this.getPubSubService()
-    const secret = options.secret ?? this.encryptedTopicSecrets.get(topic)?.secret
-    const keyId = options.keyId ?? this.encryptedTopicSecrets.get(topic)?.keyId ?? 'default'
-    if (!secret) {
-      throw new Error(`No OpenPGP shared secret configured for topic ${topic}`)
-    }
-
-    this.ensureTopicValidator(topic, 'secure')
-    await pubsub.subscribe(topic)
-
-    const message = await openpgp.createMessage({ text: body })
-    const encrypted = await openpgp.encrypt({
-      message,
-      passwords: secret,
-      format: 'binary'
-    })
-    const payload = Buffer.from(encrypted as Uint8Array).toString('base64')
-    const itemId = options.itemId ?? Math.random().toString(36).substring(2, 11)
-    const stanza = xml(
-      'message',
-      {
-        from: this.jid,
-        to: 'pubsub.p2p',
-        type: 'headline'
-      },
-      xml(
-        'event',
-        { xmlns: PUBSUB_EVENT_XMLNS },
-        xml(
-          'items',
-          { node: topic },
-          xml(
-            'item',
-            { id: itemId, key: keyId },
-            xml( 'encrypted', { xmlns: OPENPGP_PUBSUB_XMLNS, key: keyId }, payload)
-          )
-        )
-      )
-    )
-
-    await pubsub.publish(topic, new TextEncoder().encode(stanza.toString()))
-    return itemId
+    return await publishEncryptedFromModule(topic, body, this.getSecureContext(), options)
   }
 
   private getOpenPgpPrivateKeyOrThrow(): openpgp.PrivateKey {
@@ -2739,18 +2227,6 @@ export class XmppNode extends EventEmitter {
       throw new Error('OpenPGP private key is not loaded')
     }
     return this.openPgpPrivateKey
-  }
-
-  private async getPeerOpenPgpKey(peerAddr: string | Multiaddr): Promise<openpgp.PublicKey> {
-    const xmppStream = await this.getOrCreateStream(peerAddr)
-    const peerId = xmppStream.remotePeer.toString()
-    let armoredKey = this.peerOpenPgpKeys.get(peerId)
-    if (!armoredKey) {
-      const response = await this.fetchOpenPgpPublicKey(peerAddr)
-      armoredKey = response.publicKey
-      this.peerOpenPgpKeys.set(peerId, armoredKey)
-    }
-    return await openpgp.readKey({ armoredKey })
   }
 
   // Send presence updates
