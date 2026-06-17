@@ -14,8 +14,10 @@
     "test-subscriptions": "node dist/test-subscriptions.js",
     "test-disco": "node dist/test-disco.js",
     "test-dht": "node dist/test-dht.js",
+    "test-openpgp": "node dist/test-openpgp.js",
+    "test-omemo": "node dist/test-omemo.js",
     "test-collection": "node dist/test-collection.js",
-    "test": "npm run build && npm run test-nodes && npm run test-pubsub && npm run test-dht && npm run test-roster && npm run test-feed && npm run test-attachments && npm run test-subscriptions && npm run test-disco && npm run test-collection"
+    "test": "npm run build && npm run test-nodes && npm run test-pubsub && npm run test-dht && npm run test-omemo && npm run test-roster && npm run test-feed && npm run test-attachments && npm run test-subscriptions && npm run test-disco && npm run test-collection"
   },
   "repository": {
     "type": "git",
@@ -39,7 +41,9 @@
     "@libp2p/tcp": "^11.0.22",
     "@libp2p/yamux": "^8.0.1",
     "@xmpp/xml": "^0.14.0",
-    "libp2p": "^3.3.4"
+    "libomemo.js": "^1.0.0",
+    "libp2p": "^3.3.4",
+    "openpgp": "^6.3.1"
   },
   "devDependencies": {
     "@types/node": "^25.9.3",

@@ -1,10 +1,19 @@
 import { promises as fs } from 'fs'
 import { basename, dirname, join } from 'path'
-import { createHash } from 'crypto'
+import { createHash, createCipheriv, createDecipheriv, randomBytes } from 'crypto'
 import { Libp2p } from 'libp2p'
 import { xml, Element, Parser } from '@xmpp/xml'
 import { EventEmitter } from 'events'
+import * as openpgp from 'openpgp'
 import { XmppStream } from './xmpp-stream.js'
+import { loadOmemoModule } from './omemo-runtime.js'
+import type {
+  OmemoDirection,
+  OmemoKeyPair,
+  OmemoAddress,
+  OmemoSessionBuilder,
+  OmemoSessionCipher
+} from './omemo-runtime.js'
 import { multiaddr, Multiaddr } from '@multiformats/multiaddr'
 import { TopicValidatorResult } from '@libp2p/gossipsub'
 
@@ -18,6 +27,7 @@ const COLLECTION_XMLNS = 'urn:xmpp:collection:0'
 const ATTACHMENT_XMLNS = 'urn:xmpp:pubsub:attachments:0'
 const PAM_XMLNS = 'urn:xmpp:pubsub:account-management:0'
 const FOLLOWERS_XMLNS = 'urn:xmpp:pubsub:followers:0'
+const OPENPGP_IQ_XMLNS = 'urn:xmpp:openpgp:0'
 const FEED_HISTORY_LIMIT = 50
 const COLLECTION_HISTORY_LIMIT = 100
 const ATTACHMENT_HISTORY_LIMIT = 200
@@ -26,6 +36,18 @@ const DISCOVERY_NODE = 'urn:xmpp:p2p:discovery'
 const FEED_TOPIC_PREFIX = 'xmpp-feed:'
 const COLLECTION_TOPIC_PREFIX = 'xmpp-collection:'
 const FOLLOWERS_TOPIC_PREFIX = 'xmpp-followers:'
+const OMEMO_XMLNS = 'urn:xmpp:omemo:2'
+const OMEMO_DEVICES_XMLNS = 'urn:xmpp:omemo:2:devices'
+const OMEMO_BUNDLES_XMLNS = 'urn:xmpp:omemo:2:bundles'
+const OMEMO_DEVICES_NODE = 'urn:xmpp:omemo:2:devices'
+const OMEMO_BUNDLES_NODE = 'urn:xmpp:omemo:2:bundles'
+const OMEMO_PTE_XMLNS = 'urn:xmpp:pte:0'
+const OMEMO_FEATURE = 'urn:xmpp:omemo:2'
+const OMEMO_PTE_FEATURE = 'urn:xmpp:pte:0'
+const OPENPGP_XMLNS = 'urn:xmpp:openpgp:0'
+const OPENPGP_PUBSUB_XMLNS = 'urn:xmpp:openpgp:pubsub:0'
+const OPENPGP_FEATURE = 'urn:xmpp:openpgp:0'
+const OPENPGP_PUBSUB_FEATURE = 'urn:xmpp:openpgp:pubsub:0'
 
 export type XmppPresenceType =
   | 'available'
@@ -44,6 +66,8 @@ export interface XmppMessage {
   body: string
   id?: string
   type?: string
+  encrypted?: boolean
+  encryption?: 'openpgp' | 'omemo'
 }
 
 export interface XmppPresence {
@@ -77,6 +101,9 @@ export interface XmppPubSubMessage {
   from: string
   body: string
   itemId?: string
+  encrypted?: boolean
+  encryption?: 'openpgp' | 'omemo'
+  keyId?: string
 }
 
 export interface XmppFeedPost {
@@ -202,6 +229,8 @@ export interface XmppNodeOptions {
   feedPath?: string
   collectionPath?: string
   attachmentPath?: string
+  omemoPath?: string
+  openPgpPath?: string
 }
 
 interface PendingIq {
@@ -253,6 +282,67 @@ interface XmppCapsPresence {
   hash: 'sha-1' | string
 }
 
+interface XmppOpenPgpStateFile {
+  version: number
+  privateKey: string
+  publicKey: string
+  fingerprint: string
+  createdAt: string
+}
+
+interface XmppEncryptedTopicSecret {
+  topic: string
+  keyId: string
+  secret: string
+  updatedAt: string
+}
+
+interface XmppOpenPgpPublicKeyResponse {
+  fingerprint: string
+  publicKey: string
+}
+
+interface XmppOmemoStateFile {
+  version: number
+  deviceId: number
+  registrationId: number
+  store: Record<string, unknown>
+  identityKeyPair: {
+    pubKey: string
+    privKey: string
+  }
+  signedPreKey: {
+    keyId: number
+    keyPair: {
+      pubKey: string
+      privKey: string
+    }
+    signature: string
+  }
+  preKeys: Array<{
+    keyId: number
+    keyPair: {
+      pubKey: string
+      privKey: string
+    }
+  }>
+  identities: Record<string, string>
+  sessions: Record<string, string>
+}
+
+interface XmppOmemoBundle {
+  deviceId: number
+  registrationId: number
+  identityKey: string
+  signedPreKeyId: number
+  signedPreKey: string
+  signedPreKeySignature: string
+  preKeys: Array<{
+    keyId: number
+    publicKey: string
+  }>
+}
+
 export class XmppNode extends EventEmitter {
   private libp2p: Libp2p
   private streams = new Map<string, XmppStream>()
@@ -269,7 +359,7 @@ export class XmppNode extends EventEmitter {
   private discoInfoCache = new Map<string, XmppDiscoInfo>()
   private entityCapabilities = new Map<string, XmppEntityCapabilities>()
   private pendingIq = new Map<string, PendingIq>()
-  private topicValidationKinds = new Map<string, Set<'feed' | 'collection' | 'attachment' | 'subscription'>>()
+  private topicValidationKinds = new Map<string, Set<'feed' | 'collection' | 'attachment' | 'subscription' | 'secure'>>()
   private rosterSaveQueue: Promise<void> = Promise.resolve()
   private feedSaveQueue: Promise<void> = Promise.resolve()
   private subscriptionSaveQueue: Promise<void> = Promise.resolve()
@@ -285,12 +375,45 @@ export class XmppNode extends EventEmitter {
   private readonly followerPath: string
   private readonly collectionPath: string
   private readonly attachmentPath: string
+  private readonly omemoPath: string
+  private readonly openPgpPath: string
   private readonly discoveryNode: string = DISCOVERY_NODE
   private readonly discoveryIdentity: XmppDiscoIdentity = {
     category: 'client',
     type: 'pc',
     name: 'XMPP P2P'
   }
+  private omemoState?: XmppOmemoStateFile
+  private omemoDeviceId = 0
+  private omemoRegistrationId = 0
+  private omemoIdentityKeyPair?: {
+    pubKey: ArrayBuffer
+    privKey: ArrayBuffer
+  }
+  private omemoSignedPreKey?: {
+    keyId: number
+    keyPair: {
+      pubKey: ArrayBuffer
+      privKey: ArrayBuffer
+    }
+    signature: ArrayBuffer
+  }
+  private readonly omemoPreKeys = new Map<number, {
+    pubKey: ArrayBuffer
+    privKey: ArrayBuffer
+  }>()
+  private readonly omemoStoreData = new Map<string, unknown>()
+  private readonly peerOmemoDeviceLists = new Map<string, number[]>()
+  private readonly peerOmemoBundles = new Map<string, Map<number, XmppOmemoBundle>>()
+  private readonly peerOmemoIdentityKeys = new Map<string, string>()
+  private omemoSaveQueue: Promise<void> = Promise.resolve()
+  private openPgpState?: XmppOpenPgpStateFile
+  private openPgpPrivateKey?: openpgp.PrivateKey
+  private openPgpPublicKey?: openpgp.PublicKey
+  private openPgpFingerprint?: string
+  private readonly peerOpenPgpKeys = new Map<string, string>()
+  private readonly encryptedTopicSecrets = new Map<string, XmppEncryptedTopicSecret>()
+  private openPgpSaveQueue: Promise<void> = Promise.resolve()
   public readonly jid: string
   public readonly ready: Promise<void>
 
@@ -305,12 +428,16 @@ export class XmppNode extends EventEmitter {
     this.followerPath = join(dirname(this.rosterPath), `.xmpp-followers.${rosterBaseName}.json`)
     this.collectionPath = options.collectionPath ?? process.env.XMPP_COLLECTION_PATH ?? join(dirname(this.rosterPath), `.xmpp-collection.${this.libp2p.peerId.toString()}.json`)
     this.attachmentPath = options.attachmentPath ?? process.env.XMPP_ATTACHMENT_PATH ?? join(dirname(this.rosterPath), `.xmpp-attachments.${this.libp2p.peerId.toString()}.json`)
+    this.omemoPath = options.omemoPath ?? process.env.XMPP_OMEMO_PATH ?? join(dirname(this.rosterPath), `.xmpp-omemo.${rosterBaseName}.json`)
+    this.openPgpPath = options.openPgpPath ?? process.env.XMPP_OPENPGP_PATH ?? join(dirname(this.rosterPath), `.xmpp-openpgp.${rosterBaseName}.json`)
     this.ready = this.loadRoster()
       .then(() => this.loadFeedHistory())
       .then(() => this.loadSubscriptionState())
       .then(() => this.loadFollowerState())
       .then(() => this.loadCollectionState())
       .then(() => this.loadAttachmentHistory())
+      .then(() => this.loadOmemoState())
+      .then(() => this.loadOpenPgpState())
       .then(() => this.ensureOwnFeedSubscription())
       .then(() => this.ensureOwnFollowerSubscription())
 
@@ -485,6 +612,349 @@ export class XmppNode extends EventEmitter {
     }
   }
 
+  private bufferToBase64(value: ArrayBuffer | Uint8Array): string {
+    return Buffer.from(value instanceof Uint8Array ? value : new Uint8Array(value)).toString('base64')
+  }
+
+  private base64ToArrayBuffer(value: string): ArrayBuffer {
+    const bytes = Buffer.from(value, 'base64')
+    return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
+  }
+
+  private serializeKeyPair(keyPair: { pubKey: ArrayBuffer; privKey: ArrayBuffer }) {
+    return {
+      pubKey: this.bufferToBase64(keyPair.pubKey),
+      privKey: this.bufferToBase64(keyPair.privKey)
+    }
+  }
+
+  private deserializeKeyPair(keyPair: { pubKey: string; privKey: string }) {
+    return {
+      pubKey: this.base64ToArrayBuffer(keyPair.pubKey),
+      privKey: this.base64ToArrayBuffer(keyPair.privKey)
+    }
+  }
+
+  private async loadOmemoState(): Promise<void> {
+    try {
+      const raw = await fs.readFile(this.omemoPath, 'utf8')
+      const parsed = JSON.parse(raw) as Partial<XmppOmemoStateFile>
+      if (!parsed.deviceId || !parsed.registrationId || !parsed.identityKeyPair || !parsed.signedPreKey) {
+        throw new Error('OMEMO state file is missing key material')
+      }
+
+      this.omemoState = {
+        version: parsed.version ?? 1,
+        deviceId: parsed.deviceId,
+        registrationId: parsed.registrationId,
+        store: parsed.store ?? {},
+        identityKeyPair: parsed.identityKeyPair,
+        signedPreKey: parsed.signedPreKey,
+        preKeys: parsed.preKeys ?? [],
+        identities: parsed.identities ?? {},
+        sessions: parsed.sessions ?? {}
+      }
+      this.omemoDeviceId = parsed.deviceId
+      this.omemoRegistrationId = parsed.registrationId
+      this.omemoIdentityKeyPair = this.deserializeKeyPair(parsed.identityKeyPair)
+      this.omemoSignedPreKey = {
+        keyId: parsed.signedPreKey.keyId,
+        keyPair: this.deserializeKeyPair(parsed.signedPreKey.keyPair),
+        signature: this.base64ToArrayBuffer(parsed.signedPreKey.signature)
+      }
+      this.omemoStoreData.clear()
+      for (const [key, value] of Object.entries(parsed.store ?? {})) {
+        this.omemoStoreData.set(key, value)
+      }
+      this.omemoPreKeys.clear()
+      for (const preKey of this.omemoState.preKeys) {
+        this.omemoPreKeys.set(preKey.keyId, this.deserializeKeyPair(preKey.keyPair))
+      }
+      this.peerOmemoIdentityKeys.clear()
+      for (const [address, identityKey] of Object.entries(this.omemoState.identities)) {
+        this.peerOmemoIdentityKeys.set(address, identityKey)
+      }
+    } catch (err: any) {
+      if (err?.code !== 'ENOENT') {
+        console.error(`[XMPP] Failed to load OMEMO state from ${this.omemoPath}:`, err)
+      }
+
+      await this.generateOmemoState()
+    }
+  }
+
+  private async generateOmemoState(): Promise<void> {
+    const omemo = await loadOmemoModule()
+    const identityKeyPair = await omemo.KeyHelper.generateIdentityKeyPair()
+    const signedPreKey = await omemo.KeyHelper.generateSignedPreKey(identityKeyPair, 1)
+    const preKeys = await Promise.all(
+      Array.from({ length: 20 }, (_, index) => omemo.KeyHelper.generatePreKey(index + 1))
+    )
+    const deviceId = Math.floor(Math.random() * 0x7fffffff) || 1
+    const registrationId = omemo.KeyHelper.generateRegistrationId()
+
+      this.omemoState = {
+        version: 1,
+        deviceId,
+        registrationId,
+        store: {},
+        identityKeyPair: this.serializeKeyPair(identityKeyPair),
+        signedPreKey: {
+          keyId: signedPreKey.keyId,
+        keyPair: this.serializeKeyPair(signedPreKey.keyPair),
+        signature: this.bufferToBase64(signedPreKey.signature)
+      },
+      preKeys: preKeys.map(preKey => ({
+        keyId: preKey.keyId,
+        keyPair: this.serializeKeyPair(preKey.keyPair)
+      })),
+      identities: {},
+      sessions: {}
+    }
+    this.omemoDeviceId = deviceId
+    this.omemoRegistrationId = registrationId
+    this.omemoIdentityKeyPair = identityKeyPair
+    this.omemoSignedPreKey = signedPreKey
+    this.omemoStoreData.clear()
+    this.omemoPreKeys.clear()
+    for (const preKey of preKeys) {
+      this.omemoPreKeys.set(preKey.keyId, preKey.keyPair)
+    }
+    await this.persistOmemoState()
+  }
+
+  private async persistOmemoState(): Promise<void> {
+    if (!this.omemoState) {
+      return
+    }
+
+    this.omemoState.store = Object.fromEntries(this.omemoStoreData.entries())
+    await fs.mkdir(dirname(this.omemoPath), { recursive: true })
+    await fs.writeFile(this.omemoPath, `${JSON.stringify(this.omemoState, null, 2)}\n`, 'utf8')
+  }
+
+  private scheduleOmemoPersist(): Promise<void> {
+    this.omemoSaveQueue = this.omemoSaveQueue
+      .then(() => this.persistOmemoState())
+      .catch(err => {
+        console.error(`[XMPP] Failed to persist OMEMO state to ${this.omemoPath}:`, err)
+      })
+
+    return this.omemoSaveQueue
+  }
+
+  private getOmemoStore(): {
+    store: Record<string, unknown>
+    put: (key: string, value: unknown) => void
+    get: <T = unknown>(key: string, defaultValue?: T) => T | undefined
+    remove: (key: string) => void
+    isTrustedIdentity: (address: string, identityKey: ArrayBuffer, direction: OmemoDirection) => boolean | Promise<boolean>
+    loadIdentityKey: (address: string) => ArrayBuffer | undefined
+    saveIdentity: (address: string, identityKey: ArrayBuffer) => boolean
+    loadPreKey: (keyId: number) => Promise<{ keyPair: { pubKey: ArrayBuffer; privKey: ArrayBuffer } } | undefined>
+    storePreKey: (keyId: number, keyPair: { pubKey: ArrayBuffer; privKey: ArrayBuffer }) => void
+    removePreKey: (keyId: number) => void
+    loadSignedPreKey: (keyId: number) => { keyPair: { pubKey: ArrayBuffer; privKey: ArrayBuffer } } | undefined
+    storeSignedPreKey: (keyId: number, keyPair: { pubKey: ArrayBuffer; privKey: ArrayBuffer }) => void
+    removeSignedPreKey: (keyId: number) => void
+    loadSession: (address: string) => string | undefined
+    removeAllSessions: (jid: string) => void
+    removeSession: (address: string) => void
+    storeSession: (address: string, record: string) => void
+    getIdentityKeyPair: () => Promise<{ pubKey: ArrayBuffer; privKey: ArrayBuffer } | undefined>
+    getLocalRegistrationId: () => Promise<number | undefined>
+  } {
+    const node = this
+    const ensureState = () => {
+      if (!node.omemoState) {
+        throw new Error('OMEMO state is not loaded')
+      }
+
+      return node.omemoState
+    }
+    return {
+      store: Object.fromEntries(node.omemoStoreData.entries()),
+      put(key: string, value: unknown) {
+        ensureState()
+        node.omemoStoreData.set(key, value)
+        void node.scheduleOmemoPersist()
+      },
+      get<T = unknown>(key: string, defaultValue?: T) {
+        ensureState()
+        return (node.omemoStoreData.get(key) as T | undefined) ?? defaultValue
+      },
+      remove(key: string) {
+        ensureState()
+        node.omemoStoreData.delete(key)
+        void node.scheduleOmemoPersist()
+      },
+      isTrustedIdentity(address: string, identityKey: ArrayBuffer) {
+        const current = node.peerOmemoIdentityKeys.get(address)
+        const encoded = node.bufferToBase64(identityKey)
+        if (!current) {
+          node.peerOmemoIdentityKeys.set(address, encoded)
+          const state = ensureState()
+          state.identities[address] = encoded
+          void node.scheduleOmemoPersist()
+          return true
+        }
+
+        return current === encoded
+      },
+      loadIdentityKey(address: string) {
+        const encoded = node.peerOmemoIdentityKeys.get(address)
+        return encoded ? node.base64ToArrayBuffer(encoded) : undefined
+      },
+      saveIdentity(address: string, identityKey: ArrayBuffer) {
+        const encoded = node.bufferToBase64(identityKey)
+        node.peerOmemoIdentityKeys.set(address, encoded)
+        const state = ensureState()
+        state.identities[address] = encoded
+        void node.scheduleOmemoPersist()
+        return true
+      },
+      loadPreKey(keyId: number) {
+        const keyPair = node.omemoPreKeys.get(Number(keyId))
+        return Promise.resolve(keyPair ? { keyPair } : undefined)
+      },
+      storePreKey(keyId: number, keyPair: { pubKey: ArrayBuffer; privKey: ArrayBuffer }) {
+        node.omemoPreKeys.set(Number(keyId), keyPair)
+        const state = ensureState()
+        state.preKeys = Array.from(node.omemoPreKeys.entries()).map(([id, pair]) => ({
+          keyId: id,
+          keyPair: node.serializeKeyPair(pair)
+        }))
+        void node.scheduleOmemoPersist()
+      },
+      removePreKey(keyId: number) {
+        node.omemoPreKeys.delete(Number(keyId))
+        const state = ensureState()
+        state.preKeys = Array.from(node.omemoPreKeys.entries()).map(([id, pair]) => ({
+          keyId: id,
+          keyPair: node.serializeKeyPair(pair)
+        }))
+        void node.scheduleOmemoPersist()
+      },
+      loadSignedPreKey(keyId: number) {
+        const signedPreKey = node.omemoSignedPreKey
+        if (!signedPreKey || signedPreKey.keyId !== Number(keyId)) {
+          return undefined
+        }
+
+        return { keyPair: signedPreKey.keyPair }
+      },
+      storeSignedPreKey(keyId: number, keyPair: { pubKey: ArrayBuffer; privKey: ArrayBuffer }) {
+        const state = ensureState()
+        node.omemoSignedPreKey = {
+          keyId: Number(keyId),
+          keyPair,
+          signature: node.omemoSignedPreKey?.signature ?? new ArrayBuffer(0)
+        }
+        state.signedPreKey = {
+          keyId: Number(keyId),
+          keyPair: node.serializeKeyPair(keyPair),
+          signature: node.bufferToBase64(node.omemoSignedPreKey.signature)
+        }
+        void node.scheduleOmemoPersist()
+      },
+      removeSignedPreKey(keyId: number) {
+        if (node.omemoSignedPreKey?.keyId === Number(keyId)) {
+          node.omemoSignedPreKey = undefined
+        }
+      },
+      loadSession(address: string) {
+        const state = ensureState()
+        return state.sessions[address]
+      },
+      removeAllSessions(jid: string) {
+        const state = ensureState()
+        for (const address of Object.keys(state.sessions)) {
+          if (address.startsWith(`${jid}.`)) {
+            delete state.sessions[address]
+          }
+        }
+        void node.scheduleOmemoPersist()
+      },
+      removeSession(address: string) {
+        const state = ensureState()
+        delete state.sessions[address]
+        void node.scheduleOmemoPersist()
+      },
+      storeSession(address: string, record: string) {
+        const state = ensureState()
+        state.sessions[address] = record
+        void node.scheduleOmemoPersist()
+      },
+      getIdentityKeyPair() {
+        return Promise.resolve(node.omemoIdentityKeyPair)
+      },
+      getLocalRegistrationId() {
+        return Promise.resolve(node.omemoRegistrationId)
+      }
+    }
+  }
+
+  private async loadOpenPgpState(): Promise<void> {
+    try {
+      const raw = await fs.readFile(this.openPgpPath, 'utf8')
+      const parsed = JSON.parse(raw) as XmppOpenPgpStateFile
+      if (!parsed.privateKey || !parsed.publicKey || !parsed.fingerprint) {
+        throw new Error('OpenPGP state file is missing key material')
+      }
+
+      this.openPgpState = parsed
+      this.openPgpPrivateKey = await openpgp.readPrivateKey({ armoredKey: parsed.privateKey })
+      this.openPgpPublicKey = await openpgp.readKey({ armoredKey: parsed.publicKey })
+      this.openPgpFingerprint = parsed.fingerprint
+    } catch (err: any) {
+      if (err?.code !== 'ENOENT') {
+        console.error(`[XMPP] Failed to load OpenPGP state from ${this.openPgpPath}:`, err)
+      }
+
+      await this.generateOpenPgpState()
+    }
+  }
+
+  private async generateOpenPgpState(): Promise<void> {
+    const generated = await openpgp.generateKey({
+      userIDs: [{ name: this.jid, email: this.jid }],
+      type: 'curve25519',
+      format: 'armored'
+    })
+
+    const publicKey = await openpgp.readKey({ armoredKey: generated.publicKey })
+    this.openPgpState = {
+      version: 1,
+      privateKey: generated.privateKey,
+      publicKey: generated.publicKey,
+      fingerprint: publicKey.getFingerprint(),
+      createdAt: new Date().toISOString()
+    }
+    this.openPgpPrivateKey = await openpgp.readPrivateKey({ armoredKey: generated.privateKey })
+    this.openPgpPublicKey = publicKey
+    this.openPgpFingerprint = publicKey.getFingerprint()
+    await this.persistOpenPgpState()
+  }
+
+  private async persistOpenPgpState(): Promise<void> {
+    if (!this.openPgpState) {
+      return
+    }
+
+    await fs.mkdir(dirname(this.openPgpPath), { recursive: true })
+    await fs.writeFile(this.openPgpPath, `${JSON.stringify(this.openPgpState, null, 2)}\n`, 'utf8')
+  }
+
+  private scheduleOpenPgpPersist(): Promise<void> {
+    this.openPgpSaveQueue = this.openPgpSaveQueue
+      .then(() => this.persistOpenPgpState())
+      .catch(err => {
+        console.error(`[XMPP] Failed to persist OpenPGP state to ${this.openPgpPath}:`, err)
+      })
+
+    return this.openPgpSaveQueue
+  }
+
   private async ensureOwnFeedSubscription(): Promise<void> {
     const pubsub = (this.libp2p.services as any).pubsub
     if (!pubsub) {
@@ -514,6 +984,13 @@ export class XmppNode extends EventEmitter {
     } catch (err) {
       console.error('[XMPP] Failed to subscribe to own follower topic:', err)
     }
+  }
+
+  private getOpenPgpPublicKeyOrThrow(): openpgp.PublicKey {
+    if (!this.openPgpPublicKey) {
+      throw new Error('OpenPGP public key is not loaded')
+    }
+    return this.openPgpPublicKey
   }
 
   private async persistRoster(): Promise<void> {
@@ -853,6 +1330,10 @@ export class XmppNode extends EventEmitter {
       FEED_XMLNS,
       COLLECTION_XMLNS,
       ATTACHMENT_XMLNS,
+      OMEMO_FEATURE,
+      OMEMO_PTE_FEATURE,
+      OPENPGP_FEATURE,
+      OPENPGP_PUBSUB_FEATURE,
       PAM_XMLNS,
       FOLLOWERS_XMLNS
     ])
@@ -1206,13 +1687,13 @@ export class XmppNode extends EventEmitter {
     return pubsub
   }
 
-  private ensureTopicValidator(topic: string, kind: 'feed' | 'collection' | 'attachment' | 'subscription') {
+  private ensureTopicValidator(topic: string, kind: 'feed' | 'collection' | 'attachment' | 'subscription' | 'secure') {
     const pubsub = (this.libp2p.services as any).pubsub
     if (!pubsub?.topicValidators) {
       return
     }
 
-    const allowedKinds = this.topicValidationKinds.get(topic) ?? new Set<'feed' | 'collection' | 'attachment' | 'subscription'>()
+    const allowedKinds = this.topicValidationKinds.get(topic) ?? new Set<'feed' | 'collection' | 'attachment' | 'subscription' | 'secure'>()
     allowedKinds.add(kind)
     this.topicValidationKinds.set(topic, allowedKinds)
 
@@ -1256,6 +1737,14 @@ export class XmppNode extends EventEmitter {
                 valid = true
                 return
               }
+            }
+          }
+
+          if (allowedKinds.has('secure')) {
+            const encryptedEl = itemEl.getChild('encrypted')
+            if (encryptedEl && encryptedEl.attrs.xmlns === OPENPGP_PUBSUB_XMLNS && itemEl.attrs.key) {
+              valid = true
+              return
             }
           }
 
@@ -1654,6 +2143,12 @@ export class XmppNode extends EventEmitter {
         continue
       }
 
+      const encrypted = await this.parseEncryptedPubSubItem(topic, itemEl, element.attrs.from || 'unknown')
+      if (encrypted) {
+        this.emit('pubsub:message', encrypted)
+        continue
+      }
+
       const bodyEl = itemEl.getChild('body')
       if (bodyEl) {
         const pubSubMsg: XmppPubSubMessage = {
@@ -1677,6 +2172,87 @@ export class XmppNode extends EventEmitter {
         void this.recordFeedPost(feedPost).catch(err => this.emit('error', err))
       }
     }
+  }
+
+  private async parseEncryptedPubSubItem(topic: string, itemEl: Element, from: string): Promise<XmppPubSubMessage | undefined> {
+    const encryptedEl = itemEl.getChild('encrypted')
+    if (!encryptedEl || encryptedEl.attrs.xmlns !== OPENPGP_PUBSUB_XMLNS) {
+      return undefined
+    }
+
+    const keyId = encryptedEl.attrs.key
+    const payload = encryptedEl.text().trim()
+    if (!payload) {
+      return undefined
+    }
+
+    const secret = this.encryptedTopicSecrets.get(topic)?.secret
+    if (!secret) {
+      return undefined
+    }
+
+    const bytes = Buffer.from(payload, 'base64')
+    const message = await openpgp.readMessage({ binaryMessage: bytes })
+    const decrypted = await openpgp.decrypt({
+      message,
+      passwords: secret,
+      format: 'utf8'
+    })
+    const body = typeof decrypted.data === 'string' ? decrypted.data : new TextDecoder().decode(decrypted.data as Uint8Array)
+    return {
+      topic,
+      node: itemEl.attrs.node,
+      from,
+      body,
+      itemId: itemEl.attrs.id,
+      encrypted: true,
+      encryption: 'openpgp',
+      keyId
+    }
+  }
+
+  private async decryptOpenPgpMessage(payload: string): Promise<string> {
+    await this.ready
+    const bytes = Buffer.from(payload.trim(), 'base64')
+    const message = await openpgp.readMessage({ binaryMessage: bytes })
+    const decrypted = await openpgp.decrypt({
+      message,
+      decryptionKeys: this.getOpenPgpPrivateKeyOrThrow(),
+      format: 'utf8'
+    })
+    return typeof decrypted.data === 'string' ? decrypted.data : new TextDecoder().decode(decrypted.data as Uint8Array)
+  }
+
+  async fetchOpenPgpPublicKey(peerAddr: string | Multiaddr): Promise<XmppOpenPgpPublicKeyResponse> {
+    const xmppStream = await this.getOrCreateStream(peerAddr)
+    const id = Math.random().toString(36).substring(2, 11)
+    const toJid = xmppStream.remotePeer.toString() + '@p2p'
+
+    const iq = xml(
+      'iq',
+      {
+        to: toJid,
+        from: this.jid,
+        type: 'get',
+        id
+      },
+      xml('query', { xmlns: OPENPGP_IQ_XMLNS })
+    )
+
+    const result = await this.sendIqRequest(peerAddr, iq)
+    const query = result.getChild('query')
+    if (!query) {
+      throw new Error('OpenPGP key response missing query payload')
+    }
+
+    const pubkeyEl = query.getChild('pubkey')
+    const publicKey = pubkeyEl?.text().trim()
+    const fingerprint = pubkeyEl?.attrs.fingerprint || ''
+    if (!publicKey || !fingerprint) {
+      throw new Error('OpenPGP key response missing public key material')
+    }
+
+    return { fingerprint, publicKey }
   }
 
   private async handlePubSubPayload(topic: string, xmlStr: string): Promise<void> {
@@ -2096,6 +2672,25 @@ export class XmppNode extends EventEmitter {
 
     const query = element.getChild('query')
     if (!query) {
+      const pubsub = element.getChild('pubsub')
+      if (pubsub) {
+        const items = pubsub.getChild('items')
+        const node = items?.attrs.node
+        if (type === 'get' && node === OMEMO_DEVICES_NODE) {
+          await this.sendIqResult(peerId, id, this.buildOmemoDevicesQuery())
+          return
+        }
+
+        if (type === 'get' && node === OMEMO_BUNDLES_NODE) {
+          const item = items?.getChild('item')
+          const deviceId = Number(item?.attrs.id ?? 0)
+          if (Number.isFinite(deviceId) && deviceId > 0) {
+            await this.sendIqResult(peerId, id, this.buildOmemoBundleQuery(deviceId))
+            return
+          }
+        }
+      }
+
       return
     }
 
@@ -2150,6 +2745,28 @@ export class XmppNode extends EventEmitter {
     if (query.attrs.xmlns === DISCO_ITEMS_XMLNS) {
       if (type === 'get') {
         await this.sendIqResult(peerId, id, this.buildDiscoItemsQuery(query.attrs.node))
+      }
+      return
+    }
+
+    if (query.attrs.xmlns === OPENPGP_IQ_XMLNS) {
+      if (type === 'get') {
+        const publicKey = this.openPgpState?.publicKey
+        const fingerprint = this.openPgpFingerprint ?? this.openPgpState?.fingerprint
+        if (!publicKey || !fingerprint) {
+          await this.sendIqResult(peerId, id, xml('query', { xmlns: OPENPGP_IQ_XMLNS }))
+          return
+        }
+
+        await this.sendIqResult(
+          peerId,
+          id,
+          xml(
+            'query',
+            { xmlns: OPENPGP_IQ_XMLNS },
+            xml('pubkey', { fingerprint }, publicKey)
+          )
+        )
       }
       return
     }
@@ -2226,6 +2843,59 @@ export class XmppNode extends EventEmitter {
       if (eventEl && eventEl.attrs.xmlns === PUBSUB_EVENT_XMLNS) {
         await this.handlePubSubMessageElement(peerId, element)
         return
+      }
+
+      const omemoEl = element.getChild('encrypted')
+      if (omemoEl && omemoEl.attrs.xmlns === OMEMO_XMLNS) {
+        const headerEl = omemoEl.getChild('header')
+        const payloadEl = omemoEl.getChild('payload')
+        const sid = Number(headerEl?.attrs.sid ?? 0)
+        const ivEl = headerEl?.getChild('iv')
+        const keysEl = (headerEl?.children as any[] ?? []).filter(child => child?.name === 'keys') as Element[]
+        const payload = payloadEl?.text().trim()
+        const iv = ivEl?.text().trim()
+        const rid = this.getOmemoDeviceIdOrThrow()
+        const keyEl = keysEl
+          .flatMap(keys => (keys.children as any[]).filter(child => child?.name === 'key'))
+          .find((child: Element) => Number(child.attrs.rid ?? 0) === rid)
+
+        if (headerEl && payload && iv && keyEl && Number.isFinite(sid) && sid > 0) {
+          const omemo = await loadOmemoModule()
+          const remoteAddress = new omemo.OMEMOAddress(fromJid, sid)
+          const encryptedKey = keyEl.text().trim()
+          const payloadKey = await this.decryptOmemoKey(remoteAddress, encryptedKey)
+          const body = this.decryptOmemoPayload(payload, payloadKey, iv)
+          const message: XmppMessage = {
+            from: fromJid,
+            to: toJid,
+            body,
+            id: element.attrs.id,
+            type: element.attrs.type || 'chat',
+            encrypted: true,
+            encryption: 'omemo'
+          }
+          this.emit('message', message)
+          return
+        }
+      }
+
+      const openPgpEl = element.getChild('openpgp')
+      if (openPgpEl && openPgpEl.attrs.xmlns === OPENPGP_XMLNS) {
+        const payload = openPgpEl.text().trim()
+        if (payload) {
+          const body = await this.decryptOpenPgpMessage(payload)
+          const message: XmppMessage = {
+            from: fromJid,
+            to: toJid,
+            body,
+            id: element.attrs.id,
+            type: element.attrs.type || 'chat',
+            encrypted: true,
+            encryption: 'openpgp'
+          }
+          this.emit('message', message)
+          return
+        }
       }
 
       const bodyEl = element.getChild('body')
@@ -2470,6 +3140,483 @@ export class XmppNode extends EventEmitter {
 
     xmppStream.send(msg)
     return id
+  }
+
+  private getOmemoDeviceIdOrThrow(): number {
+    if (!this.omemoDeviceId) {
+      throw new Error('OMEMO device id is not loaded')
+    }
+
+    return this.omemoDeviceId
+  }
+
+  private getOmemoIdentityKeyPairOrThrow() {
+    if (!this.omemoIdentityKeyPair) {
+      throw new Error('OMEMO identity key pair is not loaded')
+    }
+
+    return this.omemoIdentityKeyPair
+  }
+
+  private getOmemoSignedPreKeyOrThrow() {
+    if (!this.omemoSignedPreKey) {
+      throw new Error('OMEMO signed pre-key is not loaded')
+    }
+
+    return this.omemoSignedPreKey
+  }
+
+  private getOmemoBundle(): XmppOmemoBundle {
+    const identityKeyPair = this.getOmemoIdentityKeyPairOrThrow()
+    const signedPreKey = this.getOmemoSignedPreKeyOrThrow()
+    if (!this.omemoState) {
+      throw new Error('OMEMO state is not loaded')
+    }
+
+    const preKeys = Array.from(this.omemoPreKeys.entries()).map(([keyId, keyPair]) => ({
+      keyId,
+      publicKey: this.bufferToBase64(keyPair.pubKey)
+    }))
+
+    return {
+      deviceId: this.omemoDeviceId,
+      registrationId: this.omemoRegistrationId,
+      identityKey: this.bufferToBase64(identityKeyPair.pubKey),
+      signedPreKeyId: signedPreKey.keyId,
+      signedPreKey: this.bufferToBase64(signedPreKey.keyPair.pubKey),
+      signedPreKeySignature: this.bufferToBase64(signedPreKey.signature),
+      preKeys
+    }
+  }
+
+  private buildOmemoDevicesQuery(): Element {
+    if (!this.omemoState) {
+      return xml('pubsub', { xmlns: 'http://jabber.org/protocol/pubsub' })
+    }
+
+    return xml(
+      'pubsub',
+      { xmlns: 'http://jabber.org/protocol/pubsub' },
+      xml(
+        'items',
+        { node: OMEMO_DEVICES_NODE },
+        xml(
+          'item',
+          { id: 'current' },
+          xml(
+            'list',
+            { xmlns: OMEMO_DEVICES_XMLNS },
+            xml('device', { id: String(this.omemoDeviceId) })
+          )
+        )
+      )
+    )
+  }
+
+  private buildOmemoBundleQuery(deviceId: number): Element {
+    const bundle = this.getOmemoBundle()
+    if (bundle.deviceId !== deviceId) {
+      throw new Error(`No OMEMO bundle available for device ${deviceId}`)
+    }
+
+    return xml(
+      'pubsub',
+      { xmlns: 'http://jabber.org/protocol/pubsub' },
+      xml(
+        'items',
+        { node: OMEMO_BUNDLES_NODE },
+        xml(
+          'item',
+          { id: String(deviceId), registrationId: String(bundle.registrationId) },
+          xml(
+            'bundle',
+            { xmlns: OMEMO_XMLNS },
+            xml('ik', {}, bundle.identityKey),
+            xml('spk', { id: String(bundle.signedPreKeyId) }, bundle.signedPreKey),
+            xml('spks', {}, bundle.signedPreKeySignature),
+            ...bundle.preKeys.map(preKey => xml('pk', { id: String(preKey.keyId) }, preKey.publicKey))
+          )
+        )
+      )
+    )
+  }
+
+  private parseOmemoDeviceListQuery(items: Element): number[] {
+    const list = items.getChild('item')?.getChild('list')
+    if (!list || list.attrs.xmlns !== OMEMO_DEVICES_XMLNS) {
+      return []
+    }
+
+    return (list.children as any[])
+      .filter(child => child?.name === 'device')
+      .map((child: Element) => Number(child.attrs.id))
+      .filter(deviceId => Number.isFinite(deviceId) && deviceId > 0)
+  }
+
+  private parseOmemoBundleQuery(items: Element): XmppOmemoBundle | undefined {
+    const item = items.getChild('item')
+    if (!item) {
+      return undefined
+    }
+
+    const bundle = item.getChild('bundle')
+    if (!bundle || bundle.attrs.xmlns !== OMEMO_XMLNS) {
+      return undefined
+    }
+
+    const identityKey = bundle.getChild('ik')?.text().trim()
+    const signedPreKeyEl = bundle.getChild('spk')
+    const signedPreKeySignature = bundle.getChild('spks')?.text().trim()
+    if (!identityKey || !signedPreKeyEl || !signedPreKeySignature) {
+      return undefined
+    }
+
+    const preKeys = (bundle.children as any[])
+      .filter(child => child?.name === 'pk')
+      .map((child: Element) => ({
+        keyId: Number(child.attrs.id ?? child.attrs.keyId ?? child.attrs.signedPreKeyId ?? 0),
+        publicKey: child.text().trim()
+      }))
+      .filter(preKey => Number.isFinite(preKey.keyId) && preKey.keyId > 0 && preKey.publicKey)
+
+    return {
+      deviceId: Number(item.attrs.id),
+      registrationId: Number(item.attrs.registrationId ?? 0),
+      identityKey,
+      signedPreKeyId: Number(signedPreKeyEl.attrs.id ?? signedPreKeyEl.attrs.signedPreKeyId ?? 0),
+      signedPreKey: signedPreKeyEl.text().trim(),
+      signedPreKeySignature,
+      preKeys
+    }
+  }
+
+  async fetchOmemoDeviceList(peerAddr: string | Multiaddr): Promise<number[]> {
+    await this.ready
+    const xmppStream = await this.getOrCreateStream(peerAddr)
+    const peerId = xmppStream.remotePeer.toString()
+    const iq = xml(
+      'iq',
+      {
+        to: this.jidFromPeerId(peerId),
+        from: this.jid,
+        type: 'get',
+        id: Math.random().toString(36).substring(2, 11)
+      },
+      xml(
+        'pubsub',
+        { xmlns: 'http://jabber.org/protocol/pubsub' },
+        xml('items', { node: OMEMO_DEVICES_NODE })
+      )
+    )
+    const result = await this.sendIqRequest(peerAddr, iq)
+    const pubsub = result.getChild('pubsub')
+    const items = pubsub?.getChild('items')
+    const devices = items ? this.parseOmemoDeviceListQuery(items) : []
+    if (devices.length > 0) {
+      this.peerOmemoDeviceLists.set(peerId, devices)
+    }
+    return devices
+  }
+
+  async fetchOmemoBundle(peerAddr: string | Multiaddr, deviceId: number): Promise<XmppOmemoBundle> {
+    await this.ready
+    const xmppStream = await this.getOrCreateStream(peerAddr)
+    const peerId = xmppStream.remotePeer.toString()
+    const iq = xml(
+      'iq',
+      {
+        to: this.jidFromPeerId(peerId),
+        from: this.jid,
+        type: 'get',
+        id: Math.random().toString(36).substring(2, 11)
+      },
+      xml(
+        'pubsub',
+        { xmlns: 'http://jabber.org/protocol/pubsub' },
+        xml(
+          'items',
+          { node: OMEMO_BUNDLES_NODE },
+          xml('item', { id: String(deviceId) })
+        )
+      )
+    )
+    const result = await this.sendIqRequest(peerAddr, iq)
+    const pubsub = result.getChild('pubsub')
+    const items = pubsub?.getChild('items')
+    const bundle = items ? this.parseOmemoBundleQuery(items) : undefined
+    if (!bundle) {
+      throw new Error(`No OMEMO bundle returned for device ${deviceId}`)
+    }
+
+    let bundles = this.peerOmemoBundles.get(peerId)
+    if (!bundles) {
+      bundles = new Map()
+      this.peerOmemoBundles.set(peerId, bundles)
+    }
+    bundles.set(deviceId, bundle)
+    return bundle
+  }
+
+  private async getPeerOmemoDevices(peerAddr: string | Multiaddr): Promise<number[]> {
+    const xmppStream = await this.getOrCreateStream(peerAddr)
+    const peerId = xmppStream.remotePeer.toString()
+    const cached = this.peerOmemoDeviceLists.get(peerId)
+    if (cached && cached.length > 0) {
+      return cached
+    }
+
+    return await this.fetchOmemoDeviceList(peerAddr)
+  }
+
+  private async getPeerOmemoBundle(peerAddr: string | Multiaddr, deviceId: number): Promise<XmppOmemoBundle> {
+    const xmppStream = await this.getOrCreateStream(peerAddr)
+    const peerId = xmppStream.remotePeer.toString()
+    const cached = this.peerOmemoBundles.get(peerId)?.get(deviceId)
+    if (cached) {
+      return cached
+    }
+
+    return await this.fetchOmemoBundle(peerAddr, deviceId)
+  }
+
+  private async ensureOmemoSession(peerAddr: string | Multiaddr, deviceId: number): Promise<void> {
+    const xmppStream = await this.getOrCreateStream(peerAddr)
+    const peerJid = this.jidFromPeerId(xmppStream.remotePeer.toString())
+    const omemo = await loadOmemoModule()
+    const remoteAddress = new omemo.OMEMOAddress(peerJid, deviceId)
+    const store = this.getOmemoStore()
+    const sessionCipher = new omemo.SessionCipher(store, remoteAddress)
+    const hasOpenSession = await sessionCipher.hasOpenSession()
+    if (hasOpenSession) {
+      return
+    }
+
+    const bundle = await this.getPeerOmemoBundle(peerAddr, deviceId)
+    const sessionBuilder = new omemo.SessionBuilder(store, remoteAddress)
+    await sessionBuilder.processPreKey({
+      registrationId: bundle.registrationId,
+      identityKey: this.base64ToArrayBuffer(bundle.identityKey),
+      signedPreKey: {
+        keyId: bundle.signedPreKeyId,
+        publicKey: this.base64ToArrayBuffer(bundle.signedPreKey),
+        signature: this.base64ToArrayBuffer(bundle.signedPreKeySignature)
+      },
+      preKey: bundle.preKeys[0]
+        ? {
+            keyId: bundle.preKeys[0].keyId,
+            publicKey: this.base64ToArrayBuffer(bundle.preKeys[0].publicKey)
+          }
+        : undefined
+    })
+  }
+
+  async sendEncryptedMessage(peerAddr: string | Multiaddr, body: string): Promise<string> {
+    await this.ready
+    const xmppStream = await this.getOrCreateStream(peerAddr)
+    const peerId = xmppStream.remotePeer.toString()
+    const toJid = `${peerId}@p2p`
+    const itemId = Math.random().toString(36).substring(2, 11)
+    const devices = await this.getPeerOmemoDevices(peerAddr)
+    if (devices.length === 0) {
+      throw new Error(`No OMEMO devices available for ${toJid}`)
+    }
+
+    const payloadKeyBytes = randomBytes(16)
+    const iv = randomBytes(12)
+
+    const cipher = createCipheriv('aes-128-gcm', payloadKeyBytes, iv)
+    const ciphertext = Buffer.concat([cipher.update(body, 'utf8'), cipher.final()])
+    const authTag = cipher.getAuthTag()
+    const payload = Buffer.concat([ciphertext, authTag]).toString('base64')
+
+    const keys: Element[] = []
+    for (const deviceId of devices) {
+      await this.ensureOmemoSession(peerAddr, deviceId)
+      const omemo = await loadOmemoModule()
+      const remoteAddress = new omemo.OMEMOAddress(toJid, deviceId)
+      const sessionCipher = new omemo.SessionCipher(this.getOmemoStore(), remoteAddress)
+      const encryptedKey = await sessionCipher.encrypt(payloadKeyBytes)
+      keys.push(xml('key', { rid: String(deviceId) }, Buffer.from(encryptedKey.body, 'binary').toString('base64')))
+    }
+
+    const stanza = xml(
+      'message',
+      {
+        to: toJid,
+        from: this.jid,
+        type: 'chat',
+        id: itemId
+      },
+      xml(
+        'encrypted',
+        { xmlns: OMEMO_XMLNS },
+        xml(
+          'header',
+          { sid: String(this.getOmemoDeviceIdOrThrow()) },
+          xml('keys', { jid: toJid }, ...keys),
+          xml('iv', {}, iv.toString('base64'))
+        ),
+        xml('payload', {}, payload)
+      )
+    )
+
+    xmppStream.send(stanza)
+    return itemId
+  }
+
+  async getOmemoDeviceId(): Promise<number> {
+    await this.ready
+    return this.getOmemoDeviceIdOrThrow()
+  }
+
+  async getOmemoRegistrationId(): Promise<number> {
+    await this.ready
+    if (!this.omemoRegistrationId) {
+      throw new Error('OMEMO registration id is not loaded')
+    }
+
+    return this.omemoRegistrationId
+  }
+
+  async getOmemoIdentityKey(): Promise<string> {
+    await this.ready
+    return this.bufferToBase64(this.getOmemoIdentityKeyPairOrThrow().pubKey)
+  }
+
+  async getOmemoBundleSummary(): Promise<{
+    deviceId: number
+    registrationId: number
+    preKeyCount: number
+    signedPreKeyId: number
+  }> {
+    await this.ready
+    const bundle = this.getOmemoBundle()
+    return {
+      deviceId: bundle.deviceId,
+      registrationId: bundle.registrationId,
+      preKeyCount: bundle.preKeys.length,
+      signedPreKeyId: bundle.signedPreKeyId
+    }
+  }
+
+  private async decryptOmemoKey(remoteAddress: OmemoAddress, payload: string): Promise<ArrayBuffer> {
+    const omemo = await loadOmemoModule()
+    const store = this.getOmemoStore()
+    const sessionCipher = new omemo.SessionCipher(store, remoteAddress)
+    try {
+      return await sessionCipher.decryptPreKeyWhisperMessage(payload, 'base64')
+    } catch (preKeyErr) {
+      try {
+        return await sessionCipher.decryptWhisperMessage(payload, 'base64')
+      } catch (whisperErr) {
+        throw whisperErr instanceof Error ? whisperErr : preKeyErr
+      }
+    }
+  }
+
+  private decryptOmemoPayload(payload: string, payloadKey: ArrayBuffer, ivB64: string): string {
+    const bytes = Buffer.from(payload, 'base64')
+    if (bytes.byteLength < 16) {
+      throw new Error('OMEMO payload is too short')
+    }
+
+    const tag = bytes.subarray(bytes.byteLength - 16)
+    const ciphertext = bytes.subarray(0, bytes.byteLength - 16)
+    const iv = Buffer.from(ivB64, 'base64')
+    const decipher = createDecipheriv('aes-128-gcm', Buffer.from(payloadKey), iv)
+    decipher.setAuthTag(tag)
+    return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8')
+  }
+
+  async getOpenPgpPublicKey(): Promise<string> {
+    await this.ready
+    return this.openPgpState?.publicKey ?? ''
+  }
+
+  async getOpenPgpFingerprint(): Promise<string> {
+    await this.ready
+    return this.openPgpFingerprint ?? this.openPgpState?.fingerprint ?? ''
+  }
+
+  async registerPeerOpenPgpPublicKey(peerAddr: string | Multiaddr, armoredKey: string): Promise<string> {
+    const xmppStream = await this.getOrCreateStream(peerAddr)
+    const peerId = xmppStream.remotePeer.toString()
+    const key = await openpgp.readKey({ armoredKey })
+    this.peerOpenPgpKeys.set(peerId, armoredKey)
+    return key.getFingerprint()
+  }
+
+  async setEncryptedPubSubSecret(topic: string, keyId: string, secret: string): Promise<void> {
+    this.encryptedTopicSecrets.set(topic, {
+      topic,
+      keyId,
+      secret,
+      updatedAt: new Date().toISOString()
+    })
+  }
+
+  async publishEncrypted(topic: string, body: string, options: { keyId?: string; secret?: string; itemId?: string } = {}): Promise<string> {
+    const pubsub = this.getPubSubService()
+    const secret = options.secret ?? this.encryptedTopicSecrets.get(topic)?.secret
+    const keyId = options.keyId ?? this.encryptedTopicSecrets.get(topic)?.keyId ?? 'default'
+    if (!secret) {
+      throw new Error(`No OpenPGP shared secret configured for topic ${topic}`)
+    }
+
+    this.ensureTopicValidator(topic, 'secure')
+    await pubsub.subscribe(topic)
+
+    const message = await openpgp.createMessage({ text: body })
+    const encrypted = await openpgp.encrypt({
+      message,
+      passwords: secret,
+      format: 'binary'
+    })
+    const payload = Buffer.from(encrypted as Uint8Array).toString('base64')
+    const itemId = options.itemId ?? Math.random().toString(36).substring(2, 11)
+    const stanza = xml(
+      'message',
+      {
+        from: this.jid,
+        to: 'pubsub.p2p',
+        type: 'headline'
+      },
+      xml(
+        'event',
+        { xmlns: PUBSUB_EVENT_XMLNS },
+        xml(
+          'items',
+          { node: topic },
+          xml(
+            'item',
+            { id: itemId, key: keyId },
+            xml( 'encrypted', { xmlns: OPENPGP_PUBSUB_XMLNS, key: keyId }, payload)
+          )
+        )
+      )
+    )
+
+    await pubsub.publish(topic, new TextEncoder().encode(stanza.toString()))
+    return itemId
+  }
+
+  private getOpenPgpPrivateKeyOrThrow(): openpgp.PrivateKey {
+    if (!this.openPgpPrivateKey) {
+      throw new Error('OpenPGP private key is not loaded')
+    }
+    return this.openPgpPrivateKey
+  }
+
+  private async getPeerOpenPgpKey(peerAddr: string | Multiaddr): Promise<openpgp.PublicKey> {
+    const xmppStream = await this.getOrCreateStream(peerAddr)
+    const peerId = xmppStream.remotePeer.toString()
+    let armoredKey = this.peerOpenPgpKeys.get(peerId)
+    if (!armoredKey) {
+      const response = await this.fetchOpenPgpPublicKey(peerAddr)
+      armoredKey = response.publicKey
+      this.peerOpenPgpKeys.set(peerId, armoredKey)
+    }
+    return await openpgp.readKey({ armoredKey })
   }
 
   // Send presence updates
@@ -2964,5 +4111,9 @@ export class XmppNode extends EventEmitter {
     await this.persistCollectionState()
     await this.attachmentSaveQueue
     await this.persistAttachmentHistory()
+    await this.omemoSaveQueue
+    await this.persistOmemoState()
+    await this.openPgpSaveQueue
+    await this.persistOpenPgpState()
   }
 }
