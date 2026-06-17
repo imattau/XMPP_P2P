@@ -12,6 +12,7 @@ import { multiaddr } from '@multiformats/multiaddr'
 export interface CreateP2PNodeOptions {
   enableMdns?: boolean
   enableDht?: boolean
+  host?: string
 }
 
 // Polyfill Multiaddr.prototype.toOptions since older @multiformats/multiaddr versions used in libp2p
@@ -32,7 +33,7 @@ if (!MultiaddrProto.toOptions) {
 }
 
 export async function createP2PNode(port?: number, options: CreateP2PNodeOptions = {}): Promise<any> {
-  const listenHost = '127.0.0.1'
+  const listenHost = options.host || '0.0.0.0'
   const peerDiscovery = []
 
   if (options.enableMdns !== false) {

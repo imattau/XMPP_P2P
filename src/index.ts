@@ -7,9 +7,10 @@ async function main() {
   const portArg = args.find(arg => arg.startsWith('--port='))
   const port = portArg ? parseInt(portArg.split('=')[1], 10) : undefined
   const rosterPathArg = args.find(arg => arg.startsWith('--roster-file='))?.split('=')[1]
+  const hostArg = args.find(arg => arg.startsWith('--host='))?.split('=')[1]
 
   console.log('Initializing libp2p Node...')
-  const libp2p = await createP2PNode(port)
+  const libp2p = await createP2PNode(port, { host: hostArg })
 
   await libp2p.start()
   console.log('libp2p Node started!')
