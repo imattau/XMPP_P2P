@@ -23,11 +23,56 @@ async function runPubSubTest() {
   await libp2p1.dial(loopbackAddr)
   console.log('Nodes connected!\n')
 
+  const pubsub1 = (libp2p1.services as any).pubsub
+  const pubsub2 = (libp2p2.services as any).pubsub
+  const waitForPubSubPeers = async (timeoutMs: number) => {
+    const startedAt = Date.now()
+    while (Date.now() - startedAt < timeoutMs) {
+      if (pubsub1.getPeers().length > 0 && pubsub2.getPeers().length > 0) {
+        return
+      }
+      await new Promise(resolve => setTimeout(resolve, 250))
+    }
+    throw new Error('Timed out waiting for pubsub peers to connect')
+  }
+
+  console.log('Waiting for pubsub peers to connect...')
+  await waitForPubSubPeers(10000)
+
+  const waitForPubSubStreams = async (timeoutMs: number) => {
+    const startedAt = Date.now()
+    while (Date.now() - startedAt < timeoutMs) {
+      if (pubsub1.streamsOutbound.size > 0 && pubsub2.streamsOutbound.size > 0) {
+        return
+      }
+      await new Promise(resolve => setTimeout(resolve, 250))
+    }
+    throw new Error('Timed out waiting for pubsub streams to become writable')
+  }
+
+  console.log('Waiting for pubsub streams to become writable...')
+  await waitForPubSubStreams(10000)
+
   // Subscribe both nodes to 'xmpp-news' topic
   const topic = 'xmpp-news'
   console.log(`Subscribing both nodes to Gossipsub topic: ${topic}`)
-  xmppNode1.subscribe(topic)
-  xmppNode2.subscribe(topic)
+  await xmppNode1.subscribe(topic)
+  await xmppNode2.subscribe(topic)
+  const waitForSubscribers = async (timeoutMs: number) => {
+    const startedAt = Date.now()
+    while (Date.now() - startedAt < timeoutMs) {
+      const subscribers1 = pubsub1.getSubscribers(topic).map((peer: any) => peer.toString())
+      const subscribers2 = pubsub2.getSubscribers(topic).map((peer: any) => peer.toString())
+      if (
+        subscribers1.includes(libp2p2.peerId.toString()) &&
+        subscribers2.includes(libp2p1.peerId.toString())
+      ) {
+        return
+      }
+      await new Promise(resolve => setTimeout(resolve, 500))
+    }
+    throw new Error(`Timed out waiting for gossipsub subscribers on topic "${topic}"`)
+  }
 
   let node2Received = false
   let receivedMsg: any = null
@@ -44,10 +89,8 @@ async function runPubSubTest() {
     }
   })
 
-  // Gossipsub requires peers to discover and establish connection first.
-  // Wait a few seconds for mDNS discovery and Gossipsub mesh connection.
-  console.log('\nWaiting 4 seconds for peer discovery and Gossipsub mesh setup...')
-  await new Promise(resolve => setTimeout(resolve, 4000))
+  console.log('\nWaiting for gossipsub subscription propagation...')
+  await waitForSubscribers(10000)
 
   // Publish from Node 1
   console.log(`\nPublishing item to topic "${topic}" from Node 1...`)
