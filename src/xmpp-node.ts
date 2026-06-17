@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs'
 import { basename, dirname, join } from 'path'
+import { createHash } from 'crypto'
 import { Libp2p } from 'libp2p'
 import { xml, Element, Parser } from '@xmpp/xml'
 import { EventEmitter } from 'events'
@@ -8,6 +9,9 @@ import { multiaddr, Multiaddr } from '@multiformats/multiaddr'
 import { TopicValidatorResult } from '@libp2p/gossipsub'
 
 const ROSTER_XMLNS = 'jabber:iq:roster'
+const DISCO_INFO_XMLNS = 'http://jabber.org/protocol/disco#info'
+const DISCO_ITEMS_XMLNS = 'http://jabber.org/protocol/disco#items'
+const CAPS_XMLNS = 'http://jabber.org/protocol/caps'
 const PUBSUB_EVENT_XMLNS = 'http://jabber.org/protocol/pubsub#event'
 const FEED_XMLNS = 'urn:xmpp:feed:0'
 const COLLECTION_XMLNS = 'urn:xmpp:collection:0'
@@ -18,6 +22,7 @@ const FEED_HISTORY_LIMIT = 50
 const COLLECTION_HISTORY_LIMIT = 100
 const ATTACHMENT_HISTORY_LIMIT = 200
 const SUBSCRIPTION_HISTORY_LIMIT = 200
+const DISCOVERY_NODE = 'urn:xmpp:p2p:discovery'
 const FEED_TOPIC_PREFIX = 'xmpp-feed:'
 const COLLECTION_TOPIC_PREFIX = 'xmpp-collection:'
 const FOLLOWERS_TOPIC_PREFIX = 'xmpp-followers:'
@@ -84,6 +89,38 @@ export interface XmppFeedPost {
   node?: string
   title?: string
   author?: string
+}
+
+export interface XmppDiscoIdentity {
+  category: string
+  type?: string
+  name?: string
+  lang?: string
+}
+
+export interface XmppDiscoInfo {
+  node?: string
+  identities: XmppDiscoIdentity[]
+  features: string[]
+  ver: string
+  hash: 'sha-1'
+  cachedAt: string
+}
+
+export interface XmppDiscoItem {
+  jid: string
+  node?: string
+  name?: string
+}
+
+export interface XmppEntityCapabilities {
+  peerId: string
+  jid: string
+  node: string
+  ver: string
+  hash: 'sha-1'
+  info: XmppDiscoInfo
+  discoveredAt: string
 }
 
 export interface XmppFeedSubscription {
@@ -210,6 +247,12 @@ interface XmppAttachmentFile {
   attachments: XmppAttachment[]
 }
 
+interface XmppCapsPresence {
+  node: string
+  ver: string
+  hash: 'sha-1' | string
+}
+
 export class XmppNode extends EventEmitter {
   private libp2p: Libp2p
   private streams = new Map<string, XmppStream>()
@@ -223,6 +266,8 @@ export class XmppNode extends EventEmitter {
   private collectionHistory = new Map<string, XmppCollectionPost>()
   private collectionFeedIndex = new Map<string, Set<string>>()
   private attachmentHistory = new Map<string, XmppAttachment>()
+  private discoInfoCache = new Map<string, XmppDiscoInfo>()
+  private entityCapabilities = new Map<string, XmppEntityCapabilities>()
   private pendingIq = new Map<string, PendingIq>()
   private topicValidationKinds = new Map<string, Set<'feed' | 'collection' | 'attachment' | 'subscription'>>()
   private rosterSaveQueue: Promise<void> = Promise.resolve()
@@ -240,6 +285,12 @@ export class XmppNode extends EventEmitter {
   private readonly followerPath: string
   private readonly collectionPath: string
   private readonly attachmentPath: string
+  private readonly discoveryNode: string = DISCOVERY_NODE
+  private readonly discoveryIdentity: XmppDiscoIdentity = {
+    category: 'client',
+    type: 'pc',
+    name: 'XMPP P2P'
+  }
   public readonly jid: string
   public readonly ready: Promise<void>
 
@@ -775,6 +826,276 @@ export class XmppNode extends EventEmitter {
 
   private followerTopicForPeer(peerId: string): string {
     return `${FOLLOWERS_TOPIC_PREFIX}${peerId}`
+  }
+
+  private getDiscoveryIdentities(node?: string): XmppDiscoIdentity[] {
+    if (node) {
+      const collection = this.collections.get(node) ?? Array.from(this.collections.values()).find(entry => entry.topic === node)
+      if (collection) {
+        return [{
+          category: 'conference',
+          type: 'text',
+          name: collection.name ?? collection.id
+        }]
+      }
+    }
+
+    return [this.discoveryIdentity]
+  }
+
+  private getDiscoveryFeatures(node?: string): string[] {
+    const features = new Set<string>([
+      DISCO_INFO_XMLNS,
+      DISCO_ITEMS_XMLNS,
+      CAPS_XMLNS,
+      ROSTER_XMLNS,
+      PUBSUB_EVENT_XMLNS,
+      FEED_XMLNS,
+      COLLECTION_XMLNS,
+      ATTACHMENT_XMLNS,
+      PAM_XMLNS,
+      FOLLOWERS_XMLNS
+    ])
+
+    if (node) {
+      const collection = this.collections.get(node) ?? Array.from(this.collections.values()).find(entry => entry.topic === node)
+      if (collection) {
+        features.add(COLLECTION_XMLNS)
+        features.add(FEED_XMLNS)
+      }
+    }
+
+    return Array.from(features).sort()
+  }
+
+  private computeDiscoveryVer(identities: XmppDiscoIdentity[], features: string[]): string {
+    const identityBits = identities
+      .map(identity => [identity.category, identity.type ?? '', identity.lang ?? '', identity.name ?? ''].join('<'))
+      .sort()
+    const payload = [...identityBits, ...features.slice().sort()].join('<')
+    return createHash('sha1').update(payload).digest('base64')
+  }
+
+  private buildCapsElement(): Element {
+    const identities = this.getDiscoveryIdentities()
+    const features = this.getDiscoveryFeatures()
+    const ver = this.computeDiscoveryVer(identities, features)
+    return xml('c', {
+      xmlns: CAPS_XMLNS,
+      hash: 'sha-1',
+      node: this.discoveryNode,
+      ver
+    })
+  }
+
+  private buildDiscoInfoQuery(node?: string): Element {
+    const identities = this.getDiscoveryIdentities(node)
+    const features = this.getDiscoveryFeatures(node)
+    const ver = this.computeDiscoveryVer(identities, features)
+    const queryAttrs: Record<string, string> = { xmlns: DISCO_INFO_XMLNS }
+    if (node) {
+      queryAttrs.node = node
+    }
+
+    return xml(
+      'query',
+      queryAttrs,
+      ...identities.map(identity => xml('identity', identity as unknown as Record<string, string>)),
+      ...features.map(feature => xml('feature', { var: feature }))
+    )
+  }
+
+  private buildDiscoItemsQuery(node?: string): Element {
+    const isRootNode = !node || node === this.discoveryNode || node.startsWith(`${this.discoveryNode}#`)
+    const items = isRootNode
+      ? Array.from(this.collectionSubscriptions.values()).map(subscription => {
+          const collection = this.collections.get(subscription.id)
+          return {
+          jid: this.jid,
+            node: subscription.id,
+            name: collection?.name ?? subscription.id
+          }
+        })
+      : (() => {
+          const collection = this.collections.get(node) ?? Array.from(this.collections.values()).find(entry => entry.topic === node)
+          if (!collection) {
+            return [] as XmppDiscoItem[]
+          }
+          return collection.members.map(member => ({
+            jid: member.jid,
+            node: member.feedTopic,
+            name: member.jid
+          }))
+        })()
+
+    const queryAttrs: Record<string, string> = { xmlns: DISCO_ITEMS_XMLNS }
+    if (node) {
+      queryAttrs.node = node
+    }
+
+    return xml(
+      'query',
+      queryAttrs,
+      ...items.map(item => xml('item', item as unknown as Record<string, string>))
+    )
+  }
+
+  private parseDiscoInfoQuery(query: Element): XmppDiscoInfo {
+    const identities = (query.children as any[])
+      .filter(child => child?.name === 'identity')
+      .map((identity: Element) => ({
+        category: identity.attrs.category,
+        type: identity.attrs.type,
+        name: identity.attrs.name,
+        lang: identity.attrs.lang
+      }))
+
+    const features = (query.children as any[])
+      .filter(child => child?.name === 'feature')
+      .map((feature: Element) => feature.attrs.var)
+      .filter((feature): feature is string => typeof feature === 'string' && feature.length > 0)
+
+    const ver = this.computeDiscoveryVer(identities, features)
+    return {
+      node: query.attrs.node,
+      identities,
+      features: Array.from(new Set(features)).sort(),
+      ver,
+      hash: 'sha-1',
+      cachedAt: new Date().toISOString()
+    }
+  }
+
+  private parseDiscoItemsQuery(query: Element): XmppDiscoItem[] {
+    return (query.children as any[])
+      .filter(child => child?.name === 'item')
+      .map((item: Element) => ({
+        jid: item.attrs.jid,
+        node: item.attrs.node,
+        name: item.attrs.name
+      }))
+      .filter(item => typeof item.jid === 'string' && item.jid.length > 0) as XmppDiscoItem[]
+  }
+
+  private parseCapsPresence(element: Element): XmppCapsPresence | undefined {
+    const capsEl = element.getChild('c')
+    if (!capsEl || capsEl.attrs.xmlns !== CAPS_XMLNS) {
+      return undefined
+    }
+
+    const node = capsEl.attrs.node
+    const ver = capsEl.attrs.ver
+    if (!node || !ver) {
+      return undefined
+    }
+
+    return {
+      node,
+      ver,
+      hash: capsEl.attrs.hash || 'sha-1'
+    }
+  }
+
+  private getCapsCacheKey(node: string, ver: string): string {
+    return `${node}#${ver}`
+  }
+
+  private async queryDiscoInfo(peerAddr: string | Multiaddr, node?: string): Promise<XmppDiscoInfo> {
+    const xmppStream = await this.getOrCreateStream(peerAddr)
+    const id = Math.random().toString(36).substring(2, 11)
+    const toJid = xmppStream.remotePeer.toString() + '@p2p'
+    const queryNode = node ?? this.discoveryNode
+
+    const iq = xml(
+      'iq',
+      {
+        to: toJid,
+        from: this.jid,
+        type: 'get',
+        id
+      },
+      xml('query', { xmlns: DISCO_INFO_XMLNS, node: queryNode })
+    )
+
+    const result = await this.sendIqRequest(peerAddr, iq)
+    const query = result.getChild('query')
+    if (!query) {
+      throw new Error('Disco info response missing query payload')
+    }
+
+    const info = this.parseDiscoInfoQuery(query)
+    this.discoInfoCache.set(queryNode, info)
+    this.entityCapabilities.set(xmppStream.remotePeer.toString(), {
+      peerId: xmppStream.remotePeer.toString(),
+      jid: toJid,
+      node: queryNode,
+      ver: info.ver,
+      hash: 'sha-1',
+      info,
+      discoveredAt: new Date().toISOString()
+    })
+    this.emit('disco:info', { peerId: xmppStream.remotePeer.toString(), info })
+    return info
+  }
+
+  private async queryDiscoItems(peerAddr: string | Multiaddr, node?: string): Promise<XmppDiscoItem[]> {
+    const xmppStream = await this.getOrCreateStream(peerAddr)
+    const id = Math.random().toString(36).substring(2, 11)
+    const toJid = xmppStream.remotePeer.toString() + '@p2p'
+    const queryNode = node ?? this.discoveryNode
+
+    const iq = xml(
+      'iq',
+      {
+        to: toJid,
+        from: this.jid,
+        type: 'get',
+        id
+      },
+      xml('query', { xmlns: DISCO_ITEMS_XMLNS, node: queryNode })
+    )
+
+    const result = await this.sendIqRequest(peerAddr, iq)
+    const query = result.getChild('query')
+    if (!query) {
+      return []
+    }
+
+    const items = this.parseDiscoItemsQuery(query)
+    this.emit('disco:items', { peerId: xmppStream.remotePeer.toString(), items })
+    return items
+  }
+
+  private async ensurePeerCapabilities(peerId: string, node: string, ver: string) {
+    const cacheKey = this.getCapsCacheKey(node, ver)
+    if (this.discoInfoCache.has(cacheKey)) {
+      this.entityCapabilities.set(peerId, {
+        peerId,
+        jid: this.jidFromPeerId(peerId),
+        node,
+        ver,
+        hash: 'sha-1',
+        info: this.discoInfoCache.get(cacheKey)!,
+        discoveredAt: new Date().toISOString()
+      })
+      return
+    }
+
+    try {
+      const info = await this.queryDiscoInfo(peerId, cacheKey)
+      this.entityCapabilities.set(peerId, {
+        peerId,
+        jid: this.jidFromPeerId(peerId),
+        node: cacheKey,
+        ver: info.ver,
+        hash: info.hash,
+        info,
+        discoveredAt: new Date().toISOString()
+      })
+      this.emit('caps:discovered', this.entityCapabilities.get(peerId))
+    } catch (err) {
+      this.emit('error', err)
+    }
   }
 
   private normalizeFeedPost(entry: Partial<XmppFeedPost> & { id: string; topic: string; from: string; body: string }): XmppFeedPost {
@@ -1735,6 +2056,9 @@ export class XmppNode extends EventEmitter {
     if (status) {
       children.push(xml('status', {}, status))
     }
+    if (!type || type === 'available') {
+      children.push(this.buildCapsElement())
+    }
 
     const pres = children.length > 0
       ? xml('presence', presAttrs, ...children)
@@ -1815,6 +2139,20 @@ export class XmppNode extends EventEmitter {
       }
       return
     }
+
+    if (query.attrs.xmlns === DISCO_INFO_XMLNS) {
+      if (type === 'get') {
+        await this.sendIqResult(peerId, id, this.buildDiscoInfoQuery(query.attrs.node))
+      }
+      return
+    }
+
+    if (query.attrs.xmlns === DISCO_ITEMS_XMLNS) {
+      if (type === 'get') {
+        await this.sendIqResult(peerId, id, this.buildDiscoItemsQuery(query.attrs.node))
+      }
+      return
+    }
   }
 
   private async handlePresenceStanza(peerId: string, element: Element) {
@@ -1832,6 +2170,27 @@ export class XmppNode extends EventEmitter {
     }
 
     this.emit('presence', presence)
+
+    const caps = this.parseCapsPresence(element)
+    if (caps) {
+      const cacheKey = this.getCapsCacheKey(caps.node, caps.ver)
+      if (!this.discoInfoCache.has(cacheKey) && caps.hash === 'sha-1') {
+        void this.ensurePeerCapabilities(peerId, caps.node, caps.ver)
+      } else {
+        const cached = this.discoInfoCache.get(cacheKey)
+        if (cached) {
+          this.entityCapabilities.set(peerId, {
+            peerId,
+            jid: fromJid,
+            node: caps.node,
+            ver: caps.ver,
+            hash: 'sha-1',
+            info: cached,
+            discoveredAt: new Date().toISOString()
+          })
+        }
+      }
+    }
 
     switch (type) {
       case 'subscribe':
@@ -2457,6 +2816,66 @@ export class XmppNode extends EventEmitter {
     }
 
     return Array.from(merged.values()).sort((a, b) => a.subscribedAt.localeCompare(b.subscribedAt))
+  }
+
+  async getDiscoInfo(peerAddr: string | Multiaddr, node?: string): Promise<XmppDiscoInfo> {
+    await this.ready
+    const parsed = this.parsePeerReference(peerAddr)
+    const peerId = parsed.peerId || this.peerIdFromJid(peerAddr.toString())
+    if (peerId === this.libp2p.peerId.toString()) {
+      return this.parseDiscoInfoQuery(this.buildDiscoInfoQuery(node ?? this.discoveryNode))
+    }
+    return await this.queryDiscoInfo(peerAddr, node)
+  }
+
+  async getDiscoItems(peerAddr: string | Multiaddr, node?: string): Promise<XmppDiscoItem[]> {
+    await this.ready
+    const parsed = this.parsePeerReference(peerAddr)
+    const peerId = parsed.peerId || this.peerIdFromJid(peerAddr.toString())
+    if (peerId === this.libp2p.peerId.toString()) {
+      return this.parseDiscoItemsQuery(this.buildDiscoItemsQuery(node ?? this.discoveryNode))
+    }
+    return await this.queryDiscoItems(peerAddr, node)
+  }
+
+  async getEntityCapabilities(peerAddr: string | Multiaddr): Promise<XmppEntityCapabilities | undefined> {
+    await this.ready
+    const parsed = this.parsePeerReference(peerAddr)
+    const peerId = parsed.peerId || this.peerIdFromJid(peerAddr.toString())
+    if (peerId === this.libp2p.peerId.toString()) {
+      const info = this.parseDiscoInfoQuery(this.buildDiscoInfoQuery())
+      return {
+        peerId,
+        jid: this.jid,
+        node: this.discoveryNode,
+        ver: info.ver,
+        hash: info.hash,
+        info,
+        discoveredAt: new Date().toISOString()
+      }
+    }
+    const cached = this.entityCapabilities.get(peerId)
+    if (cached) {
+      return cached
+    }
+
+    try {
+      const info = await this.queryDiscoInfo(peerAddr)
+      const discoveredAt = new Date().toISOString()
+      const capabilities: XmppEntityCapabilities = {
+        peerId,
+        jid: this.jidFromPeerId(peerId),
+        node: info.node ?? this.discoveryNode,
+        ver: info.ver,
+        hash: info.hash,
+        info,
+        discoveredAt
+      }
+      this.entityCapabilities.set(peerId, capabilities)
+      return capabilities
+    } catch {
+      return undefined
+    }
   }
 
   async getCollections(): Promise<XmppCollectionNode[]> {

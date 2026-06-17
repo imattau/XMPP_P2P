@@ -121,6 +121,45 @@ async function main() {
     showPrompt()
   })
 
+  xmppNode.on('disco:info', ({ peerId, info }) => {
+    console.log(`\n[Disco#Info] Peer: ${peerId}`)
+    if (info.node) {
+      console.log(`  Node: ${info.node}`)
+    }
+    for (const identity of info.identities) {
+      console.log(`  Identity: ${identity.category}${identity.type ? `/${identity.type}` : ''}${identity.name ? ` (${identity.name})` : ''}`)
+    }
+    for (const feature of info.features) {
+      console.log(`  Feature: ${feature}`)
+    }
+    console.log(`  Ver: ${info.ver}`)
+    showPrompt()
+  })
+
+  xmppNode.on('disco:items', ({ peerId, items }) => {
+    console.log(`\n[Disco#Items] Peer: ${peerId}`)
+    for (const item of items) {
+      console.log(`  - ${item.jid}`)
+      if (item.node) {
+        console.log(`      Node: ${item.node}`)
+      }
+      if (item.name) {
+        console.log(`      Name: ${item.name}`)
+      }
+    }
+    showPrompt()
+  })
+
+  xmppNode.on('caps:discovered', (caps) => {
+    if (!caps) {
+      return
+    }
+    console.log(`\n[Caps] Discovered capabilities for ${caps.peerId}`)
+    console.log(`  Node: ${caps.node}`)
+    console.log(`  Ver: ${caps.ver}`)
+    showPrompt()
+  })
+
   xmppNode.on('collection:change', (collection) => {
     console.log(`\n[Collection] Updated: ${collection.id}`)
     console.log(`  Topic: ${collection.topic}`)
@@ -201,6 +240,8 @@ async function main() {
   console.log('  roster add <jid> [name]    Add a roster contact')
   console.log('  roster remove <jid>        Remove a roster contact')
   console.log('  roster fetch <peer>        Fetch a peer roster over IQ')
+  console.log('  disco info <peer> [node]   Query disco#info for a peer')
+  console.log('  disco items <peer> [node]  Query disco#items for a peer')
   console.log('  feed post <message>        Publish a post to your feed')
   console.log('  feed subscribe <peer> [public|private] Subscribe to a peer feed')
   console.log('  feed visibility <peer> <public|private> Change follow visibility')
@@ -410,6 +451,47 @@ async function main() {
             }
             default:
               console.log('Usage: feed post <message> | feed subscribe <peer> [public|private] | feed visibility <peer> <public|private> | feed unfollow <peer> | feed list | feed peers | feed followers <peer>')
+          }
+          break
+        }
+        case 'disco': {
+          const discoCommand = parts[1]?.toLowerCase()
+          switch (discoCommand) {
+            case 'info': {
+              if (parts.length < 3) {
+                console.log('Usage: disco info <peer-id|jid|multiaddr> [node]')
+                break
+              }
+              const target = resolvePeerTarget(parts[2])
+              const node = parts[3]
+              console.log(`Querying disco#info for ${target}...`)
+              const info = await xmppNode.getDiscoInfo(target, node)
+              console.log(`Disco info ver: ${info.ver}`)
+              break
+            }
+            case 'items': {
+              if (parts.length < 3) {
+                console.log('Usage: disco items <peer-id|jid|multiaddr> [node]')
+                break
+              }
+              const target = resolvePeerTarget(parts[2])
+              const node = parts[3]
+              console.log(`Querying disco#items for ${target}...`)
+              const items = await xmppNode.getDiscoItems(target, node)
+              console.log(`Disco items (${items.length}):`)
+              for (const item of items) {
+                console.log(`  - ${item.jid}`)
+                if (item.node) {
+                  console.log(`      Node: ${item.node}`)
+                }
+                if (item.name) {
+                  console.log(`      Name: ${item.name}`)
+                }
+              }
+              break
+            }
+            default:
+              console.log('Usage: disco info <peer> [node] | disco items <peer> [node]')
           }
           break
         }
@@ -683,6 +765,8 @@ async function main() {
           console.log('  roster add <jid> [name]    Add a roster contact')
           console.log('  roster remove <jid>        Remove a roster contact')
           console.log('  roster fetch <peer>        Fetch a peer roster over IQ')
+          console.log('  disco info <peer> [node]   Query disco#info for a peer')
+          console.log('  disco items <peer> [node]  Query disco#items for a peer')
           console.log('  feed post <message>        Publish a post to your feed')
           console.log('  feed subscribe <peer> [public|private] Subscribe to a peer feed')
           console.log('  feed visibility <peer> <public|private> Change follow visibility')
