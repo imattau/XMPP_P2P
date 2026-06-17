@@ -7,12 +7,13 @@ import { EventEmitter } from 'events'
 import * as openpgp from 'openpgp'
 import { XmppStream } from './xmpp-stream.js'
 import { loadOmemoModule } from './omemo-runtime.js'
+import {
+  XmppOmemoStateManager,
+  type XmppOmemoBundle
+} from './xmpp-omemo-state.js'
 import type {
   OmemoDirection,
-  OmemoKeyPair,
-  OmemoAddress,
-  OmemoSessionBuilder,
-  OmemoSessionCipher
+  OmemoAddress
 } from './omemo-runtime.js'
 import { multiaddr, Multiaddr } from '@multiformats/multiaddr'
 import { TopicValidatorResult } from '@libp2p/gossipsub'
@@ -302,47 +303,6 @@ interface XmppOpenPgpPublicKeyResponse {
   publicKey: string
 }
 
-interface XmppOmemoStateFile {
-  version: number
-  deviceId: number
-  registrationId: number
-  store: Record<string, unknown>
-  identityKeyPair: {
-    pubKey: string
-    privKey: string
-  }
-  signedPreKey: {
-    keyId: number
-    keyPair: {
-      pubKey: string
-      privKey: string
-    }
-    signature: string
-  }
-  preKeys: Array<{
-    keyId: number
-    keyPair: {
-      pubKey: string
-      privKey: string
-    }
-  }>
-  identities: Record<string, string>
-  sessions: Record<string, string>
-}
-
-interface XmppOmemoBundle {
-  deviceId: number
-  registrationId: number
-  identityKey: string
-  signedPreKeyId: number
-  signedPreKey: string
-  signedPreKeySignature: string
-  preKeys: Array<{
-    keyId: number
-    publicKey: string
-  }>
-}
-
 export class XmppNode extends EventEmitter {
   private libp2p: Libp2p
   private streams = new Map<string, XmppStream>()
@@ -383,30 +343,10 @@ export class XmppNode extends EventEmitter {
     type: 'pc',
     name: 'XMPP P2P'
   }
-  private omemoState?: XmppOmemoStateFile
-  private omemoDeviceId = 0
-  private omemoRegistrationId = 0
-  private omemoIdentityKeyPair?: {
-    pubKey: ArrayBuffer
-    privKey: ArrayBuffer
-  }
-  private omemoSignedPreKey?: {
-    keyId: number
-    keyPair: {
-      pubKey: ArrayBuffer
-      privKey: ArrayBuffer
-    }
-    signature: ArrayBuffer
-  }
-  private readonly omemoPreKeys = new Map<number, {
-    pubKey: ArrayBuffer
-    privKey: ArrayBuffer
-  }>()
-  private readonly omemoStoreData = new Map<string, unknown>()
+  private readonly omemoStateManager: XmppOmemoStateManager
   private readonly peerOmemoDeviceLists = new Map<string, number[]>()
   private readonly peerOmemoBundles = new Map<string, Map<number, XmppOmemoBundle>>()
   private readonly peerOmemoIdentityKeys = new Map<string, string>()
-  private omemoSaveQueue: Promise<void> = Promise.resolve()
   private openPgpState?: XmppOpenPgpStateFile
   private openPgpPrivateKey?: openpgp.PrivateKey
   private openPgpPublicKey?: openpgp.PublicKey
@@ -430,6 +370,7 @@ export class XmppNode extends EventEmitter {
     this.attachmentPath = options.attachmentPath ?? process.env.XMPP_ATTACHMENT_PATH ?? join(dirname(this.rosterPath), `.xmpp-attachments.${this.libp2p.peerId.toString()}.json`)
     this.omemoPath = options.omemoPath ?? process.env.XMPP_OMEMO_PATH ?? join(dirname(this.rosterPath), `.xmpp-omemo.${rosterBaseName}.json`)
     this.openPgpPath = options.openPgpPath ?? process.env.XMPP_OPENPGP_PATH ?? join(dirname(this.rosterPath), `.xmpp-openpgp.${rosterBaseName}.json`)
+    this.omemoStateManager = new XmppOmemoStateManager(this.omemoPath)
     this.ready = this.loadRoster()
       .then(() => this.loadFeedHistory())
       .then(() => this.loadSubscriptionState())
@@ -636,111 +577,7 @@ export class XmppNode extends EventEmitter {
   }
 
   private async loadOmemoState(): Promise<void> {
-    try {
-      const raw = await fs.readFile(this.omemoPath, 'utf8')
-      const parsed = JSON.parse(raw) as Partial<XmppOmemoStateFile>
-      if (!parsed.deviceId || !parsed.registrationId || !parsed.identityKeyPair || !parsed.signedPreKey) {
-        throw new Error('OMEMO state file is missing key material')
-      }
-
-      this.omemoState = {
-        version: parsed.version ?? 1,
-        deviceId: parsed.deviceId,
-        registrationId: parsed.registrationId,
-        store: parsed.store ?? {},
-        identityKeyPair: parsed.identityKeyPair,
-        signedPreKey: parsed.signedPreKey,
-        preKeys: parsed.preKeys ?? [],
-        identities: parsed.identities ?? {},
-        sessions: parsed.sessions ?? {}
-      }
-      this.omemoDeviceId = parsed.deviceId
-      this.omemoRegistrationId = parsed.registrationId
-      this.omemoIdentityKeyPair = this.deserializeKeyPair(parsed.identityKeyPair)
-      this.omemoSignedPreKey = {
-        keyId: parsed.signedPreKey.keyId,
-        keyPair: this.deserializeKeyPair(parsed.signedPreKey.keyPair),
-        signature: this.base64ToArrayBuffer(parsed.signedPreKey.signature)
-      }
-      this.omemoStoreData.clear()
-      for (const [key, value] of Object.entries(parsed.store ?? {})) {
-        this.omemoStoreData.set(key, value)
-      }
-      this.omemoPreKeys.clear()
-      for (const preKey of this.omemoState.preKeys) {
-        this.omemoPreKeys.set(preKey.keyId, this.deserializeKeyPair(preKey.keyPair))
-      }
-      this.peerOmemoIdentityKeys.clear()
-      for (const [address, identityKey] of Object.entries(this.omemoState.identities)) {
-        this.peerOmemoIdentityKeys.set(address, identityKey)
-      }
-    } catch (err: any) {
-      if (err?.code !== 'ENOENT') {
-        console.error(`[XMPP] Failed to load OMEMO state from ${this.omemoPath}:`, err)
-      }
-
-      await this.generateOmemoState()
-    }
-  }
-
-  private async generateOmemoState(): Promise<void> {
-    const omemo = await loadOmemoModule()
-    const identityKeyPair = await omemo.KeyHelper.generateIdentityKeyPair()
-    const signedPreKey = await omemo.KeyHelper.generateSignedPreKey(identityKeyPair, 1)
-    const preKeys = await Promise.all(
-      Array.from({ length: 20 }, (_, index) => omemo.KeyHelper.generatePreKey(index + 1))
-    )
-    const deviceId = Math.floor(Math.random() * 0x7fffffff) || 1
-    const registrationId = omemo.KeyHelper.generateRegistrationId()
-
-      this.omemoState = {
-        version: 1,
-        deviceId,
-        registrationId,
-        store: {},
-        identityKeyPair: this.serializeKeyPair(identityKeyPair),
-        signedPreKey: {
-          keyId: signedPreKey.keyId,
-        keyPair: this.serializeKeyPair(signedPreKey.keyPair),
-        signature: this.bufferToBase64(signedPreKey.signature)
-      },
-      preKeys: preKeys.map(preKey => ({
-        keyId: preKey.keyId,
-        keyPair: this.serializeKeyPair(preKey.keyPair)
-      })),
-      identities: {},
-      sessions: {}
-    }
-    this.omemoDeviceId = deviceId
-    this.omemoRegistrationId = registrationId
-    this.omemoIdentityKeyPair = identityKeyPair
-    this.omemoSignedPreKey = signedPreKey
-    this.omemoStoreData.clear()
-    this.omemoPreKeys.clear()
-    for (const preKey of preKeys) {
-      this.omemoPreKeys.set(preKey.keyId, preKey.keyPair)
-    }
-    await this.persistOmemoState()
-  }
-
-  private async persistOmemoState(): Promise<void> {
-    if (!this.omemoState) {
-      return
-    }
-
-    this.omemoState.store = Object.fromEntries(this.omemoStoreData.entries())
-    await fs.mkdir(dirname(this.omemoPath), { recursive: true })
-    await fs.writeFile(this.omemoPath, `${JSON.stringify(this.omemoState, null, 2)}\n`, 'utf8')
-  }
-
-  private scheduleOmemoPersist(): Promise<void> {
-    this.omemoSaveQueue = this.omemoSaveQueue
-      .then(() => this.persistOmemoState())
-      .catch(err => {
-        console.error(`[XMPP] Failed to persist OMEMO state to ${this.omemoPath}:`, err)
-      })
-
-    return this.omemoSaveQueue
+    await this.omemoStateManager.load()
   }
 
   private getOmemoStore(): {
@@ -764,134 +601,7 @@ export class XmppNode extends EventEmitter {
     getIdentityKeyPair: () => Promise<{ pubKey: ArrayBuffer; privKey: ArrayBuffer } | undefined>
     getLocalRegistrationId: () => Promise<number | undefined>
   } {
-    const node = this
-    const ensureState = () => {
-      if (!node.omemoState) {
-        throw new Error('OMEMO state is not loaded')
-      }
-
-      return node.omemoState
-    }
-    return {
-      store: Object.fromEntries(node.omemoStoreData.entries()),
-      put(key: string, value: unknown) {
-        ensureState()
-        node.omemoStoreData.set(key, value)
-        void node.scheduleOmemoPersist()
-      },
-      get<T = unknown>(key: string, defaultValue?: T) {
-        ensureState()
-        return (node.omemoStoreData.get(key) as T | undefined) ?? defaultValue
-      },
-      remove(key: string) {
-        ensureState()
-        node.omemoStoreData.delete(key)
-        void node.scheduleOmemoPersist()
-      },
-      isTrustedIdentity(address: string, identityKey: ArrayBuffer) {
-        const current = node.peerOmemoIdentityKeys.get(address)
-        const encoded = node.bufferToBase64(identityKey)
-        if (!current) {
-          node.peerOmemoIdentityKeys.set(address, encoded)
-          const state = ensureState()
-          state.identities[address] = encoded
-          void node.scheduleOmemoPersist()
-          return true
-        }
-
-        return current === encoded
-      },
-      loadIdentityKey(address: string) {
-        const encoded = node.peerOmemoIdentityKeys.get(address)
-        return encoded ? node.base64ToArrayBuffer(encoded) : undefined
-      },
-      saveIdentity(address: string, identityKey: ArrayBuffer) {
-        const encoded = node.bufferToBase64(identityKey)
-        node.peerOmemoIdentityKeys.set(address, encoded)
-        const state = ensureState()
-        state.identities[address] = encoded
-        void node.scheduleOmemoPersist()
-        return true
-      },
-      loadPreKey(keyId: number) {
-        const keyPair = node.omemoPreKeys.get(Number(keyId))
-        return Promise.resolve(keyPair ? { keyPair } : undefined)
-      },
-      storePreKey(keyId: number, keyPair: { pubKey: ArrayBuffer; privKey: ArrayBuffer }) {
-        node.omemoPreKeys.set(Number(keyId), keyPair)
-        const state = ensureState()
-        state.preKeys = Array.from(node.omemoPreKeys.entries()).map(([id, pair]) => ({
-          keyId: id,
-          keyPair: node.serializeKeyPair(pair)
-        }))
-        void node.scheduleOmemoPersist()
-      },
-      removePreKey(keyId: number) {
-        node.omemoPreKeys.delete(Number(keyId))
-        const state = ensureState()
-        state.preKeys = Array.from(node.omemoPreKeys.entries()).map(([id, pair]) => ({
-          keyId: id,
-          keyPair: node.serializeKeyPair(pair)
-        }))
-        void node.scheduleOmemoPersist()
-      },
-      loadSignedPreKey(keyId: number) {
-        const signedPreKey = node.omemoSignedPreKey
-        if (!signedPreKey || signedPreKey.keyId !== Number(keyId)) {
-          return undefined
-        }
-
-        return { keyPair: signedPreKey.keyPair }
-      },
-      storeSignedPreKey(keyId: number, keyPair: { pubKey: ArrayBuffer; privKey: ArrayBuffer }) {
-        const state = ensureState()
-        node.omemoSignedPreKey = {
-          keyId: Number(keyId),
-          keyPair,
-          signature: node.omemoSignedPreKey?.signature ?? new ArrayBuffer(0)
-        }
-        state.signedPreKey = {
-          keyId: Number(keyId),
-          keyPair: node.serializeKeyPair(keyPair),
-          signature: node.bufferToBase64(node.omemoSignedPreKey.signature)
-        }
-        void node.scheduleOmemoPersist()
-      },
-      removeSignedPreKey(keyId: number) {
-        if (node.omemoSignedPreKey?.keyId === Number(keyId)) {
-          node.omemoSignedPreKey = undefined
-        }
-      },
-      loadSession(address: string) {
-        const state = ensureState()
-        return state.sessions[address]
-      },
-      removeAllSessions(jid: string) {
-        const state = ensureState()
-        for (const address of Object.keys(state.sessions)) {
-          if (address.startsWith(`${jid}.`)) {
-            delete state.sessions[address]
-          }
-        }
-        void node.scheduleOmemoPersist()
-      },
-      removeSession(address: string) {
-        const state = ensureState()
-        delete state.sessions[address]
-        void node.scheduleOmemoPersist()
-      },
-      storeSession(address: string, record: string) {
-        const state = ensureState()
-        state.sessions[address] = record
-        void node.scheduleOmemoPersist()
-      },
-      getIdentityKeyPair() {
-        return Promise.resolve(node.omemoIdentityKeyPair)
-      },
-      getLocalRegistrationId() {
-        return Promise.resolve(node.omemoRegistrationId)
-      }
-    }
+    return this.omemoStateManager.getStore()
   }
 
   private async loadOpenPgpState(): Promise<void> {
@@ -3143,102 +2853,27 @@ export class XmppNode extends EventEmitter {
   }
 
   private getOmemoDeviceIdOrThrow(): number {
-    if (!this.omemoDeviceId) {
-      throw new Error('OMEMO device id is not loaded')
-    }
-
-    return this.omemoDeviceId
+    return this.omemoStateManager.getDeviceId()
   }
 
   private getOmemoIdentityKeyPairOrThrow() {
-    if (!this.omemoIdentityKeyPair) {
-      throw new Error('OMEMO identity key pair is not loaded')
-    }
-
-    return this.omemoIdentityKeyPair
+    return this.omemoStateManager.getIdentityKeyPair()
   }
 
   private getOmemoSignedPreKeyOrThrow() {
-    if (!this.omemoSignedPreKey) {
-      throw new Error('OMEMO signed pre-key is not loaded')
-    }
-
-    return this.omemoSignedPreKey
+    return this.omemoStateManager.getSignedPreKey()
   }
 
   private getOmemoBundle(): XmppOmemoBundle {
-    const identityKeyPair = this.getOmemoIdentityKeyPairOrThrow()
-    const signedPreKey = this.getOmemoSignedPreKeyOrThrow()
-    if (!this.omemoState) {
-      throw new Error('OMEMO state is not loaded')
-    }
-
-    const preKeys = Array.from(this.omemoPreKeys.entries()).map(([keyId, keyPair]) => ({
-      keyId,
-      publicKey: this.bufferToBase64(keyPair.pubKey)
-    }))
-
-    return {
-      deviceId: this.omemoDeviceId,
-      registrationId: this.omemoRegistrationId,
-      identityKey: this.bufferToBase64(identityKeyPair.pubKey),
-      signedPreKeyId: signedPreKey.keyId,
-      signedPreKey: this.bufferToBase64(signedPreKey.keyPair.pubKey),
-      signedPreKeySignature: this.bufferToBase64(signedPreKey.signature),
-      preKeys
-    }
+    return this.omemoStateManager.getBundle()
   }
 
   private buildOmemoDevicesQuery(): Element {
-    if (!this.omemoState) {
-      return xml('pubsub', { xmlns: 'http://jabber.org/protocol/pubsub' })
-    }
-
-    return xml(
-      'pubsub',
-      { xmlns: 'http://jabber.org/protocol/pubsub' },
-      xml(
-        'items',
-        { node: OMEMO_DEVICES_NODE },
-        xml(
-          'item',
-          { id: 'current' },
-          xml(
-            'list',
-            { xmlns: OMEMO_DEVICES_XMLNS },
-            xml('device', { id: String(this.omemoDeviceId) })
-          )
-        )
-      )
-    )
+    return this.omemoStateManager.buildDevicesQuery()
   }
 
   private buildOmemoBundleQuery(deviceId: number): Element {
-    const bundle = this.getOmemoBundle()
-    if (bundle.deviceId !== deviceId) {
-      throw new Error(`No OMEMO bundle available for device ${deviceId}`)
-    }
-
-    return xml(
-      'pubsub',
-      { xmlns: 'http://jabber.org/protocol/pubsub' },
-      xml(
-        'items',
-        { node: OMEMO_BUNDLES_NODE },
-        xml(
-          'item',
-          { id: String(deviceId), registrationId: String(bundle.registrationId) },
-          xml(
-            'bundle',
-            { xmlns: OMEMO_XMLNS },
-            xml('ik', {}, bundle.identityKey),
-            xml('spk', { id: String(bundle.signedPreKeyId) }, bundle.signedPreKey),
-            xml('spks', {}, bundle.signedPreKeySignature),
-            ...bundle.preKeys.map(preKey => xml('pk', { id: String(preKey.keyId) }, preKey.publicKey))
-          )
-        )
-      )
-    )
+    return this.omemoStateManager.buildBundleQuery(deviceId)
   }
 
   private parseOmemoDeviceListQuery(items: Element): number[] {
@@ -3471,11 +3106,7 @@ export class XmppNode extends EventEmitter {
 
   async getOmemoRegistrationId(): Promise<number> {
     await this.ready
-    if (!this.omemoRegistrationId) {
-      throw new Error('OMEMO registration id is not loaded')
-    }
-
-    return this.omemoRegistrationId
+    return this.omemoStateManager.getRegistrationId()
   }
 
   async getOmemoIdentityKey(): Promise<string> {
@@ -4111,8 +3742,7 @@ export class XmppNode extends EventEmitter {
     await this.persistCollectionState()
     await this.attachmentSaveQueue
     await this.persistAttachmentHistory()
-    await this.omemoSaveQueue
-    await this.persistOmemoState()
+    await this.omemoStateManager.close()
     await this.openPgpSaveQueue
     await this.persistOpenPgpState()
   }
