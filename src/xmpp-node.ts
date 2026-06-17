@@ -1,6 +1,6 @@
 import { promises as fs } from 'fs'
 import { basename, dirname, join } from 'path'
-import { createHash, createCipheriv, createDecipheriv, randomBytes } from 'crypto'
+import { createCipheriv, createDecipheriv, randomBytes } from 'crypto'
 import { Libp2p } from 'libp2p'
 import { xml, Element, Parser } from '@xmpp/xml'
 import { EventEmitter } from 'events'
@@ -8,9 +8,92 @@ import * as openpgp from 'openpgp'
 import { XmppStream } from './xmpp-stream.js'
 import { loadOmemoModule } from './omemo-runtime.js'
 import {
+  buildCapsElement,
+  buildDiscoInfoQuery,
+  buildDiscoItemsQuery,
+  getCapsCacheKey,
+  parseCapsPresence,
+  parseDiscoInfoQuery,
+  parseDiscoItemsQuery,
+  DISCOVERY_NODE,
+  DISCO_INFO_XMLNS,
+  DISCO_ITEMS_XMLNS,
+  CAPS_XMLNS,
+  PUBSUB_EVENT_XMLNS,
+  FEED_XMLNS,
+  COLLECTION_XMLNS,
+  ATTACHMENT_XMLNS,
+  PAM_XMLNS,
+  FOLLOWERS_XMLNS,
+  ROSTER_XMLNS,
+  OMEMO_FEATURE,
+  OMEMO_PTE_FEATURE,
+  OPENPGP_FEATURE,
+  OPENPGP_PUBSUB_FEATURE,
+  type XmppCapsPresence,
+  type XmppDiscoIdentity,
+  type XmppDiscoInfo,
+  type XmppDiscoItem,
+  type XmppEntityCapabilities
+} from './xmpp-discovery.js'
+import {
   XmppOmemoStateManager,
   type XmppOmemoBundle
 } from './xmpp-omemo-state.js'
+import {
+  buildAttachmentSummary,
+  attachmentHistoryKey,
+  collectionHistoryKey,
+  collectionTopicForId,
+  type XmppAttachment,
+  type XmppAttachmentFile,
+  type XmppAttachmentSummary,
+  type XmppAttachmentKind,
+  type XmppCollectionFile,
+  type XmppEncryptedTopicSecret,
+  createRosterEntry,
+  feedHistoryKey,
+  type XmppFeedFile,
+  type XmppFeedFollower,
+  type XmppFeedPost,
+  type XmppFeedSubscription,
+  type XmppFeedSubscriptionRecord,
+  type XmppFeedVisibility,
+  feedSubscriptionKey,
+  feedTopicForPeer,
+  type XmppFollowerFile,
+  type XmppFollowerWatch,
+  flagsToSubscription,
+  followerKey,
+  followerTopicForPeer,
+  type XmppCollectionMember,
+  type XmppCollectionNode,
+  type XmppCollectionPost,
+  type XmppCollectionSubscription,
+  jidFromPeerId,
+  type XmppMessage,
+  type XmppOpenPgpPublicKeyResponse,
+  type XmppOpenPgpStateFile,
+  type XmppPubSubMessage,
+  type XmppPresence,
+  type XmppPresenceType,
+  type XmppRosterEntry,
+  type XmppRosterFile,
+  type XmppRosterPresenceState,
+  type XmppRosterSubscription,
+  normalizeAttachment,
+  normalizeCollection,
+  normalizeCollectionMember,
+  normalizeCollectionPost,
+  normalizeFeedPost,
+  normalizeFeedSubscription,
+  normalizeFollower,
+  normalizeRosterEntry,
+  parsePeerReference,
+  peerIdFromJid,
+  type XmppSubscriptionFile,
+  subscriptionToFlags
+} from './xmpp-records.js'
 import type {
   OmemoDirection,
   OmemoAddress
@@ -18,22 +101,11 @@ import type {
 import { multiaddr, Multiaddr } from '@multiformats/multiaddr'
 import { TopicValidatorResult } from '@libp2p/gossipsub'
 
-const ROSTER_XMLNS = 'jabber:iq:roster'
-const DISCO_INFO_XMLNS = 'http://jabber.org/protocol/disco#info'
-const DISCO_ITEMS_XMLNS = 'http://jabber.org/protocol/disco#items'
-const CAPS_XMLNS = 'http://jabber.org/protocol/caps'
-const PUBSUB_EVENT_XMLNS = 'http://jabber.org/protocol/pubsub#event'
-const FEED_XMLNS = 'urn:xmpp:feed:0'
-const COLLECTION_XMLNS = 'urn:xmpp:collection:0'
-const ATTACHMENT_XMLNS = 'urn:xmpp:pubsub:attachments:0'
-const PAM_XMLNS = 'urn:xmpp:pubsub:account-management:0'
-const FOLLOWERS_XMLNS = 'urn:xmpp:pubsub:followers:0'
 const OPENPGP_IQ_XMLNS = 'urn:xmpp:openpgp:0'
 const FEED_HISTORY_LIMIT = 50
 const COLLECTION_HISTORY_LIMIT = 100
 const ATTACHMENT_HISTORY_LIMIT = 200
 const SUBSCRIPTION_HISTORY_LIMIT = 200
-const DISCOVERY_NODE = 'urn:xmpp:p2p:discovery'
 const FEED_TOPIC_PREFIX = 'xmpp-feed:'
 const COLLECTION_TOPIC_PREFIX = 'xmpp-collection:'
 const FOLLOWERS_TOPIC_PREFIX = 'xmpp-followers:'
@@ -43,187 +115,8 @@ const OMEMO_BUNDLES_XMLNS = 'urn:xmpp:omemo:2:bundles'
 const OMEMO_DEVICES_NODE = 'urn:xmpp:omemo:2:devices'
 const OMEMO_BUNDLES_NODE = 'urn:xmpp:omemo:2:bundles'
 const OMEMO_PTE_XMLNS = 'urn:xmpp:pte:0'
-const OMEMO_FEATURE = 'urn:xmpp:omemo:2'
-const OMEMO_PTE_FEATURE = 'urn:xmpp:pte:0'
 const OPENPGP_XMLNS = 'urn:xmpp:openpgp:0'
 const OPENPGP_PUBSUB_XMLNS = 'urn:xmpp:openpgp:pubsub:0'
-const OPENPGP_FEATURE = 'urn:xmpp:openpgp:0'
-const OPENPGP_PUBSUB_FEATURE = 'urn:xmpp:openpgp:pubsub:0'
-
-export type XmppPresenceType =
-  | 'available'
-  | 'unavailable'
-  | 'subscribe'
-  | 'subscribed'
-  | 'unsubscribe'
-  | 'unsubscribed'
-  | 'probe'
-
-export type XmppRosterSubscription = 'none' | 'to' | 'from' | 'both'
-
-export interface XmppMessage {
-  from: string
-  to: string
-  body: string
-  id?: string
-  type?: string
-  encrypted?: boolean
-  encryption?: 'openpgp' | 'omemo'
-}
-
-export interface XmppPresence {
-  from: string
-  to: string
-  type?: XmppPresenceType | string
-  status?: string
-  show?: string
-}
-
-export interface XmppRosterPresenceState {
-  type: 'available' | 'unavailable'
-  status?: string
-  show?: string
-  receivedAt: string
-}
-
-export interface XmppRosterEntry {
-  jid: string
-  name?: string
-  groups?: string[]
-  subscription: XmppRosterSubscription
-  ask?: 'subscribe' | 'unsubscribe'
-  presence?: XmppRosterPresenceState
-  updatedAt: string
-}
-
-export interface XmppPubSubMessage {
-  topic: string
-  node?: string
-  from: string
-  body: string
-  itemId?: string
-  encrypted?: boolean
-  encryption?: 'openpgp' | 'omemo'
-  keyId?: string
-}
-
-export interface XmppFeedPost {
-  id: string
-  topic: string
-  from: string
-  body: string
-  publishedAt: string
-  receivedAt: string
-  node?: string
-  title?: string
-  author?: string
-}
-
-export interface XmppDiscoIdentity {
-  category: string
-  type?: string
-  name?: string
-  lang?: string
-}
-
-export interface XmppDiscoInfo {
-  node?: string
-  identities: XmppDiscoIdentity[]
-  features: string[]
-  ver: string
-  hash: 'sha-1'
-  cachedAt: string
-}
-
-export interface XmppDiscoItem {
-  jid: string
-  node?: string
-  name?: string
-}
-
-export interface XmppEntityCapabilities {
-  peerId: string
-  jid: string
-  node: string
-  ver: string
-  hash: 'sha-1'
-  info: XmppDiscoInfo
-  discoveredAt: string
-}
-
-export interface XmppFeedSubscription {
-  peerId: string
-  jid: string
-  topic: string
-  subscribedAt: string
-}
-
-export type XmppFeedVisibility = 'public' | 'private'
-
-export interface XmppFeedSubscriptionRecord extends XmppFeedSubscription {
-  visibility: XmppFeedVisibility
-  updatedAt: string
-}
-
-export interface XmppFeedFollower {
-  followerPeerId: string
-  followerJid: string
-  feedPeerId: string
-  feedTopic: string
-  visibility: XmppFeedVisibility
-  subscribedAt: string
-  updatedAt: string
-}
-
-export interface XmppCollectionMember {
-  jid: string
-  peerId: string
-  feedTopic: string
-  addedAt: string
-}
-
-export interface XmppCollectionNode {
-  id: string
-  name?: string
-  topic: string
-  members: XmppCollectionMember[]
-  createdAt: string
-  updatedAt: string
-}
-
-export interface XmppCollectionPost extends XmppFeedPost {
-  collectionId: string
-  sourceTopic: string
-}
-
-export interface XmppCollectionSubscription {
-  id: string
-  topic: string
-  subscribedAt: string
-}
-
-export type XmppAttachmentKind = 'noticed' | 'reaction'
-
-export interface XmppAttachment {
-  id: string
-  topic: string
-  targetId: string
-  from: string
-  kind: XmppAttachmentKind
-  value?: string
-  publishedAt: string
-  receivedAt: string
-}
-
-export interface XmppAttachmentSummary {
-  topic: string
-  targetId: string
-  total: number
-  noticed: number
-  reactions: number
-  reactionCounts: Record<string, number>
-  updatedAt: string
-}
 
 export interface XmppNodeOptions {
   rosterPath?: string
@@ -238,69 +131,6 @@ interface PendingIq {
   resolve: (element: Element) => void
   reject: (error: Error) => void
   timer: ReturnType<typeof setTimeout>
-}
-
-interface XmppRosterFile {
-  version: number
-  entries: XmppRosterEntry[]
-}
-
-interface XmppFeedFile {
-  version: number
-  posts: XmppFeedPost[]
-}
-
-interface XmppSubscriptionFile {
-  version: number
-  subscriptions: XmppFeedSubscriptionRecord[]
-}
-
-interface XmppFollowerFile {
-  version: number
-  followers: XmppFeedFollower[]
-}
-
-interface XmppFollowerWatch {
-  peerId: string
-  topic: string
-  watchedAt: string
-}
-
-interface XmppCollectionFile {
-  version: number
-  collections: XmppCollectionNode[]
-  posts: XmppCollectionPost[]
-}
-
-interface XmppAttachmentFile {
-  version: number
-  attachments: XmppAttachment[]
-}
-
-interface XmppCapsPresence {
-  node: string
-  ver: string
-  hash: 'sha-1' | string
-}
-
-interface XmppOpenPgpStateFile {
-  version: number
-  privateKey: string
-  publicKey: string
-  fingerprint: string
-  createdAt: string
-}
-
-interface XmppEncryptedTopicSecret {
-  topic: string
-  keyId: string
-  secret: string
-  updatedAt: string
-}
-
-interface XmppOpenPgpPublicKeyResponse {
-  fingerprint: string
-  publicKey: string
 }
 
 export class XmppNode extends EventEmitter {
@@ -877,318 +707,91 @@ export class XmppNode extends EventEmitter {
   }
 
   private normalizeRosterEntry(entry: Partial<XmppRosterEntry> & { jid: string }): XmppRosterEntry {
-    const subscription: XmppRosterSubscription = entry.subscription === 'to' || entry.subscription === 'from' || entry.subscription === 'both'
-      ? entry.subscription
-      : 'none'
-
-    const groups = Array.isArray(entry.groups)
-      ? entry.groups.filter((group): group is string => typeof group === 'string' && group.length > 0)
-      : undefined
-
-    const presence: XmppRosterPresenceState | undefined = entry.presence != null
-      ? {
-          type: entry.presence.type === 'unavailable' ? 'unavailable' : 'available',
-          status: entry.presence.status,
-          show: entry.presence.show,
-          receivedAt: entry.presence.receivedAt || new Date().toISOString()
-        }
-      : undefined
-
-    return {
-      jid: entry.jid,
-      name: entry.name,
-      groups,
-      subscription,
-      ask: entry.ask === 'subscribe' || entry.ask === 'unsubscribe' ? entry.ask : undefined,
-      presence,
-      updatedAt: entry.updatedAt || new Date().toISOString()
-    }
+    return normalizeRosterEntry(entry)
   }
 
   private createRosterEntry(jid: string, name?: string): XmppRosterEntry {
-    return this.normalizeRosterEntry({
-      jid,
-      name,
-      subscription: 'none',
-      updatedAt: new Date().toISOString()
-    })
+    return createRosterEntry(jid, name)
   }
 
   private parsePeerReference(peerAddr: string | Multiaddr): { peerId: string; dialTarget?: Multiaddr } {
-    const addrStr = peerAddr.toString()
-
-    if (addrStr.includes('/p2p/')) {
-      return {
-        peerId: addrStr.split('/p2p/').pop() || '',
-        dialTarget: multiaddr(addrStr)
-      }
-    }
-
-    if (addrStr.includes('/ipfs/')) {
-      return {
-        peerId: addrStr.split('/ipfs/').pop() || '',
-        dialTarget: multiaddr(addrStr)
-      }
-    }
-
-    if (addrStr.endsWith('@p2p')) {
-      return {
-        peerId: addrStr.slice(0, -4)
-      }
-    }
-
-    if (addrStr.startsWith('/')) {
-      return {
-        peerId: '',
-        dialTarget: multiaddr(addrStr)
-      }
-    }
-
-    return {
-      peerId: addrStr
-    }
+    return parsePeerReference(peerAddr)
   }
 
   private subscriptionToFlags(subscription: XmppRosterSubscription): { to: boolean; from: boolean } {
-    switch (subscription) {
-      case 'both':
-        return { to: true, from: true }
-      case 'to':
-        return { to: true, from: false }
-      case 'from':
-        return { to: false, from: true }
-      default:
-        return { to: false, from: false }
-    }
+    return subscriptionToFlags(subscription)
   }
 
   private flagsToSubscription(to: boolean, from: boolean): XmppRosterSubscription {
-    if (to && from) {
-      return 'both'
-    }
-    if (to) {
-      return 'to'
-    }
-    if (from) {
-      return 'from'
-    }
-    return 'none'
+    return flagsToSubscription(to, from)
   }
 
   private peerIdFromJid(jid: string): string {
-    return jid.endsWith('@p2p') ? jid.slice(0, -4) : jid
+    return peerIdFromJid(jid)
   }
 
   private jidFromPeerId(peerId: string): string {
-    return `${peerId}@p2p`
+    return jidFromPeerId(peerId)
   }
 
   private feedTopicForPeer(peerId: string): string {
-    return `${FEED_TOPIC_PREFIX}${peerId}`
+    return feedTopicForPeer(peerId)
   }
 
   private collectionTopicForId(id: string): string {
-    return `${COLLECTION_TOPIC_PREFIX}${id}`
+    return collectionTopicForId(id)
   }
 
   private feedHistoryKey(topic: string, id: string): string {
-    return `${topic}:${id}`
+    return feedHistoryKey(topic, id)
   }
 
   private feedSubscriptionKey(topic: string): string {
-    return topic
+    return feedSubscriptionKey(topic)
   }
 
   private collectionHistoryKey(collectionId: string, id: string): string {
-    return `${collectionId}:${id}`
+    return collectionHistoryKey(collectionId, id)
   }
 
   private attachmentHistoryKey(topic: string, targetId: string, from: string): string {
-    return `${topic}:${targetId}:${from}`
+    return attachmentHistoryKey(topic, targetId, from)
   }
 
   private followerKey(feedPeerId: string, followerPeerId: string): string {
-    return `${feedPeerId}:${followerPeerId}`
+    return followerKey(feedPeerId, followerPeerId)
   }
 
   private followerTopicForPeer(peerId: string): string {
-    return `${FOLLOWERS_TOPIC_PREFIX}${peerId}`
+    return followerTopicForPeer(peerId)
   }
 
-  private getDiscoveryIdentities(node?: string): XmppDiscoIdentity[] {
-    if (node) {
-      const collection = this.collections.get(node) ?? Array.from(this.collections.values()).find(entry => entry.topic === node)
-      if (collection) {
-        return [{
-          category: 'conference',
-          type: 'text',
-          name: collection.name ?? collection.id
-        }]
-      }
-    }
-
-    return [this.discoveryIdentity]
+  private normalizeFeedPost(entry: Partial<XmppFeedPost> & { id: string; topic: string; from: string; body: string }): XmppFeedPost {
+    return normalizeFeedPost(entry)
   }
 
-  private getDiscoveryFeatures(node?: string): string[] {
-    const features = new Set<string>([
-      DISCO_INFO_XMLNS,
-      DISCO_ITEMS_XMLNS,
-      CAPS_XMLNS,
-      ROSTER_XMLNS,
-      PUBSUB_EVENT_XMLNS,
-      FEED_XMLNS,
-      COLLECTION_XMLNS,
-      ATTACHMENT_XMLNS,
-      OMEMO_FEATURE,
-      OMEMO_PTE_FEATURE,
-      OPENPGP_FEATURE,
-      OPENPGP_PUBSUB_FEATURE,
-      PAM_XMLNS,
-      FOLLOWERS_XMLNS
-    ])
-
-    if (node) {
-      const collection = this.collections.get(node) ?? Array.from(this.collections.values()).find(entry => entry.topic === node)
-      if (collection) {
-        features.add(COLLECTION_XMLNS)
-        features.add(FEED_XMLNS)
-      }
-    }
-
-    return Array.from(features).sort()
+  private normalizeCollection(entry: Partial<XmppCollectionNode> & { id: string }): XmppCollectionNode {
+    return normalizeCollection(entry)
   }
 
-  private computeDiscoveryVer(identities: XmppDiscoIdentity[], features: string[]): string {
-    const identityBits = identities
-      .map(identity => [identity.category, identity.type ?? '', identity.lang ?? '', identity.name ?? ''].join('<'))
-      .sort()
-    const payload = [...identityBits, ...features.slice().sort()].join('<')
-    return createHash('sha1').update(payload).digest('base64')
+  private normalizeCollectionMember(entry: Partial<XmppCollectionMember> & { jid: string; peerId: string; feedTopic: string }): XmppCollectionMember {
+    return normalizeCollectionMember(entry)
   }
 
-  private buildCapsElement(): Element {
-    const identities = this.getDiscoveryIdentities()
-    const features = this.getDiscoveryFeatures()
-    const ver = this.computeDiscoveryVer(identities, features)
-    return xml('c', {
-      xmlns: CAPS_XMLNS,
-      hash: 'sha-1',
-      node: this.discoveryNode,
-      ver
-    })
+  private normalizeCollectionPost(entry: Partial<XmppCollectionPost> & { id: string; collectionId: string; topic: string; sourceTopic: string; from: string; body: string }): XmppCollectionPost {
+    return normalizeCollectionPost(entry)
   }
 
-  private buildDiscoInfoQuery(node?: string): Element {
-    const identities = this.getDiscoveryIdentities(node)
-    const features = this.getDiscoveryFeatures(node)
-    const ver = this.computeDiscoveryVer(identities, features)
-    const queryAttrs: Record<string, string> = { xmlns: DISCO_INFO_XMLNS }
-    if (node) {
-      queryAttrs.node = node
-    }
-
-    return xml(
-      'query',
-      queryAttrs,
-      ...identities.map(identity => xml('identity', identity as unknown as Record<string, string>)),
-      ...features.map(feature => xml('feature', { var: feature }))
-    )
+  private normalizeFeedSubscription(entry: Partial<XmppFeedSubscriptionRecord> & { peerId: string; jid: string; topic: string }): XmppFeedSubscriptionRecord {
+    return normalizeFeedSubscription(entry)
   }
 
-  private buildDiscoItemsQuery(node?: string): Element {
-    const isRootNode = !node || node === this.discoveryNode || node.startsWith(`${this.discoveryNode}#`)
-    const items = isRootNode
-      ? Array.from(this.collectionSubscriptions.values()).map(subscription => {
-          const collection = this.collections.get(subscription.id)
-          return {
-          jid: this.jid,
-            node: subscription.id,
-            name: collection?.name ?? subscription.id
-          }
-        })
-      : (() => {
-          const collection = this.collections.get(node) ?? Array.from(this.collections.values()).find(entry => entry.topic === node)
-          if (!collection) {
-            return [] as XmppDiscoItem[]
-          }
-          return collection.members.map(member => ({
-            jid: member.jid,
-            node: member.feedTopic,
-            name: member.jid
-          }))
-        })()
-
-    const queryAttrs: Record<string, string> = { xmlns: DISCO_ITEMS_XMLNS }
-    if (node) {
-      queryAttrs.node = node
-    }
-
-    return xml(
-      'query',
-      queryAttrs,
-      ...items.map(item => xml('item', item as unknown as Record<string, string>))
-    )
+  private normalizeFollower(entry: Partial<XmppFeedFollower> & { followerPeerId: string; followerJid: string; feedPeerId: string; feedTopic: string }): XmppFeedFollower {
+    return normalizeFollower(entry)
   }
 
-  private parseDiscoInfoQuery(query: Element): XmppDiscoInfo {
-    const identities = (query.children as any[])
-      .filter(child => child?.name === 'identity')
-      .map((identity: Element) => ({
-        category: identity.attrs.category,
-        type: identity.attrs.type,
-        name: identity.attrs.name,
-        lang: identity.attrs.lang
-      }))
-
-    const features = (query.children as any[])
-      .filter(child => child?.name === 'feature')
-      .map((feature: Element) => feature.attrs.var)
-      .filter((feature): feature is string => typeof feature === 'string' && feature.length > 0)
-
-    const ver = this.computeDiscoveryVer(identities, features)
-    return {
-      node: query.attrs.node,
-      identities,
-      features: Array.from(new Set(features)).sort(),
-      ver,
-      hash: 'sha-1',
-      cachedAt: new Date().toISOString()
-    }
-  }
-
-  private parseDiscoItemsQuery(query: Element): XmppDiscoItem[] {
-    return (query.children as any[])
-      .filter(child => child?.name === 'item')
-      .map((item: Element) => ({
-        jid: item.attrs.jid,
-        node: item.attrs.node,
-        name: item.attrs.name
-      }))
-      .filter(item => typeof item.jid === 'string' && item.jid.length > 0) as XmppDiscoItem[]
-  }
-
-  private parseCapsPresence(element: Element): XmppCapsPresence | undefined {
-    const capsEl = element.getChild('c')
-    if (!capsEl || capsEl.attrs.xmlns !== CAPS_XMLNS) {
-      return undefined
-    }
-
-    const node = capsEl.attrs.node
-    const ver = capsEl.attrs.ver
-    if (!node || !ver) {
-      return undefined
-    }
-
-    return {
-      node,
-      ver,
-      hash: capsEl.attrs.hash || 'sha-1'
-    }
-  }
-
-  private getCapsCacheKey(node: string, ver: string): string {
-    return `${node}#${ver}`
+  private normalizeAttachment(entry: Partial<XmppAttachment> & { id: string; topic: string; targetId: string; from: string; kind: XmppAttachmentKind }): XmppAttachment {
+    return normalizeAttachment(entry)
   }
 
   private async queryDiscoInfo(peerAddr: string | Multiaddr, node?: string): Promise<XmppDiscoInfo> {
@@ -1214,7 +817,7 @@ export class XmppNode extends EventEmitter {
       throw new Error('Disco info response missing query payload')
     }
 
-    const info = this.parseDiscoInfoQuery(query)
+    const info = parseDiscoInfoQuery(query)
     this.discoInfoCache.set(queryNode, info)
     this.entityCapabilities.set(xmppStream.remotePeer.toString(), {
       peerId: xmppStream.remotePeer.toString(),
@@ -1252,13 +855,13 @@ export class XmppNode extends EventEmitter {
       return []
     }
 
-    const items = this.parseDiscoItemsQuery(query)
+    const items = parseDiscoItemsQuery(query)
     this.emit('disco:items', { peerId: xmppStream.remotePeer.toString(), items })
     return items
   }
 
   private async ensurePeerCapabilities(peerId: string, node: string, ver: string) {
-    const cacheKey = this.getCapsCacheKey(node, ver)
+    const cacheKey = getCapsCacheKey(node, ver)
     if (this.discoInfoCache.has(cacheKey)) {
       this.entityCapabilities.set(peerId, {
         peerId,
@@ -1286,85 +889,6 @@ export class XmppNode extends EventEmitter {
       this.emit('caps:discovered', this.entityCapabilities.get(peerId))
     } catch (err) {
       this.emit('error', err)
-    }
-  }
-
-  private normalizeFeedPost(entry: Partial<XmppFeedPost> & { id: string; topic: string; from: string; body: string }): XmppFeedPost {
-    return {
-      id: entry.id,
-      topic: entry.topic,
-      from: entry.from,
-      body: entry.body,
-      publishedAt: entry.publishedAt || new Date().toISOString(),
-      receivedAt: entry.receivedAt || new Date().toISOString(),
-      node: entry.node,
-      title: entry.title,
-      author: entry.author
-    }
-  }
-
-  private normalizeCollection(entry: Partial<XmppCollectionNode> & { id: string }): XmppCollectionNode {
-    const members = Array.isArray(entry.members) ? entry.members.map(member => this.normalizeCollectionMember(member)) : []
-    return {
-      id: entry.id,
-      name: entry.name,
-      topic: entry.topic || this.collectionTopicForId(entry.id),
-      members,
-      createdAt: entry.createdAt || new Date().toISOString(),
-      updatedAt: entry.updatedAt || new Date().toISOString()
-    }
-  }
-
-  private normalizeCollectionMember(entry: Partial<XmppCollectionMember> & { jid: string; peerId: string; feedTopic: string }): XmppCollectionMember {
-    return {
-      jid: entry.jid,
-      peerId: entry.peerId,
-      feedTopic: entry.feedTopic,
-      addedAt: entry.addedAt || new Date().toISOString()
-    }
-  }
-
-  private normalizeCollectionPost(entry: Partial<XmppCollectionPost> & { id: string; collectionId: string; topic: string; sourceTopic: string; from: string; body: string }): XmppCollectionPost {
-    return {
-      ...this.normalizeFeedPost(entry),
-      collectionId: entry.collectionId,
-      sourceTopic: entry.sourceTopic
-    }
-  }
-
-  private normalizeFeedSubscription(entry: Partial<XmppFeedSubscriptionRecord> & { peerId: string; jid: string; topic: string }): XmppFeedSubscriptionRecord {
-    return {
-      peerId: entry.peerId,
-      jid: entry.jid,
-      topic: entry.topic,
-      subscribedAt: entry.subscribedAt || new Date().toISOString(),
-      visibility: entry.visibility === 'public' ? 'public' : 'private',
-      updatedAt: entry.updatedAt || new Date().toISOString()
-    }
-  }
-
-  private normalizeFollower(entry: Partial<XmppFeedFollower> & { followerPeerId: string; followerJid: string; feedPeerId: string; feedTopic: string }): XmppFeedFollower {
-    return {
-      followerPeerId: entry.followerPeerId,
-      followerJid: entry.followerJid,
-      feedPeerId: entry.feedPeerId,
-      feedTopic: entry.feedTopic,
-      visibility: entry.visibility === 'public' ? 'public' : 'private',
-      subscribedAt: entry.subscribedAt || new Date().toISOString(),
-      updatedAt: entry.updatedAt || new Date().toISOString()
-    }
-  }
-
-  private normalizeAttachment(entry: Partial<XmppAttachment> & { id: string; topic: string; targetId: string; from: string; kind: XmppAttachmentKind }): XmppAttachment {
-    return {
-      id: entry.id,
-      topic: entry.topic,
-      targetId: entry.targetId,
-      from: entry.from,
-      kind: entry.kind,
-      value: entry.value,
-      publishedAt: entry.publishedAt || new Date().toISOString(),
-      receivedAt: entry.receivedAt || new Date().toISOString()
     }
   }
 
@@ -1557,28 +1081,7 @@ export class XmppNode extends EventEmitter {
 
   private buildAttachmentSummary(topic: string, targetId: string): XmppAttachmentSummary {
     const attachments = Array.from(this.attachmentHistory.values()).filter(attachment => attachment.topic === topic && attachment.targetId === targetId)
-    const summary: XmppAttachmentSummary = {
-      topic,
-      targetId,
-      total: attachments.length,
-      noticed: 0,
-      reactions: 0,
-      reactionCounts: {},
-      updatedAt: new Date().toISOString()
-    }
-
-    for (const attachment of attachments) {
-      if (attachment.kind === 'noticed') {
-        summary.noticed += 1
-      } else {
-        summary.reactions += 1
-        if (attachment.value) {
-          summary.reactionCounts[attachment.value] = (summary.reactionCounts[attachment.value] ?? 0) + 1
-        }
-      }
-    }
-
-    return summary
+    return buildAttachmentSummary(topic, targetId, attachments)
   }
 
   private async recordFeedPost(post: XmppFeedPost): Promise<boolean> {
@@ -2343,7 +1846,7 @@ export class XmppNode extends EventEmitter {
       children.push(xml('status', {}, status))
     }
     if (!type || type === 'available') {
-      children.push(this.buildCapsElement())
+      children.push(buildCapsElement(this.discoveryNode, this.discoveryIdentity, this.collections))
     }
 
     const pres = children.length > 0
@@ -2447,14 +1950,14 @@ export class XmppNode extends EventEmitter {
 
     if (query.attrs.xmlns === DISCO_INFO_XMLNS) {
       if (type === 'get') {
-        await this.sendIqResult(peerId, id, this.buildDiscoInfoQuery(query.attrs.node))
+        await this.sendIqResult(peerId, id, buildDiscoInfoQuery(this.discoveryIdentity, this.collections, query.attrs.node))
       }
       return
     }
 
     if (query.attrs.xmlns === DISCO_ITEMS_XMLNS) {
       if (type === 'get') {
-        await this.sendIqResult(peerId, id, this.buildDiscoItemsQuery(query.attrs.node))
+        await this.sendIqResult(peerId, id, buildDiscoItemsQuery(this.discoveryNode, this.collections, this.collectionSubscriptions, this.jid, query.attrs.node))
       }
       return
     }
@@ -2498,9 +2001,9 @@ export class XmppNode extends EventEmitter {
 
     this.emit('presence', presence)
 
-    const caps = this.parseCapsPresence(element)
+    const caps = parseCapsPresence(element)
     if (caps) {
-      const cacheKey = this.getCapsCacheKey(caps.node, caps.ver)
+      const cacheKey = getCapsCacheKey(caps.node, caps.ver)
       if (!this.discoInfoCache.has(cacheKey) && caps.hash === 'sha-1') {
         void this.ensurePeerCapabilities(peerId, caps.node, caps.ver)
       } else {
@@ -3601,7 +3104,7 @@ export class XmppNode extends EventEmitter {
     const parsed = this.parsePeerReference(peerAddr)
     const peerId = parsed.peerId || this.peerIdFromJid(peerAddr.toString())
     if (peerId === this.libp2p.peerId.toString()) {
-      return this.parseDiscoInfoQuery(this.buildDiscoInfoQuery(node ?? this.discoveryNode))
+      return parseDiscoInfoQuery(buildDiscoInfoQuery(this.discoveryIdentity, this.collections, node ?? this.discoveryNode))
     }
     return await this.queryDiscoInfo(peerAddr, node)
   }
@@ -3611,7 +3114,7 @@ export class XmppNode extends EventEmitter {
     const parsed = this.parsePeerReference(peerAddr)
     const peerId = parsed.peerId || this.peerIdFromJid(peerAddr.toString())
     if (peerId === this.libp2p.peerId.toString()) {
-      return this.parseDiscoItemsQuery(this.buildDiscoItemsQuery(node ?? this.discoveryNode))
+      return parseDiscoItemsQuery(buildDiscoItemsQuery(this.discoveryNode, this.collections, this.collectionSubscriptions, this.jid, node ?? this.discoveryNode))
     }
     return await this.queryDiscoItems(peerAddr, node)
   }
@@ -3621,7 +3124,7 @@ export class XmppNode extends EventEmitter {
     const parsed = this.parsePeerReference(peerAddr)
     const peerId = parsed.peerId || this.peerIdFromJid(peerAddr.toString())
     if (peerId === this.libp2p.peerId.toString()) {
-      const info = this.parseDiscoInfoQuery(this.buildDiscoInfoQuery())
+      const info = parseDiscoInfoQuery(buildDiscoInfoQuery(this.discoveryIdentity, this.collections))
       return {
         peerId,
         jid: this.jid,
