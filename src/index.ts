@@ -103,6 +103,21 @@ async function main() {
   xmppNode.on('feed:subscribe', (subscription) => {
     console.log(`\n[Feed] Subscribed to ${subscription.jid}`)
     console.log(`  Topic: ${subscription.topic}`)
+    console.log(`  Visibility: ${subscription.visibility}`)
+    showPrompt()
+  })
+
+  xmppNode.on('feed:visibility', (subscription) => {
+    console.log(`\n[Feed] Visibility updated for ${subscription.jid}`)
+    console.log(`  Topic: ${subscription.topic}`)
+    console.log(`  Visibility: ${subscription.visibility}`)
+    showPrompt()
+  })
+
+  xmppNode.on('feed:follower', (follower) => {
+    console.log(`\n[Followers] ${follower.feedPeerId} has a public follower`)
+    console.log(`  Follower: ${follower.followerJid}`)
+    console.log(`  Visibility: ${follower.visibility}`)
     showPrompt()
   })
 
@@ -125,6 +140,33 @@ async function main() {
     console.log(`  From: ${post.from}`)
     console.log(`  Item ID: ${post.id}`)
     console.log(`  Body: ${post.body}`)
+    showPrompt()
+  })
+
+  xmppNode.on('attachment:post', (attachment) => {
+    console.log(`\n[Attachment] Topic: ${attachment.topic}`)
+    console.log(`  Target: ${attachment.targetId}`)
+    console.log(`  From: ${attachment.from}`)
+    console.log(`  Item ID: ${attachment.id}`)
+    console.log(`  Kind: ${attachment.kind}`)
+    if (attachment.value) {
+      console.log(`  Value: ${attachment.value}`)
+    }
+    showPrompt()
+  })
+
+  xmppNode.on('attachment:summary', (summary) => {
+    console.log(`\n[Attachment Summary] Topic: ${summary.topic}`)
+    console.log(`  Target: ${summary.targetId}`)
+    console.log(`  Total: ${summary.total}`)
+    console.log(`  Noticed: ${summary.noticed}`)
+    console.log(`  Reactions: ${summary.reactions}`)
+    const reactionEntries = Object.entries(summary.reactionCounts)
+    if (reactionEntries.length > 0) {
+      for (const [reaction, count] of reactionEntries) {
+        console.log(`    ${reaction}: ${count}`)
+      }
+    }
     showPrompt()
   })
 
@@ -160,14 +202,21 @@ async function main() {
   console.log('  roster remove <jid>        Remove a roster contact')
   console.log('  roster fetch <peer>        Fetch a peer roster over IQ')
   console.log('  feed post <message>        Publish a post to your feed')
-  console.log('  feed subscribe <peer>      Subscribe to a peer feed')
+  console.log('  feed subscribe <peer> [public|private] Subscribe to a peer feed')
+  console.log('  feed visibility <peer> <public|private> Change follow visibility')
+  console.log('  feed unfollow <peer>       Stop following a peer feed')
   console.log('  feed list                  List recent local feed posts')
   console.log('  feed peers                 List active feed subscriptions')
+  console.log('  feed followers <peer>      List public followers for a feed')
   console.log('  collection create <id> [name] Create a community channel')
   console.log('  collection add <id> <peer> Add a user feed to a collection')
   console.log('  collection join <id>       Subscribe to a collection channel')
   console.log('  collection list            List collections')
   console.log('  collection posts [id]      List aggregated collection posts')
+  console.log('  pubsub-notice <topic> <id> [text] Publish a noticed attachment')
+  console.log('  pubsub-react <topic> <id> <emoji> Publish an emoji reaction')
+  console.log('  pubsub-attachments [topic] [id] List local attachments')
+  console.log('  pubsub-summary [topic] [id]  Show attachment counts')
   console.log('  pubsub-sub <topic>         Subscribe to a PubSub topic')
   console.log('  pubsub-pub <topic> <msg>   Publish a message to a topic')
   console.log('  id                         Print local Peer ID & JID')
@@ -285,13 +334,37 @@ async function main() {
             }
             case 'subscribe': {
               if (parts.length < 3) {
-                console.log('Usage: feed subscribe <peer-id|jid|multiaddr>')
+                console.log('Usage: feed subscribe <peer-id|jid|multiaddr> [public|private]')
                 break
               }
               const target = resolvePeerTarget(parts[2])
+              const visibility = parts[3] === 'public' ? 'public' : 'private'
               console.log(`Subscribing to feed at ${target}...`)
-              await xmppNode.subscribeFeed(target)
+              await xmppNode.subscribeFeed(target, { visibility })
               console.log('Subscribed!')
+              break
+            }
+            case 'visibility': {
+              if (parts.length < 4) {
+                console.log('Usage: feed visibility <peer-id|jid|multiaddr> <public|private>')
+                break
+              }
+              const target = resolvePeerTarget(parts[2])
+              const visibility = parts[3] === 'public' ? 'public' : 'private'
+              console.log(`Updating visibility for ${target} to ${visibility}...`)
+              await xmppNode.setFeedSubscriptionVisibility(target, visibility)
+              console.log('Updated!')
+              break
+            }
+            case 'unfollow': {
+              if (parts.length < 3) {
+                console.log('Usage: feed unfollow <peer-id|jid|multiaddr>')
+                break
+              }
+              const target = resolvePeerTarget(parts[2])
+              console.log(`Stopping follow of ${target}...`)
+              await xmppNode.unsubscribeFeed(target)
+              console.log('Unfollowed!')
               break
             }
             case 'list': {
@@ -315,12 +388,28 @@ async function main() {
               for (const subscription of subscriptions) {
                 console.log(`  - ${subscription.jid}`)
                 console.log(`      Topic: ${subscription.topic}`)
+                console.log(`      Visibility: ${subscription.visibility}`)
                 console.log(`      Subscribed At: ${subscription.subscribedAt}`)
               }
               break
             }
+            case 'followers': {
+              if (parts.length < 3) {
+                console.log('Usage: feed followers <peer-id|jid|multiaddr>')
+                break
+              }
+              const target = resolvePeerTarget(parts[2])
+              const followers = await xmppNode.getFeedFollowers(target)
+              console.log(`Public followers for ${target} (${followers.length}):`)
+              for (const follower of followers) {
+                console.log(`  - ${follower.followerJid}`)
+                console.log(`      Visibility: ${follower.visibility}`)
+                console.log(`      Subscribed At: ${follower.subscribedAt}`)
+              }
+              break
+            }
             default:
-              console.log('Usage: feed post <message> | feed subscribe <peer> | feed list | feed peers')
+              console.log('Usage: feed post <message> | feed subscribe <peer> [public|private] | feed visibility <peer> <public|private> | feed unfollow <peer> | feed list | feed peers | feed followers <peer>')
           }
           break
         }
@@ -480,6 +569,101 @@ async function main() {
           console.log(`Published! Item ID: ${itemId}`)
           break
         }
+        case 'pubsub-notice': {
+          if (parts.length < 3) {
+            console.log('Usage: pubsub-notice <topic> <target-item-id> [text]')
+            break
+          }
+          const topic = parts[1]
+          const targetId = parts[2]
+          const text = parts.slice(3).join(' ') || undefined
+          console.log(`Publishing noticed attachment to ${topic} for ${targetId}...`)
+          const itemId = await xmppNode.notice(topic, targetId, text)
+          console.log(`Published! Item ID: ${itemId}`)
+          break
+        }
+        case 'pubsub-react': {
+          if (parts.length < 4) {
+            console.log('Usage: pubsub-react <topic> <target-item-id> <emoji>')
+            break
+          }
+          const topic = parts[1]
+          const targetId = parts[2]
+          const emoji = parts[3]
+          console.log(`Publishing reaction to ${topic} for ${targetId}...`)
+          const itemId = await xmppNode.react(topic, targetId, emoji)
+          console.log(`Published! Item ID: ${itemId}`)
+          break
+        }
+        case 'pubsub-attachments': {
+          const topic = parts[1]
+          const targetId = parts[2]
+          const attachments = await xmppNode.getAttachments(topic, targetId)
+          console.log(`Attachments (${attachments.length}):`)
+          for (const attachment of attachments) {
+            console.log(`  - ${attachment.topic}`)
+            console.log(`      Target: ${attachment.targetId}`)
+            console.log(`      From: ${attachment.from}`)
+            console.log(`      Item ID: ${attachment.id}`)
+            console.log(`      Kind: ${attachment.kind}`)
+            if (attachment.value) {
+              console.log(`      Value: ${attachment.value}`)
+            }
+            console.log(`      Published: ${attachment.publishedAt}`)
+          }
+          break
+        }
+        case 'pubsub-summary': {
+          const topic = parts[1]
+          const targetId = parts[2]
+          if (topic && targetId) {
+            const attachments = await xmppNode.getAttachments(topic, targetId)
+            const summaries = await xmppNode.getAttachmentSummaries(topic)
+            const summary = summaries.find(entry => entry.targetId === targetId)
+            console.log(`Attachment summary for ${topic} / ${targetId}:`)
+            console.log(`  Total: ${summary?.total ?? attachments.length}`)
+            console.log(`  Noticed: ${summary?.noticed ?? attachments.filter(entry => entry.kind === 'noticed').length}`)
+            console.log(`  Reactions: ${summary?.reactions ?? attachments.filter(entry => entry.kind === 'reaction').length}`)
+            const reactionCounts = summary?.reactionCounts ?? attachments.reduce<Record<string, number>>((acc, attachment) => {
+              if (attachment.kind === 'reaction' && attachment.value) {
+                acc[attachment.value] = (acc[attachment.value] ?? 0) + 1
+              }
+              return acc
+            }, {})
+            const reactionEntries = Object.entries(reactionCounts)
+            if (reactionEntries.length > 0) {
+              for (const [reaction, count] of reactionEntries) {
+                console.log(`    ${reaction}: ${count}`)
+              }
+            }
+          } else if (topic) {
+            const summaries = await xmppNode.getAttachmentSummaries(topic)
+            console.log(`Attachment summaries for ${topic} (${summaries.length}):`)
+            for (const summary of summaries) {
+              console.log(`  - ${summary.targetId}`)
+              console.log(`      Total: ${summary.total}`)
+              console.log(`      Noticed: ${summary.noticed}`)
+              console.log(`      Reactions: ${summary.reactions}`)
+              for (const [reaction, count] of Object.entries(summary.reactionCounts)) {
+                console.log(`      ${reaction}: ${count}`)
+              }
+            }
+          } else {
+            const summaries = await xmppNode.getAttachmentSummaries()
+            console.log(`Attachment summaries (${summaries.length}):`)
+            for (const summary of summaries) {
+              console.log(`  - ${summary.topic}`)
+              console.log(`      Target: ${summary.targetId}`)
+              console.log(`      Total: ${summary.total}`)
+              console.log(`      Noticed: ${summary.noticed}`)
+              console.log(`      Reactions: ${summary.reactions}`)
+              for (const [reaction, count] of Object.entries(summary.reactionCounts)) {
+                console.log(`      ${reaction}: ${count}`)
+              }
+            }
+          }
+          break
+        }
         case 'id': {
           console.log(`Local Peer ID: ${libp2p.peerId.toString()}`)
           console.log(`Local JID:     ${xmppNode.jid}`)
@@ -500,14 +684,21 @@ async function main() {
           console.log('  roster remove <jid>        Remove a roster contact')
           console.log('  roster fetch <peer>        Fetch a peer roster over IQ')
           console.log('  feed post <message>        Publish a post to your feed')
-          console.log('  feed subscribe <peer>      Subscribe to a peer feed')
+          console.log('  feed subscribe <peer> [public|private] Subscribe to a peer feed')
+          console.log('  feed visibility <peer> <public|private> Change follow visibility')
+          console.log('  feed unfollow <peer>       Stop following a peer feed')
           console.log('  feed list                  List recent local feed posts')
           console.log('  feed peers                 List active feed subscriptions')
+          console.log('  feed followers <peer>      List public followers for a feed')
           console.log('  collection create <id> [name] Create a community channel')
           console.log('  collection add <id> <peer> Add a user feed to a collection')
           console.log('  collection join <id>       Subscribe to a collection channel')
           console.log('  collection list            List collections')
           console.log('  collection posts [id]      List aggregated collection posts')
+          console.log('  pubsub-notice <topic> <id> [text] Publish a noticed attachment')
+          console.log('  pubsub-react <topic> <id> <emoji> Publish an emoji reaction')
+          console.log('  pubsub-attachments [topic] [id] List local attachments')
+          console.log('  pubsub-summary [topic] [id]  Show attachment counts')
           console.log('  pubsub-sub <topic>         Subscribe to a PubSub topic')
           console.log('  pubsub-pub <topic> <msg>   Publish a message to a topic')
           console.log('  id                         Print local Peer ID & JID')

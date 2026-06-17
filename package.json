@@ -10,8 +10,10 @@
     "test-pubsub": "node dist/test-pubsub.js",
     "test-roster": "node dist/test-roster.js",
     "test-feed": "node dist/test-feed.js",
+    "test-attachments": "node dist/test-attachments.js",
+    "test-subscriptions": "node dist/test-subscriptions.js",
     "test-collection": "node dist/test-collection.js",
-    "test": "npm run build && npm run test-nodes && npm run test-pubsub && npm run test-roster && npm run test-feed && npm run test-collection"
+    "test": "npm run build && npm run test-nodes && npm run test-pubsub && npm run test-roster && npm run test-feed && npm run test-attachments && npm run test-subscriptions && npm run test-collection"
   },
   "repository": {
     "type": "git",
