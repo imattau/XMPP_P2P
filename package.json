@@ -13,8 +13,9 @@
     "test-attachments": "node dist/test-attachments.js",
     "test-subscriptions": "node dist/test-subscriptions.js",
     "test-disco": "node dist/test-disco.js",
+    "test-dht": "node dist/test-dht.js",
     "test-collection": "node dist/test-collection.js",
-    "test": "npm run build && npm run test-nodes && npm run test-pubsub && npm run test-roster && npm run test-feed && npm run test-attachments && npm run test-subscriptions && npm run test-disco && npm run test-collection"
+    "test": "npm run build && npm run test-nodes && npm run test-pubsub && npm run test-dht && npm run test-roster && npm run test-feed && npm run test-attachments && npm run test-subscriptions && npm run test-disco && npm run test-collection"
   },
   "repository": {
     "type": "git",
@@ -31,8 +32,10 @@
   "dependencies": {
     "@libp2p/gossipsub": "^16.0.3",
     "@libp2p/identify": "^4.1.8",
+    "@libp2p/kad-dht": "^16.3.3",
     "@libp2p/mdns": "^12.0.25",
     "@libp2p/noise": "^1.0.1",
+    "@libp2p/ping": "^3.1.7",
     "@libp2p/tcp": "^11.0.22",
     "@libp2p/yamux": "^8.0.1",
     "@xmpp/xml": "^0.14.0",
