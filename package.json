@@ -1,0 +1,53 @@
+{
+  "name": "xmpp_p2p",
+  "version": "1.0.0",
+  "description": "XMPP over libp2p",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test-nodes": "node dist/test-nodes.js",
+    "test-pubsub": "node dist/test-pubsub.js",
+    "test-roster": "node dist/test-roster.js",
+    "test-feed": "node dist/test-feed.js",
+    "test-attachments": "node dist/test-attachments.js",
+    "test-subscriptions": "node dist/test-subscriptions.js",
+    "test-disco": "node dist/test-disco.js",
+    "test-dht": "node dist/test-dht.js",
+    "test-openpgp": "node dist/test-openpgp.js",
+    "test-omemo": "node dist/test-omemo.js",
+    "test-collection": "node dist/test-collection.js",
+    "test": "npm run build && npm run test-nodes && npm run test-pubsub && npm run test-dht && npm run test-omemo && npm run test-roster && npm run test-feed && npm run test-attachments && npm run test-subscriptions && npm run test-disco && npm run test-collection"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/imattau/XMPP_P2P.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/imattau/XMPP_P2P/issues"
+  },
+  "homepage": "https://github.com/imattau/XMPP_P2P#readme",
+  "dependencies": {
+    "@libp2p/gossipsub": "^16.0.3",
+    "@libp2p/identify": "^4.1.8",
+    "@libp2p/kad-dht": "^16.3.3",
+    "@libp2p/mdns": "^12.0.25",
+    "@libp2p/noise": "^1.0.1",
+    "@libp2p/ping": "^3.1.7",
+    "@libp2p/tcp": "^11.0.22",
+    "@libp2p/yamux": "^8.0.1",
+    "@xmpp/xml": "^0.14.0",
+    "libomemo.js": "^1.0.0",
+    "libp2p": "^3.3.4",
+    "openpgp": "^6.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.3",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.3"
+  }
+}
