@@ -11,7 +11,13 @@ export const startCli = async (libp2p: Libp2pNode, xmppNode: XmppNode) => {
   libp2p.addEventListener('peer:discovery', (evt: any) => {
     const peerId = evt.detail.id.toString()
     if (peerId !== libp2p.peerId.toString()) {
-      const addrs = evt.detail.multiaddrs.map((ma: any) => ma.toString())
+      const addrs = evt.detail.multiaddrs.map((ma: any) => {
+        const addrStr = ma.toString()
+        if (!addrStr.includes('/p2p/') && !addrStr.includes('/ipfs/')) {
+          return `${addrStr}/p2p/${peerId}`
+        }
+        return addrStr
+      })
       const isNew = !discoveredPeers.has(peerId)
       discoveredPeers.set(peerId, addrs)
       if (isNew) {
