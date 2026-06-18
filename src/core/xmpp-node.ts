@@ -119,6 +119,18 @@ import {
 } from './xmpp-secure.js'
 import { XmppMucManager } from './xmpp-muc.js'
 import {
+  readDhtJson,
+  writeDhtJson,
+  loadMucStateFromDht,
+  persistMucStateToDht,
+  bufferStanzaToDht,
+  flushDhtMailbox,
+  mucSettingsKey,
+  mucSettingsIndexKey,
+  mailboxKey
+} from './xmpp-dht.js'
+
+import {
   loadAttachmentHistoryState,
   loadCollectionState,
   loadFeedHistoryState,
@@ -477,7 +489,7 @@ export class XmppNode extends EventEmitter {
   }
 
   private async loadMucState(): Promise<void> {
-    await this.loadMucStateFromDht().catch(err => {
+    await loadMucStateFromDht(this.getDhtContext()).catch(err => {
       console.error('[XMPP] Failed to load MUC state from DHT:', err)
     })
 
@@ -496,69 +508,14 @@ export class XmppNode extends EventEmitter {
     await loadMucHistoryState(this.getPersistenceLoadContext(), MUC_HISTORY_LIMIT)
   }
 
-  private mucSettingsIndexKey(peerId = this.libp2p.peerId.toString()): Uint8Array {
-    return new TextEncoder().encode(`${MUC_SETTINGS_INDEX_PREFIX}${peerId}`)
-  }
-
-  private mucSettingsKey(roomName: string): Uint8Array {
-    return new TextEncoder().encode(`${MUC_SETTINGS_PREFIX}${roomName}`)
-  }
-
-  private async readDhtJson<T>(key: Uint8Array): Promise<T | undefined> {
-    const contentRouting = (this.libp2p as any).contentRouting
-    if (!contentRouting?.get) {
-      console.log('[DEBUG DHT] readDhtJson: contentRouting.get not available')
-      return undefined
+  private getDhtContext(): import('./xmpp-dht.js').XmppDhtContext {
+    return {
+      libp2p: this.libp2p,
+      mucRooms: this.mucRooms,
+      ensureMucRoomSettings: this.ensureMucRoomSettings.bind(this),
+      handleStanza: this.handleStanza.bind(this),
+      emit: this.emit.bind(this)
     }
-
-    try {
-      const keyStr = new TextDecoder().decode(key)
-      console.log(`[DEBUG DHT] readDhtJson starting for key: ${keyStr}`)
-      const value = await contentRouting.get(key)
-      console.log(`[DEBUG DHT] readDhtJson success for key: ${keyStr}`)
-      return JSON.parse(new TextDecoder().decode(value)) as T
-    } catch (err: any) {
-      console.error(`[DEBUG DHT] readDhtJson failed:`, err?.message || err)
-      return undefined
-    }
-  }
-
-  private async writeDhtJson(key: Uint8Array, value: unknown): Promise<void> {
-    const contentRouting = (this.libp2p as any).contentRouting
-    if (!contentRouting?.put) {
-      console.log('[DEBUG DHT] writeDhtJson: contentRouting.put not available')
-      return
-    }
-
-    try {
-      const keyStr = new TextDecoder().decode(key)
-      console.log(`[DEBUG DHT] writeDhtJson starting for key: ${keyStr}`)
-      await contentRouting.put(key, new TextEncoder().encode(JSON.stringify(value)))
-      console.log(`[DEBUG DHT] writeDhtJson success for key: ${keyStr}`)
-    } catch (err: any) {
-      console.error(`[DEBUG DHT] writeDhtJson failed:`, err?.message || err)
-    }
-  }
-
-  private async loadMucStateFromDht(): Promise<void> {
-    const index = await this.readDhtJson<{ version: number; rooms: string[] }>(this.mucSettingsIndexKey())
-    const roomNames = index?.rooms ?? []
-
-    for (const roomName of roomNames) {
-      await this.ensureMucRoomSettings(roomName)
-    }
-  }
-
-  private async persistMucStateToDht(): Promise<void> {
-    const rooms = Array.from(this.mucRooms.values())
-    await Promise.all(rooms.map(async (room) => {
-      await this.writeDhtJson(this.mucSettingsKey(room.roomName), room)
-    }))
-
-    await this.writeDhtJson(this.mucSettingsIndexKey(), {
-      version: 1,
-      rooms: rooms.map(room => room.roomName)
-    })
   }
 
   private async loadVCard(): Promise<void> {
@@ -935,7 +892,7 @@ export class XmppNode extends EventEmitter {
   }
 
   public async persistMucState(): Promise<void> {
-    await this.persistMucStateToDht()
+    await persistMucStateToDht(this.getDhtContext())
     await persistMucStateFile(this.getPersistenceSaveContext())
   }
 
@@ -1210,7 +1167,7 @@ export class XmppNode extends EventEmitter {
       }
     }
 
-    const settings = await this.readDhtJson<XmppMucRoomSettings>(this.mucSettingsKey(roomName))
+    const settings = await readDhtJson<XmppMucRoomSettings>(this.libp2p, mucSettingsKey(roomName))
     if (!settings) {
       return undefined
     }
@@ -2231,7 +2188,7 @@ export class XmppNode extends EventEmitter {
       stream.send(csiEl)
     }
     if (state === 'active') {
-      await this.flushDhtMailbox()
+      await flushDhtMailbox(this.getDhtContext())
     }
   }
 
@@ -2242,7 +2199,7 @@ export class XmppNode extends EventEmitter {
   public async sendOrBufferStanza(peerId: string, stanza: Element, peerAddr?: string | Multiaddr): Promise<void> {
     if (this.isPeerInactive(peerId)) {
       console.log(`[DEBUG] Peer ${peerId} is inactive. Buffering stanza to DHT mailbox...`)
-      await this.bufferStanzaToDht(peerId, stanza)
+      await bufferStanzaToDht(this.libp2p, peerId, stanza)
       return
     }
 
@@ -2252,44 +2209,7 @@ export class XmppNode extends EventEmitter {
       stream.send(stanza)
     } catch (err) {
       console.warn(`[DEBUG] Failed to send stanza directly to ${peerId}. Buffering to DHT mailbox:`, err)
-      await this.bufferStanzaToDht(peerId, stanza)
-    }
-  }
-
-  private mailboxKey(peerId: string): Uint8Array {
-    return new TextEncoder().encode(`/xmpp/mailbox/queue/${peerId}`)
-  }
-
-  private async bufferStanzaToDht(peerId: string, stanza: Element): Promise<void> {
-    const key = this.mailboxKey(peerId)
-    let queue = await this.readDhtJson<string[]>(key)
-    if (!Array.isArray(queue)) {
-      queue = []
-    }
-    queue.push(stanza.toString())
-    await this.writeDhtJson(key, queue)
-  }
-
-  private async flushDhtMailbox(): Promise<void> {
-    const key = this.mailboxKey(this.libp2p.peerId.toString())
-    const queue = await this.readDhtJson<string[]>(key)
-    if (Array.isArray(queue) && queue.length > 0) {
-      console.log(`[DEBUG] Transitioned to active. Flushing ${queue.length} stanzas from DHT mailbox...`)
-      await this.writeDhtJson(key, [])
-
-      for (const xmlStr of queue) {
-        try {
-          const parser = new Parser()
-          parser.on('element', (element: Element) => {
-            const peerId = element.attrs.from ? element.attrs.from.split('@')[0] : 'unknown'
-            void this.handleStanza(peerId, element).catch(err => this.emit('error', err))
-          })
-          parser.write('<stream:stream>')
-          parser.write(xmlStr)
-        } catch (err) {
-          console.error('[DEBUG] Failed to parse buffered stanza from DHT mailbox:', err)
-        }
-      }
+      await bufferStanzaToDht(this.libp2p, peerId, stanza)
     }
   }
 
