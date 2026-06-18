@@ -70,8 +70,11 @@ export const initialState = {
       kind: 'muc',
       name: '#lattice-room',
       secure: false,
+      localAffiliation: 'owner',
       topic: 'Decentralized social sync — room mirrors the Lattice community',
       localNick: 'atlas',
+      defaultSecure: false,
+      autoJoin: true,
       occupants: [
         { nick: 'Maya', presence: 'available' },
         { nick: 'Jun', presence: 'away' },
@@ -84,6 +87,33 @@ export const initialState = {
       messages: [
         { from: 'Maya', text: 'Keeping the roster visible in sync with room state.', time: '09:05', self: false },
         { from: 'Jun', text: 'Confirmed on my side too.', time: '09:07', self: false }
+      ]
+    },
+    {
+      id: 'signal-lab-room',
+      kind: 'muc',
+      name: '#signal-lab',
+      secure: true,
+      localAffiliation: 'member',
+      topic: 'Protocol experiments and testing — coordination room for Signal Lab',
+      localNick: 'atlas',
+      defaultSecure: true,
+      autoJoin: false,
+      occupants: [
+        { nick: 'Leo', presence: 'busy' },
+        { nick: 'Priya', presence: 'available' },
+        { nick: 'Wren', presence: 'available' },
+        { nick: 'Sam', presence: 'busy' },
+        { nick: 'Jun', presence: 'away' },
+        { nick: 'Maya', presence: 'available' },
+        { nick: 'Theo', presence: 'available' },
+        { nick: 'Nadia', presence: 'away' }
+      ],
+      preview: 'Leo: Running the protocol experiment suite against loopback peers.',
+      lastActivityMinutesAgo: 21,
+      messages: [
+        { from: 'Leo', text: 'Running the protocol experiment suite against loopback peers.', time: '08:50', self: false },
+        { from: 'Priya', text: 'Results look consistent with last run.', time: '08:52', self: false }
       ]
     },
     {
@@ -197,8 +227,10 @@ export const sortedChats = (chats) => [...chats].sort((a, b) => a.lastActivityMi
 
 export const chatAvatarGlyph = (chat) => {
   if (chat.kind === 'group') {
-    return `${chat.participants[0].slice(0, 1).toUpperCase()}+${chat.participants.length - 1}`
+    const first = chat.participants?.[0]?.slice(0, 1).toUpperCase() ?? 'G'
+    const extra = Math.max(0, (chat.participants?.length ?? 1) - 1)
+    return extra > 0 ? `${first}+${extra}` : first
   }
 
-  return chat.name.replace('#', '').slice(0, 1).toUpperCase()
+  return (chat.name || '?').replace('#', '').slice(0, 1).toUpperCase()
 }

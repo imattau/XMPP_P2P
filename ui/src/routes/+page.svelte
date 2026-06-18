@@ -1234,23 +1234,29 @@
                 <button
                   class="thread-header__manage"
                   type="button"
-                  aria-label="Room settings"
+                  aria-label={activeChat().localAffiliation === 'owner' ? 'Room settings' : 'Room info'}
                   onclick={() => (mucSettingsOpen = !mucSettingsOpen)}
                 >
-                  ⚙
+                  {activeChat().localAffiliation === 'owner' ? '⚙' : 'ℹ'}
                 </button>
               </header>
 
               <div class="roster-strip" aria-label="Room occupants">
-                {#each activeChat().occupants as occupant}
+                {#each activeChat().occupants.slice(0, 6) as occupant}
                   <div class="roster-strip__item">
                     <div class="avatar">{initials(occupant.nick)}</div>
                     <span class="meta roster-strip__label">{occupant.nick}</span>
                   </div>
                 {/each}
+                {#if activeChat().occupants.length > 6}
+                  <div class="roster-strip__item roster-strip__item--overflow">
+                    <div class="avatar">+{activeChat().occupants.length - 6}</div>
+                    <span class="meta roster-strip__label">more</span>
+                  </div>
+                {/if}
               </div>
 
-              {#if mucSettingsOpen}
+              {#if mucSettingsOpen && activeChat().localAffiliation === 'owner'}
                 <div class="composer__settings thread-settings">
                   <div class="section__title">
                     <p class="eyebrow">Room controls</p>
@@ -1274,6 +1280,17 @@
                     <div class="meta">Saved settings control future room defaults and auto-join on restart.</div>
                     <button class="button button--small" type="button" onclick={saveMucRoomSettings}>Save room settings</button>
                   </div>
+                </div>
+              {:else if mucSettingsOpen}
+                <div class="composer__settings thread-settings">
+                  <div class="section__title">
+                    <p class="eyebrow">Room info</p>
+                    <h3>Room topic and defaults</h3>
+                  </div>
+                  <div class="kv"><span>Topic</span><span>{activeChat().topic}</span></div>
+                  <div class="kv"><span>Occupants</span><span>{activeChat().occupants.length}</span></div>
+                  <div class="kv"><span>Secure by default</span><span>{activeChat().defaultSecure === false ? 'Off' : 'On'}</span></div>
+                  <div class="kv"><span>Auto-join</span><span>{activeChat().autoJoin === false ? 'Off' : 'On'}</span></div>
                 </div>
               {/if}
             {:else}

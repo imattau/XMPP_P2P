@@ -939,6 +939,13 @@ textarea {
   max-width: 100%;
 }
 
+.roster-strip__item--overflow .avatar {
+  background: var(--surface-soft);
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
 .network-stats {
   display: grid;
   gap: var(--space-2);
