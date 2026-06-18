@@ -59,6 +59,18 @@ import {
   type XmppRosterContext
 } from './xmpp-roster.js'
 import {
+  subscribeFeed as subscribeFeedFromModule,
+  setFeedSubscriptionVisibility as setFeedSubscriptionVisibilityFromModule,
+  unsubscribeFeed as unsubscribeFeedFromModule,
+  publishFeed as publishFeedFromModule,
+  getFeedPosts as getFeedPostsFromModule,
+  getFeedSubscriptions as getFeedSubscriptionsFromModule,
+  getPublicFeedSubscriptions as getPublicFeedSubscriptionsFromModule,
+  watchFeedFollowers as watchFeedFollowersFromModule,
+  getFeedFollowers as getFeedFollowersFromModule,
+  type XmppFeedContext
+} from './xmpp-feed.js'
+import {
   fetchOpenPgpPublicKey as fetchOpenPgpPublicKeyFromModule,
   getPeerOpenPgpKey as getPeerOpenPgpKeyFromModule,
   handleSecureMessageStanza as handleSecureMessageStanzaFromModule,
@@ -393,6 +405,33 @@ export class XmppNode extends EventEmitter {
       discoveryNode: this.discoveryNode,
       discoveryIdentity: this.discoveryIdentity,
       collections: this.collections
+    }
+  }
+
+  private getFeedContext(): XmppFeedContext {
+    return {
+      jid: this.jid,
+      ready: this.ready,
+      libp2p: this.libp2p,
+      feedHistory: this.feedHistory,
+      feedSubscriptions: this.feedSubscriptions,
+      getOrCreateStream: this.getOrCreateStream.bind(this),
+      getPubSubService: this.getPubSubService.bind(this),
+      ensureTopicValidator: this.ensureTopicValidator.bind(this),
+      normalizeFeedSubscription: this.normalizeFeedSubscription.bind(this),
+      recordFeedSubscription: this.recordFeedSubscription.bind(this),
+      watchFollowerTopic: this.watchFollowerTopic.bind(this),
+      publishSubscriptionDeclaration: this.publishSubscriptionDeclaration.bind(this),
+      scheduleSubscriptionPersist: this.scheduleSubscriptionPersist.bind(this),
+      feedTopicForPeer: this.feedTopicForPeer.bind(this),
+      followerTopicForPeer: this.followerTopicForPeer.bind(this),
+      jidFromPeerId: this.jidFromPeerId.bind(this),
+      peerIdFromJid: this.peerIdFromJid.bind(this),
+      parsePeerReference: this.parsePeerReference.bind(this),
+      requestFollowersFromPeer: this.requestFollowersFromPeer.bind(this),
+      getFollowersForPeer: this.getFollowersForPeer.bind(this),
+      followerKey: this.followerKey.bind(this),
+      recordFeedPost: this.recordFeedPost.bind(this)
     }
   }
 
@@ -2223,121 +2262,19 @@ export class XmppNode extends EventEmitter {
   }
 
   async subscribeFeed(peerAddr: string | Multiaddr, options: { visibility?: XmppFeedVisibility } = {}): Promise<XmppFeedSubscriptionRecord> {
-    const xmppStream = await this.getOrCreateStream(peerAddr)
-    const peerId = xmppStream.remotePeer.toString()
-    const topic = this.feedTopicForPeer(peerId)
-    const pubsub = this.getPubSubService()
-    this.ensureTopicValidator(topic, 'feed')
-    this.ensureTopicValidator(topic, 'attachment')
-    await pubsub.subscribe(topic)
-    const subscription = this.normalizeFeedSubscription({
-      peerId,
-      jid: this.jidFromPeerId(peerId),
-      topic,
-      subscribedAt: new Date().toISOString(),
-      visibility: options.visibility ?? 'private',
-      updatedAt: new Date().toISOString()
-    })
-    await this.recordFeedSubscription(subscription)
-    await this.watchFollowerTopic(peerId)
-    if (subscription.visibility === 'public') {
-      await this.publishSubscriptionDeclaration(subscription, 'upsert')
-    }
-    return subscription
+    return await subscribeFeedFromModule(this.getFeedContext(), peerAddr, options)
   }
 
   async setFeedSubscriptionVisibility(peerAddr: string | Multiaddr, visibility: XmppFeedVisibility): Promise<XmppFeedSubscriptionRecord> {
-    const xmppStream = await this.getOrCreateStream(peerAddr)
-    const peerId = xmppStream.remotePeer.toString()
-    const topic = this.feedTopicForPeer(peerId)
-    const existing = this.feedSubscriptions.get(topic)
-    if (!existing) {
-      return await this.subscribeFeed(peerAddr, { visibility })
-    }
-
-    const next = this.normalizeFeedSubscription({
-      ...existing,
-      visibility,
-      updatedAt: new Date().toISOString()
-    })
-    await this.recordFeedSubscription(next)
-    if (visibility === 'public') {
-      await this.publishSubscriptionDeclaration(next, 'upsert')
-    } else {
-      await this.publishSubscriptionDeclaration(next, 'remove')
-    }
-    return next
+    return await setFeedSubscriptionVisibilityFromModule(this.getFeedContext(), peerAddr, visibility)
   }
 
   async unsubscribeFeed(peerAddr: string | Multiaddr): Promise<void> {
-    const xmppStream = await this.getOrCreateStream(peerAddr)
-    const peerId = xmppStream.remotePeer.toString()
-    const topic = this.feedTopicForPeer(peerId)
-    const pubsub = this.getPubSubService()
-    const existing = this.feedSubscriptions.get(topic)
-    if (existing && existing.visibility === 'public') {
-      await this.publishSubscriptionDeclaration(existing, 'remove')
-    }
-    await pubsub.unsubscribe(topic)
-    this.feedSubscriptions.delete(topic)
-    await this.scheduleSubscriptionPersist()
+    await unsubscribeFeedFromModule(this.getFeedContext(), peerAddr)
   }
 
   async publishFeed(body: string, options: { topic?: string; itemId?: string; title?: string; author?: string } = {}): Promise<string> {
-    const pubsub = this.getPubSubService()
-    const topic = options.topic ?? this.feedTopicForPeer(this.libp2p.peerId.toString())
-    this.ensureTopicValidator(topic, 'feed')
-    this.ensureTopicValidator(topic, 'attachment')
-    await pubsub.subscribe(topic)
-    const itemId = options.itemId ?? Math.random().toString(36).substring(2, 11)
-    const publishedAt = new Date().toISOString()
-    const entryChildren: Element[] = [
-      xml('id', {}, itemId),
-      xml('published', {}, publishedAt),
-      xml('author', {}, options.author ?? this.jid),
-      xml('content', { type: 'text' }, body),
-      xml('body', {}, body)
-    ]
-    if (options.title) {
-      entryChildren.push(xml('title', {}, options.title))
-    }
-    const stanza = xml(
-      'message',
-      {
-        from: this.jid,
-        to: 'pubsub.p2p',
-        type: 'headline'
-      },
-      xml(
-        'event',
-        { xmlns: PUBSUB_EVENT_XMLNS },
-          xml(
-            'items',
-            { node: topic },
-            xml(
-              'item',
-              { id: itemId },
-              xml('entry', { xmlns: FEED_XMLNS }, ...entryChildren)
-            )
-          )
-        )
-      )
-
-    const bytes = new TextEncoder().encode(stanza.toString())
-    await pubsub.publish(topic, bytes)
-
-    await this.recordFeedPost({
-      id: itemId,
-      topic,
-      from: this.jid,
-      body,
-      publishedAt,
-      receivedAt: publishedAt,
-      title: options.title,
-      author: options.author ?? this.jid
-    })
-
-    return itemId
+    return await publishFeedFromModule(this.getFeedContext(), body, options)
   }
 
   async createCollection(id: string, name?: string): Promise<XmppCollectionNode> {
@@ -2444,56 +2381,23 @@ export class XmppNode extends EventEmitter {
   }
 
   async getFeedPosts(): Promise<XmppFeedPost[]> {
-    await this.ready
-    return Array.from(this.feedHistory.values()).sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
+    return await getFeedPostsFromModule(this.getFeedContext())
   }
 
   async getFeedSubscriptions(): Promise<XmppFeedSubscriptionRecord[]> {
-    await this.ready
-    return Array.from(this.feedSubscriptions.values()).sort((a, b) => a.subscribedAt.localeCompare(b.subscribedAt))
+    return await getFeedSubscriptionsFromModule(this.getFeedContext())
   }
 
   async getPublicFeedSubscriptions(): Promise<XmppFeedSubscriptionRecord[]> {
-    await this.ready
-    return Array.from(this.feedSubscriptions.values())
-      .filter(subscription => subscription.visibility === 'public')
-      .sort((a, b) => a.subscribedAt.localeCompare(b.subscribedAt))
+    return await getPublicFeedSubscriptionsFromModule(this.getFeedContext())
   }
 
   async watchFeedFollowers(peerAddr: string | Multiaddr): Promise<XmppFollowerWatch> {
-    const parsed = this.parsePeerReference(peerAddr)
-    const peerId = parsed.peerId || this.peerIdFromJid(peerAddr.toString())
-    const topic = this.followerTopicForPeer(peerId)
-    await this.watchFollowerTopic(peerId)
-    return {
-      peerId,
-      topic,
-      watchedAt: new Date().toISOString()
-    }
+    return await watchFeedFollowersFromModule(this.getFeedContext(), peerAddr)
   }
 
   async getFeedFollowers(peerAddr: string | Multiaddr): Promise<XmppFeedFollower[]> {
-    const parsed = this.parsePeerReference(peerAddr)
-    const peerId = parsed.peerId || this.peerIdFromJid(peerAddr.toString())
-    await this.watchFollowerTopic(peerId)
-
-    if (peerId === this.libp2p.peerId.toString()) {
-      return this.getFollowersForPeer(peerId)
-        .filter(follower => follower.visibility === 'public')
-        .sort((a, b) => a.subscribedAt.localeCompare(b.subscribedAt))
-    }
-
-    const remoteFollowers = await this.requestFollowersFromPeer(peerAddr)
-    const merged = new Map<string, XmppFeedFollower>()
-
-    for (const follower of [...this.getFollowersForPeer(peerId), ...remoteFollowers]) {
-      if (follower.visibility !== 'public') {
-        continue
-      }
-      merged.set(this.followerKey(follower.feedPeerId, follower.followerPeerId), follower)
-    }
-
-    return Array.from(merged.values()).sort((a, b) => a.subscribedAt.localeCompare(b.subscribedAt))
+    return await getFeedFollowersFromModule(this.getFeedContext(), peerAddr)
   }
 
   async getDiscoInfo(peerAddr: string | Multiaddr, node?: string): Promise<XmppDiscoInfo> {
