@@ -3,6 +3,12 @@ import { dirname } from 'path'
 import { xml, Element } from '@xmpp/xml'
 import { loadOmemoModule } from './omemo-runtime.js'
 import type { OmemoDirection } from './omemo-runtime.js'
+import {
+  bufferToBase64,
+  base64ToArrayBuffer,
+  serializeKeyPair,
+  deserializeKeyPair
+} from './xmpp-utils.js'
 
 export interface XmppOmemoStateFile {
   version: number
@@ -92,11 +98,11 @@ export class XmppOmemoStateManager {
       }
       this.deviceId = parsed.deviceId
       this.registrationId = parsed.registrationId
-      this.identityKeyPair = this.deserializeKeyPair(parsed.identityKeyPair)
+      this.identityKeyPair = deserializeKeyPair(parsed.identityKeyPair)
       this.signedPreKey = {
         keyId: parsed.signedPreKey.keyId,
-        keyPair: this.deserializeKeyPair(parsed.signedPreKey.keyPair),
-        signature: this.base64ToArrayBuffer(parsed.signedPreKey.signature)
+        keyPair: deserializeKeyPair(parsed.signedPreKey.keyPair),
+        signature: base64ToArrayBuffer(parsed.signedPreKey.signature)
       }
       this.storeData.clear()
       for (const [key, value] of Object.entries(parsed.store ?? {})) {
@@ -104,7 +110,7 @@ export class XmppOmemoStateManager {
       }
       this.preKeys.clear()
       for (const preKey of this.state.preKeys) {
-        this.preKeys.set(preKey.keyId, this.deserializeKeyPair(preKey.keyPair))
+        this.preKeys.set(preKey.keyId, deserializeKeyPair(preKey.keyPair))
       }
       this.peerIdentityKeys.clear()
       for (const [address, identityKey] of Object.entries(this.state.identities)) {
@@ -158,13 +164,13 @@ export class XmppOmemoStateManager {
     return {
       deviceId: this.getDeviceId(),
       registrationId: this.getRegistrationId(),
-      identityKey: this.bufferToBase64(identityKeyPair.pubKey),
+      identityKey: bufferToBase64(identityKeyPair.pubKey),
       signedPreKeyId: signedPreKey.keyId,
-      signedPreKey: this.bufferToBase64(signedPreKey.keyPair.pubKey),
-      signedPreKeySignature: this.bufferToBase64(signedPreKey.signature),
+      signedPreKey: bufferToBase64(signedPreKey.keyPair.pubKey),
+      signedPreKeySignature: bufferToBase64(signedPreKey.signature),
       preKeys: Array.from(this.preKeys.entries()).map(([keyId, keyPair]) => ({
         keyId,
-        publicKey: this.bufferToBase64(keyPair.pubKey)
+        publicKey: bufferToBase64(keyPair.pubKey)
       }))
     }
   }
@@ -260,7 +266,7 @@ export class XmppOmemoStateManager {
       },
       isTrustedIdentity: (address: string, identityKey: ArrayBuffer) => {
         const current = this.peerIdentityKeys.get(address)
-        const encoded = this.bufferToBase64(identityKey)
+        const encoded = bufferToBase64(identityKey)
         if (!current) {
           this.peerIdentityKeys.set(address, encoded)
           const state = this.ensureState()
@@ -273,10 +279,10 @@ export class XmppOmemoStateManager {
       },
       loadIdentityKey: (address: string) => {
         const encoded = this.peerIdentityKeys.get(address)
-        return encoded ? this.base64ToArrayBuffer(encoded) : undefined
+        return encoded ? base64ToArrayBuffer(encoded) : undefined
       },
       saveIdentity: (address: string, identityKey: ArrayBuffer) => {
-        const encoded = this.bufferToBase64(identityKey)
+        const encoded = bufferToBase64(identityKey)
         this.peerIdentityKeys.set(address, encoded)
         const state = this.ensureState()
         state.identities[address] = encoded
@@ -292,7 +298,7 @@ export class XmppOmemoStateManager {
         const state = this.ensureState()
         state.preKeys = Array.from(this.preKeys.entries()).map(([id, pair]) => ({
           keyId: id,
-          keyPair: this.serializeKeyPair(pair)
+          keyPair: serializeKeyPair(pair)
         }))
         void this.schedulePersist()
       },
@@ -301,7 +307,7 @@ export class XmppOmemoStateManager {
         const state = this.ensureState()
         state.preKeys = Array.from(this.preKeys.entries()).map(([id, pair]) => ({
           keyId: id,
-          keyPair: this.serializeKeyPair(pair)
+          keyPair: serializeKeyPair(pair)
         }))
         void this.schedulePersist()
       },
@@ -322,8 +328,8 @@ export class XmppOmemoStateManager {
         }
         state.signedPreKey = {
           keyId: Number(keyId),
-          keyPair: this.serializeKeyPair(keyPair),
-          signature: this.bufferToBase64(this.signedPreKey.signature)
+          keyPair: serializeKeyPair(keyPair),
+          signature: bufferToBase64(this.signedPreKey.signature)
         }
         void this.schedulePersist()
       },
@@ -398,15 +404,15 @@ export class XmppOmemoStateManager {
       deviceId,
       registrationId,
       store: {},
-      identityKeyPair: this.serializeKeyPair(identityKeyPair),
+      identityKeyPair: serializeKeyPair(identityKeyPair),
       signedPreKey: {
         keyId: signedPreKey.keyId,
-        keyPair: this.serializeKeyPair(signedPreKey.keyPair),
-        signature: this.bufferToBase64(signedPreKey.signature)
+        keyPair: serializeKeyPair(signedPreKey.keyPair),
+        signature: bufferToBase64(signedPreKey.signature)
       },
       preKeys: preKeys.map(preKey => ({
         keyId: preKey.keyId,
-        keyPair: this.serializeKeyPair(preKey.keyPair)
+        keyPair: serializeKeyPair(preKey.keyPair)
       })),
       identities: {},
       sessions: {}
@@ -423,28 +429,6 @@ export class XmppOmemoStateManager {
     await this.persist()
   }
 
-  private serializeKeyPair(keyPair: { pubKey: ArrayBuffer; privKey: ArrayBuffer }) {
-    return {
-      pubKey: this.bufferToBase64(keyPair.pubKey),
-      privKey: this.bufferToBase64(keyPair.privKey)
-    }
-  }
-
-  private deserializeKeyPair(keyPair: { pubKey: string; privKey: string }) {
-    return {
-      pubKey: this.base64ToArrayBuffer(keyPair.pubKey),
-      privKey: this.base64ToArrayBuffer(keyPair.privKey)
-    }
-  }
-
-  private bufferToBase64(value: ArrayBuffer | Uint8Array): string {
-    return Buffer.from(value instanceof Uint8Array ? value : new Uint8Array(value)).toString('base64')
-  }
-
-  private base64ToArrayBuffer(value: string): ArrayBuffer {
-    const bytes = Buffer.from(value, 'base64')
-    return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
-  }
 
   private schedulePersist(): Promise<void> {
     this.saveQueue = this.saveQueue

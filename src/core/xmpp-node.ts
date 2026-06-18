@@ -3,6 +3,7 @@ import { basename, dirname, join } from 'path'
 import { Libp2p } from 'libp2p'
 import { xml, Element, Parser } from '@xmpp/xml'
 import { buildXepElements } from './xmpp-xep-helpers.js'
+import { bufferToBase64 } from './xmpp-utils.js'
 import { EventEmitter } from 'events'
 import { XmppStream } from './xmpp-stream.js'
 import * as openpgp from 'openpgp'
@@ -717,28 +718,6 @@ export class XmppNode extends EventEmitter {
     }
   }
 
-  private bufferToBase64(value: ArrayBuffer | Uint8Array): string {
-    return Buffer.from(value instanceof Uint8Array ? value : new Uint8Array(value)).toString('base64')
-  }
-
-  private base64ToArrayBuffer(value: string): ArrayBuffer {
-    const bytes = Buffer.from(value, 'base64')
-    return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
-  }
-
-  private serializeKeyPair(keyPair: { pubKey: ArrayBuffer; privKey: ArrayBuffer }) {
-    return {
-      pubKey: this.bufferToBase64(keyPair.pubKey),
-      privKey: this.bufferToBase64(keyPair.privKey)
-    }
-  }
-
-  private deserializeKeyPair(keyPair: { pubKey: string; privKey: string }) {
-    return {
-      pubKey: this.base64ToArrayBuffer(keyPair.pubKey),
-      privKey: this.base64ToArrayBuffer(keyPair.privKey)
-    }
-  }
 
   private async loadOmemoState(): Promise<void> {
     await this.omemoStateManager.load()
@@ -2312,7 +2291,7 @@ export class XmppNode extends EventEmitter {
 
   async getOmemoIdentityKey(): Promise<string> {
     await this.ready
-    return this.bufferToBase64(this.getOmemoIdentityKeyPairOrThrow().pubKey)
+    return bufferToBase64(this.getOmemoIdentityKeyPairOrThrow().pubKey)
   }
 
   async getOmemoBundleSummary(): Promise<{
