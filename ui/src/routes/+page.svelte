@@ -14,6 +14,15 @@
   let composerTargetId = initialState.composerTargetId
   let composerBody = ''
   let composerOpen = false
+  let communitySheetId = null
+
+  const communitySheetTarget = () => communities.find((item) => item.id === communitySheetId)
+
+  const toggleCommunityMembership = () => {
+    communities = communities.map((item) =>
+      item.id === communitySheetId ? { ...item, joined: !item.joined } : item
+    )
+  }
 
   let identity = initialState.identity
   let peers = clone(initialState.peers)
@@ -222,23 +231,21 @@
             <article class="feed-card surface" class:feed-card--community={item.sourceType === 'community'}>
               <div class="feed-card__head">
                 <div class="feed-author">
-                  <div class="avatar avatar--feed">{item.avatar}</div>
+                  <div class="avatar avatar--feed" class:avatar--square={item.sourceType === 'community'}>{item.avatar}</div>
                   <div>
-                    <div class="row row--tight">
-                      <strong>{item.title}</strong>
-                      <span class="badge badge--time">{item.time}</span>
-                    </div>
-                    <div class="meta">{item.sourceType === 'community' ? 'Community post' : 'Profile post'}</div>
+                    <strong>{item.title}</strong>
                   </div>
                 </div>
-                <span class={item.secure ? 'badge badge--secure' : 'badge badge--warn'}>{item.secure ? 'E2EE' : 'open'}</span>
+                <span class="meta mono">{item.time}</span>
               </div>
 
               <div class="pill-row">
-                <span class={item.sourceType === 'community' ? 'pill pill--community' : 'pill pill--person'}>
-                  {item.sourceLabel}
-                </span>
-                {#if item.sourceType === 'person'}
+                {#if item.sourceType === 'community'}
+                  <button class="pill pill--community" type="button" onclick={() => (communitySheetId = item.sourceId)}>
+                    {item.sourceLabel}
+                  </button>
+                {:else}
+                  <span class="pill pill--person">{item.sourceLabel}</span>
                   <span class="pill pill--muted">From {item.sourceLabel}</span>
                 {/if}
               </div>
@@ -248,14 +255,48 @@
               <div class="feed-card__actions">
                 <div class="action-group">
                   {#each item.reactions as reaction}
-                    <span class="badge badge--muted">{reaction}</span>
+                    <span class="meta">{reaction}</span>
                   {/each}
+                  {#if item.secure}
+                    <span class="meta" aria-label="Encrypted">🔒</span>
+                  {/if}
                 </div>
                 <button class="button button--ghost button--small" type="button">Reply</button>
               </div>
             </article>
           {/each}
         </section>
+
+        {#if communitySheetId}
+          <section class="sheet" role="dialog" aria-label="Community details">
+            <div class="row row--space">
+              <div class="row">
+                <div class="avatar avatar--square">{communitySheetTarget().name.slice(0, 1)}</div>
+                <div>
+                  <strong>{communitySheetTarget().name}</strong>
+                  <div class="meta">{communitySheetTarget().tag}</div>
+                </div>
+              </div>
+              <span class={communitySheetTarget().visibility === 'public' ? 'badge badge--secure' : 'badge badge--warn'}>
+                {communitySheetTarget().visibility}
+              </span>
+            </div>
+            <p>{communitySheetTarget().description}</p>
+            <div class="inspector__grid">
+              <div class="kv"><span>Members</span><span>{communitySheetTarget().members}</span></div>
+            </div>
+            <div class="composer__actions">
+              <button
+                class={communitySheetTarget().joined ? 'button button--ghost' : 'button'}
+                type="button"
+                onclick={toggleCommunityMembership}
+              >
+                {communitySheetTarget().joined ? 'Leave community' : 'Join community'}
+              </button>
+              <button class="button button--ghost" type="button" onclick={() => (communitySheetId = null)}>Close</button>
+            </div>
+          </section>
+        {/if}
       </section>
     {:else if section === 'chats'}
       <section class="section-stack">
