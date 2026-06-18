@@ -154,7 +154,7 @@
         </div>
 
         {#if composerOpen}
-          <section class="sheet" role="dialog" aria-label="New post">
+          <div class="sheet" role="dialog" aria-label="New post" tabindex="-1" onclick={() => {}} onkeydown={() => {}}>
             <div class="surface__head">
               <div>
                 <p class="eyebrow">New post</p>
@@ -190,7 +190,7 @@
                 <button class="button" type="submit">Publish</button>
               </div>
             </form>
-          </section>
+          </div>
         {/if}
 
         <section class="feed-controls">
