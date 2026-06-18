@@ -43,7 +43,8 @@ export const initialState = {
       description: 'Decentralized social sync',
       members: 5,
       visibility: 'public',
-      color: 'community'
+      color: 'community',
+      joined: true
     },
     {
       id: 'signal',
@@ -52,16 +53,19 @@ export const initialState = {
       description: 'Protocol experiments and testing',
       members: 3,
       visibility: 'private',
-      color: 'community-alt'
+      color: 'community-alt',
+      joined: false
     }
   ],
   chats: [
     {
       id: 'aurora',
+      kind: 'direct',
       name: 'Maya',
       secure: true,
       unread: 2,
       preview: 'Can you join the room after the feed post?',
+      lastActivityMinutesAgo: 4,
       messages: [
         { from: 'Maya', text: 'Can you join the room after the feed post?', time: '09:14', self: false },
         { from: 'You', text: 'Yes. I will bring the secure thread summary.', time: '09:16', self: true },
@@ -69,14 +73,51 @@ export const initialState = {
       ]
     },
     {
+      id: 'lattice-room',
+      kind: 'muc',
+      name: '#lattice-room',
+      secure: false,
+      topic: 'Decentralized social sync — room mirrors the Lattice community',
+      localNick: 'atlas',
+      occupants: [
+        { nick: 'Maya', presence: 'available' },
+        { nick: 'Jun', presence: 'away' },
+        { nick: 'Priya', presence: 'available' },
+        { nick: 'Sam', presence: 'busy' },
+        { nick: 'Wren', presence: 'available' }
+      ],
+      preview: 'Jun, Maya +3 · Keeping the roster visible in sync with room state.',
+      lastActivityMinutesAgo: 7,
+      messages: [
+        { from: 'Maya', text: 'Keeping the roster visible in sync with room state.', time: '09:05', self: false },
+        { from: 'Jun', text: 'Confirmed on my side too.', time: '09:07', self: false }
+      ]
+    },
+    {
       id: 'juniper',
+      kind: 'direct',
       name: 'Jun',
       secure: false,
       unread: 0,
       preview: 'Checking DHT reachability and mdns peers.',
+      lastActivityMinutesAgo: 33,
       messages: [
         { from: 'Jun', text: 'Checking DHT reachability and mdns peers.', time: '08:43', self: false },
         { from: 'You', text: 'Topologies look stable on loopback.', time: '08:44', self: true }
+      ]
+    },
+    {
+      id: 'core-team',
+      kind: 'group',
+      name: 'Core team',
+      secure: true,
+      unread: 1,
+      participants: ['Maya', 'Jun', 'Priya'],
+      preview: 'Priya: Pushed the attachment indexing fix.',
+      lastActivityMinutesAgo: 50,
+      messages: [
+        { from: 'Priya', text: 'Pushed the attachment indexing fix.', time: '08:00', self: false },
+        { from: 'Jun', text: 'Nice, testing it against the loopback peers now.', time: '08:05', self: false }
       ]
     }
   ],
@@ -157,4 +198,14 @@ export const filterLabels = {
   all: 'All',
   people: 'People',
   communities: 'Communities'
+}
+
+export const sortedChats = (chats) => [...chats].sort((a, b) => a.lastActivityMinutesAgo - b.lastActivityMinutesAgo)
+
+export const chatAvatarGlyph = (chat) => {
+  if (chat.kind === 'group') {
+    return `${chat.participants[0].slice(0, 1).toUpperCase()}+${chat.participants.length - 1}`
+  }
+
+  return chat.name.replace('#', '').slice(0, 1).toUpperCase()
 }
