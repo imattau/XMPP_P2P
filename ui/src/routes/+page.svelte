@@ -13,6 +13,7 @@
   let activeFeedId = initialState.activeFeedId
   let composerTargetId = initialState.composerTargetId
   let composerBody = ''
+  let composerOpen = false
 
   let identity = initialState.identity
   let peers = clone(initialState.peers)
@@ -112,6 +113,7 @@
 
     activeFeedId = feedItems[0].id
     composerBody = ''
+    composerOpen = false
     section = 'feed'
   }
 </script>
@@ -144,48 +146,52 @@
 
     {#if section === 'feed'}
       <section class="section-stack">
-        <div class="section-head">
+        <div class="section-head row row--space">
           <div class="section__title">
             <h2>Feed</h2>
           </div>
+          <button class="avatar" type="button" aria-label="New post" onclick={() => (composerOpen = true)}>+</button>
         </div>
 
-        <section class="composer surface composer--sticky">
-          <div class="surface__head">
-            <div>
-              <p class="eyebrow">New post</p>
-              <h3>Share to your feed or a community</h3>
+        {#if composerOpen}
+          <section class="sheet" role="dialog" aria-label="New post">
+            <div class="surface__head">
+              <div>
+                <p class="eyebrow">New post</p>
+                <h3>Share to your feed or a community</h3>
+              </div>
+              <label class="toggle">
+                <input bind:checked={secure} type="checkbox" />
+                <span>E2EE</span>
+              </label>
             </div>
-            <label class="toggle">
-              <input bind:checked={secure} type="checkbox" />
-              <span>E2EE</span>
-            </label>
-          </div>
 
-          <div class="composer__targets" aria-label="Post destination">
-            {#each composerTargets() as target}
-              <button
-                class="chip"
-                class:is-active={composerTargetId === target.id}
-                type="button"
-                onclick={() => setComposerTarget(target.id)}
-              >
-                {target.tag}
-              </button>
-            {/each}
-          </div>
-
-          <form class="composer__form" onsubmit={submitComposer}>
-            <label class="field field--grow">
-              <span>Message</span>
-              <textarea bind:value={composerBody} rows="3" placeholder="Write a post"></textarea>
-            </label>
-            <div class="composer__actions">
-              <p class="hint">Posting to: {composerTarget().tag}</p>
-              <button class="button" type="submit">Publish</button>
+            <div class="composer__targets" aria-label="Post destination">
+              {#each composerTargets() as target}
+                <button
+                  class="chip"
+                  class:is-active={composerTargetId === target.id}
+                  type="button"
+                  onclick={() => setComposerTarget(target.id)}
+                >
+                  {target.tag}
+                </button>
+              {/each}
             </div>
-          </form>
-        </section>
+
+            <form class="composer__form" onsubmit={submitComposer}>
+              <label class="field field--grow">
+                <span>Message</span>
+                <textarea bind:value={composerBody} rows="3" placeholder="Write a post"></textarea>
+              </label>
+              <div class="composer__actions">
+                <p class="hint">Posting to: {composerTarget().tag}</p>
+                <button class="button button--ghost" type="button" onclick={() => (composerOpen = false)}>Cancel</button>
+                <button class="button" type="submit">Publish</button>
+              </div>
+            </form>
+          </section>
+        {/if}
 
         <section class="feed-controls">
           <div class="chip-row" aria-label="Feed filters">
