@@ -52,6 +52,13 @@ import {
   type XmppOmemoContext
 } from './xmpp-omemo.js'
 import {
+  sendIqRequest as sendIqRequestFromModule,
+  sendIqResult as sendIqResultFromModule,
+  handleStanza as handleStanzaFromModule,
+  type PendingIq,
+  type XmppRouterContext
+} from './xmpp-router.js'
+import {
   handlePubSubPayload as handlePubSubPayloadFromModule,
   handlePubSubMessageElement as handlePubSubMessageElementFromModule,
   type XmppPubSubContext
@@ -201,12 +208,6 @@ export interface XmppNodeOptions {
   attachmentPath?: string
   omemoPath?: string
   openPgpPath?: string
-}
-
-interface PendingIq {
-  resolve: (element: Element) => void
-  reject: (error: Error) => void
-  timer: ReturnType<typeof setTimeout>
 }
 
 export class XmppNode extends EventEmitter {
@@ -534,6 +535,40 @@ export class XmppNode extends EventEmitter {
       jidFromPeerId: this.jidFromPeerId.bind(this),
       discoInfoCache: this.discoInfoCache,
       entityCapabilities: this.entityCapabilities,
+      emit: this.emit.bind(this)
+    }
+  }
+
+  private getRouterContext(): XmppRouterContext {
+    return {
+      jid: this.jid,
+      pendingIq: this.pendingIq,
+      streams: this.streams,
+      getOrCreateStream: this.getOrCreateStream.bind(this),
+      jidFromPeerId: this.jidFromPeerId.bind(this),
+      buildOmemoDevicesQuery: this.buildOmemoDevicesQuery.bind(this),
+      buildOmemoBundleQuery: this.buildOmemoBundleQuery.bind(this),
+      buildRosterQuery: this.buildRosterQuery.bind(this),
+      buildFollowersQuery: this.buildFollowersQuery.bind(this),
+      discoveryIdentity: this.discoveryIdentity,
+      discoveryNode: this.discoveryNode,
+      collections: this.collections,
+      collectionSubscriptions: this.collectionSubscriptions,
+      openPgpState: this.openPgpState,
+      openPgpFingerprint: this.openPgpFingerprint,
+      deleteRosterEntry: this.deleteRosterEntry.bind(this),
+      upsertRosterEntry: this.upsertRosterEntry.bind(this),
+      handleSubscribe: this.handleSubscribe.bind(this),
+      handleSubscribed: this.handleSubscribed.bind(this),
+      handleUnsubscribe: this.handleUnsubscribe.bind(this),
+      handleUnsubscribed: this.handleUnsubscribed.bind(this),
+      sendCurrentPresenceToPeer: this.sendCurrentPresenceToPeer.bind(this),
+      recordPresence: this.recordPresence.bind(this),
+      discoInfoCache: this.discoInfoCache,
+      ensurePeerCapabilities: this.ensurePeerCapabilities.bind(this),
+      entityCapabilities: this.entityCapabilities,
+      getPubSubContext: this.getPubSubContext.bind(this),
+      getSecureContext: this.getSecureContext.bind(this),
       emit: this.emit.bind(this)
     }
   }
@@ -1393,45 +1428,11 @@ export class XmppNode extends EventEmitter {
   }
 
   private async sendIqRequest(target: string | Multiaddr, stanza: Element, timeoutMs = 10000): Promise<Element> {
-    const xmppStream = await this.getOrCreateStream(target)
-    const id = stanza.attrs.id
-    if (!id) {
-      throw new Error('IQ stanza missing id')
-    }
-
-    return await new Promise<Element>((resolve, reject) => {
-      const timer = setTimeout(() => {
-        this.pendingIq.delete(id)
-        reject(new Error(`Timed out waiting for IQ response ${id}`))
-      }, timeoutMs)
-
-      this.pendingIq.set(id, {
-        resolve: (element) => {
-          clearTimeout(timer)
-          resolve(element)
-        },
-        reject: (error) => {
-          clearTimeout(timer)
-          reject(error)
-        },
-        timer
-      })
-
-      xmppStream.send(stanza)
-    })
+    return await sendIqRequestFromModule(this.getRouterContext(), target, stanza, timeoutMs)
   }
 
   private async sendIqResult(peerId: string, id: string, payload?: Element) {
-    const xmppStream = this.streams.get(peerId)
-    if (!xmppStream) {
-      return
-    }
-
-    const stanza = payload
-      ? xml('iq', { to: this.jidFromPeerId(peerId), from: this.jid, type: 'result', id }, payload)
-      : xml('iq', { to: this.jidFromPeerId(peerId), from: this.jid, type: 'result', id })
-
-    xmppStream.send(stanza)
+    await sendIqResultFromModule(this.getRouterContext(), peerId, id, payload)
   }
 
   private buildRosterQuery(): Element {
@@ -1577,225 +1578,8 @@ export class XmppNode extends EventEmitter {
     await sendPresenceToPeerFromModule(this.getRosterContext(), peerId, type, status, show)
   }
 
-  private async handleIqStanza(peerId: string, element: Element) {
-    const id = element.attrs.id
-    if (!id) {
-      return
-    }
-
-    const type = element.attrs.type
-    if (type === 'result') {
-      const pending = this.pendingIq.get(id)
-      if (pending) {
-        this.pendingIq.delete(id)
-        clearTimeout(pending.timer)
-        pending.resolve(element)
-      }
-      return
-    }
-
-    if (type === 'error') {
-      const pending = this.pendingIq.get(id)
-      if (pending) {
-        this.pendingIq.delete(id)
-        clearTimeout(pending.timer)
-        pending.reject(new Error(`IQ error response for ${id}`))
-      }
-      return
-    }
-
-    const query = element.getChild('query')
-    if (!query) {
-      const pubsub = element.getChild('pubsub')
-      if (pubsub) {
-        const items = pubsub.getChild('items')
-        const node = items?.attrs.node
-        if (type === 'get' && node === OMEMO_DEVICES_NODE) {
-          await this.sendIqResult(peerId, id, this.buildOmemoDevicesQuery())
-          return
-        }
-
-        if (type === 'get' && node === OMEMO_BUNDLES_NODE) {
-          const item = items?.getChild('item')
-          const deviceId = Number(item?.attrs.id ?? 0)
-          if (Number.isFinite(deviceId) && deviceId > 0) {
-            await this.sendIqResult(peerId, id, this.buildOmemoBundleQuery(deviceId))
-            return
-          }
-        }
-      }
-
-      return
-    }
-
-    if (query.attrs.xmlns === ROSTER_XMLNS) {
-      if (type === 'get') {
-        await this.sendIqResult(peerId, id, this.buildRosterQuery())
-        return
-      }
-
-      if (type === 'set') {
-        const item = query.getChild('item')
-        if (item) {
-          const jid = item.attrs.jid
-          if (jid) {
-            if (item.attrs.subscription === 'remove') {
-              await this.deleteRosterEntry(jid)
-            } else {
-              const groups = (item.children as any[])
-                .filter(child => child?.name === 'group')
-                .map((child: Element) => child.text())
-
-              await this.upsertRosterEntry({
-                jid,
-                name: item.attrs.name,
-                subscription: item.attrs.subscription as XmppRosterSubscription | undefined,
-                ask: item.attrs.ask as 'subscribe' | 'unsubscribe' | undefined,
-                groups
-              })
-            }
-          }
-        }
-
-        await this.sendIqResult(peerId, id, this.buildRosterQuery())
-      }
-      return
-    }
-
-    if (query.attrs.xmlns === FOLLOWERS_XMLNS) {
-      if (type === 'get') {
-        await this.sendIqResult(peerId, id, this.buildFollowersQuery())
-      }
-      return
-    }
-
-    if (query.attrs.xmlns === DISCO_INFO_XMLNS) {
-      if (type === 'get') {
-        await this.sendIqResult(peerId, id, buildDiscoInfoQuery(this.discoveryIdentity, this.collections, query.attrs.node))
-      }
-      return
-    }
-
-    if (query.attrs.xmlns === DISCO_ITEMS_XMLNS) {
-      if (type === 'get') {
-        await this.sendIqResult(peerId, id, buildDiscoItemsQuery(this.discoveryNode, this.collections, this.collectionSubscriptions, this.jid, query.attrs.node))
-      }
-      return
-    }
-
-    if (query.attrs.xmlns === OPENPGP_IQ_XMLNS) {
-      if (type === 'get') {
-        const publicKey = this.openPgpState?.publicKey
-        const fingerprint = this.openPgpFingerprint ?? this.openPgpState?.fingerprint
-        if (!publicKey || !fingerprint) {
-          await this.sendIqResult(peerId, id, xml('query', { xmlns: OPENPGP_IQ_XMLNS }))
-          return
-        }
-
-        await this.sendIqResult(
-          peerId,
-          id,
-          xml(
-            'query',
-            { xmlns: OPENPGP_IQ_XMLNS },
-            xml('pubkey', { fingerprint }, publicKey)
-          )
-        )
-      }
-      return
-    }
-  }
-
-  private async handlePresenceStanza(peerId: string, element: Element) {
-    const fromJid = element.attrs.from || `${peerId}@p2p`
-    const toJid = element.attrs.to || this.jid
-    const type = element.attrs.type as XmppPresenceType | undefined
-    const statusEl = element.getChild('status')
-    const showEl = element.getChild('show')
-    const presence: XmppPresence = {
-      from: fromJid,
-      to: toJid,
-      type,
-      status: statusEl ? statusEl.text() : undefined,
-      show: showEl ? showEl.text() : undefined
-    }
-
-    this.emit('presence', presence)
-
-    const caps = parseCapsPresence(element)
-    if (caps) {
-      const cacheKey = getCapsCacheKey(caps.node, caps.ver)
-      if (!this.discoInfoCache.has(cacheKey) && caps.hash === 'sha-1') {
-        void this.ensurePeerCapabilities(peerId, caps.node, caps.ver)
-      } else {
-        const cached = this.discoInfoCache.get(cacheKey)
-        if (cached) {
-          this.entityCapabilities.set(peerId, {
-            peerId,
-            jid: fromJid,
-            node: caps.node,
-            ver: caps.ver,
-            hash: 'sha-1',
-            info: cached,
-            discoveredAt: new Date().toISOString()
-          })
-        }
-      }
-    }
-
-    switch (type) {
-      case 'subscribe':
-        await this.handleSubscribe(peerId, fromJid)
-        return
-      case 'subscribed':
-        await this.handleSubscribed(fromJid)
-        return
-      case 'unsubscribe':
-        await this.handleUnsubscribe(peerId, fromJid)
-        return
-      case 'unsubscribed':
-        await this.handleUnsubscribed(fromJid)
-        return
-      case 'probe':
-        await this.sendCurrentPresenceToPeer(peerId)
-        return
-      case 'unavailable':
-      default:
-        await this.recordPresence(fromJid, {
-          ...presence,
-          type: type === 'unavailable' ? 'unavailable' : 'available'
-        })
-    }
-  }
-
   private async handleStanza(peerId: string, element: Element) {
-    const fromJid = element.attrs.from || `${peerId}@p2p`
-    const toJid = element.attrs.to || this.jid
-
-    if (element.name === 'message') {
-      const eventEl = element.getChild('event')
-      if (eventEl && eventEl.attrs.xmlns === PUBSUB_EVENT_XMLNS) {
-        await handlePubSubMessageElementFromModule(peerId, element, this.getPubSubContext())
-        return
-      }
-
-      if (await handleSecureMessageStanzaFromModule(element, fromJid, toJid, this.getSecureContext())) {
-        return
-      }
-      return
-    }
-
-    if (element.name === 'presence') {
-      await this.handlePresenceStanza(peerId, element)
-      return
-    }
-
-    if (element.name === 'iq') {
-      await this.handleIqStanza(peerId, element)
-      return
-    }
-
-    this.emit('stanza', { from: fromJid, to: toJid, element })
+    await handleStanzaFromModule(this.getRouterContext(), peerId, element)
   }
 
   private async requestRosterFromPeer(peerAddr: string | Multiaddr): Promise<XmppRosterEntry[]> {
