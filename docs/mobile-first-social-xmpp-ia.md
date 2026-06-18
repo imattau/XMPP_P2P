@@ -49,7 +49,7 @@ Use 3 top-level destinations. Keep the mobile nav fixed at the bottom and conver
 - Selecting a MUC room reveals its topic and occupant roster inline; selecting a 1:1 or group thread shows the message history and composer directly.
 
 3. Profile
-- Identity, presence/availability controls, peer topology, and protocol/connection state.
+- Identity, presence/availability controls, and protocol/connection state with access to advanced diagnostics.
 
 ## Screen Map
 
@@ -86,8 +86,8 @@ Purpose: identity and protocol state.
 Contents:
 - Local identity summary (JID, peer ID, transport, connection)
 - Availability/presence controls
-- Peer topology graph
 - Protocol/connection state (peer discovery, roster sync, secure sessions, PubSub, DHT)
+- Advanced/inspector view for detailed peer topology and protocol diagnostics
 
 ## Responsive Behavior
 
@@ -119,7 +119,7 @@ Contents:
 Use SVG only in places where the visual encodes real state.
 
 Good uses:
-- Peer topology graph
+- Peer topology graph (in advanced/inspector views)
 - Presence halo around avatars or initials
 - Secure connection lock / trust badge
 - Room occupancy cluster
@@ -133,7 +133,7 @@ Implementation rules:
 - Animate only state changes, not idle motion.
 
 Novel but still useful SVG patterns:
-- A peer graph that grows from the local node outward as discovery happens
+- A peer graph in the advanced view that grows from the local node outward as discovery happens
 - A trust ring that changes stroke style when a contact becomes verified
 - A room occupancy diagram that compresses and expands as users join or leave
 - A capability strip where icons light up according to disco results
