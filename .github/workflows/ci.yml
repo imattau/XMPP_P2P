@@ -53,12 +53,12 @@ jobs:
 
       - name: Stage GitHub Pages docs directory
         run: |
-          rm -rf .pages
-          mkdir -p .pages/docs
-          cp -R docs/. .pages/docs
+          rm -rf pages
+          mkdir -p pages/docs
+          cp -R docs/. pages/docs
 
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          folder: .pages
+          folder: pages
           branch: gh-pages # The branch the action should deploy to.
