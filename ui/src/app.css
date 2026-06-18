@@ -348,6 +348,69 @@ textarea {
   gap: var(--space-3);
 }
 
+.composer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+
+.composer-header__cancel {
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  padding: 0;
+}
+
+.composer-header__title {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+}
+
+.composer-header__icons {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 1.6rem;
+  justify-content: flex-end;
+}
+
+.icon-toggle {
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-soft);
+  font-size: 0.85rem;
+}
+
+.icon-toggle.is-on {
+  background: rgba(95, 212, 154, 0.12);
+  border-color: rgba(95, 212, 154, 0.32);
+  color: var(--positive-strong);
+}
+
+.composer-dest {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.6rem 0;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.composer-dest__value {
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
 .toggle {
   display: inline-flex;
   align-items: center;
@@ -1298,34 +1361,16 @@ textarea {
   to { opacity: 1; }
 }
 
-/* On mobile/tablets below 900px, make composer full screen */
-@media (max-width: 899px) {
-  .sheet.composer {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    max-height: 100dvh;
-    height: 100dvh;
-    border-radius: 0;
-    z-index: 12;
-  }
-}
-
-/* On desktop, make composer a clean centered modal */
-@media (min-width: 900px) {
-  .sheet.composer {
-    position: fixed !important;
-    top: 50% !important;
-    left: 50% !important;
-    transform: translate(-50%, -50%) !important;
-    width: min(100% - 2rem, 38rem) !important;
-    max-height: 90vh !important;
-    border-radius: var(--radius-xl) !important;
-    z-index: 12 !important;
-    box-shadow: var(--shadow) !important;
-  }
+.sheet.composer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: 100dvh;
+  height: 100dvh;
+  border-radius: 0;
+  z-index: 12;
 }
 
 /* --- High-fidelity visual improvements --- */

@@ -33,6 +33,7 @@
   let composerSecure = snapshot.secure
   let composerOpen = false
   let composerMenuOpen = false
+  let destinationPickerOpen = false
   let fabPressTimer = null
   let fabLongPressTriggered = false
   let mucTopicDraft = ''
@@ -374,6 +375,7 @@
   }
 
   const resetComposerDraft = (actionId) => {
+    destinationPickerOpen = false
     composerActionId = actionId
     composerBody = ''
     composerTopicTitle = ''
@@ -867,59 +869,63 @@
     {#if composerOpen}
       <div class="backdrop" aria-hidden="true" onclick={closeComposer}></div>
       <div class="sheet composer composer--context" bind:this={composerDialogEl} role="dialog" aria-label={selectedComposerAction().label} aria-modal="true" tabindex="-1">
-        <div class="surface__head">
-          <div>
-            <p class="eyebrow">{sectionLabels[section]}</p>
-            <h3>{selectedComposerAction().label}</h3>
-            <p class="hint">{selectedComposerAction().description}</p>
+        <div class="composer-header">
+          <button class="composer-header__cancel" type="button" onclick={closeComposer}>Cancel</button>
+          <strong class="composer-header__title">{selectedComposerAction().label}</strong>
+          <div class="composer-header__icons">
+            {#if composerActionId === 'chat-direct' || composerActionId === 'chat-group'}
+              <button
+                class="icon-toggle"
+                class:is-on={composerSecure}
+                type="button"
+                aria-pressed={composerSecure}
+                aria-label={composerSecure ? 'Encryption on' : 'Encryption off'}
+                onclick={() => (composerSecure = !composerSecure)}
+              >
+                🔒
+              </button>
+            {/if}
           </div>
-          {#if composerActionId === 'chat-direct' || composerActionId === 'chat-group'}
-            <label class="toggle">
-              <input bind:checked={composerSecure} type="checkbox" />
-              <span>E2EE</span>
-            </label>
-          {/if}
         </div>
 
-        {#if composerActionId === 'feed-post'}
-          <div class="composer__targets" aria-label="Post destination">
-            {#each composerTargets() as target}
-              <button
-                class="chip"
-                class:is-active={composerTargetId === target.id}
-                type="button"
-                onclick={() => setComposerTarget(target.id)}
-              >
-                {target.tag}
-              </button>
-            {/each}
-          </div>
-        {:else if composerActionId === 'feed-community-post' || composerActionId === 'feed-topic-post'}
-          <div class="composer__targets" aria-label="Community destination">
-            {#each communities as community}
-              <button
-                class="chip"
-                class:is-active={composerTargetId === community.id}
-                type="button"
-                onclick={() => setComposerTarget(community.id)}
-              >
-                {community.tag}
-              </button>
-            {/each}
-          </div>
+        {#if composerActionId === 'feed-post' || composerActionId === 'feed-community-post' || composerActionId === 'feed-topic-post'}
+          <button class="composer-dest" type="button" onclick={() => (destinationPickerOpen = !destinationPickerOpen)}>
+            <span class="composer-dest__label">Posting to</span>
+            <span class="composer-dest__value">{composerTarget().tag} <span aria-hidden="true">⌄</span></span>
+          </button>
+          {#if destinationPickerOpen}
+            <div class="composer__targets" aria-label="Post destination">
+              {#each (composerActionId === 'feed-post' ? composerTargets() : communities) as target}
+                <button
+                  class="chip"
+                  class:is-active={composerTargetId === target.id}
+                  type="button"
+                  onclick={() => { setComposerTarget(target.id); destinationPickerOpen = false }}
+                >
+                  {target.tag}
+                </button>
+              {/each}
+            </div>
+          {/if}
         {:else if composerActionId === 'chat-direct'}
-          <div class="composer__targets" aria-label="Chat contact">
-            {#each contacts as contact}
-              <button
-                class="chip"
-                class:is-active={composerChatContactId === contact.id}
-                type="button"
-                onclick={() => setComposerChatContact(contact.id)}
-              >
-                {contact.name}
-              </button>
-            {/each}
-          </div>
+          <button class="composer-dest" type="button" onclick={() => (destinationPickerOpen = !destinationPickerOpen)}>
+            <span class="composer-dest__label">Sending to</span>
+            <span class="composer-dest__value">{contacts.find((contact) => contact.id === composerChatContactId)?.name ?? 'Select a contact'} <span aria-hidden="true">⌄</span></span>
+          </button>
+          {#if destinationPickerOpen}
+            <div class="composer__targets" aria-label="Chat contact">
+              {#each contacts as contact}
+                <button
+                  class="chip"
+                  class:is-active={composerChatContactId === contact.id}
+                  type="button"
+                  onclick={() => { setComposerChatContact(contact.id); destinationPickerOpen = false }}
+                >
+                  {contact.name}
+                </button>
+              {/each}
+            </div>
+          {/if}
         {:else if composerActionId === 'chat-group'}
           <label class="field field--grow">
             <span>Group name</span>
