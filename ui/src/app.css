@@ -1,5 +1,43 @@
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
 
+@import 'tailwindcss';
+
+@theme {
+  --color-bg: #0c0d11;
+  --color-bg-elevated: #0f1014;
+  --color-surface: rgba(19, 20, 26, 0.94);
+  --color-surface-strong: #171922;
+  --color-surface-soft: rgba(255, 255, 255, 0.03);
+  --color-border: #1e2029;
+  --color-border-strong: #2a2c38;
+  --color-text: #edf4fb;
+  --color-text-muted: #a3aab3;
+  --color-text-soft: #7f8791;
+  --color-accent: #5b4bcf;
+  --color-accent-strong: #a995f5;
+  --color-accent-text: #c9bdfa;
+  --color-positive: #5fd49a;
+  --color-positive-strong: #7fd1a8;
+  --color-warning: #ffb65c;
+
+  --spacing-1: 0.25rem;
+  --spacing-2: 0.5rem;
+  --spacing-3: 0.75rem;
+  --spacing-4: 1rem;
+  --spacing-5: 1.25rem;
+  --spacing-6: 1.5rem;
+  --spacing-8: 2rem;
+  --spacing-10: 2.5rem;
+
+  --radius-xl: 28px;
+  --radius-lg: 20px;
+  --radius-md: 16px;
+
+  --font-display: 'IBM Plex Sans', sans-serif;
+  --font-body: 'IBM Plex Sans', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+}
+
 :root {
   color-scheme: dark;
   --bg: #0c0d11;
@@ -619,6 +657,29 @@ textarea {
   box-shadow: none;
 }
 
+.button--destructive {
+  border-color: rgba(255, 182, 92, 0.4);
+  color: #ffd9ae;
+}
+
+.button--destructive:hover {
+  background: rgba(255, 182, 92, 0.08);
+}
+
+.profile-avatar-picker {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.profile-avatar-picker__controls {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.profile-avatar-picker__actions {
+  justify-content: flex-start;
+}
+
 .chip {
   min-height: 2.5rem;
   padding: 0 0.95rem;
@@ -724,6 +785,10 @@ textarea {
   border: 1px solid var(--border);
   font-weight: 700;
   flex: 0 0 auto;
+}
+
+.avatar--image {
+  object-fit: cover;
 }
 
 .avatar--square {
