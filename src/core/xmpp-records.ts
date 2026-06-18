@@ -17,6 +17,7 @@ export interface XmppMessage {
   body: string
   id?: string
   type?: string
+  nickname?: string
   encrypted?: boolean
   encryption?: 'openpgp' | 'omemo'
   receipt?: { type: 'request' | 'received'; id: string }
@@ -31,18 +32,21 @@ export interface XmppPresence {
   type?: XmppPresenceType | string
   status?: string
   show?: string
+  nickname?: string
 }
 
 export interface XmppRosterPresenceState {
   type: 'available' | 'unavailable'
   status?: string
   show?: string
+  nickname?: string
   receivedAt: string
 }
 
 export interface XmppRosterEntry {
   jid: string
   name?: string
+  nickname?: string
   groups?: string[]
   subscription: XmppRosterSubscription
   ask?: 'subscribe' | 'unsubscribe'
@@ -204,6 +208,26 @@ export interface XmppOpenPgpPublicKeyResponse {
   publicKey: string
 }
 
+export interface XmppVCardProfile {
+  fn?: string
+  nickname?: string
+}
+
+export interface XmppVCardFile {
+  version: number
+  profile: XmppVCardProfile
+}
+
+export function normalizeVCardProfile(profile?: Partial<XmppVCardProfile>): XmppVCardProfile {
+  const fn = profile?.fn?.trim()
+  const nickname = profile?.nickname?.trim()
+
+  return {
+    fn: fn || undefined,
+    nickname: nickname || undefined
+  }
+}
+
 export function normalizeRosterEntry(entry: Partial<XmppRosterEntry> & { jid: string }): XmppRosterEntry {
   const subscription: XmppRosterSubscription = entry.subscription === 'to' || entry.subscription === 'from' || entry.subscription === 'both'
     ? entry.subscription
@@ -218,6 +242,7 @@ export function normalizeRosterEntry(entry: Partial<XmppRosterEntry> & { jid: st
         type: entry.presence.type === 'unavailable' ? 'unavailable' : 'available',
         status: entry.presence.status,
         show: entry.presence.show,
+        nickname: entry.presence.nickname,
         receivedAt: entry.presence.receivedAt || new Date().toISOString()
       }
     : undefined
@@ -225,6 +250,7 @@ export function normalizeRosterEntry(entry: Partial<XmppRosterEntry> & { jid: st
   return {
     jid: entry.jid,
     name: entry.name,
+    nickname: entry.nickname ?? entry.presence?.nickname,
     groups,
     subscription,
     ask: entry.ask === 'subscribe' || entry.ask === 'unsubscribe' ? entry.ask : undefined,

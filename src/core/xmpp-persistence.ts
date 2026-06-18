@@ -15,7 +15,9 @@ import {
   type XmppOpenPgpStateFile,
   type XmppRosterEntry,
   type XmppRosterFile,
-  type XmppSubscriptionFile
+  type XmppSubscriptionFile,
+  type XmppVCardFile,
+  type XmppVCardProfile
 } from './xmpp-records.js'
 
 export interface XmppPersistenceLoadContext {
@@ -26,6 +28,7 @@ export interface XmppPersistenceLoadContext {
   collectionPath: string
   attachmentPath: string
   openPgpPath: string
+  vCardPath: string
   roster: Map<string, XmppRosterEntry>
   feedHistory: Map<string, XmppFeedPost>
   feedSubscriptions: Map<string, XmppFeedSubscriptionRecord>
@@ -33,6 +36,7 @@ export interface XmppPersistenceLoadContext {
   collections: Map<string, XmppCollectionNode>
   collectionHistory: Map<string, XmppCollectionPost>
   attachmentHistory: Map<string, XmppAttachment>
+  vCard: XmppVCardProfile
   normalizeRosterEntry: (entry: Partial<XmppRosterEntry> & { jid: string }) => XmppRosterEntry
   normalizeFeedPost: (entry: Partial<XmppFeedPost> & { id: string; topic: string; from: string; body: string }) => XmppFeedPost
   normalizeFeedSubscription: (entry: Partial<XmppFeedSubscriptionRecord> & { peerId: string; jid: string; topic: string }) => XmppFeedSubscriptionRecord
@@ -59,6 +63,7 @@ export interface XmppPersistenceSaveContext {
   collectionPath: string
   attachmentPath: string
   openPgpPath: string
+  vCardPath: string
   roster: Map<string, XmppRosterEntry>
   feedHistory: Map<string, XmppFeedPost>
   feedSubscriptions: Map<string, XmppFeedSubscriptionRecord>
@@ -66,6 +71,7 @@ export interface XmppPersistenceSaveContext {
   collections: Map<string, XmppCollectionNode>
   collectionHistory: Map<string, XmppCollectionPost>
   attachmentHistory: Map<string, XmppAttachment>
+  vCard: XmppVCardProfile
   openPgpState?: XmppOpenPgpStateFile
 }
 
@@ -191,6 +197,24 @@ export async function loadAttachmentHistoryState(ctx: XmppPersistenceLoadContext
   }
 }
 
+export async function loadVCardState(ctx: XmppPersistenceLoadContext): Promise<void> {
+  try {
+    const parsed = await readJson<XmppVCardFile | XmppVCardProfile>(ctx.vCardPath)
+    const profile = parsed && typeof parsed === 'object' && 'profile' in parsed ? parsed.profile : parsed
+    const normalized = {
+      fn: profile?.fn?.trim() || undefined,
+      nickname: profile?.nickname?.trim() || undefined
+    }
+
+    ctx.vCard.fn = normalized.fn ?? ctx.vCard.fn
+    if (!ctx.vCard.nickname && normalized.nickname) {
+      ctx.vCard.nickname = normalized.nickname
+    }
+  } catch (err: any) {
+    console.error(`[XMPP] Failed to load vCard from ${ctx.vCardPath}:`, err)
+  }
+}
+
 export async function persistRosterState(ctx: XmppPersistenceSaveContext): Promise<void> {
   const payload: XmppRosterFile = {
     version: 1,
@@ -238,6 +262,17 @@ export async function persistAttachmentHistoryState(ctx: XmppPersistenceSaveCont
     attachments: Array.from(ctx.attachmentHistory.values()).sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
   }
   await writeJson(ctx.attachmentPath, payload)
+}
+
+export async function persistVCardState(ctx: XmppPersistenceSaveContext): Promise<void> {
+  const payload: XmppVCardFile = {
+    version: 1,
+    profile: {
+      fn: ctx.vCard.fn?.trim() || undefined,
+      nickname: ctx.vCard.nickname?.trim() || undefined
+    }
+  }
+  await writeJson(ctx.vCardPath, payload)
 }
 
 export async function persistOpenPgpState(path: string, state?: XmppOpenPgpStateFile): Promise<void> {

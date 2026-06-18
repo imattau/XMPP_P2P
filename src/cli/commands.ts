@@ -207,6 +207,17 @@ export const handleCliCommand = async (input: string, ctx: CliContext) => {
       await xmppNode.broadcastPresence('available', status)
       break
     }
+    case 'nick': {
+      const nickname = parts.slice(1).join(' ').trim()
+      if (!nickname) {
+        console.log('Usage: nick <name>')
+        break
+      }
+      console.log(`Updating nickname to: ${nickname}`)
+      await xmppNode.setNickname(nickname)
+      console.log('Nickname updated!')
+      break
+    }
     case 'feed': {
       const feedCommand = parts[1]?.toLowerCase()
       switch (feedCommand) {
@@ -424,8 +435,11 @@ export const handleCliCommand = async (input: string, ctx: CliContext) => {
             if (entry.name) {
               console.log(`      Name: ${entry.name}`)
             }
+            if (entry.nickname) {
+              console.log(`      Nickname: ${entry.nickname}`)
+            }
             if (entry.presence) {
-              console.log(`      Presence: ${entry.presence.type}${entry.presence.show ? ` [${entry.presence.show}]` : ''}${entry.presence.status ? ` (${entry.presence.status})` : ''}`)
+              console.log(`      Presence: ${entry.presence.type}${entry.presence.show ? ` [${entry.presence.show}]` : ''}${entry.presence.status ? ` (${entry.presence.status})` : ''}${entry.presence.nickname ? ` <${entry.presence.nickname}>` : ''}`)
             }
           }
           break
@@ -465,8 +479,11 @@ export const handleCliCommand = async (input: string, ctx: CliContext) => {
             if (entry.name) {
               console.log(`      Name: ${entry.name}`)
             }
+            if (entry.nickname) {
+              console.log(`      Nickname: ${entry.nickname}`)
+            }
             if (entry.presence) {
-              console.log(`      Presence: ${entry.presence.type}${entry.presence.show ? ` [${entry.presence.show}]` : ''}${entry.presence.status ? ` (${entry.presence.status})` : ''}`)
+              console.log(`      Presence: ${entry.presence.type}${entry.presence.show ? ` [${entry.presence.show}]` : ''}${entry.presence.status ? ` (${entry.presence.status})` : ''}${entry.presence.nickname ? ` <${entry.presence.nickname}>` : ''}`)
             }
           }
           break
@@ -607,6 +624,84 @@ export const handleCliCommand = async (input: string, ctx: CliContext) => {
           }
         }
       }
+      break
+    }
+    case 'muc-join': {
+      if (parts.length < 3) {
+        console.log('Usage: muc-join <room> <nickname>')
+        break
+      }
+      const room = parts[1]
+      const nick = parts[2]
+      console.log(`Joining room "${room}" as "${nick}"...`)
+      try {
+        await xmppNode.joinMucRoom(room, nick)
+        console.log(`Joined MUC room ${room}`)
+      } catch (err: any) {
+        console.log(`Failed to join MUC room: ${err.message}`)
+      }
+      break
+    }
+    case 'muc-send': {
+      if (parts.length < 3) {
+        console.log('Usage: muc-send <room> <message>')
+        break
+      }
+      const room = parts[1]
+      const message = parts.slice(2).join(' ')
+      try {
+        await xmppNode.muc.sendGroupMessage(room, message)
+      } catch (err: any) {
+        console.log(`Failed to send MUC message: ${err.message}`)
+      }
+      break
+    }
+    case 'muc-send-secure': {
+      if (parts.length < 3) {
+        console.log('Usage: muc-send-secure <room> <message>')
+        break
+      }
+      const room = parts[1]
+      const message = parts.slice(2).join(' ')
+      try {
+        await xmppNode.muc.sendGroupMessageSecure(room, message)
+      } catch (err: any) {
+        console.log(`Failed to send secure MUC message: ${err.message}`)
+      }
+      break
+    }
+    case 'muc-leave': {
+      if (parts.length < 2) {
+        console.log('Usage: muc-leave <room>')
+        break
+      }
+      const room = parts[1]
+      console.log(`Leaving room "${room}"...`)
+      try {
+        await xmppNode.muc.leaveRoom(room)
+        console.log(`Left MUC room ${room}`)
+      } catch (err: any) {
+        console.log(`Failed to leave MUC room: ${err.message}`)
+      }
+      break
+    }
+    case 'muc-roster': {
+      if (parts.length < 2) {
+        console.log('Usage: muc-roster <room>')
+        break
+      }
+      const room = parts[1]
+      const state = xmppNode.muc.getRoomState(room)
+      if (!state) {
+        console.log(`Not joined in room: ${room}`)
+        break
+      }
+      console.log(`Roster for MUC room: ${room}`)
+      console.log(`Local nickname: ${state.localNick}`)
+      console.log(`Occupants (${state.occupants.size}):`)
+      state.occupants.forEach((occ) => {
+        console.log(`  - Nick: ${occ.nick} (Peer: ${occ.peerId}, JID: ${occ.jid})`)
+      })
       break
     }
     case 'ping': {

@@ -4,8 +4,10 @@ import { XmppStream } from './xmpp-stream.js'
 import { parseCapsPresence, getCapsCacheKey, buildDiscoInfoQuery, buildDiscoItemsQuery } from './xmpp-discovery.js'
 import { handlePubSubMessageElement as handlePubSubMessageElementFromModule } from './xmpp-pubsub.js'
 import { handleSecureMessageStanza as handleSecureMessageStanzaFromModule } from './xmpp-secure.js'
+import { buildVCard, parseVCard, VCARD_XMLNS } from './xmpp-vcard.js'
 
 const ROSTER_XMLNS = 'jabber:iq:roster'
+const NICK_XMLNS = 'http://jabber.org/protocol/nick'
 const DISCO_INFO_XMLNS = 'http://jabber.org/protocol/disco#info'
 const DISCO_ITEMS_XMLNS = 'http://jabber.org/protocol/disco#items'
 const FOLLOWERS_XMLNS = 'urn:xmpp:pubsub:followers:0'
@@ -13,6 +15,18 @@ const OMEMO_DEVICES_NODE = 'urn:xmpp:omemo:2:devices'
 const OMEMO_BUNDLES_NODE = 'urn:xmpp:omemo:2:bundles'
 const OPENPGP_IQ_XMLNS = 'urn:xmpp:openpgp:0'
 const PUBSUB_EVENT_XMLNS = 'http://jabber.org/protocol/pubsub#event'
+const XMPP_STANZAS_XMLNS = 'urn:ietf:params:xml:ns:xmpp-stanzas'
+const VALID_PRESENCE_TYPES = new Set([
+  'available',
+  'unavailable',
+  'subscribe',
+  'subscribed',
+  'unsubscribe',
+  'unsubscribed',
+  'probe',
+  'error'
+])
+const VALID_PRESENCE_SHOW_VALUES = new Set(['away', 'chat', 'dnd', 'xa'])
 
 export interface PendingIq {
   resolve: (element: Element) => void
@@ -30,6 +44,8 @@ export interface XmppRouterContext {
   buildOmemoBundleQuery(deviceId: number): Element
   buildRosterQuery(): Element
   buildFollowersQuery(): Element
+  buildVCardQuery(): Element
+  updateVCard(profile: any): Promise<any>
   discoveryIdentity: any
   discoveryNode: string
   collections: any
@@ -45,11 +61,84 @@ export interface XmppRouterContext {
   sendCurrentPresenceToPeer(peerId: string): Promise<void>
   recordPresence(peerJid: string, presence: any): Promise<void>
   discoInfoCache: Map<string, any>
-  ensurePeerCapabilities(peerId: string, node: string, ver: string): Promise<void>
+  ensurePeerCapabilities(peerId: string, node: string, ver: string, hash?: string): Promise<void>
   entityCapabilities: Map<string, any>
   getPubSubContext(): any
   getSecureContext(): any
   emit(event: string, ...args: any[]): boolean
+}
+
+function buildIqError(
+  element: Element,
+  peerId: string,
+  ctx: XmppRouterContext,
+  condition: string,
+  type: 'cancel' | 'modify' | 'auth' | 'wait' = 'cancel',
+  text?: string
+): Element {
+  const attrs: Record<string, string> = {
+    from: ctx.jid,
+    to: element.attrs.from || ctx.jidFromPeerId(peerId),
+    type: 'error',
+    id: element.attrs.id
+  }
+
+  const errorChildren: Element[] = [xml(condition, { xmlns: XMPP_STANZAS_XMLNS })]
+  if (text) {
+    errorChildren.push(xml('text', { xmlns: XMPP_STANZAS_XMLNS }, text))
+  }
+
+  const payload = (element.children as any[]).find(child => child?.name) as Element | undefined
+  return payload
+    ? xml('iq', attrs, payload, xml('error', { type }, ...errorChildren))
+    : xml('iq', attrs, xml('error', { type }, ...errorChildren))
+}
+
+async function sendIqError(
+  ctx: XmppRouterContext,
+  peerId: string,
+  element: Element,
+  condition: string,
+  type: 'cancel' | 'modify' | 'auth' | 'wait' = 'cancel',
+  text?: string
+) {
+  const xmppStream = ctx.streams.get(peerId)
+  if (!xmppStream) {
+    return
+  }
+
+  xmppStream.send(buildIqError(element, peerId, ctx, condition, type, text))
+}
+
+function sendPresenceError(
+  ctx: XmppRouterContext,
+  peerId: string,
+  element: Element,
+  condition: string,
+  type: 'cancel' | 'modify' | 'auth' | 'wait' = 'modify',
+  text?: string
+) {
+  const xmppStream = ctx.streams.get(peerId)
+  if (!xmppStream) {
+    return
+  }
+
+  const attrs: Record<string, string> = {
+    from: ctx.jid,
+    to: element.attrs.from || ctx.jidFromPeerId(peerId),
+    type: 'error'
+  }
+  const errorChildren: Element[] = [xml(condition, { xmlns: XMPP_STANZAS_XMLNS })]
+  if (text) {
+    errorChildren.push(xml('text', { xmlns: XMPP_STANZAS_XMLNS }, text))
+  }
+
+  const payload = (element.children as any[]).find(child => child?.name) as Element | undefined
+  xmppStream.send(
+    payload
+      ? xml('presence', attrs, payload, xml('error', { type }, ...errorChildren))
+      : xml('presence', attrs, xml('error', { type }, ...errorChildren))
+  )
 }
 
 export async function sendIqRequest(
@@ -111,6 +200,11 @@ export async function handleIqStanza(ctx: XmppRouterContext, peerId: string, ele
   }
 
   const type = element.attrs.type
+  if (type !== 'get' && type !== 'set' && type !== 'result' && type !== 'error') {
+    await sendIqError(ctx, peerId, element, 'bad-request', 'modify', 'Invalid IQ type')
+    return
+  }
+
   if (type === 'result') {
     const pending = ctx.pendingIq.get(id)
     if (pending) {
@@ -139,7 +233,29 @@ export async function handleIqStanza(ctx: XmppRouterContext, peerId: string, ele
     }
   }
 
+  const stanzaChildren = (element.children as any[]).filter(child => child?.name) as Element[]
+  if (type === 'get' || type === 'set') {
+    if (stanzaChildren.length !== 1) {
+      await sendIqError(ctx, peerId, element, 'bad-request', 'modify', 'IQ get/set stanzas must contain exactly one child element')
+      return
+    }
+  }
+
   const query = element.getChild('query')
+  const vCard = element.getChild('vCard')
+  if (vCard && vCard.attrs.xmlns === VCARD_XMLNS) {
+    if (type === 'get') {
+      await sendIqResult(ctx, peerId, id, ctx.buildVCardQuery())
+      return
+    }
+
+    if (type === 'set') {
+      await ctx.updateVCard(parseVCard(vCard))
+      await sendIqResult(ctx, peerId, id, ctx.buildVCardQuery())
+      return
+    }
+  }
+
   if (!query) {
     const pubsub = element.getChild('pubsub')
     if (pubsub) {
@@ -157,9 +273,14 @@ export async function handleIqStanza(ctx: XmppRouterContext, peerId: string, ele
           await sendIqResult(ctx, peerId, id, ctx.buildOmemoBundleQuery(deviceId))
           return
         }
+        await sendIqError(ctx, peerId, element, 'bad-request')
+        return
       }
     }
 
+    if (type === 'get' || type === 'set') {
+      await sendIqError(ctx, peerId, element, 'service-unavailable')
+    }
     return
   }
 
@@ -189,33 +310,39 @@ export async function handleIqStanza(ctx: XmppRouterContext, peerId: string, ele
               groups
             })
           }
+        } else {
+          await sendIqError(ctx, peerId, element, 'bad-request', 'modify', 'Roster item is missing a JID')
+          return
         }
+      } else {
+        await sendIqError(ctx, peerId, element, 'bad-request', 'modify', 'Roster set request is missing an item')
+        return
       }
 
       await sendIqResult(ctx, peerId, id, ctx.buildRosterQuery())
+      return
     }
-    return
   }
 
   if (query.attrs.xmlns === FOLLOWERS_XMLNS) {
     if (type === 'get') {
       await sendIqResult(ctx, peerId, id, ctx.buildFollowersQuery())
+      return
     }
-    return
   }
 
   if (query.attrs.xmlns === DISCO_INFO_XMLNS) {
     if (type === 'get') {
       await sendIqResult(ctx, peerId, id, buildDiscoInfoQuery(ctx.discoveryIdentity, ctx.collections, query.attrs.node))
+      return
     }
-    return
   }
 
   if (query.attrs.xmlns === DISCO_ITEMS_XMLNS) {
     if (type === 'get') {
       await sendIqResult(ctx, peerId, id, buildDiscoItemsQuery(ctx.discoveryNode, ctx.collections, ctx.collectionSubscriptions, ctx.jid, query.attrs.node))
+      return
     }
-    return
   }
 
   if (query.attrs.xmlns === OPENPGP_IQ_XMLNS) {
@@ -223,7 +350,7 @@ export async function handleIqStanza(ctx: XmppRouterContext, peerId: string, ele
       const publicKey = ctx.openPgpState?.publicKey
       const fingerprint = ctx.openPgpFingerprint ?? ctx.openPgpState?.fingerprint
       if (!publicKey || !fingerprint) {
-        await sendIqResult(ctx, peerId, id, xml('query', { xmlns: OPENPGP_IQ_XMLNS }))
+        await sendIqError(ctx, peerId, element, 'service-unavailable')
         return
       }
 
@@ -237,8 +364,12 @@ export async function handleIqStanza(ctx: XmppRouterContext, peerId: string, ele
           xml('pubkey', { fingerprint }, publicKey)
         )
       )
+      return
     }
-    return
+  }
+
+  if (type === 'get' || type === 'set') {
+    await sendIqError(ctx, peerId, element, 'service-unavailable')
   }
 }
 
@@ -248,12 +379,26 @@ export async function handlePresenceStanza(ctx: XmppRouterContext, peerId: strin
   const type = element.attrs.type
   const statusEl = element.getChild('status')
   const showEl = element.getChild('show')
+  const nickEl = element.getChild('nick')
+
+  if (type && !VALID_PRESENCE_TYPES.has(type)) {
+    sendPresenceError(ctx, peerId, element, 'bad-request', 'modify', `Unsupported presence type: ${type}`)
+    return
+  }
+
+  const showValue = showEl?.text()
+  if (showValue && !VALID_PRESENCE_SHOW_VALUES.has(showValue)) {
+    sendPresenceError(ctx, peerId, element, 'bad-request', 'modify', `Unsupported presence show value: ${showValue}`)
+    return
+  }
+
   const presence = {
     from: fromJid,
     to: toJid,
     type,
     status: statusEl ? statusEl.text() : undefined,
-    show: showEl ? showEl.text() : undefined
+    show: showEl ? showEl.text() : undefined,
+    nickname: nickEl && nickEl.attrs.xmlns === NICK_XMLNS ? nickEl.text().trim() : undefined
   }
 
   ctx.emit('presence', presence)
@@ -261,8 +406,8 @@ export async function handlePresenceStanza(ctx: XmppRouterContext, peerId: strin
   const caps = parseCapsPresence(element)
   if (caps) {
     const cacheKey = getCapsCacheKey(caps.node, caps.ver)
-    if (!ctx.discoInfoCache.has(cacheKey) && caps.hash === 'sha-1') {
-      void ctx.ensurePeerCapabilities(peerId, caps.node, caps.ver)
+    if (!ctx.discoInfoCache.has(cacheKey)) {
+      void ctx.ensurePeerCapabilities(peerId, caps.node, caps.ver, caps.hash)
     } else {
       const cached = ctx.discoInfoCache.get(cacheKey)
       if (cached) {
@@ -271,7 +416,7 @@ export async function handlePresenceStanza(ctx: XmppRouterContext, peerId: strin
           jid: fromJid,
           node: caps.node,
           ver: caps.ver,
-          hash: 'sha-1',
+          hash: caps.hash,
           info: cached,
           discoveredAt: new Date().toISOString()
         })
@@ -280,6 +425,12 @@ export async function handlePresenceStanza(ctx: XmppRouterContext, peerId: strin
   }
 
   switch (type) {
+    case 'available':
+      await ctx.recordPresence(fromJid, {
+        ...presence,
+        type: 'available'
+      })
+      return
     case 'subscribe':
       await ctx.handleSubscribe(peerId, fromJid)
       return
@@ -294,6 +445,8 @@ export async function handlePresenceStanza(ctx: XmppRouterContext, peerId: strin
       return
     case 'probe':
       await ctx.sendCurrentPresenceToPeer(peerId)
+      return
+    case 'error':
       return
     case 'unavailable':
     default:

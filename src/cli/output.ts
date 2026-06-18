@@ -1,11 +1,11 @@
 import readline from 'readline'
 import { CliContext } from './types.js'
 
-export const formatPresence = (presence?: { type: string; show?: string; status?: string }) => {
+export const formatPresence = (presence?: { type: string; show?: string; status?: string; nickname?: string }) => {
   if (!presence) {
     return ''
   }
-  return `${presence.type}${presence.show ? ` [${presence.show}]` : ''}${presence.status ? ` (${presence.status})` : ''}`
+  return `${presence.type}${presence.show ? ` [${presence.show}]` : ''}${presence.status ? ` (${presence.status})` : ''}${presence.nickname ? ` <${presence.nickname}>` : ''}`
 }
 
 export const printCliHelp = () => {
@@ -17,6 +17,7 @@ export const printCliHelp = () => {
   console.log('  omemo key                  Print local OMEMO key material')
   console.log('  omemo fetch <peer>         Fetch and cache a peer OMEMO bundle')
   console.log('  presence <status>          Broadcast custom status')
+  console.log('  nick <name>                Set and broadcast your nickname')
   console.log('  presence subscribe <peer>  Request presence subscription')
   console.log('  presence unsubscribe <peer> Cancel presence subscription')
   console.log('  roster list                List local roster entries')
@@ -44,6 +45,11 @@ export const printCliHelp = () => {
   console.log('  pubsub-secure <topic> <key> <secret> <msg> Publish an encrypted pubsub item')
   console.log('  pubsub-sub <topic>         Subscribe to a PubSub topic')
   console.log('  pubsub-pub <topic> <msg>   Publish a message to a topic')
+  console.log('  muc-join <room> <nick>     Join a decentralized MUC room')
+  console.log('  muc-send <room> <msg>      Send a message to a MUC room')
+  console.log('  muc-send-secure <room> <msg> Send an encrypted message to a MUC room')
+  console.log('  muc-leave <room>           Leave a MUC room')
+  console.log('  muc-roster <room>          List current room occupants')
   console.log('  id                         Print local Peer ID & JID')
   console.log('  help                       Show this help menu')
   console.log('  exit                       Quit the application')

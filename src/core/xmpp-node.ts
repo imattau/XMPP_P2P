@@ -113,12 +113,14 @@ import {
   sendEncryptedMessage as sendEncryptedMessageFromModule,
   type XmppSecureContext
 } from './xmpp-secure.js'
+import { XmppMucManager } from './xmpp-muc.js'
 import {
   loadAttachmentHistoryState,
   loadCollectionState,
   loadFeedHistoryState,
   loadFollowerState,
   loadRosterState,
+  loadVCardState,
   loadSubscriptionState,
   persistAttachmentHistoryState,
   persistCollectionState,
@@ -126,6 +128,7 @@ import {
   persistFollowerState,
   persistOpenPgpState as persistOpenPgpStateFile,
   persistRosterState,
+  persistVCardState,
   persistSubscriptionState
 } from './xmpp-persistence.js'
 import {
@@ -175,10 +178,12 @@ import {
   normalizeFeedPost,
   normalizeFeedSubscription,
   normalizeFollower,
+  normalizeVCardProfile,
   normalizeRosterEntry,
   parsePeerReference,
   peerIdFromJid,
   type XmppSubscriptionFile,
+  type XmppVCardProfile,
   subscriptionToFlags
 } from './xmpp-records.js'
 import type {
@@ -186,6 +191,7 @@ import type {
 } from './omemo-runtime.js'
 import { multiaddr, Multiaddr } from '@multiformats/multiaddr'
 import { TopicValidatorResult } from '@libp2p/gossipsub'
+import { buildVCard } from './xmpp-vcard.js'
 
 const OPENPGP_IQ_XMLNS = 'urn:xmpp:openpgp:0'
 const FEED_HISTORY_LIMIT = 50
@@ -208,8 +214,10 @@ export interface XmppNodeOptions {
   feedPath?: string
   collectionPath?: string
   attachmentPath?: string
+  vCardPath?: string
   omemoPath?: string
   openPgpPath?: string
+  nickname?: string
 }
 
 export class XmppNode extends EventEmitter {
@@ -235,15 +243,18 @@ export class XmppNode extends EventEmitter {
   private followerSaveQueue: Promise<void> = Promise.resolve()
   private collectionSaveQueue: Promise<void> = Promise.resolve()
   private attachmentSaveQueue: Promise<void> = Promise.resolve()
-  private selfPresence: { type: 'available' | 'unavailable'; status?: string; show?: string } = {
+  private vCardSaveQueue: Promise<void> = Promise.resolve()
+  private selfPresence: { type: 'available' | 'unavailable'; status?: string; show?: string; nickname?: string } = {
     type: 'available'
   }
+  private selfVCard: XmppVCardProfile = {}
   private readonly rosterPath: string
   private readonly feedPath: string
   private readonly subscriptionPath: string
   private readonly followerPath: string
   private readonly collectionPath: string
   private readonly attachmentPath: string
+  private readonly vCardPath: string
   private readonly omemoPath: string
   private readonly openPgpPath: string
   private readonly discoveryNode: string = DISCOVERY_NODE
@@ -260,6 +271,7 @@ export class XmppNode extends EventEmitter {
   private readonly peerOpenPgpKeys = new Map<string, string>()
   private readonly encryptedTopicSecrets = new Map<string, XmppEncryptedTopicSecret>()
   public readonly jid: string
+  public readonly muc: XmppMucManager
   public readonly ready: Promise<void>
 
   constructor(libp2p: Libp2p, options: XmppNodeOptions = {}) {
@@ -273,16 +285,23 @@ export class XmppNode extends EventEmitter {
     this.followerPath = join(dirname(this.rosterPath), `.xmpp-followers.${rosterBaseName}.json`)
     this.collectionPath = options.collectionPath ?? process.env.XMPP_COLLECTION_PATH ?? join(dirname(this.rosterPath), `.xmpp-collection.${this.libp2p.peerId.toString()}.json`)
     this.attachmentPath = options.attachmentPath ?? process.env.XMPP_ATTACHMENT_PATH ?? join(dirname(this.rosterPath), `.xmpp-attachments.${this.libp2p.peerId.toString()}.json`)
+    this.vCardPath = options.vCardPath ?? process.env.XMPP_VCARD_PATH ?? join(dirname(this.rosterPath), `.xmpp-vcard.${rosterBaseName}.json`)
     this.omemoPath = options.omemoPath ?? process.env.XMPP_OMEMO_PATH ?? join(dirname(this.rosterPath), `.xmpp-omemo.${rosterBaseName}.json`)
     this.openPgpPath = options.openPgpPath ?? process.env.XMPP_OPENPGP_PATH ?? join(dirname(this.rosterPath), `.xmpp-openpgp.${rosterBaseName}.json`)
     this.omemoStateManager = new XmppOmemoStateManager(this.omemoPath)
     this.openPgpStateManager = new XmppOpenPgpStateManager(this.openPgpPath, this.jid)
+    this.muc = new XmppMucManager(this)
+    if (options.nickname) {
+      this.selfPresence.nickname = options.nickname
+      this.selfVCard.nickname = options.nickname
+    }
     this.ready = this.loadRoster()
       .then(() => this.loadFeedHistory())
       .then(() => this.loadSubscriptionState())
       .then(() => this.loadFollowerState())
       .then(() => this.loadCollectionState())
       .then(() => this.loadAttachmentHistory())
+      .then(() => this.loadVCard())
       .then(() => this.loadOmemoState())
       .then(() => this.openPgpStateManager.load())
       .then(() => this.ensureOwnFeedSubscription())
@@ -305,7 +324,12 @@ export class XmppNode extends EventEmitter {
         const topic = evt.detail.topic
         const data = evt.detail.data
         const xmlStr = new TextDecoder().decode(data)
-        void this.handlePubSubPayload(topic, xmlStr).catch(() => {})
+        if (topic.startsWith('xmpp/muc/')) {
+          const fromPeerId = evt.detail.from?.toString() || 'unknown'
+          void this.muc.handleIncomingPayload(topic, fromPeerId, xmlStr).catch(() => {})
+        } else {
+          void this.handlePubSubPayload(topic, xmlStr).catch(() => {})
+        }
       })
     }
   }
@@ -318,6 +342,7 @@ export class XmppNode extends EventEmitter {
       followerPath: this.followerPath,
       collectionPath: this.collectionPath,
       attachmentPath: this.attachmentPath,
+      vCardPath: this.vCardPath,
       openPgpPath: this.openPgpPath,
       roster: this.roster,
       feedHistory: this.feedHistory,
@@ -326,6 +351,7 @@ export class XmppNode extends EventEmitter {
       collections: this.collections,
       collectionHistory: this.collectionHistory,
       attachmentHistory: this.attachmentHistory,
+      vCard: this.selfVCard,
       normalizeRosterEntry: this.normalizeRosterEntry.bind(this),
       normalizeFeedPost: this.normalizeFeedPost.bind(this),
       normalizeFeedSubscription: this.normalizeFeedSubscription.bind(this),
@@ -353,6 +379,7 @@ export class XmppNode extends EventEmitter {
       followerPath: this.followerPath,
       collectionPath: this.collectionPath,
       attachmentPath: this.attachmentPath,
+      vCardPath: this.vCardPath,
       openPgpPath: this.openPgpPath,
       roster: this.roster,
       feedHistory: this.feedHistory,
@@ -361,6 +388,7 @@ export class XmppNode extends EventEmitter {
       collections: this.collections,
       collectionHistory: this.collectionHistory,
       attachmentHistory: this.attachmentHistory,
+      vCard: this.selfVCard,
       openPgpState: this.openPgpStateManager.getState()
     }
   }
@@ -389,6 +417,13 @@ export class XmppNode extends EventEmitter {
     await loadAttachmentHistoryState(this.getPersistenceLoadContext(), ATTACHMENT_HISTORY_LIMIT)
   }
 
+  private async loadVCard(): Promise<void> {
+    await loadVCardState(this.getPersistenceLoadContext())
+    if (this.selfVCard.nickname && !this.selfPresence.nickname) {
+      this.selfPresence.nickname = this.selfVCard.nickname
+    }
+  }
+
   private getPubSubContext(): XmppPubSubContext {
     return {
       feedTopicForPeer: this.feedTopicForPeer.bind(this),
@@ -413,6 +448,7 @@ export class XmppNode extends EventEmitter {
       },
       setSelfPresence: (presence) => {
         this.selfPresence = presence
+        this.selfVCard.nickname = presence.nickname
       },
       getOrCreateStream: this.getOrCreateStream.bind(this),
       getStreamByJid: this.getStreamByJid.bind(this),
@@ -549,6 +585,8 @@ export class XmppNode extends EventEmitter {
       buildOmemoBundleQuery: this.buildOmemoBundleQuery.bind(this),
       buildRosterQuery: this.buildRosterQuery.bind(this),
       buildFollowersQuery: this.buildFollowersQuery.bind(this),
+      buildVCardQuery: this.buildVCardQuery.bind(this),
+      updateVCard: this.updateVCard.bind(this),
       discoveryIdentity: this.discoveryIdentity,
       discoveryNode: this.discoveryNode,
       collections: this.collections,
@@ -599,7 +637,7 @@ export class XmppNode extends EventEmitter {
     await this.omemoStateManager.load()
   }
 
-  private getOmemoStore(): {
+  public getOmemoStore(): {
     store: Record<string, unknown>
     put: (key: string, value: unknown) => void
     get: <T = unknown>(key: string, defaultValue?: T) => T | undefined
@@ -746,6 +784,10 @@ export class XmppNode extends EventEmitter {
     await persistAttachmentHistoryState(this.getPersistenceSaveContext())
   }
 
+  private async persistVCard(): Promise<void> {
+    await persistVCardState(this.getPersistenceSaveContext())
+  }
+
   private scheduleFeedPersist(): Promise<void> {
     this.feedSaveQueue = this.feedSaveQueue
       .then(() => this.persistFeedHistory())
@@ -794,6 +836,16 @@ export class XmppNode extends EventEmitter {
       })
 
     return this.attachmentSaveQueue
+  }
+
+  private scheduleVCardPersist(): Promise<void> {
+    this.vCardSaveQueue = this.vCardSaveQueue
+      .then(() => this.persistVCard())
+      .catch(err => {
+        console.error(`[XMPP] Failed to persist vCard to ${this.vCardPath}:`, err)
+      })
+
+    return this.vCardSaveQueue
   }
 
   private normalizeRosterEntry(entry: Partial<XmppRosterEntry> & { jid: string }): XmppRosterEntry {
@@ -892,8 +944,8 @@ export class XmppNode extends EventEmitter {
     return await queryDiscoItemsFromModule(this.getDiscoveryContext(), peerAddr, node)
   }
 
-  private async ensurePeerCapabilities(peerId: string, node: string, ver: string) {
-    await ensurePeerCapabilitiesFromModule(this.getDiscoveryContext(), peerId, node, ver)
+  private async ensurePeerCapabilities(peerId: string, node: string, ver: string, hash?: string) {
+    await ensurePeerCapabilitiesFromModule(this.getDiscoveryContext(), peerId, node, ver, hash)
   }
 
   private indexCollectionMembers(collection: XmppCollectionNode) {
@@ -917,7 +969,35 @@ export class XmppNode extends EventEmitter {
     }
   }
 
-  private getPubSubService() {
+  public async joinMucRoom(roomName: string, nick: string): Promise<void> {
+    const topic = this.muc.getRoomTopic(roomName)
+    const pubsub = (this.libp2p.services as any).pubsub
+    if (pubsub && pubsub.topicValidators) {
+      if (!pubsub.topicValidators.has(topic)) {
+        pubsub.topicValidators.set(topic, (_peer: any, message: any) => {
+          try {
+            const xmlStr = new TextDecoder().decode(message.data)
+            const p = new Parser()
+            let valid = false
+            p.write('<stream:stream>')
+            p.on('element', (element: Element) => {
+              if (element.name === 'presence' || (element.name === 'message' && element.attrs.type === 'groupchat')) {
+                valid = true
+              }
+            })
+            p.write(xmlStr)
+            return valid ? TopicValidatorResult.Accept : TopicValidatorResult.Reject
+          } catch {
+            return TopicValidatorResult.Reject
+          }
+        })
+      }
+    }
+
+    await this.muc.joinRoom(roomName, nick)
+  }
+
+  public getPubSubService() {
     const pubsub = (this.libp2p.services as any).pubsub
     if (!pubsub) {
       throw new Error('PubSub/Gossipsub service is not configured')
@@ -1464,6 +1544,7 @@ export class XmppNode extends EventEmitter {
     const next = this.normalizeRosterEntry({
       ...current,
       ...entry,
+      nickname: entry.nickname ?? current.nickname,
       groups: entry.groups ?? current.groups,
       presence: entry.presence ?? current.presence
     })
@@ -1485,15 +1566,50 @@ export class XmppNode extends EventEmitter {
   private async recordPresence(peerJid: string, presence: XmppPresence) {
     const next = await this.upsertRosterEntry({
       jid: peerJid,
+      nickname: presence.nickname,
       presence: {
         type: presence.type === 'unavailable' ? 'unavailable' : 'available',
         status: presence.status,
         show: presence.show,
+        nickname: presence.nickname,
         receivedAt: new Date().toISOString()
       }
     })
 
     this.emit('roster:presence', next)
+  }
+
+  private buildVCardQuery(): Element {
+    return buildVCard({
+      fn: this.selfVCard.fn,
+      nickname: this.selfPresence.nickname ?? this.selfVCard.nickname
+    }, this.libp2p.peerId.toString())
+  }
+
+  private async updateVCard(profile: XmppVCardProfile): Promise<XmppVCardProfile> {
+    await this.ready
+    const normalized = normalizeVCardProfile(profile)
+    const nicknameChanged = normalized.nickname !== undefined && normalized.nickname !== this.selfPresence.nickname
+
+    if (normalized.fn !== undefined) {
+      this.selfVCard.fn = normalized.fn
+    }
+
+    if (normalized.nickname !== undefined) {
+      this.selfVCard.nickname = normalized.nickname
+      this.selfPresence.nickname = normalized.nickname
+    }
+
+    await this.scheduleVCardPersist()
+
+    if (nicknameChanged) {
+      await this.broadcastPresence(this.selfPresence.type, this.selfPresence.status, this.selfPresence.show, this.selfPresence.nickname)
+    }
+
+    return {
+      fn: this.selfVCard.fn,
+      nickname: this.selfPresence.nickname ?? this.selfVCard.nickname
+    }
   }
 
   private async handleSubscribe(peerId: string, fromJid: string) {
@@ -1675,8 +1791,33 @@ export class XmppNode extends EventEmitter {
     await unsubscribePresenceFromModule(this.getRosterContext(), peerAddr)
   }
 
-  async broadcastPresence(type?: string, status?: string, show?: string) {
-    await broadcastPresenceFromModule(this.getRosterContext(), type, status, show)
+  async broadcastPresence(type?: string, status?: string, show?: string, nickname?: string) {
+    if (nickname !== undefined) {
+      this.selfPresence.nickname = nickname
+      this.selfVCard.nickname = nickname
+    }
+    await broadcastPresenceFromModule(this.getRosterContext(), type, status, show, this.selfPresence.nickname)
+  }
+
+  async setNickname(nickname: string): Promise<void> {
+    const next = nickname.trim()
+    if (!next) {
+      throw new Error('Nickname is required')
+    }
+
+    await this.updateVCard({ nickname: next })
+  }
+
+  async setVCard(profile: XmppVCardProfile): Promise<XmppVCardProfile> {
+    return await this.updateVCard(profile)
+  }
+
+  async getVCard(): Promise<XmppVCardProfile> {
+    await this.ready
+    return {
+      fn: this.selfVCard.fn,
+      nickname: this.selfPresence.nickname ?? this.selfVCard.nickname
+    }
   }
 
   // Send a chat message to a peer
@@ -1701,6 +1842,7 @@ export class XmppNode extends EventEmitter {
 
     children.push(...buildXepElements({
       ...options,
+      nick: this.selfPresence.nickname,
       delay: options.delay ? {
         stamp: options.delay.stamp,
         from: options.delay.from ?? this.jid
@@ -1722,7 +1864,7 @@ export class XmppNode extends EventEmitter {
     return id
   }
 
-  private getOmemoDeviceIdOrThrow(): number {
+  public getOmemoDeviceIdOrThrow(): number {
     return this.omemoStateManager.getDeviceId()
   }
 
@@ -1762,11 +1904,11 @@ export class XmppNode extends EventEmitter {
     return await fetchOmemoBundleFromModule(this.getOmemoContext(), peerAddr, deviceId)
   }
 
-  private async getPeerOmemoDevices(peerAddr: string | Multiaddr): Promise<number[]> {
+  public async getPeerOmemoDevices(peerAddr: string | Multiaddr): Promise<number[]> {
     return await getPeerOmemoDevicesFromModule(this.getOmemoContext(), peerAddr)
   }
 
-  private async getPeerOmemoBundle(peerAddr: string | Multiaddr, deviceId: number): Promise<XmppOmemoBundle> {
+  public async getPeerOmemoBundle(peerAddr: string | Multiaddr, deviceId: number): Promise<XmppOmemoBundle> {
     return await getPeerOmemoBundleFromModule(this.getOmemoContext(), peerAddr, deviceId)
   }
 
@@ -1778,9 +1920,13 @@ export class XmppNode extends EventEmitter {
       requestReceipt?: boolean
       chatState?: 'active' | 'composing' | 'paused' | 'inactive' | 'gone'
       delay?: { stamp: string; from?: string }
+      nick?: string
     } = {}
   ): Promise<string> {
-    return await sendEncryptedMessageFromModule(peerAddr, body, this.getSecureContext(), options)
+    return await sendEncryptedMessageFromModule(peerAddr, body, this.getSecureContext(), {
+      ...options,
+      nick: options.nick ?? this.selfPresence.nickname
+    })
   }
 
   async ping(peerAddr: string | Multiaddr): Promise<number> {
@@ -2082,7 +2228,10 @@ export class XmppNode extends EventEmitter {
     await this.persistCollectionState()
     await this.attachmentSaveQueue
     await this.persistAttachmentHistory()
+    await this.vCardSaveQueue
+    await this.persistVCard()
     await this.omemoStateManager.close()
     await this.openPgpStateManager.close()
+    this.muc.close()
   }
 }

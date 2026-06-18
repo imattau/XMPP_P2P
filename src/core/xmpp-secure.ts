@@ -62,7 +62,7 @@ export interface XmppSecureContext {
   cachePeerOpenPgpKey(peerId: string, armoredKey: string): void
 }
 
-async function decryptOmemoKey(ctx: XmppSecureContext, remoteAddress: OmemoAddress, payload: string): Promise<ArrayBuffer> {
+export async function decryptOmemoKey(ctx: XmppSecureContext, remoteAddress: OmemoAddress, payload: string): Promise<ArrayBuffer> {
   const omemo = await loadOmemoModule()
   const sessionCipher = new omemo.SessionCipher(ctx.getOmemoStore(), remoteAddress)
   try {
@@ -76,7 +76,7 @@ async function decryptOmemoKey(ctx: XmppSecureContext, remoteAddress: OmemoAddre
   }
 }
 
-function decryptOmemoPayload(payload: string, payloadKey: ArrayBuffer, ivB64: string): string {
+export function decryptOmemoPayload(payload: string, payloadKey: ArrayBuffer, ivB64: string): string {
   const bytes = Buffer.from(payload, 'base64')
   if (bytes.byteLength < 16) {
     throw new Error('OMEMO payload is too short')
@@ -90,7 +90,7 @@ function decryptOmemoPayload(payload: string, payloadKey: ArrayBuffer, ivB64: st
   return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8')
 }
 
-async function ensureOmemoSession(ctx: XmppSecureContext, peerAddr: string | Multiaddr, deviceId: number): Promise<void> {
+export async function ensureOmemoSession(ctx: XmppSecureContext, peerAddr: string | Multiaddr, deviceId: number): Promise<void> {
   const xmppStream = await ctx.getOrCreateStream(peerAddr)
   const peerJid = ctx.jidFromPeerId(xmppStream.remotePeer.toString())
   const omemo = await loadOmemoModule()
@@ -176,7 +176,8 @@ export async function handleSecureMessageStanza(
       body: '',
       id: element.attrs.id,
       type: element.attrs.type || 'chat',
-      receipt: metadata.receipt
+      receipt: metadata.receipt,
+      nickname: metadata.nick
     })
     return true
   }
@@ -195,7 +196,8 @@ export async function handleSecureMessageStanza(
       type: element.attrs.type || 'chat',
       chatState: metadata.chatState,
       delay: metadata.delay,
-      replace: metadata.replace
+      replace: metadata.replace,
+      nickname: metadata.nick
     })
     return true
   }
@@ -230,7 +232,8 @@ export async function handleSecureMessageStanza(
         receipt: metadata.receipt,
         chatState: metadata.chatState,
         delay: metadata.delay,
-        replace: metadata.replace
+        replace: metadata.replace,
+        nickname: metadata.nick
       })
       return true
     }
@@ -251,7 +254,8 @@ export async function handleSecureMessageStanza(
         receipt: metadata.receipt,
         chatState: metadata.chatState,
         delay: metadata.delay,
-        replace: metadata.replace
+        replace: metadata.replace,
+        nickname: metadata.nick
       })
       return true
     }
@@ -267,7 +271,8 @@ export async function handleSecureMessageStanza(
       receipt: metadata.receipt,
       chatState: metadata.chatState,
       delay: metadata.delay,
-      replace: metadata.replace
+      replace: metadata.replace,
+      nickname: metadata.nick
     })
     return true
   }
@@ -284,6 +289,7 @@ export async function sendEncryptedMessage(
     requestReceipt?: boolean
     chatState?: 'active' | 'composing' | 'paused' | 'inactive' | 'gone'
     delay?: { stamp: string; from?: string }
+    nick?: string
   } = {}
 ): Promise<string> {
   await ctx.ready

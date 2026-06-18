@@ -1,32 +1,28 @@
-# Plan: XMPP over libp2p Prototype (TypeScript)
+# Plan: End-to-End OMEMO Encryption for Decentralized MUC
+
+This plan outlines the design, implementation, and verification of END-TO-END OMEMO encrypted decentralized group chats (MUC) over Gossipsub.
 
 ## Objective
-Establish an extensible prototype of XMPP messaging running over a peer-to-peer transport using TypeScript, `@libp2p` components, and `@xmpp/xml`.
+Implement end-to-end OMEMO group chat encryption in our P2P XMPP client. Users should be able to send encrypted group messages that can be decrypted only by authorized occupants currently in the MUC room.
 
 ## Strategy
-We will use TypeScript and Node.js.
-- **P2P Transport**: Use `@libp2p` packages to configure a peer-to-peer node supporting TCP, Noise encryption, Yamux multiplexing, and mDNS discovery.
-- **XMPP Parsing**: Use `@xmpp/xml` to incrementally parse XML stanzas from the libp2p stream.
-- **Protocol**: Define a custom protocol handler `/xmpp/1.0.0` in libp2p. When peers connect, they exchange XML stanzas (e.g., `<message>`, `<presence>`) over a duplex stream.
+1. **OMEMO Recipient Compilation**: Collect the JIDs of all occupants in the room. For each occupant, fetch their OMEMO device IDs.
+2. **Encrypted Payload Construction**: Encrypt the message body with a random symmetric key (AES-GCM), encrypt the symmetric key for each occupant device using their OMEMO session, and serialize the header with recipient JID/device blocks.
+3. **Incoming Decryption**: Listen for `<encrypted xmlns="urn:xmpp:omemo:2">` payloads on the room's Gossipsub topic, find our JID and device ID key, decrypt the symmetric key, and decrypt the group message body.
+
+---
 
 ## Tasks
 
-### 1. Research & Initialization
-- [x] Task 1.1: Initialize Node.js package, configure `tsconfig.json`, and install dependencies (`libp2p`, `@libp2p/interface`, `@libp2p/tcp`, `@libp2p/noise`, `@libp2p/yamux`, `@libp2p/mdns`, `@xmpp/xml`, `typescript`, `ts-node`).
-- [x] Task 1.2: Security mapping: Define identity and transport verification parameters between libp2p Peer IDs and XMPP Jabber IDs (JIDs). JIDs are mapped as `<peer-id>@p2p`. Transport is secured by libp2p Noise protocol.
+### 1. Research & Audit
+- [x] Task 1.1: Verify OMEMO session initialization and state access inside `XmppNode` (ensuring device list caching and OMEMO store are available for MUC JIDs).
 
-### 2. Implementation
-- [x] Task 2.1: Implement the P2P Node creator (`src/p2p.ts`) to configure and launch a libp2p node with Yamux, Noise, and mDNS.
-- [x] Task 2.2: Implement the XMPP Stream parser and handler (`src/xmpp-stream.ts`) that hooks a libp2p Stream to the `@xmpp/xml` parser.
-- [x] Task 2.3: Implement the P2P XMPP Node wrapper (`src/xmpp-node.ts`) to manage registration of the `/xmpp/1.0.0` protocol handler, state, and outgoing stanza dispatching.
-- [x] Task 2.4: Implement command-line interface (`src/index.ts`) for starting a node, discovering peers, and sending/receiving interactive chat messages.
+### 2. Core Implementation
+- [x] Task 2.1: Add decryption support for `<encrypted xmlns="urn:xmpp:omemo:2">` groupchat stanzas in `src/core/xmpp-muc.ts`.
+- [x] Task 2.2: Implement `sendGroupMessageSecure(roomName, body)` in `src/core/xmpp-muc.ts` to encrypt and publish MUC stanzas.
+- [x] Task 2.3: Add CLI command `muc-send-secure <room> <msg>` in `src/cli/commands.ts`.
+- [x] Task 2.4: Update CLI help printout in `src/cli/output.ts` to expose the secure command.
 
 ### 3. Verification & Hardening
-- [x] Task 3.1: Write validation script/tests to verify two nodes running locally can discover each other and open streams.
-- [x] Task 3.2: Verify standard-compliant XMPP stanzas are successfully parsed and routed.
-- [x] Task 3.3: Perform security validation to ensure traffic is encrypted by Noise and no raw XML injection vulnerabilities exist in parsing. Passed (secured by Noise; XML escaping is enforced by @xmpp/xml).
-
-### 4. PubSub Extension
-- [ ] Task 4.1: Configure Gossipsub in `src/p2p.ts`.
-- [ ] Task 4.2: Implement PubSub publishing and subscribing with XEP-0060 compliant stanzas in `src/xmpp-node.ts`.
-- [ ] Task 4.3: Expose PubSub commands (`subscribe`, `publish`) in the CLI `src/index.ts` and verify.
+- [x] Task 3.1: Create a test script `src/tests/muc-omemo.ts` to spawn two nodes with OMEMO keys, connect them, join an encrypted MUC room, send a secure message, and verify decryption.
+- [x] Task 3.2: Register `test-muc-omemo` in `package.json` and ensure it runs in `npm test`.

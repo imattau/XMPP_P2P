@@ -7,8 +7,8 @@ import { buildCapsElement } from './xmpp-discovery.js'
 export interface XmppRosterContext {
   jid: string
   ready: Promise<void>
-  selfPresence: { type: 'available' | 'unavailable'; status?: string; show?: string }
-  setSelfPresence(presence: { type: 'available' | 'unavailable'; status?: string; show?: string }): void
+  selfPresence: { type: 'available' | 'unavailable'; status?: string; show?: string; nickname?: string }
+  setSelfPresence(presence: { type: 'available' | 'unavailable'; status?: string; show?: string; nickname?: string }): void
   getOrCreateStream(peerAddr: string | Multiaddr): Promise<XmppStream>
   getStreamByJid(jid: string): XmppStream | undefined
   getStreams(): Map<string, XmppStream>
@@ -76,10 +76,10 @@ export async function handleUnsubscribed(ctx: XmppRosterContext, fromJid: string
 
 export async function sendCurrentPresenceToPeer(ctx: XmppRosterContext, peerId: string) {
   const presenceType = ctx.selfPresence.type === 'unavailable' ? 'unavailable' : undefined
-  await sendPresenceToPeer(ctx, peerId, presenceType, ctx.selfPresence.status, ctx.selfPresence.show)
+  await sendPresenceToPeer(ctx, peerId, presenceType, ctx.selfPresence.status, ctx.selfPresence.show, ctx.selfPresence.nickname)
 }
 
-export async function sendPresenceToPeer(ctx: XmppRosterContext, peerId: string, type?: string, status?: string, show?: string) {
+export async function sendPresenceToPeer(ctx: XmppRosterContext, peerId: string, type?: string, status?: string, show?: string, nickname?: string) {
   const xmppStream = ctx.getStreamByJid(ctx.jidFromPeerId(peerId)) || ctx.getStreams().get(peerId)
   if (!xmppStream) {
     return
@@ -100,6 +100,9 @@ export async function sendPresenceToPeer(ctx: XmppRosterContext, peerId: string,
   if (status) {
     children.push(xml('status', {}, status))
   }
+  if (nickname) {
+    children.push(xml('nick', { xmlns: 'http://jabber.org/protocol/nick' }, nickname))
+  }
   if (!type || type === 'available') {
     children.push(buildCapsElement(ctx.discoveryNode, ctx.discoveryIdentity, ctx.collections))
   }
@@ -111,7 +114,7 @@ export async function sendPresenceToPeer(ctx: XmppRosterContext, peerId: string,
   xmppStream.send(pres)
 }
 
-export async function sendPresence(ctx: XmppRosterContext, peerAddr: string | Multiaddr, type?: string, status?: string, show?: string) {
+export async function sendPresence(ctx: XmppRosterContext, peerAddr: string | Multiaddr, type?: string, status?: string, show?: string, nickname?: string) {
   const xmppStream = await ctx.getOrCreateStream(peerAddr)
   const toJid = xmppStream.remotePeer.toString() + '@p2p'
 
@@ -129,6 +132,9 @@ export async function sendPresence(ctx: XmppRosterContext, peerAddr: string | Mu
   }
   if (status) {
     children.push(xml('status', {}, status))
+  }
+  if (nickname) {
+    children.push(xml('nick', { xmlns: 'http://jabber.org/protocol/nick' }, nickname))
   }
 
   const pres = children.length > 0
@@ -185,13 +191,14 @@ export async function unsubscribePresence(ctx: XmppRosterContext, peerAddr: stri
   await sendPresence(ctx, peerAddr, 'unsubscribe')
 }
 
-export async function broadcastPresence(ctx: XmppRosterContext, type?: string, status?: string, show?: string) {
+export async function broadcastPresence(ctx: XmppRosterContext, type?: string, status?: string, show?: string, nickname?: string) {
   await ctx.ready
   const normalizedType = type === 'unavailable' ? 'unavailable' : 'available'
   ctx.setSelfPresence({
     type: normalizedType,
     status,
-    show
+    show,
+    nickname
   })
 
   for (const peerId of ctx.getStreams().keys()) {

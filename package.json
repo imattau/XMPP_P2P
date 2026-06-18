@@ -13,11 +13,14 @@
     "test-attachments": "node dist/tests/attachments.js",
     "test-subscriptions": "node dist/tests/subscriptions.js",
     "test-disco": "node dist/tests/disco.js",
+    "test-protocol": "node dist/tests/protocol.js",
     "test-dht": "node dist/tests/dht.js",
     "test-openpgp": "node dist/tests/openpgp.js",
     "test-omemo": "node dist/tests/omemo.js",
     "test-collection": "node dist/tests/collection.js",
-    "test": "npm run build && npm run test-nodes && npm run test-pubsub && npm run test-dht && npm run test-omemo && npm run test-roster && npm run test-feed && npm run test-attachments && npm run test-subscriptions && npm run test-disco && npm run test-collection"
+    "test-muc": "node dist/tests/muc.js",
+    "test-muc-omemo": "node dist/tests/muc-omemo.js",
+    "test": "npm run build && npm run test-nodes && npm run test-pubsub && npm run test-dht && npm run test-omemo && npm run test-roster && npm run test-feed && npm run test-attachments && npm run test-subscriptions && npm run test-disco && npm run test-protocol && npm run test-collection && npm run test-muc && npm run test-muc-omemo"
   },
   "repository": {
     "type": "git",

@@ -5,12 +5,14 @@ export const CHATSTATES_XMLNS = 'urn:xmpp:chatstates'
 export const DELAY_XMLNS = 'urn:xmpp:delay'
 export const CORRECT_XMLNS = 'urn:xmpp:message-correct:0'
 export const PING_XMLNS = 'urn:xmpp:ping'
+export const NICK_XMLNS = 'http://jabber.org/protocol/nick'
 
 export interface XepMetadata {
   receipt?: { type: 'request' | 'received'; id: string }
   chatState?: 'active' | 'composing' | 'paused' | 'inactive' | 'gone'
   delay?: { from?: string; stamp: string }
   replace?: string
+  nick?: string
 }
 
 export function parseXepMetadata(element: Element): XepMetadata {
@@ -53,6 +55,14 @@ export function parseXepMetadata(element: Element): XepMetadata {
     metadata.replace = replaceEl.attrs.id
   }
 
+  const nickEl = element.getChild('nick')
+  if (nickEl && nickEl.attrs.xmlns === NICK_XMLNS) {
+    const nick = nickEl.text().trim()
+    if (nick) {
+      metadata.nick = nick
+    }
+  }
+
   return metadata
 }
 
@@ -61,6 +71,7 @@ export function buildXepElements(options: {
   requestReceipt?: boolean
   chatState?: 'active' | 'composing' | 'paused' | 'inactive' | 'gone'
   delay?: { stamp: string; from?: string }
+  nick?: string
 }): Element[] {
   const elements: Element[] = []
 
@@ -88,6 +99,10 @@ export function buildXepElements(options: {
       xmlns: CORRECT_XMLNS,
       id: options.replace
     }))
+  }
+
+  if (options.nick) {
+    elements.push(xml('nick', { xmlns: NICK_XMLNS }, options.nick))
   }
 
   return elements

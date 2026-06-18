@@ -42,7 +42,7 @@ export interface XmppDiscoInfo {
   identities: XmppDiscoIdentity[]
   features: string[]
   ver: string
-  hash: 'sha-1'
+  hash: string
   cachedAt: string
 }
 
@@ -57,7 +57,7 @@ export interface XmppEntityCapabilities {
   jid: string
   node: string
   ver: string
-  hash: 'sha-1'
+  hash: string
   info: XmppDiscoInfo
   discoveredAt: string
 }
@@ -376,7 +376,7 @@ export async function queryDiscoItems(ctx: XmppDiscoveryContext, peerAddr: strin
   return items
 }
 
-export async function ensurePeerCapabilities(ctx: XmppDiscoveryContext, peerId: string, node: string, ver: string) {
+export async function ensurePeerCapabilities(ctx: XmppDiscoveryContext, peerId: string, node: string, ver: string, hash: string = 'sha-1') {
   const cacheKey = getCapsCacheKey(node, ver)
   if (ctx.discoInfoCache.has(cacheKey)) {
     ctx.entityCapabilities.set(peerId, {
@@ -384,7 +384,7 @@ export async function ensurePeerCapabilities(ctx: XmppDiscoveryContext, peerId: 
       jid: ctx.jidFromPeerId(peerId),
       node,
       ver,
-      hash: 'sha-1',
+      hash: hash === 'sha-1' ? 'sha-1' : hash,
       info: ctx.discoInfoCache.get(cacheKey)!,
       discoveredAt: new Date().toISOString()
     })
@@ -393,12 +393,15 @@ export async function ensurePeerCapabilities(ctx: XmppDiscoveryContext, peerId: 
 
   try {
     const info = await queryDiscoInfo(ctx, peerId, cacheKey)
+    if (hash !== 'sha-1') {
+      ctx.discoInfoCache.delete(cacheKey)
+    }
     ctx.entityCapabilities.set(peerId, {
       peerId,
       jid: ctx.jidFromPeerId(peerId),
       node: cacheKey,
       ver: info.ver,
-      hash: info.hash,
+      hash: hash === 'sha-1' ? info.hash : hash,
       info,
       discoveredAt: new Date().toISOString()
     })

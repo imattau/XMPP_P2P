@@ -22,6 +22,9 @@ export const attachCliEventListeners = (ctx: CliContext) => {
     }
 
     console.log(`\n[XMPP Message] From: ${msg.from}`)
+    if (msg.nickname) {
+      console.log(`  Nickname: ${msg.nickname}`)
+    }
     if (msg.id) {
       console.log(`  ID: ${msg.id}`)
     }
@@ -46,7 +49,7 @@ export const attachCliEventListeners = (ctx: CliContext) => {
     if (pres.type === 'unavailable') {
       console.log('  Status: Offline')
     } else {
-      console.log(`  Status: Online${pres.show ? ` [${pres.show}]` : ''}${pres.status ? ` (${pres.status})` : ''}`)
+      console.log(`  Status: Online${pres.show ? ` [${pres.show}]` : ''}${pres.status ? ` (${pres.status})` : ''}${pres.nickname ? ` <${pres.nickname}>` : ''}`)
     }
     showPrompt()
   })
@@ -54,6 +57,9 @@ export const attachCliEventListeners = (ctx: CliContext) => {
   xmppNode.on('roster:change', (entry) => {
     console.log(`\n[Roster] Updated: ${entry.jid}`)
     console.log(`  Subscription: ${entry.subscription}${entry.ask ? ` (ask=${entry.ask})` : ''}`)
+    if (entry.nickname) {
+      console.log(`  Nickname: ${entry.nickname}`)
+    }
     if (entry.presence) {
       console.log(`  Presence: ${formatPresence(entry.presence)}`)
     }
@@ -228,9 +234,23 @@ export const attachCliEventListeners = (ctx: CliContext) => {
     showPrompt()
   })
 
+  xmppNode.on('muc:message', (evt) => {
+    console.log(`\n[MUC Message] [${evt.room}] <${evt.from}> ${evt.body}`)
+    showPrompt()
+  })
+
+  xmppNode.on('muc:join', (evt) => {
+    console.log(`\n[MUC Event] [${evt.room}] Occupant joined: ${evt.nick} (${evt.peerId})`)
+    showPrompt()
+  })
+
+  xmppNode.on('muc:leave', (evt) => {
+    console.log(`\n[MUC Event] [${evt.room}] Occupant left: ${evt.nick} (${evt.peerId})`)
+    showPrompt()
+  })
+
   xmppNode.on('error', (err) => {
     console.error(`\n[XMPP Error] ${err.message}`)
     showPrompt()
   })
 }
-
