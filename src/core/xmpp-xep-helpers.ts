@@ -1,0 +1,94 @@
+import { xml, Element } from '@xmpp/xml'
+
+export const RECEIPTS_XMLNS = 'urn:xmpp:receipts'
+export const CHATSTATES_XMLNS = 'urn:xmpp:chatstates'
+export const DELAY_XMLNS = 'urn:xmpp:delay'
+export const CORRECT_XMLNS = 'urn:xmpp:message-correct:0'
+export const PING_XMLNS = 'urn:xmpp:ping'
+
+export interface XepMetadata {
+  receipt?: { type: 'request' | 'received'; id: string }
+  chatState?: 'active' | 'composing' | 'paused' | 'inactive' | 'gone'
+  delay?: { from?: string; stamp: string }
+  replace?: string
+}
+
+export function parseXepMetadata(element: Element): XepMetadata {
+  const metadata: XepMetadata = {}
+
+  // Parse XEP-0184 Receipts: Request
+  const requestEl = element.getChild('request')
+  if (requestEl && requestEl.attrs.xmlns === RECEIPTS_XMLNS && element.attrs.id) {
+    metadata.receipt = { type: 'request', id: element.attrs.id }
+  }
+
+  // Parse XEP-0184 Receipts: Received confirmation
+  const receivedEl = element.getChild('received')
+  if (receivedEl && receivedEl.attrs.xmlns === RECEIPTS_XMLNS) {
+    metadata.receipt = { type: 'received', id: receivedEl.attrs.id }
+  }
+
+  // Parse XEP-0085 Chat States
+  const chatStateNames = ['active', 'composing', 'paused', 'inactive', 'gone'] as const
+  for (const name of chatStateNames) {
+    const stateEl = element.getChild(name)
+    if (stateEl && stateEl.attrs.xmlns === CHATSTATES_XMLNS) {
+      metadata.chatState = name
+      break
+    }
+  }
+
+  // Parse XEP-0203 Delay
+  const delayEl = element.getChild('delay')
+  if (delayEl && delayEl.attrs.xmlns === DELAY_XMLNS && delayEl.attrs.stamp) {
+    metadata.delay = {
+      from: delayEl.attrs.from,
+      stamp: delayEl.attrs.stamp
+    }
+  }
+
+  // Parse XEP-0308 Last Message Correction
+  const replaceEl = element.getChild('replace')
+  if (replaceEl && replaceEl.attrs.xmlns === CORRECT_XMLNS) {
+    metadata.replace = replaceEl.attrs.id
+  }
+
+  return metadata
+}
+
+export function buildXepElements(options: {
+  replace?: string
+  requestReceipt?: boolean
+  chatState?: 'active' | 'composing' | 'paused' | 'inactive' | 'gone'
+  delay?: { stamp: string; from?: string }
+}): Element[] {
+  const elements: Element[] = []
+
+  if (options.requestReceipt) {
+    elements.push(xml('request', { xmlns: RECEIPTS_XMLNS }))
+  }
+
+  if (options.chatState) {
+    elements.push(xml(options.chatState, { xmlns: CHATSTATES_XMLNS }))
+  }
+
+  if (options.delay) {
+    const delayAttrs: Record<string, string> = {
+      xmlns: DELAY_XMLNS,
+      stamp: options.delay.stamp
+    }
+    if (options.delay.from) {
+      delayAttrs.from = options.delay.from
+    }
+    elements.push(xml('delay', delayAttrs))
+  }
+
+  if (options.replace) {
+    elements.push(xml('replace', {
+      xmlns: CORRECT_XMLNS,
+      id: options.replace
+    }))
+  }
+
+  return elements
+}

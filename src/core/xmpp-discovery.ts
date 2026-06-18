@@ -14,6 +14,21 @@ export const ATTACHMENT_XMLNS = 'urn:xmpp:pubsub:attachments:0'
 export const PAM_XMLNS = 'urn:xmpp:pubsub:account-management:0'
 export const FOLLOWERS_XMLNS = 'urn:xmpp:pubsub:followers:0'
 export const DISCOVERY_NODE = 'urn:xmpp:p2p:discovery'
+import {
+  RECEIPTS_XMLNS,
+  CHATSTATES_XMLNS,
+  DELAY_XMLNS,
+  CORRECT_XMLNS,
+  PING_XMLNS
+} from './xmpp-xep-helpers.js'
+
+export {
+  RECEIPTS_XMLNS,
+  CHATSTATES_XMLNS,
+  DELAY_XMLNS,
+  CORRECT_XMLNS,
+  PING_XMLNS
+}
 
 export interface XmppDiscoIdentity {
   category: string
@@ -116,7 +131,12 @@ export function getDiscoveryFeatures(
     OPENPGP_FEATURE,
     OPENPGP_PUBSUB_FEATURE,
     PAM_XMLNS,
-    FOLLOWERS_XMLNS
+    FOLLOWERS_XMLNS,
+    RECEIPTS_XMLNS,
+    CHATSTATES_XMLNS,
+    DELAY_XMLNS,
+    CORRECT_XMLNS,
+    PING_XMLNS
   ])
 
   if (findCollection(collections, node)) {

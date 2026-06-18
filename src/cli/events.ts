@@ -5,9 +5,37 @@ export const attachCliEventListeners = (ctx: CliContext) => {
   const { xmppNode, showPrompt, discoveredPeers, libp2p } = ctx
 
   xmppNode.on('message', (msg) => {
+    // Check if it's a delivery receipt
+    if (msg.receipt) {
+      if (msg.receipt.type === 'received') {
+        console.log(`\n[XMPP Receipt] Message ${msg.receipt.id} delivered to ${msg.from}`)
+      }
+      showPrompt()
+      return
+    }
+
+    // Check if it's a chatstate notification without body
+    if (msg.chatState && !msg.body) {
+      console.log(`\n[XMPP Chat State] ${msg.from} is ${msg.chatState}`)
+      showPrompt()
+      return
+    }
+
     console.log(`\n[XMPP Message] From: ${msg.from}`)
+    if (msg.id) {
+      console.log(`  ID: ${msg.id}`)
+    }
     if (msg.encrypted) {
       console.log(`  Encryption: ${msg.encryption}`)
+    }
+    if (msg.replace) {
+      console.log(`  Correction: Replaces message ${msg.replace}`)
+    }
+    if (msg.delay) {
+      console.log(`  Original Timestamp: ${msg.delay.stamp} (Delayed from ${msg.delay.from || msg.from})`)
+    }
+    if (msg.chatState) {
+      console.log(`  Chat State: ${msg.chatState}`)
     }
     console.log(`  Body: ${msg.body}`)
     showPrompt()

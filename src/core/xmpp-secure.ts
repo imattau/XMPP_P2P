@@ -4,6 +4,7 @@ import * as openpgp from 'openpgp'
 import type { Multiaddr } from '@multiformats/multiaddr'
 import { PUBSUB_EVENT_XMLNS } from './xmpp-discovery.js'
 import { loadOmemoModule, type OmemoAddress } from './omemo-runtime.js'
+import { parseXepMetadata, buildXepElements, RECEIPTS_XMLNS } from './xmpp-xep-helpers.js'
 import type { XmppStream } from './xmpp-stream.js'
 import type {
   XmppMessage,
@@ -154,7 +155,51 @@ export async function handleSecureMessageStanza(
   toJid: string,
   ctx: XmppSecureContext
 ): Promise<boolean> {
+  const metadata = parseXepMetadata(element)
+
+  // Handle Receipt auto-reply if requested
+  if (metadata.receipt?.type === 'request' && element.attrs.id) {
+    void ctx.getOrCreateStream(fromJid).then(stream => {
+      stream.send(
+        xml('message', { to: fromJid, from: ctx.jid, id: Math.random().toString(36).substring(2, 11) },
+          xml('received', { xmlns: RECEIPTS_XMLNS, id: element.attrs.id })
+        )
+      )
+    }).catch(err => ctx.emitError(err))
+  }
+
+  // Handle Received receipt notification
+  if (metadata.receipt?.type === 'received') {
+    ctx.emitMessage({
+      from: fromJid,
+      to: toJid,
+      body: '',
+      id: element.attrs.id,
+      type: element.attrs.type || 'chat',
+      receipt: metadata.receipt
+    })
+    return true
+  }
+
   const omemoEl = element.getChild('encrypted')
+  const openPgpEl = element.getChild('openpgp')
+  const bodyEl = element.getChild('body')
+
+  // If only a chatstate notification is present (no message content)
+  if (metadata.chatState && !bodyEl && !omemoEl && !openPgpEl) {
+    ctx.emitMessage({
+      from: fromJid,
+      to: toJid,
+      body: '',
+      id: element.attrs.id,
+      type: element.attrs.type || 'chat',
+      chatState: metadata.chatState,
+      delay: metadata.delay,
+      replace: metadata.replace
+    })
+    return true
+  }
+
   if (omemoEl && omemoEl.attrs.xmlns === OMEMO_XMLNS) {
     const headerEl = omemoEl.getChild('header')
     const payloadEl = omemoEl.getChild('payload')
@@ -181,13 +226,16 @@ export async function handleSecureMessageStanza(
         id: element.attrs.id,
         type: element.attrs.type || 'chat',
         encrypted: true,
-        encryption: 'omemo'
+        encryption: 'omemo',
+        receipt: metadata.receipt,
+        chatState: metadata.chatState,
+        delay: metadata.delay,
+        replace: metadata.replace
       })
       return true
     }
   }
 
-  const openPgpEl = element.getChild('openpgp')
   if (openPgpEl && openPgpEl.attrs.xmlns === OPENPGP_XMLNS) {
     const payload = openPgpEl.text().trim()
     if (payload) {
@@ -199,20 +247,27 @@ export async function handleSecureMessageStanza(
         id: element.attrs.id,
         type: element.attrs.type || 'chat',
         encrypted: true,
-        encryption: 'openpgp'
+        encryption: 'openpgp',
+        receipt: metadata.receipt,
+        chatState: metadata.chatState,
+        delay: metadata.delay,
+        replace: metadata.replace
       })
       return true
     }
   }
 
-  const bodyEl = element.getChild('body')
   if (bodyEl) {
     ctx.emitMessage({
       from: fromJid,
       to: toJid,
       body: bodyEl.text(),
       id: element.attrs.id,
-      type: element.attrs.type || 'chat'
+      type: element.attrs.type || 'chat',
+      receipt: metadata.receipt,
+      chatState: metadata.chatState,
+      delay: metadata.delay,
+      replace: metadata.replace
     })
     return true
   }
@@ -223,7 +278,13 @@ export async function handleSecureMessageStanza(
 export async function sendEncryptedMessage(
   peerAddr: string | Multiaddr,
   body: string,
-  ctx: XmppSecureContext
+  ctx: XmppSecureContext,
+  options: {
+    replace?: string
+    requestReceipt?: boolean
+    chatState?: 'active' | 'composing' | 'paused' | 'inactive' | 'gone'
+    delay?: { stamp: string; from?: string }
+  } = {}
 ): Promise<string> {
   await ctx.ready
   const xmppStream = await ctx.getOrCreateStream(peerAddr)
@@ -253,14 +314,7 @@ export async function sendEncryptedMessage(
     keys.push(xml('key', { rid: String(deviceId) }, Buffer.from(encryptedKey.body, 'binary').toString('base64')))
   }
 
-  const stanza = xml(
-    'message',
-    {
-      to: toJid,
-      from: ctx.jid,
-      type: 'chat',
-      id: itemId
-    },
+  const children: Element[] = [
     xml(
       'encrypted',
       { xmlns: OMEMO_XMLNS },
@@ -272,6 +326,25 @@ export async function sendEncryptedMessage(
       ),
       xml('payload', {}, payload)
     )
+  ]
+
+  children.push(...buildXepElements({
+    ...options,
+    delay: options.delay ? {
+      stamp: options.delay.stamp,
+      from: options.delay.from ?? ctx.jid
+    } : undefined
+  }))
+
+  const stanza = xml(
+    'message',
+    {
+      to: toJid,
+      from: ctx.jid,
+      type: 'chat',
+      id: itemId
+    },
+    ...children
   )
 
   xmppStream.send(stanza)

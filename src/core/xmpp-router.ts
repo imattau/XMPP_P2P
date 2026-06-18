@@ -131,6 +131,14 @@ export async function handleIqStanza(ctx: XmppRouterContext, peerId: string, ele
     return
   }
 
+  const ping = element.getChild('ping')
+  if (ping && ping.attrs.xmlns === 'urn:xmpp:ping') {
+    if (type === 'get') {
+      await sendIqResult(ctx, peerId, id)
+      return
+    }
+  }
+
   const query = element.getChild('query')
   if (!query) {
     const pubsub = element.getChild('pubsub')

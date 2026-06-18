@@ -2,6 +2,7 @@ import { promises as fs } from 'fs'
 import { basename, dirname, join } from 'path'
 import { Libp2p } from 'libp2p'
 import { xml, Element, Parser } from '@xmpp/xml'
+import { buildXepElements } from './xmpp-xep-helpers.js'
 import { EventEmitter } from 'events'
 import { XmppStream } from './xmpp-stream.js'
 import * as openpgp from 'openpgp'
@@ -1679,10 +1680,32 @@ export class XmppNode extends EventEmitter {
   }
 
   // Send a chat message to a peer
-  async sendMessage(peerAddr: string | Multiaddr, body: string): Promise<string> {
+  async sendMessage(
+    peerAddr: string | Multiaddr,
+    body: string,
+    options: {
+      replace?: string
+      requestReceipt?: boolean
+      chatState?: 'active' | 'composing' | 'paused' | 'inactive' | 'gone'
+      delay?: { stamp: string; from?: string }
+    } = {}
+  ): Promise<string> {
     const xmppStream = await this.getOrCreateStream(peerAddr)
     const toJid = xmppStream.remotePeer.toString() + '@p2p'
     const id = Math.random().toString(36).substring(2, 11)
+
+    const children: Element[] = []
+    if (body) {
+      children.push(xml('body', {}, body))
+    }
+
+    children.push(...buildXepElements({
+      ...options,
+      delay: options.delay ? {
+        stamp: options.delay.stamp,
+        from: options.delay.from ?? this.jid
+      } : undefined
+    }))
 
     const msg = xml(
       'message',
@@ -1692,7 +1715,7 @@ export class XmppNode extends EventEmitter {
         type: 'chat',
         id
       },
-      xml('body', {}, body)
+      ...children
     )
 
     xmppStream.send(msg)
@@ -1747,8 +1770,38 @@ export class XmppNode extends EventEmitter {
     return await getPeerOmemoBundleFromModule(this.getOmemoContext(), peerAddr, deviceId)
   }
 
-  async sendEncryptedMessage(peerAddr: string | Multiaddr, body: string): Promise<string> {
-    return await sendEncryptedMessageFromModule(peerAddr, body, this.getSecureContext())
+  async sendEncryptedMessage(
+    peerAddr: string | Multiaddr,
+    body: string,
+    options: {
+      replace?: string
+      requestReceipt?: boolean
+      chatState?: 'active' | 'composing' | 'paused' | 'inactive' | 'gone'
+      delay?: { stamp: string; from?: string }
+    } = {}
+  ): Promise<string> {
+    return await sendEncryptedMessageFromModule(peerAddr, body, this.getSecureContext(), options)
+  }
+
+  async ping(peerAddr: string | Multiaddr): Promise<number> {
+    const xmppStream = await this.getOrCreateStream(peerAddr)
+    const toJid = xmppStream.remotePeer.toString() + '@p2p'
+    const id = Math.random().toString(36).substring(2, 11)
+
+    const iq = xml(
+      'iq',
+      {
+        to: toJid,
+        from: this.jid,
+        type: 'get',
+        id
+      },
+      xml('ping', { xmlns: 'urn:xmpp:ping' })
+    )
+
+    const startTime = Date.now()
+    await this.sendIqRequest(peerAddr, iq)
+    return Date.now() - startTime
   }
 
   async getOmemoDeviceId(): Promise<number> {

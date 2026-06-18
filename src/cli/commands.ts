@@ -40,8 +40,50 @@ export const handleCliCommand = async (input: string, ctx: CliContext) => {
         const target = resolvePeerTarget(parts[2])
         const text = parts.slice(3).join(' ')
         console.log(`Sending encrypted OMEMO message to ${target}...`)
-        await xmppNode.sendEncryptedMessage(target, text)
-        console.log('Sent!')
+        const id = await xmppNode.sendEncryptedMessage(target, text, { requestReceipt: true })
+        console.log(`Sent! (ID: ${id})`)
+        break
+      }
+
+      if (msgMode === 'correct') {
+        let targetIndex = 2
+        let isSecure = false
+        if (parts[2]?.toLowerCase() === 'secure') {
+          isSecure = true
+          targetIndex = 3
+        }
+        if (parts.length < targetIndex + 3) {
+          console.log('Usage: msg correct [secure] <peer-id|jid|multiaddr> <message-id> <corrected-message>')
+          break
+        }
+        const target = resolvePeerTarget(parts[targetIndex])
+        const replaceId = parts[targetIndex + 1]
+        const text = parts.slice(targetIndex + 2).join(' ')
+        console.log(`Correcting message ${replaceId} to ${target} (${isSecure ? 'OMEMO' : 'plaintext'})...`)
+        let id: string
+        if (isSecure) {
+          id = await xmppNode.sendEncryptedMessage(target, text, { replace: replaceId, requestReceipt: true })
+        } else {
+          id = await xmppNode.sendMessage(target, text, { replace: replaceId, requestReceipt: true })
+        }
+        console.log(`Correction sent! (ID: ${id})`)
+        break
+      }
+
+      if (msgMode === 'state') {
+        if (parts.length < 4) {
+          console.log('Usage: msg state <peer-id|jid|multiaddr> <active|composing|paused|inactive|gone>')
+          break
+        }
+        const target = resolvePeerTarget(parts[2])
+        const chatState = parts[3].toLowerCase() as any
+        if (!['active', 'composing', 'paused', 'inactive', 'gone'].includes(chatState)) {
+          console.log('Invalid state. Choose from: active, composing, paused, inactive, gone')
+          break
+        }
+        console.log(`Sending chat state ${chatState} to ${target}...`)
+        await xmppNode.sendMessage(target, '', { chatState })
+        console.log('Chat state sent!')
         break
       }
 
@@ -52,8 +94,8 @@ export const handleCliCommand = async (input: string, ctx: CliContext) => {
       const target = resolvePeerTarget(parts[1])
       const text = parts.slice(2).join(' ')
       console.log(`Sending message to ${target}...`)
-      await xmppNode.sendMessage(target, text)
-      console.log('Sent!')
+      const id = await xmppNode.sendMessage(target, text, { requestReceipt: true })
+      console.log(`Sent! (ID: ${id})`)
       break
     }
     case 'omemo': {
@@ -564,6 +606,21 @@ export const handleCliCommand = async (input: string, ctx: CliContext) => {
             console.log(`      ${reaction}: ${count}`)
           }
         }
+      }
+      break
+    }
+    case 'ping': {
+      if (parts.length < 2) {
+        console.log('Usage: ping <peer-id/multiaddr>')
+        break
+      }
+      const target = resolvePeerTarget(parts[1])
+      console.log(`Pinging ${target}...`)
+      try {
+        const rtt = await xmppNode.ping(target)
+        console.log(`Ping successful! RTT: ${rtt}ms`)
+      } catch (err: any) {
+        console.log(`Ping failed: ${err.message}`)
       }
       break
     }

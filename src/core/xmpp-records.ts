@@ -19,6 +19,10 @@ export interface XmppMessage {
   type?: string
   encrypted?: boolean
   encryption?: 'openpgp' | 'omemo'
+  receipt?: { type: 'request' | 'received'; id: string }
+  chatState?: 'active' | 'composing' | 'paused' | 'inactive' | 'gone'
+  delay?: { from?: string; stamp: string }
+  replace?: string
 }
 
 export interface XmppPresence {
