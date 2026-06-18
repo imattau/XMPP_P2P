@@ -6,6 +6,7 @@ import { buildXepElements } from './xmpp-xep-helpers.js'
 import { EventEmitter } from 'events'
 import { XmppStream } from './xmpp-stream.js'
 import * as openpgp from 'openpgp'
+import { XmppReliabilityManager } from './xmpp-reliability.js'
 import { XmppUploadManager, UPLOAD_ANNOUNCEMENTS_TOPIC } from './xmpp-uploads.js'
 import {
   buildCapsElement,
@@ -255,8 +256,7 @@ export interface XmppNodeOptions {
 export class XmppNode extends EventEmitter {
   private libp2p: Libp2p
   private streams = new Map<string, XmppStream>()
-  private streamSessions = new Map<string, { sessionId: string; outboundStanzaCount: number; inboundStanzaCount: number; unackedQueue: Element[] }>()
-  private peerClientStates = new Map<string, 'active' | 'inactive'>()
+  private reliabilityManager = new XmppReliabilityManager()
   private roster = new Map<string, XmppRosterEntry>()
   private feedHistory = new Map<string, XmppFeedPost>()
   private feedSubscriptions = new Map<string, XmppFeedSubscriptionRecord>()
@@ -1855,7 +1855,7 @@ export class XmppNode extends EventEmitter {
   }
 
   private setPeerClientState(peerId: string, state: 'active' | 'inactive') {
-    this.peerClientStates.set(peerId, state)
+    this.reliabilityManager.setPeerClientState(peerId, state)
     this.emit('peer:csi', { peerId, state })
   }
 
@@ -2020,7 +2020,7 @@ export class XmppNode extends EventEmitter {
 
     xmppStream.on('close', () => {
       if (xmppStream.smEnabled && xmppStream.smResumable) {
-        this.streamSessions.set(peerId, {
+        this.reliabilityManager.saveSession(peerId, {
           sessionId: xmppStream.sessionId,
           outboundStanzaCount: xmppStream.outboundStanzaCount,
           inboundStanzaCount: xmppStream.inboundStanzaCount,
@@ -2034,7 +2034,7 @@ export class XmppNode extends EventEmitter {
     })
 
     // XEP-0198 negotiation or resumption
-    const savedSession = this.streamSessions.get(peerId)
+    const savedSession = this.reliabilityManager.getAndClearSession(peerId)
     if (savedSession) {
       xmppStream.sessionId = savedSession.sessionId
       xmppStream.outboundStanzaCount = savedSession.outboundStanzaCount
@@ -2046,7 +2046,6 @@ export class XmppNode extends EventEmitter {
         previd: savedSession.sessionId,
         h: String(savedSession.inboundStanzaCount)
       }))
-      this.streamSessions.delete(peerId)
     } else {
       xmppStream.send(xml('enable', { xmlns: 'urn:xmpp:sm:3', resume: 'true' }))
     }
@@ -2179,10 +2178,12 @@ export class XmppNode extends EventEmitter {
     return id
   }
 
-  public clientState: 'active' | 'inactive' = 'active'
+  public get clientState(): 'active' | 'inactive' {
+    return this.reliabilityManager.clientState
+  }
 
   public async setClientState(state: 'active' | 'inactive'): Promise<void> {
-    this.clientState = state
+    this.reliabilityManager.clientState = state
     const csiEl = xml(state, { xmlns: 'urn:xmpp:csi:0' })
     for (const stream of this.streams.values()) {
       stream.send(csiEl)
@@ -2193,7 +2194,7 @@ export class XmppNode extends EventEmitter {
   }
 
   private isPeerInactive(peerId: string): boolean {
-    return this.peerClientStates.get(peerId) === 'inactive'
+    return this.reliabilityManager.isPeerInactive(peerId)
   }
 
   public async sendOrBufferStanza(peerId: string, stanza: Element, peerAddr?: string | Multiaddr): Promise<void> {
@@ -2586,6 +2587,7 @@ export class XmppNode extends EventEmitter {
     await this.uploads.close()
     await this.omemoStateManager.close()
     await this.openPgpStateManager.close()
+    this.reliabilityManager.clear()
     this.muc.close()
   }
 }
