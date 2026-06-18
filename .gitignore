@@ -2,3 +2,4 @@ AGENTS.md
 dist/
 node_modules/
 .xmpp-*.json
+.superpowers/
