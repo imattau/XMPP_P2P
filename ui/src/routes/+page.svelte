@@ -9,6 +9,7 @@
   let secure = initialState.secure
   let presence = initialState.presence
   let presenceMessage = initialState.presenceMessage
+  let presenceSheetOpen = false
   let activeChatId = initialState.activeChatId
   let chatDetailOpen = false
   let activeFeedId = initialState.activeFeedId
@@ -150,11 +151,38 @@
         </div>
       </div>
 
-      <div class="topbar__status">
+      <button class="topbar__status" type="button" onclick={() => (presenceSheetOpen = true)}>
         <span class={`status-dot status-dot--${presence}`} aria-hidden="true"></span>
         <span class={badgeClass(presence)}>{presence}</span>
-      </div>
+      </button>
     </header>
+
+    {#if presenceSheetOpen}
+      <div class="sheet" role="dialog" aria-label="Update presence" tabindex="-1" onclick={() => {}} onkeydown={() => {}}>
+        <div class="surface__head">
+          <div>
+            <p class="eyebrow">Availability</p>
+            <h3>Update your status</h3>
+          </div>
+        </div>
+        <div class="profile-controls">
+          <label class="field">
+            <span>Status</span>
+            <select bind:value={presence}>
+              <option value="available">Available</option>
+              <option value="away">Away</option>
+              <option value="busy">Busy</option>
+              <option value="dnd">Do not disturb</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Message</span>
+            <input bind:value={presenceMessage} type="text" placeholder="Online and reachable" />
+          </label>
+          <button class="button button--ghost" type="button" onclick={() => (presenceSheetOpen = false)}>Done</button>
+        </div>
+      </div>
+    {/if}
 
     {#if section === 'feed'}
       <section class="section-stack">
@@ -378,31 +406,6 @@
             <div class="kv"><span>Peer id</span><span>{identity.peerId.slice(0, 18)}…</span></div>
             <div class="kv"><span>Transport</span><span>{identity.transport}</span></div>
             <div class="kv"><span>Connection</span><span>{identity.connection}</span></div>
-          </div>
-        </article>
-
-        <article class="surface profile-card">
-          <div class="surface__head">
-            <div>
-              <p class="eyebrow">Availability</p>
-              <h3>Update your status</h3>
-            </div>
-          </div>
-          <div class="profile-controls">
-            <label class="field">
-              <span>Status</span>
-              <select bind:value={presence}>
-                <option value="available">Available</option>
-                <option value="away">Away</option>
-                <option value="busy">Busy</option>
-                <option value="dnd">Do not disturb</option>
-              </select>
-            </label>
-            <label class="field">
-              <span>Message</span>
-              <input bind:value={presenceMessage} type="text" placeholder="Online and reachable" />
-            </label>
-            <button class="button button--secondary" type="button">Update presence</button>
           </div>
         </article>
 

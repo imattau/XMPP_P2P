@@ -172,6 +172,11 @@ textarea {
   align-items: center;
   gap: var(--space-2);
   flex: 0 0 auto;
+  border: none;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  color: inherit;
 }
 
 .status-dot {
