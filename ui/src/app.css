@@ -160,18 +160,11 @@ textarea {
   font-size: 1.05rem;
 }
 
-.topbar__meta,
 .meta,
 .hint,
 .lede {
   color: var(--text-muted);
   line-height: 1.5;
-}
-
-.topbar__meta {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .topbar__status {

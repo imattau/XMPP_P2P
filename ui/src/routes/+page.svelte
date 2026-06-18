@@ -147,7 +147,6 @@
         <div class="topbar__copy">
           <p class="eyebrow">{sectionLabels[section]}</p>
           <strong>{identity.nickname}</strong>
-          <span class="topbar__meta">{presenceMessage}</span>
         </div>
       </div>
 
