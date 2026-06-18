@@ -37,146 +37,66 @@ The goal is not a toy dashboard. The interface must directly support core social
 
 ## Primary Navigation
 
-Use 4 to 5 top-level destinations. Keep the mobile nav fixed at the bottom and convert it to a left rail on desktop.
+Use 3 top-level destinations. Keep the mobile nav fixed at the bottom and convert it to a left rail on desktop.
 
-1. Home
-- Shows current connection state, active conversations, recent feed items, and online contacts.
+1. Feed
+- A single chronological stream of posts from people you follow and communities you've joined, each carrying a source pill for context.
+- Tapping a community's source pill opens an action sheet for that community's details, join/leave, and visibility.
 - This is the default landing screen.
 
 2. Chats
-- 1:1 conversations and secure chat threads.
-- Includes unread states, typing/presence indicators, and encryption badges.
+- A single list unifying 1:1 conversations, group DMs, and MUC rooms, sorted by recency.
+- Selecting a MUC room reveals its topic and occupant roster inline; selecting a 1:1 or group thread shows the message history and composer directly.
 
-3. Contacts
-- Roster, presence subscriptions, peer discovery, and trust state.
-- This is where users manage who they can talk to.
-
-4. Rooms
-- Group chats, decentralized MUC rooms, occupant lists, and room security state.
-- Include room join/leave and roster visibility.
-
-5. Activity
-- Feed posts, reactions, attachments, collections, and subscription visibility.
-- This is the social timeline surface.
-
-If a sixth destination is needed, use `More` or `Inspect` for protocol details, keys, and diagnostics.
+3. Profile
+- Identity, presence/availability controls, peer topology, and protocol/connection state.
 
 ## Screen Map
 
-### Home
+### Feed
 
-Purpose: immediate orientation.
+Purpose: asynchronous social content from people and communities, unified.
 
 Contents:
-- Connection status
-- Local identity summary
-- Online contacts
-- Active chat shortcuts
-- Recent activity
-- Current room or feed alerts
+- Feed posts from followed people and joined communities, with a source pill on each
+- Reactions and an encryption indicator per post
+- Filter row (All / People / Communities / per-community)
 
 Primary actions:
-- Start chat
-- Join room
-- Post to feed
-- Add contact
-
-Layout:
-- Mobile: stacked status cards, then a priority list.
-- Desktop: summary column, active conversations, and recent activity in parallel.
+- Create post (via a collapsible composer)
+- Tap a community's source pill to open its join/leave/visibility action sheet
 
 ### Chats
 
-Purpose: messaging.
+Purpose: messaging, unified across conversation types.
 
 Contents:
-- Conversation list
-- Unread counts
-- Presence snippet
-- Secure status
-- Message preview
+- One conversation list mixing 1:1, group, and MUC rooms, sorted by recency
+- Unread counts for 1:1/group; occupant count for MUC rooms
+- Presence snippet, encryption state, message preview
 
 Thread view:
-- Message list
-- Composer anchored to bottom
-- Encryption state
-- Attach media or files
-- Read/trust indicators
+- Message list, composer anchored to bottom, encryption state
+- MUC rooms additionally show topic and an expandable occupant roster
 
-### Contacts
+### Profile
 
-Purpose: social graph management.
+Purpose: identity and protocol state.
 
 Contents:
-- Roster entries
-- Presence state
-- Subscription status
-- Nickname / JID / peer ID
-- Trust or capability badges
-
-Actions:
-- Add contact
-- Remove contact
-- Subscribe to presence
-- Unsubscribe
-- Fetch profile or capability info
-
-### Rooms
-
-Purpose: group social context.
-
-Contents:
-- Room list
-- Current occupants
-- Room topic or description
-- Security state
-- Recent room activity
-
-Room detail:
-- Occupant roster
-- Join/leave actions
-- Room messages
-- Secure send mode
-
-### Activity
-
-Purpose: asynchronous social content.
-
-Contents:
-- Feed posts
-- Replies or reactions if supported
-- Attachments
-- Collections / shared channels
-- Visibility controls
-
-Actions:
-- Create post
-- Follow or unfollow
-- Change public/private visibility
-- View aggregated collection posts
-
-### Inspect / More
-
-Purpose: advanced state without polluting the main flows.
-
-Contents:
-- Peer discovery
-- Connection addresses
-- Capability discovery
-- OMEMO or OpenPGP state
-- PubSub topics
-- Protocol debug details
-
-This is where operational details belong, not on the home screen.
+- Local identity summary (JID, peer ID, transport, connection)
+- Availability/presence controls
+- Peer topology graph
+- Protocol/connection state (peer discovery, roster sync, secure sessions, PubSub, DHT)
 
 ## Responsive Behavior
 
 ### Mobile
 
-- Bottom navigation with 4 to 5 items.
+- Bottom navigation with 3 items.
 - Single-column content.
 - Bottom sheets or full-screen drawers for:
-  - contact actions
+  - community details and join/leave
   - room metadata
   - security details
   - message actions
@@ -185,7 +105,7 @@ This is where operational details belong, not on the home screen.
 ### Tablet
 
 - Two-column layouts become viable.
-- Keep list on the left and detail on the right for chats, rooms, and contacts.
+- Keep list on the left and detail on the right for chats and communities.
 - Preserve the bottom nav only if the app is not dense enough for a left rail.
 
 ### Desktop
