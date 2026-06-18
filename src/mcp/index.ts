@@ -152,6 +152,17 @@ async function runMcpServer() {
           },
         },
         {
+          name: 'set_client_state',
+          description: 'Set local client state (active or inactive) for Client State Indication (XEP-0352)',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              state: { type: 'string', enum: ['active', 'inactive'], description: 'Client state to set' },
+            },
+            required: ['state'],
+          },
+        },
+        {
           name: 'join_muc',
           description: 'Join a Multi-User Chat (MUC) room',
           inputSchema: {
@@ -296,6 +307,13 @@ async function runMcpServer() {
           await xmppNode.broadcastPresence(presenceType, status, show)
           return {
             content: [{ type: 'text', text: `Presence updated: type=${presenceType}, status=${status}, show=${show}` }],
+          }
+        }
+        case 'set_client_state': {
+          const state = (args as any).state
+          await xmppNode.setClientState(state)
+          return {
+            content: [{ type: 'text', text: `Client state updated to: ${state}` }],
           }
         }
         case 'join_muc': {
