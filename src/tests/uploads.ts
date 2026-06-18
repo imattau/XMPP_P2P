@@ -153,6 +153,7 @@ async function runUploadTest() {
 
     const { response: postOriginResponse, text: postOriginText } = await fetchWithDiagnostics('node1 post-origin', node1ContentUrl!)
     assert.equal(postOriginResponse.status, 200, 'cached GET should still work after origin shutdown')
+    assert.ok(Number(postOriginResponse.headers.get('content-length') ?? '0') > 0, 'cached GET should not return an empty body after origin shutdown')
     assert.equal(postOriginText, payload.toString(), 'cached GET should still match after origin shutdown')
 
     console.log('\nUpload Test Results:')
