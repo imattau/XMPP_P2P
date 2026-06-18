@@ -21,6 +21,12 @@
   let composerTargetId = snapshot.composerTargetId
   let composerActionId = 'feed-post'
   let composerBody = ''
+  let composerMode = 'quick'
+  let composerCoverImageUrl = ''
+  let composerTags = []
+  let composerTagDraft = ''
+  let coverSectionOpen = false
+  let titleSectionOpen = false
   let composerTopicTitle = ''
   let composerGroupName = ''
   let composerGroupParticipants = []
@@ -374,6 +380,20 @@
       : [...composerGroupParticipants, next]
   }
 
+  const addComposerTag = () => {
+    const value = composerTagDraft.trim().replace(/^#/, '')
+    if (!value || composerTags.includes(value)) {
+      composerTagDraft = ''
+      return
+    }
+    composerTags = [...composerTags, value]
+    composerTagDraft = ''
+  }
+
+  const removeComposerTag = (tag) => {
+    composerTags = composerTags.filter((item) => item !== tag)
+  }
+
   const resetComposerDraft = (actionId) => {
     destinationPickerOpen = false
     composerActionId = actionId
@@ -386,6 +406,12 @@
     composerMucTopic = ''
     composerMucCommunityId = activeCommunityId ?? communities[0]?.id ?? ''
     composerSecure = true
+    composerMode = 'quick'
+    composerCoverImageUrl = ''
+    composerTags = []
+    composerTagDraft = ''
+    coverSectionOpen = false
+    titleSectionOpen = false
 
     if (actionId === 'feed-post') {
       composerTargetId = 'feed'
@@ -622,7 +648,13 @@
 
   const submitComposer = async (event) => {
     event.preventDefault()
-    const body = composerBody.trim()
+    const articleSuffix = composerMode === 'article'
+      ? [
+          composerCoverImageUrl.trim() ? `\n\n![cover](${composerCoverImageUrl.trim()})` : '',
+          composerTags.length ? `\n\n${composerTags.map((tag) => `#${tag}`).join(' ')}` : ''
+        ].join('')
+      : ''
+    const body = `${composerBody.trim()}${articleSuffix}`.trim()
     const topicTitle = composerTopicTitle.trim()
     const groupName = composerGroupName.trim()
     const roomName = composerMucRoomName.trim() || 'lobby'
@@ -907,6 +939,53 @@
               {/each}
             </div>
           {/if}
+          <div class="mode-switch" role="tablist" aria-label="Post mode">
+            <button class="mode-switch__btn" class:is-active={composerMode === 'quick'} type="button" onclick={() => (composerMode = 'quick')}>Quick</button>
+            <button class="mode-switch__btn" class:is-active={composerMode === 'article'} type="button" onclick={() => (composerMode = 'article')}>Article</button>
+          </div>
+          {#if composerMode === 'article'}
+            <div class="collapse">
+              <button class="collapse__head" type="button" onclick={() => (coverSectionOpen = !coverSectionOpen)}>
+                <span>{coverSectionOpen ? '−' : '+'} Cover image</span>
+                <span aria-hidden="true">{coverSectionOpen ? '⌃' : '⌄'}</span>
+              </button>
+              {#if coverSectionOpen}
+                <div class="collapse__body">
+                  <label class="field field--grow">
+                    <span>Cover image URL</span>
+                    <input bind:value={composerCoverImageUrl} type="text" placeholder="https://..." />
+                  </label>
+                </div>
+              {/if}
+            </div>
+            <div class="collapse">
+              <button class="collapse__head" type="button" onclick={() => (titleSectionOpen = !titleSectionOpen)}>
+                <span>{titleSectionOpen ? '−' : '+'} Title &amp; tags</span>
+                <span aria-hidden="true">{titleSectionOpen ? '⌃' : '⌄'}</span>
+              </button>
+              {#if titleSectionOpen}
+                <div class="collapse__body">
+                  <label class="field field--grow">
+                    <span>Title</span>
+                    <input bind:value={composerTopicTitle} type="text" placeholder="Post title" />
+                  </label>
+                  <div class="tags-row">
+                    {#each composerTags as tag}
+                      <button class="tag-chip" type="button" onclick={() => removeComposerTag(tag)}>#{tag} ✕</button>
+                    {/each}
+                    <input
+                      class="tag-add-input"
+                      type="text"
+                      placeholder="+ tag"
+                      bind:value={composerTagDraft}
+                      onkeydown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addComposerTag() } }}
+                      onblur={addComposerTag}
+                    />
+                  </div>
+                </div>
+              {/if}
+            </div>
+          {/if}
         {:else if composerActionId === 'chat-direct'}
           <button class="composer-dest" type="button" onclick={() => (destinationPickerOpen = !destinationPickerOpen)}>
             <span class="composer-dest__label">Sending to</span>
@@ -985,18 +1064,17 @@
         {/if}
 
         <form class="composer__form" onsubmit={submitComposer}>
-          {#if composerActionId === 'feed-topic-post'}
+          {#if composerActionId === 'feed-topic-post' && composerMode === 'quick'}
             <label class="field field--grow">
               <span>Topic title</span>
               <input bind:value={composerTopicTitle} type="text" placeholder="Discussion title" />
             </label>
           {/if}
 
-          <label class="field field--grow">
+          <label class="field field--grow composer__body-field">
             <span>{composerActionId.startsWith('chat') ? 'Message' : 'Post text'}</span>
             <textarea
               bind:value={composerBody}
-              rows="3"
               placeholder={composerActionId.startsWith('chat') ? 'Write the opening message' : 'Write a post'}
             ></textarea>
           </label>

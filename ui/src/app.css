@@ -301,8 +301,11 @@ textarea {
 }
 
 .composer__form {
-  display: grid;
-  gap: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: var(--space-3);
+  min-height: 0;
 }
 
 .composer__actions {
@@ -411,6 +414,78 @@ textarea {
   font-weight: 600;
 }
 
+.mode-switch {
+  display: flex;
+  gap: var(--space-2);
+  padding-block: var(--space-2);
+}
+
+.mode-switch__btn {
+  flex: 1;
+  text-align: center;
+  padding: 0.45rem 0;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.mode-switch__btn.is-active {
+  background: rgba(91, 75, 207, 0.16);
+  border-color: rgba(91, 75, 207, 0.32);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.collapse {
+  border-bottom: 1px solid var(--border);
+}
+
+.collapse__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.6rem 0;
+  background: transparent;
+  border: none;
+  color: var(--text-soft);
+  font-size: 0.85rem;
+}
+
+.collapse__body {
+  display: grid;
+  gap: var(--space-2);
+  padding-bottom: var(--space-3);
+}
+
+.tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.tag-chip {
+  font-size: 0.78rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: var(--radius-md);
+  background: rgba(91, 75, 207, 0.1);
+  color: var(--accent-text);
+  border: 1px solid rgba(91, 75, 207, 0.26);
+}
+
+.tag-add-input {
+  font-size: 0.78rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: var(--radius-md);
+  background: transparent;
+  border: 1px dashed var(--border-strong);
+  color: var(--text-muted);
+  min-width: 6rem;
+}
+
 .toggle {
   display: inline-flex;
   align-items: center;
@@ -458,6 +533,19 @@ textarea {
 
 .field--grow {
   flex: 1 1 100%;
+}
+
+.composer__body-field {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.composer__body-field textarea {
+  flex: 1;
+  min-height: 6rem;
+  resize: none;
 }
 
 .button,
