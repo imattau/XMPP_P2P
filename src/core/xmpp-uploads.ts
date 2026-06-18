@@ -252,7 +252,11 @@ export class XmppUploadManager {
       if (!response.ok) {
         return undefined
       }
-      return Buffer.from(await response.arrayBuffer())
+      const bytes = Buffer.from(await response.arrayBuffer())
+      if (bytes.length === 0) {
+        return undefined
+      }
+      return bytes
     } catch {
       return undefined
     } finally {
