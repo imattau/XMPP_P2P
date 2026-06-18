@@ -1,5 +1,5 @@
-import { CliContext } from './cli-types.js'
-import { printCliHelp } from './cli-output.js'
+import { CliContext } from './types.js'
+import { printCliHelp } from './output.js'
 
 export const handleCliCommand = async (input: string, ctx: CliContext) => {
   const { libp2p, xmppNode, discoveredPeers, resolvePeerTarget } = ctx

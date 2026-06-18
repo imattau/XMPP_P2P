@@ -1,8 +1,8 @@
 import { mkdtemp, rm } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
-import { createP2PNode } from './p2p.js'
-import { XmppNode } from './xmpp-node.js'
+import { createP2PNode } from '../core/p2p.js'
+import { XmppNode } from '../core/xmpp-node.js'
 
 async function waitFor(condition: () => boolean | Promise<boolean>, timeoutMs: number, message: string) {
   const startedAt = Date.now()

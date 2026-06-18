@@ -1,6 +1,6 @@
-import { createP2PNode } from './p2p.js'
-import { XmppNode } from './xmpp-node.js'
-import { startCli } from './cli-session.js'
+import { createP2PNode } from './core/p2p.js'
+import { XmppNode } from './core/xmpp-node.js'
+import { startCli } from './cli/session.js'
 
 async function main() {
   const args = process.argv.slice(2)

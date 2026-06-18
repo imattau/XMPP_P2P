@@ -1,5 +1,5 @@
-import { createP2PNode } from './p2p.js'
-import { XmppNode } from './xmpp-node.js'
+import { createP2PNode } from '../core/p2p.js'
+import { XmppNode } from '../core/xmpp-node.js'
 
 async function runTest() {
   console.log('Starting XMPP-over-libp2p verification test...\n')

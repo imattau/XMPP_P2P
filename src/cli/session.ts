@@ -1,9 +1,9 @@
 import readline from 'readline'
-import { XmppNode } from './xmpp-node.js'
-import { createCliContext, printCliHelp } from './cli-output.js'
-import { attachCliEventListeners } from './cli-events.js'
-import { handleCliCommand } from './cli-commands.js'
-import type { Libp2pNode } from './cli-types.js'
+import { XmppNode } from '../core/xmpp-node.js'
+import { createCliContext, printCliHelp } from './output.js'
+import { attachCliEventListeners } from './events.js'
+import { handleCliCommand } from './commands.js'
+import type { Libp2pNode } from './types.js'
 
 export const startCli = async (libp2p: Libp2pNode, xmppNode: XmppNode) => {
   const discoveredPeers = new Map<string, string[]>()

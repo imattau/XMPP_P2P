@@ -1,5 +1,5 @@
 import readline from 'readline'
-import { XmppNode } from './xmpp-node.js'
+import { XmppNode } from '../core/xmpp-node.js'
 
 export type Libp2pNode = {
   peerId: { toString(): string }

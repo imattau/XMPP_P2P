@@ -1,5 +1,5 @@
-import { CliContext } from './cli-types.js'
-import { formatPresence } from './cli-output.js'
+import { CliContext } from './types.js'
+import { formatPresence } from './output.js'
 
 export const attachCliEventListeners = (ctx: CliContext) => {
   const { xmppNode, showPrompt, discoveredPeers, libp2p } = ctx

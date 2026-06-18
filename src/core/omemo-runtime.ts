@@ -52,7 +52,7 @@ function installOmemoFetchShim(distDir: string) {
 
 async function loadOmemoModule(): Promise<OmemoModule> {
   if (!omemoModulePromise) {
-    const distDir = fileURLToPath(new URL('../node_modules/libomemo.js/dist/', import.meta.url))
+    const distDir = fileURLToPath(new URL('../../node_modules/libomemo.js/dist/', import.meta.url))
     const sourcePath = join(distDir, 'libomemo.umd.js')
     const patchedPath = join(distDir, 'libomemo.node.cjs')
     const source = await fs.readFile(sourcePath, 'utf8')

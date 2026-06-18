@@ -1,5 +1,5 @@
 import readline from 'readline'
-import { CliContext } from './cli-types.js'
+import { CliContext } from './types.js'
 
 export const formatPresence = (presence?: { type: string; show?: string; status?: string }) => {
   if (!presence) {
