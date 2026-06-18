@@ -5,6 +5,7 @@ export type Libp2pNode = {
   peerId: { toString(): string }
   getMultiaddrs(): Array<{ toString(): string }>
   addEventListener(event: string, listener: (evt: any) => void): void
+  getConnections(peerId?: any): any[]
   start(): Promise<void>
   stop(): Promise<void>
 }

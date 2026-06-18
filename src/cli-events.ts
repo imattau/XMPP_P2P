@@ -1,7 +1,9 @@
 import { CliContext } from './cli-types.js'
 import { formatPresence } from './cli-output.js'
 
-export const attachCliEventListeners = ({ xmppNode, showPrompt }: CliContext) => {
+export const attachCliEventListeners = (ctx: CliContext) => {
+  const { xmppNode, showPrompt, discoveredPeers, libp2p } = ctx
+
   xmppNode.on('message', (msg) => {
     console.log(`\n[XMPP Message] From: ${msg.from}`)
     if (msg.encrypted) {
@@ -37,6 +39,27 @@ export const attachCliEventListeners = ({ xmppNode, showPrompt }: CliContext) =>
 
   xmppNode.on('stream', ({ peerId, direction }) => {
     console.log(`\n[XMPP Connection] ${direction === 'inbound' ? 'Inbound' : 'Outbound'} session established with ${peerId}`)
+    
+    if (!discoveredPeers.has(peerId)) {
+      try {
+        const connections = libp2p.getConnections(peerId)
+        const addrs = connections.map((c: any) => {
+          const addrStr = c.remoteAddr.toString()
+          if (!addrStr.includes('/p2p/') && !addrStr.includes('/ipfs/')) {
+            return `${addrStr}/p2p/${peerId}`
+          }
+          return addrStr
+        })
+        if (addrs.length > 0) {
+          discoveredPeers.set(peerId, addrs)
+        } else {
+          discoveredPeers.set(peerId, [])
+        }
+      } catch (err) {
+        discoveredPeers.set(peerId, [])
+      }
+    }
+    
     showPrompt()
   })
 
