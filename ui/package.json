@@ -1,0 +1,18 @@
+{
+  "name": "xmpp_p2p-ui",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-node": "^5.5.4",
+    "@sveltejs/kit": "^2.65.2",
+    "svelte": "^5.56.3",
+    "svelte-check": "^4.6.0",
+    "vite": "^8.0.16"
+  }
+}
