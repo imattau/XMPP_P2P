@@ -44,6 +44,21 @@ import {
   type XmppPubSubContext
 } from './xmpp-pubsub.js'
 import {
+  handleSubscribe as handleSubscribeFromModule,
+  handleSubscribed as handleSubscribedFromModule,
+  handleUnsubscribe as handleUnsubscribeFromModule,
+  handleUnsubscribed as handleUnsubscribedFromModule,
+  sendPresenceToPeer as sendPresenceToPeerFromModule,
+  sendCurrentPresenceToPeer as sendCurrentPresenceToPeerFromModule,
+  sendPresence as sendPresenceFromModule,
+  addRosterEntry as addRosterEntryFromModule,
+  removeRosterEntry as removeRosterEntryFromModule,
+  subscribePresence as subscribePresenceFromModule,
+  unsubscribePresence as unsubscribePresenceFromModule,
+  broadcastPresence as broadcastPresenceFromModule,
+  type XmppRosterContext
+} from './xmpp-roster.js'
+import {
   fetchOpenPgpPublicKey as fetchOpenPgpPublicKeyFromModule,
   getPeerOpenPgpKey as getPeerOpenPgpKeyFromModule,
   handleSecureMessageStanza as handleSecureMessageStanzaFromModule,
@@ -348,6 +363,36 @@ export class XmppNode extends EventEmitter {
       recordFeedPost: this.recordFeedPost.bind(this),
       emitPubSubMessage: (message) => this.emit('pubsub:message', message),
       emitError: (error) => this.emit('error', error)
+    }
+  }
+
+  private getRosterContext(): XmppRosterContext {
+    const self = this
+    return {
+      jid: this.jid,
+      ready: this.ready,
+      get selfPresence() {
+        return self.selfPresence
+      },
+      setSelfPresence: (presence) => {
+        this.selfPresence = presence
+      },
+      getOrCreateStream: this.getOrCreateStream.bind(this),
+      getStreamByJid: this.getStreamByJid.bind(this),
+      getStreams: () => this.streams,
+      upsertRosterEntry: this.upsertRosterEntry.bind(this),
+      deleteRosterEntry: this.deleteRosterEntry.bind(this),
+      requestRosterFromPeer: this.requestRosterFromPeer.bind(this),
+      subscriptionToFlags: this.subscriptionToFlags.bind(this),
+      flagsToSubscription: this.flagsToSubscription.bind(this),
+      jidFromPeerId: this.jidFromPeerId.bind(this),
+      emitPresenceSubscribe: (fromJid) => this.emit('presence:subscribe', { from: fromJid }),
+      emitPresenceSubscribed: (fromJid) => this.emit('presence:subscribed', { from: fromJid }),
+      emitPresenceUnsubscribe: (fromJid) => this.emit('presence:unsubscribe', { from: fromJid }),
+      emitPresenceUnsubscribed: (fromJid) => this.emit('presence:unsubscribed', { from: fromJid }),
+      discoveryNode: this.discoveryNode,
+      discoveryIdentity: this.discoveryIdentity,
+      collections: this.collections
     }
   }
 
@@ -1477,87 +1522,27 @@ export class XmppNode extends EventEmitter {
   }
 
   private async handleSubscribe(peerId: string, fromJid: string) {
-    const entry = await this.upsertRosterEntry({ jid: fromJid })
-    const flags = this.subscriptionToFlags(entry.subscription)
-    await this.upsertRosterEntry({
-      jid: fromJid,
-      subscription: this.flagsToSubscription(flags.to, true),
-      ask: undefined
-    })
-    await this.sendPresenceToPeer(peerId, 'subscribed')
-    await this.sendCurrentPresenceToPeer(peerId)
-    this.emit('presence:subscribe', { from: fromJid })
+    await handleSubscribeFromModule(this.getRosterContext(), peerId, fromJid)
   }
 
   private async handleSubscribed(fromJid: string) {
-    const entry = await this.upsertRosterEntry({ jid: fromJid })
-    const flags = this.subscriptionToFlags(entry.subscription)
-    await this.upsertRosterEntry({
-      jid: fromJid,
-      subscription: this.flagsToSubscription(true, flags.from),
-      ask: undefined
-    })
-    this.emit('presence:subscribed', { from: fromJid })
+    await handleSubscribedFromModule(this.getRosterContext(), fromJid)
   }
 
   private async handleUnsubscribe(peerId: string, fromJid: string) {
-    const entry = await this.upsertRosterEntry({ jid: fromJid })
-    const flags = this.subscriptionToFlags(entry.subscription)
-    await this.upsertRosterEntry({
-      jid: fromJid,
-      subscription: this.flagsToSubscription(false, flags.from),
-      ask: undefined
-    })
-    await this.sendPresenceToPeer(peerId, 'unsubscribed')
-    this.emit('presence:unsubscribe', { from: fromJid })
+    await handleUnsubscribeFromModule(this.getRosterContext(), peerId, fromJid)
   }
 
   private async handleUnsubscribed(fromJid: string) {
-    const entry = await this.upsertRosterEntry({ jid: fromJid })
-    const flags = this.subscriptionToFlags(entry.subscription)
-    await this.upsertRosterEntry({
-      jid: fromJid,
-      subscription: this.flagsToSubscription(flags.to, false),
-      ask: undefined
-    })
-    this.emit('presence:unsubscribed', { from: fromJid })
+    await handleUnsubscribedFromModule(this.getRosterContext(), fromJid)
   }
 
   private async sendCurrentPresenceToPeer(peerId: string) {
-    const presenceType = this.selfPresence.type === 'unavailable' ? 'unavailable' : undefined
-    await this.sendPresenceToPeer(peerId, presenceType, this.selfPresence.status, this.selfPresence.show)
+    await sendCurrentPresenceToPeerFromModule(this.getRosterContext(), peerId)
   }
 
   private async sendPresenceToPeer(peerId: string, type?: string, status?: string, show?: string) {
-    const xmppStream = this.streams.get(peerId)
-    if (!xmppStream) {
-      return
-    }
-
-    const presAttrs: Record<string, string> = {
-      to: this.jidFromPeerId(peerId),
-      from: this.jid
-    }
-    if (type) {
-      presAttrs.type = type
-    }
-
-    const children: Element[] = []
-    if (show) {
-      children.push(xml('show', {}, show))
-    }
-    if (status) {
-      children.push(xml('status', {}, status))
-    }
-    if (!type || type === 'available') {
-      children.push(buildCapsElement(this.discoveryNode, this.discoveryIdentity, this.collections))
-    }
-
-    const pres = children.length > 0
-      ? xml('presence', presAttrs, ...children)
-      : xml('presence', presAttrs)
-
-    xmppStream.send(pres)
+    await sendPresenceToPeerFromModule(this.getRosterContext(), peerId, type, status, show)
   }
 
   private async handleIqStanza(peerId: string, element: Element) {
@@ -1912,28 +1897,11 @@ export class XmppNode extends EventEmitter {
   }
 
   async addRosterEntry(jid: string, name?: string): Promise<XmppRosterEntry> {
-    const entry = await this.upsertRosterEntry({
-      jid,
-      name,
-      subscription: 'to',
-      ask: 'subscribe'
-    })
-
-    const stream = this.getStreamByJid(jid)
-    if (stream) {
-      await this.sendPresenceToPeer(stream.remotePeer, 'subscribe')
-    }
-
-    return entry
+    return await addRosterEntryFromModule(this.getRosterContext(), jid, name)
   }
 
   async removeRosterEntry(jid: string): Promise<void> {
-    const stream = this.getStreamByJid(jid)
-    if (stream) {
-      await this.sendPresenceToPeer(stream.remotePeer, 'unsubscribe')
-    }
-
-    await this.deleteRosterEntry(jid)
+    await removeRosterEntryFromModule(this.getRosterContext(), jid)
   }
 
   async fetchRoster(peerAddr: string | Multiaddr): Promise<XmppRosterEntry[]> {
@@ -1942,39 +1910,15 @@ export class XmppNode extends EventEmitter {
   }
 
   async subscribePresence(peerAddr: string | Multiaddr): Promise<void> {
-    const xmppStream = await this.getOrCreateStream(peerAddr)
-    const jid = xmppStream.remotePeer.toString() + '@p2p'
-    await this.upsertRosterEntry({
-      jid,
-      subscription: 'to',
-      ask: 'subscribe'
-    })
-    await this.sendPresence(peerAddr, 'subscribe')
+    await subscribePresenceFromModule(this.getRosterContext(), peerAddr)
   }
 
   async unsubscribePresence(peerAddr: string | Multiaddr): Promise<void> {
-    const xmppStream = await this.getOrCreateStream(peerAddr)
-    const jid = xmppStream.remotePeer.toString() + '@p2p'
-    await this.upsertRosterEntry({
-      jid,
-      subscription: 'none',
-      ask: 'unsubscribe'
-    })
-    await this.sendPresence(peerAddr, 'unsubscribe')
+    await unsubscribePresenceFromModule(this.getRosterContext(), peerAddr)
   }
 
   async broadcastPresence(type?: string, status?: string, show?: string) {
-    await this.ready
-    const normalizedType = type === 'unavailable' ? 'unavailable' : 'available'
-    this.selfPresence = {
-      type: normalizedType,
-      status,
-      show
-    }
-
-    for (const peerId of this.streams.keys()) {
-      await this.sendCurrentPresenceToPeer(peerId)
-    }
+    await broadcastPresenceFromModule(this.getRosterContext(), type, status, show)
   }
 
   // Send a chat message to a peer
@@ -2231,30 +2175,7 @@ export class XmppNode extends EventEmitter {
 
   // Send presence updates
   async sendPresence(peerAddr: string | Multiaddr, type?: string, status?: string, show?: string) {
-    const xmppStream = await this.getOrCreateStream(peerAddr)
-    const toJid = xmppStream.remotePeer.toString() + '@p2p'
-
-    const presAttrs: Record<string, string> = {
-      to: toJid,
-      from: this.jid
-    }
-    if (type) {
-      presAttrs.type = type
-    }
-
-    const children: Element[] = []
-    if (show) {
-      children.push(xml('show', {}, show))
-    }
-    if (status) {
-      children.push(xml('status', {}, status))
-    }
-
-    const pres = children.length > 0
-      ? xml('presence', presAttrs, ...children)
-      : xml('presence', presAttrs)
-
-    xmppStream.send(pres)
+    await sendPresenceFromModule(this.getRosterContext(), peerAddr, type, status, show)
   }
 
   // Subscribe to a Gossipsub/PubSub topic
