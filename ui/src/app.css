@@ -206,9 +206,9 @@ textarea {
 .section__title h2 {
   margin: 0;
   font-family: var(--font-display);
-  font-size: clamp(1.8rem, 5vw, 2.7rem);
-  line-height: 1.04;
-  max-width: 14ch;
+  font-size: 1.2rem;
+  line-height: 1.3;
+  max-width: none;
 }
 
 .section__title p {
@@ -422,13 +422,17 @@ textarea {
 .avatar {
   width: 2.25rem;
   height: 2.25rem;
-  border-radius: 0.85rem;
+  border-radius: 50%;
   display: grid;
   place-items: center;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid var(--border);
   font-weight: 700;
   flex: 0 0 auto;
+}
+
+.avatar--square {
+  border-radius: 0.85rem;
 }
 
 .avatar--top {
@@ -549,6 +553,52 @@ textarea {
   background: rgba(77, 226, 200, 0.08);
 }
 
+.row-flat {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-2);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  border-radius: 0;
+  text-align: left;
+}
+
+.row-flat:last-child {
+  border-bottom: none;
+}
+
+.row-flat.is-active {
+  background: rgba(77, 226, 200, 0.06);
+}
+
+.sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 12;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px);
+  padding: var(--space-4);
+  display: grid;
+  gap: var(--space-4);
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+@media (min-width: 900px) {
+  .sheet {
+    position: static;
+    border-radius: var(--radius-xl);
+    max-height: none;
+  }
+}
+
 .profile-head {
   display: flex;
   align-items: flex-start;
@@ -602,7 +652,7 @@ textarea {
   bottom: 0.5rem;
   z-index: 10;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.35rem;
   padding: 0.45rem;
   border-radius: 999px;
@@ -676,10 +726,6 @@ textarea {
 
   .composer {
     top: calc(5.75rem + var(--space-4));
-  }
-
-  .section__title h2 {
-    font-size: clamp(2rem, 4vw, 3.1rem);
   }
 
   .profile-grid {
