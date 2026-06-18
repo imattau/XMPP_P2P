@@ -1,10 +1,12 @@
 import { Element, Parser } from '@xmpp/xml'
 import * as openpgp from 'openpgp'
-import { ATTACHMENT_XMLNS, FEED_XMLNS, PAM_XMLNS, PUBSUB_EVENT_XMLNS } from './xmpp-discovery.js'
+import { ATTACHMENT_XMLNS, FEED_XMLNS, HTTP_UPLOAD_XMLNS, PAM_XMLNS, PUBSUB_EVENT_XMLNS } from './xmpp-discovery.js'
 import {
   normalizeAttachment,
   normalizeCollectionPost,
   normalizeFeedPost,
+  type XmppUploadManifest,
+  type XmppUploadProvider,
   type XmppAttachment,
   type XmppCollectionPost,
   type XmppFeedFollower,
@@ -13,6 +15,7 @@ import {
 } from './xmpp-records.js'
 
 export interface XmppPubSubContext {
+  localJid: string
   feedTopicForPeer(peerId: string): string
   getEncryptedTopicSecret(topic: string): string | undefined
   removeFollower(feedPeerId: string, followerPeerId: string): Promise<void>
@@ -20,6 +23,7 @@ export interface XmppPubSubContext {
   recordAttachment(attachment: XmppAttachment): Promise<boolean>
   recordCollectionPost(post: XmppCollectionPost): Promise<boolean>
   recordFeedPost(post: XmppFeedPost): Promise<boolean>
+  recordUploadManifest(manifest: XmppUploadManifest, sourceJid: string): Promise<boolean>
   emitPubSubMessage(message: XmppPubSubMessage): void
   emitError(error: unknown): void
 }
@@ -154,6 +158,58 @@ async function parseEncryptedPubSubItem(
   }
 }
 
+function parseUploadManifest(
+  topic: string,
+  itemEl: Element,
+  from: string
+): XmppUploadManifest | undefined {
+  const uploadEl = itemEl.getChild('upload')
+  if (!uploadEl || uploadEl.attrs.xmlns !== HTTP_UPLOAD_XMLNS) {
+    return undefined
+  }
+
+  const cid = uploadEl.attrs.cid || itemEl.attrs.cid
+  const getUrl = uploadEl.attrs.url || uploadEl.attrs.getUrl
+  if (!cid || !getUrl) {
+    return undefined
+  }
+
+  const providersEl = uploadEl.getChild('providers')
+  const providerEls = (providersEl?.children as any[] ?? []).filter(child => child?.name === 'provider') as Element[]
+  const providers: XmppUploadProvider[] = []
+  for (const providerEl of providerEls) {
+    const url = providerEl.attrs.url
+    if (!url) {
+      continue
+    }
+    providers.push({
+      url,
+      jid: providerEl.attrs.jid
+    })
+  }
+
+  if (!providers.some(provider => provider.url === getUrl)) {
+    providers.unshift({
+      url: getUrl,
+      jid: uploadEl.attrs.from || itemEl.attrs.from || from
+    })
+  }
+
+  const size = Number(uploadEl.attrs.size ?? itemEl.attrs.size)
+  return {
+    cid,
+    slotId: uploadEl.attrs.slotId || itemEl.attrs.slotId,
+    filename: uploadEl.attrs.filename || itemEl.attrs.filename,
+    contentType: uploadEl.attrs.contentType || uploadEl.attrs['content-type'] || itemEl.attrs.contentType,
+    size: Number.isFinite(size) ? size : undefined,
+    getUrl,
+    providers,
+    uploadedAt: uploadEl.attrs.uploadedAt || itemEl.attrs.uploadedAt || new Date().toISOString(),
+    from,
+    topic
+  }
+}
+
 export async function handlePubSubMessageElement(topic: string, element: Element, ctx: XmppPubSubContext): Promise<void> {
   const eventEl = element.getChild('event')
   if (!eventEl || eventEl.attrs.xmlns !== PUBSUB_EVENT_XMLNS) {
@@ -192,6 +248,12 @@ export async function handlePubSubMessageElement(topic: string, element: Element
     const attachment = parseAttachment(topic, itemEl, element.attrs.from || 'unknown')
     if (attachment) {
       void ctx.recordAttachment(attachment).catch(err => ctx.emitError(err))
+      continue
+    }
+
+    const uploadManifest = parseUploadManifest(topic, itemEl, element.attrs.from || 'unknown')
+    if (uploadManifest) {
+      void ctx.recordUploadManifest(uploadManifest, element.attrs.from || 'unknown').catch(err => ctx.emitError(err))
       continue
     }
 

@@ -6,6 +6,7 @@ export const DELAY_XMLNS = 'urn:xmpp:delay'
 export const CORRECT_XMLNS = 'urn:xmpp:message-correct:0'
 export const PING_XMLNS = 'urn:xmpp:ping'
 export const NICK_XMLNS = 'http://jabber.org/protocol/nick'
+export const SID_XMLNS = 'urn:xmpp:sid:0'
 
 export interface XepMetadata {
   receipt?: { type: 'request' | 'received'; id: string }
@@ -13,6 +14,8 @@ export interface XepMetadata {
   delay?: { from?: string; stamp: string }
   replace?: string
   nick?: string
+  originId?: string
+  stanzaId?: { id: string; by: string }
 }
 
 export function parseXepMetadata(element: Element): XepMetadata {
@@ -63,6 +66,20 @@ export function parseXepMetadata(element: Element): XepMetadata {
     }
   }
 
+  // Parse XEP-0359 Unique Action Identifiers
+  const originIdEl = element.getChild('origin-id')
+  if (originIdEl && originIdEl.attrs.xmlns === SID_XMLNS) {
+    metadata.originId = originIdEl.attrs.id
+  }
+
+  const stanzaIdEl = element.getChild('stanza-id')
+  if (stanzaIdEl && stanzaIdEl.attrs.xmlns === SID_XMLNS) {
+    metadata.stanzaId = {
+      id: stanzaIdEl.attrs.id,
+      by: stanzaIdEl.attrs.by
+    }
+  }
+
   return metadata
 }
 
@@ -72,6 +89,8 @@ export function buildXepElements(options: {
   chatState?: 'active' | 'composing' | 'paused' | 'inactive' | 'gone'
   delay?: { stamp: string; from?: string }
   nick?: string
+  originId?: string
+  stanzaId?: { id: string; by: string }
 }): Element[] {
   const elements: Element[] = []
 
@@ -105,5 +124,14 @@ export function buildXepElements(options: {
     elements.push(xml('nick', { xmlns: NICK_XMLNS }, options.nick))
   }
 
+  if (options.originId) {
+    elements.push(xml('origin-id', { xmlns: SID_XMLNS, id: options.originId }))
+  }
+
+  if (options.stanzaId) {
+    elements.push(xml('stanza-id', { xmlns: SID_XMLNS, id: options.stanzaId.id, by: options.stanzaId.by }))
+  }
+
   return elements
 }
+

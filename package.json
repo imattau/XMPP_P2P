@@ -6,6 +6,10 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
+    "mcp": "node dist/mcp/index.js",
+    "ui:start": "npm --prefix ui run dev",
+    "ui:build": "npm --prefix ui run build",
+    "ui:preview": "npm --prefix ui run preview",
     "test-nodes": "node dist/tests/nodes.js",
     "test-pubsub": "node dist/tests/pubsub.js",
     "test-roster": "node dist/tests/roster.js",
@@ -20,7 +24,9 @@
     "test-collection": "node dist/tests/collection.js",
     "test-muc": "node dist/tests/muc.js",
     "test-muc-omemo": "node dist/tests/muc-omemo.js",
-    "test": "npm run build && npm run test-nodes && npm run test-pubsub && npm run test-dht && npm run test-omemo && npm run test-roster && npm run test-feed && npm run test-attachments && npm run test-subscriptions && npm run test-disco && npm run test-protocol && npm run test-collection && npm run test-muc && npm run test-muc-omemo"
+    "test-uploads": "node dist/tests/uploads.js",
+    "test-reliability": "node dist/tests/xeps-reliability.js",
+    "test": "npm run build && npm run test-nodes && npm run test-pubsub && npm run test-dht && npm run test-omemo && npm run test-roster && npm run test-feed && npm run test-attachments && npm run test-uploads && npm run test-subscriptions && npm run test-disco && npm run test-protocol && npm run test-collection && npm run test-muc && npm run test-muc-omemo && npm run test-reliability"
   },
   "repository": {
     "type": "git",
@@ -44,6 +50,7 @@
     "@libp2p/tcp": "^11.0.22",
     "@libp2p/websockets": "^10.1.15",
     "@libp2p/yamux": "^8.0.1",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@xmpp/xml": "^0.14.0",
     "libomemo.js": "^1.0.0",
     "libp2p": "^3.3.4",

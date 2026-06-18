@@ -60,6 +60,7 @@ export interface XmppSecureContext {
   getEncryptedTopicSecret(topic: string): string | undefined
   getPeerOpenPgpArmoredKey(peerId: string): string | undefined
   cachePeerOpenPgpKey(peerId: string, armoredKey: string): void
+  sendOrBufferStanza(peerId: string, stanza: Element, peerAddr?: string | Multiaddr): Promise<void>
 }
 
 export async function decryptOmemoKey(ctx: XmppSecureContext, remoteAddress: OmemoAddress, payload: string): Promise<ArrayBuffer> {
@@ -177,7 +178,9 @@ export async function handleSecureMessageStanza(
       id: element.attrs.id,
       type: element.attrs.type || 'chat',
       receipt: metadata.receipt,
-      nickname: metadata.nick
+      nickname: metadata.nick,
+      originId: metadata.originId,
+      stanzaId: metadata.stanzaId
     })
     return true
   }
@@ -197,7 +200,9 @@ export async function handleSecureMessageStanza(
       chatState: metadata.chatState,
       delay: metadata.delay,
       replace: metadata.replace,
-      nickname: metadata.nick
+      nickname: metadata.nick,
+      originId: metadata.originId,
+      stanzaId: metadata.stanzaId
     })
     return true
   }
@@ -233,7 +238,9 @@ export async function handleSecureMessageStanza(
         chatState: metadata.chatState,
         delay: metadata.delay,
         replace: metadata.replace,
-        nickname: metadata.nick
+        nickname: metadata.nick,
+        originId: metadata.originId,
+        stanzaId: metadata.stanzaId
       })
       return true
     }
@@ -255,7 +262,9 @@ export async function handleSecureMessageStanza(
         chatState: metadata.chatState,
         delay: metadata.delay,
         replace: metadata.replace,
-        nickname: metadata.nick
+        nickname: metadata.nick,
+        originId: metadata.originId,
+        stanzaId: metadata.stanzaId
       })
       return true
     }
@@ -272,7 +281,9 @@ export async function handleSecureMessageStanza(
       chatState: metadata.chatState,
       delay: metadata.delay,
       replace: metadata.replace,
-      nickname: metadata.nick
+      nickname: metadata.nick,
+      originId: metadata.originId,
+      stanzaId: metadata.stanzaId
     })
     return true
   }
@@ -296,7 +307,7 @@ export async function sendEncryptedMessage(
   const xmppStream = await ctx.getOrCreateStream(peerAddr)
   const peerId = xmppStream.remotePeer.toString()
   const toJid = ctx.jidFromPeerId(peerId)
-  const itemId = Math.random().toString(36).substring(2, 11)
+  const itemId = Math.random().toString(36).substring(2, 15)
   const devices = await ctx.getPeerOmemoDevices(peerAddr)
   if (devices.length === 0) {
     throw new Error(`No OMEMO devices available for ${toJid}`)
@@ -339,7 +350,9 @@ export async function sendEncryptedMessage(
     delay: options.delay ? {
       stamp: options.delay.stamp,
       from: options.delay.from ?? ctx.jid
-    } : undefined
+    } : undefined,
+    originId: itemId,
+    stanzaId: { id: itemId, by: ctx.jid }
   }))
 
   const stanza = xml(
@@ -353,7 +366,7 @@ export async function sendEncryptedMessage(
     ...children
   )
 
-  xmppStream.send(stanza)
+  await ctx.sendOrBufferStanza(peerId, stanza, peerAddr)
   return itemId
 }
 

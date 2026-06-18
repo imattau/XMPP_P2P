@@ -6,6 +6,7 @@ import { buildXepElements } from './xmpp-xep-helpers.js'
 import { EventEmitter } from 'events'
 import { XmppStream } from './xmpp-stream.js'
 import * as openpgp from 'openpgp'
+import { XmppUploadManager, UPLOAD_ANNOUNCEMENTS_TOPIC } from './xmpp-uploads.js'
 import {
   buildCapsElement,
   buildDiscoInfoQuery,
@@ -22,6 +23,7 @@ import {
   FEED_XMLNS,
   COLLECTION_XMLNS,
   ATTACHMENT_XMLNS,
+  HTTP_UPLOAD_XMLNS,
   PAM_XMLNS,
   FOLLOWERS_XMLNS,
   ROSTER_XMLNS,
@@ -56,6 +58,7 @@ import {
 import {
   sendIqRequest as sendIqRequestFromModule,
   sendIqResult as sendIqResultFromModule,
+  sendIqError as sendIqErrorFromModule,
   handleStanza as handleStanzaFromModule,
   type PendingIq,
   type XmppRouterContext
@@ -96,6 +99,7 @@ import {
   createCollection as createCollectionFromModule,
   addFeedToCollection as addFeedToCollectionFromModule,
   subscribeCollection as subscribeCollectionFromModule,
+  unsubscribeCollection as unsubscribeCollectionFromModule,
   publishCollection as publishCollectionFromModule,
   getCollections as getCollectionsFromModule,
   getCollectionSubscriptions as getCollectionSubscriptionsFromModule,
@@ -119,6 +123,8 @@ import {
   loadCollectionState,
   loadFeedHistoryState,
   loadFollowerState,
+  loadMucState as loadMucStateFile,
+  loadMucHistoryState,
   loadRosterState,
   loadVCardState,
   loadSubscriptionState,
@@ -126,6 +132,8 @@ import {
   persistCollectionState,
   persistFeedHistoryState,
   persistFollowerState,
+  persistMucState as persistMucStateFile,
+  persistMucHistoryState,
   persistOpenPgpState as persistOpenPgpStateFile,
   persistRosterState,
   persistVCardState,
@@ -150,6 +158,7 @@ import {
   type XmppFeedSubscription,
   type XmppFeedSubscriptionRecord,
   type XmppFeedVisibility,
+  type XmppUploadManifest,
   feedSubscriptionKey,
   feedTopicForPeer,
   type XmppFollowerFile,
@@ -164,6 +173,7 @@ import {
   jidFromPeerId,
   type XmppOpenPgpPublicKeyResponse,
   type XmppOpenPgpStateFile,
+  type XmppMucRoomSettings,
   type XmppPubSubMessage,
   type XmppPresence,
   type XmppPresenceType,
@@ -178,13 +188,17 @@ import {
   normalizeFeedPost,
   normalizeFeedSubscription,
   normalizeFollower,
+  normalizeMucRoomSettings,
+  normalizeMucMessage,
   normalizeVCardProfile,
   normalizeRosterEntry,
   parsePeerReference,
   peerIdFromJid,
+  type XmppUploadProvider,
   type XmppSubscriptionFile,
   type XmppVCardProfile,
-  subscriptionToFlags
+  subscriptionToFlags,
+  type XmppMucMessage
 } from './xmpp-records.js'
 import type {
   OmemoDirection
@@ -198,6 +212,9 @@ const FEED_HISTORY_LIMIT = 50
 const COLLECTION_HISTORY_LIMIT = 100
 const ATTACHMENT_HISTORY_LIMIT = 200
 const SUBSCRIPTION_HISTORY_LIMIT = 200
+const MUC_HISTORY_LIMIT = 500
+const MUC_SETTINGS_INDEX_PREFIX = '/xmpp/muc/index/'
+const MUC_SETTINGS_PREFIX = '/xmpp/muc/room/'
 const FEED_TOPIC_PREFIX = 'xmpp-feed:'
 const COLLECTION_TOPIC_PREFIX = 'xmpp-collection:'
 const FOLLOWERS_TOPIC_PREFIX = 'xmpp-followers:'
@@ -214,6 +231,9 @@ export interface XmppNodeOptions {
   feedPath?: string
   collectionPath?: string
   attachmentPath?: string
+  mucPath?: string
+  mucHistoryPath?: string
+  uploadPath?: string
   vCardPath?: string
   omemoPath?: string
   openPgpPath?: string
@@ -223,6 +243,8 @@ export interface XmppNodeOptions {
 export class XmppNode extends EventEmitter {
   private libp2p: Libp2p
   private streams = new Map<string, XmppStream>()
+  private streamSessions = new Map<string, { sessionId: string; outboundStanzaCount: number; inboundStanzaCount: number; unackedQueue: Element[] }>()
+  private peerClientStates = new Map<string, 'active' | 'inactive'>()
   private roster = new Map<string, XmppRosterEntry>()
   private feedHistory = new Map<string, XmppFeedPost>()
   private feedSubscriptions = new Map<string, XmppFeedSubscriptionRecord>()
@@ -233,6 +255,8 @@ export class XmppNode extends EventEmitter {
   private collectionHistory = new Map<string, XmppCollectionPost>()
   private collectionFeedIndex = new Map<string, Set<string>>()
   private attachmentHistory = new Map<string, XmppAttachment>()
+  private mucRooms = new Map<string, XmppMucRoomSettings>()
+  private mucHistory = new Map<string, XmppMucMessage>()
   private discoInfoCache = new Map<string, XmppDiscoInfo>()
   private entityCapabilities = new Map<string, XmppEntityCapabilities>()
   private pendingIq = new Map<string, PendingIq>()
@@ -243,6 +267,8 @@ export class XmppNode extends EventEmitter {
   private followerSaveQueue: Promise<void> = Promise.resolve()
   private collectionSaveQueue: Promise<void> = Promise.resolve()
   private attachmentSaveQueue: Promise<void> = Promise.resolve()
+  private mucSaveQueue: Promise<void> = Promise.resolve()
+  private mucHistorySaveQueue: Promise<void> = Promise.resolve()
   private vCardSaveQueue: Promise<void> = Promise.resolve()
   private selfPresence: { type: 'available' | 'unavailable'; status?: string; show?: string; nickname?: string } = {
     type: 'available'
@@ -254,6 +280,13 @@ export class XmppNode extends EventEmitter {
   private readonly followerPath: string
   private readonly collectionPath: string
   private readonly attachmentPath: string
+  private readonly mucPath: string
+  private readonly mucHistoryPath: string
+  public readonly uploadPath: string
+  public readonly uploadObjectsPath: string
+  public readonly uploadAliasesPath: string
+  public readonly uploadHost: string
+  public readonly uploadPort: number
   private readonly vCardPath: string
   private readonly omemoPath: string
   private readonly openPgpPath: string
@@ -272,6 +305,7 @@ export class XmppNode extends EventEmitter {
   private readonly encryptedTopicSecrets = new Map<string, XmppEncryptedTopicSecret>()
   public readonly jid: string
   public readonly muc: XmppMucManager
+  public readonly uploads: XmppUploadManager
   public readonly ready: Promise<void>
 
   constructor(libp2p: Libp2p, options: XmppNodeOptions = {}) {
@@ -285,12 +319,20 @@ export class XmppNode extends EventEmitter {
     this.followerPath = join(dirname(this.rosterPath), `.xmpp-followers.${rosterBaseName}.json`)
     this.collectionPath = options.collectionPath ?? process.env.XMPP_COLLECTION_PATH ?? join(dirname(this.rosterPath), `.xmpp-collection.${this.libp2p.peerId.toString()}.json`)
     this.attachmentPath = options.attachmentPath ?? process.env.XMPP_ATTACHMENT_PATH ?? join(dirname(this.rosterPath), `.xmpp-attachments.${this.libp2p.peerId.toString()}.json`)
+    this.mucPath = options.mucPath ?? process.env.XMPP_MUC_PATH ?? join(dirname(this.rosterPath), `.xmpp-muc.${rosterBaseName}.json`)
+    this.mucHistoryPath = options.mucHistoryPath ?? process.env.XMPP_MUC_HISTORY_PATH ?? join(dirname(this.rosterPath), `.xmpp-muc-history.${rosterBaseName}.json`)
+    this.uploadPath = options.uploadPath ?? process.env.XMPP_UPLOAD_PATH ?? join(dirname(this.rosterPath), `.xmpp-uploads.${rosterBaseName}`)
+    this.uploadObjectsPath = join(this.uploadPath, 'objects')
+    this.uploadAliasesPath = join(this.uploadPath, 'aliases')
+    this.uploadHost = process.env.XMPP_UPLOAD_HOST ?? '127.0.0.1'
+    this.uploadPort = Number.parseInt(process.env.XMPP_UPLOAD_PORT ?? '0', 10) || 0
     this.vCardPath = options.vCardPath ?? process.env.XMPP_VCARD_PATH ?? join(dirname(this.rosterPath), `.xmpp-vcard.${rosterBaseName}.json`)
     this.omemoPath = options.omemoPath ?? process.env.XMPP_OMEMO_PATH ?? join(dirname(this.rosterPath), `.xmpp-omemo.${rosterBaseName}.json`)
     this.openPgpPath = options.openPgpPath ?? process.env.XMPP_OPENPGP_PATH ?? join(dirname(this.rosterPath), `.xmpp-openpgp.${rosterBaseName}.json`)
     this.omemoStateManager = new XmppOmemoStateManager(this.omemoPath)
     this.openPgpStateManager = new XmppOpenPgpStateManager(this.openPgpPath, this.jid)
     this.muc = new XmppMucManager(this)
+    this.uploads = new XmppUploadManager(this)
     if (options.nickname) {
       this.selfPresence.nickname = options.nickname
       this.selfVCard.nickname = options.nickname
@@ -301,6 +343,10 @@ export class XmppNode extends EventEmitter {
       .then(() => this.loadFollowerState())
       .then(() => this.loadCollectionState())
       .then(() => this.loadAttachmentHistory())
+      .then(() => this.loadMucState())
+      .then(() => this.loadMucHistory())
+      .then(() => this.uploads.ensureUploadServer())
+      .then(() => this.uploads.ensureUploadAnnouncementSubscription())
       .then(() => this.loadVCard())
       .then(() => this.loadOmemoState())
       .then(() => this.openPgpStateManager.load())
@@ -327,6 +373,8 @@ export class XmppNode extends EventEmitter {
         if (topic.startsWith('xmpp/muc/')) {
           const fromPeerId = evt.detail.from?.toString() || 'unknown'
           void this.muc.handleIncomingPayload(topic, fromPeerId, xmlStr).catch(() => {})
+        } else if (topic === UPLOAD_ANNOUNCEMENTS_TOPIC) {
+          void this.handlePubSubPayload(topic, xmlStr).catch(() => {})
         } else {
           void this.handlePubSubPayload(topic, xmlStr).catch(() => {})
         }
@@ -342,6 +390,8 @@ export class XmppNode extends EventEmitter {
       followerPath: this.followerPath,
       collectionPath: this.collectionPath,
       attachmentPath: this.attachmentPath,
+      mucPath: this.mucPath,
+      mucHistoryPath: this.mucHistoryPath,
       vCardPath: this.vCardPath,
       openPgpPath: this.openPgpPath,
       roster: this.roster,
@@ -351,6 +401,8 @@ export class XmppNode extends EventEmitter {
       collections: this.collections,
       collectionHistory: this.collectionHistory,
       attachmentHistory: this.attachmentHistory,
+      mucRooms: this.mucRooms,
+      mucHistory: this.mucHistory,
       vCard: this.selfVCard,
       normalizeRosterEntry: this.normalizeRosterEntry.bind(this),
       normalizeFeedPost: this.normalizeFeedPost.bind(this),
@@ -359,11 +411,14 @@ export class XmppNode extends EventEmitter {
       normalizeCollection: this.normalizeCollection.bind(this),
       normalizeCollectionPost: this.normalizeCollectionPost.bind(this),
       normalizeAttachment: this.normalizeAttachment.bind(this),
+      normalizeMucRoomSettings: normalizeMucRoomSettings,
+      normalizeMucMessage: normalizeMucMessage,
       feedHistoryKey: this.feedHistoryKey.bind(this),
       feedSubscriptionKey: this.feedSubscriptionKey.bind(this),
       followerKey: this.followerKey.bind(this),
       collectionHistoryKey: this.collectionHistoryKey.bind(this),
       attachmentHistoryKey: this.attachmentHistoryKey.bind(this),
+      mucHistoryKey: this.mucHistoryKey.bind(this),
       restoreFeedSubscriptions: this.restoreFeedSubscriptions.bind(this),
       restoreFollowerSubscriptions: this.restoreFollowerSubscriptions.bind(this),
       restoreCollectionSubscriptions: this.restoreCollectionSubscriptions.bind(this),
@@ -379,6 +434,8 @@ export class XmppNode extends EventEmitter {
       followerPath: this.followerPath,
       collectionPath: this.collectionPath,
       attachmentPath: this.attachmentPath,
+      mucPath: this.mucPath,
+      mucHistoryPath: this.mucHistoryPath,
       vCardPath: this.vCardPath,
       openPgpPath: this.openPgpPath,
       roster: this.roster,
@@ -388,6 +445,8 @@ export class XmppNode extends EventEmitter {
       collections: this.collections,
       collectionHistory: this.collectionHistory,
       attachmentHistory: this.attachmentHistory,
+      mucRooms: this.mucRooms,
+      mucHistory: this.mucHistory,
       vCard: this.selfVCard,
       openPgpState: this.openPgpStateManager.getState()
     }
@@ -417,6 +476,91 @@ export class XmppNode extends EventEmitter {
     await loadAttachmentHistoryState(this.getPersistenceLoadContext(), ATTACHMENT_HISTORY_LIMIT)
   }
 
+  private async loadMucState(): Promise<void> {
+    await this.loadMucStateFromDht().catch(err => {
+      console.error('[XMPP] Failed to load MUC state from DHT:', err)
+    })
+
+    if (this.mucRooms.size === 0) {
+      await loadMucStateFile(this.getPersistenceLoadContext())
+    }
+
+    for (const settings of this.mucRooms.values()) {
+      if (settings.autoJoin) {
+        await this.joinMucRoom(settings.roomName, this.selfPresence.nickname ?? this.jid.replace('@p2p', ''))
+      }
+    }
+  }
+
+  private async loadMucHistory(): Promise<void> {
+    await loadMucHistoryState(this.getPersistenceLoadContext(), MUC_HISTORY_LIMIT)
+  }
+
+  private mucSettingsIndexKey(peerId = this.libp2p.peerId.toString()): Uint8Array {
+    return new TextEncoder().encode(`${MUC_SETTINGS_INDEX_PREFIX}${peerId}`)
+  }
+
+  private mucSettingsKey(roomName: string): Uint8Array {
+    return new TextEncoder().encode(`${MUC_SETTINGS_PREFIX}${roomName}`)
+  }
+
+  private async readDhtJson<T>(key: Uint8Array): Promise<T | undefined> {
+    const contentRouting = (this.libp2p as any).contentRouting
+    if (!contentRouting?.get) {
+      console.log('[DEBUG DHT] readDhtJson: contentRouting.get not available')
+      return undefined
+    }
+
+    try {
+      const keyStr = new TextDecoder().decode(key)
+      console.log(`[DEBUG DHT] readDhtJson starting for key: ${keyStr}`)
+      const value = await contentRouting.get(key)
+      console.log(`[DEBUG DHT] readDhtJson success for key: ${keyStr}`)
+      return JSON.parse(new TextDecoder().decode(value)) as T
+    } catch (err: any) {
+      console.error(`[DEBUG DHT] readDhtJson failed:`, err?.message || err)
+      return undefined
+    }
+  }
+
+  private async writeDhtJson(key: Uint8Array, value: unknown): Promise<void> {
+    const contentRouting = (this.libp2p as any).contentRouting
+    if (!contentRouting?.put) {
+      console.log('[DEBUG DHT] writeDhtJson: contentRouting.put not available')
+      return
+    }
+
+    try {
+      const keyStr = new TextDecoder().decode(key)
+      console.log(`[DEBUG DHT] writeDhtJson starting for key: ${keyStr}`)
+      await contentRouting.put(key, new TextEncoder().encode(JSON.stringify(value)))
+      console.log(`[DEBUG DHT] writeDhtJson success for key: ${keyStr}`)
+    } catch (err: any) {
+      console.error(`[DEBUG DHT] writeDhtJson failed:`, err?.message || err)
+    }
+  }
+
+  private async loadMucStateFromDht(): Promise<void> {
+    const index = await this.readDhtJson<{ version: number; rooms: string[] }>(this.mucSettingsIndexKey())
+    const roomNames = index?.rooms ?? []
+
+    for (const roomName of roomNames) {
+      await this.ensureMucRoomSettings(roomName)
+    }
+  }
+
+  private async persistMucStateToDht(): Promise<void> {
+    const rooms = Array.from(this.mucRooms.values())
+    await Promise.all(rooms.map(async (room) => {
+      await this.writeDhtJson(this.mucSettingsKey(room.roomName), room)
+    }))
+
+    await this.writeDhtJson(this.mucSettingsIndexKey(), {
+      version: 1,
+      rooms: rooms.map(room => room.roomName)
+    })
+  }
+
   private async loadVCard(): Promise<void> {
     await loadVCardState(this.getPersistenceLoadContext())
     if (this.selfVCard.nickname && !this.selfPresence.nickname) {
@@ -426,6 +570,7 @@ export class XmppNode extends EventEmitter {
 
   private getPubSubContext(): XmppPubSubContext {
     return {
+      localJid: this.jid,
       feedTopicForPeer: this.feedTopicForPeer.bind(this),
       getEncryptedTopicSecret: (topic: string) => this.encryptedTopicSecrets.get(topic)?.secret,
       removeFollower: this.removeFollower.bind(this),
@@ -433,6 +578,7 @@ export class XmppNode extends EventEmitter {
       recordAttachment: this.recordAttachment.bind(this),
       recordCollectionPost: this.recordCollectionPost.bind(this),
       recordFeedPost: this.recordFeedPost.bind(this),
+      recordUploadManifest: (manifest, sourceJid) => this.uploads.recordUploadManifest(manifest, sourceJid),
       emitPubSubMessage: (message) => this.emit('pubsub:message', message),
       emitError: (error) => this.emit('error', error)
     }
@@ -544,7 +690,8 @@ export class XmppNode extends EventEmitter {
       getPeerOpenPgpArmoredKey: (peerId: string) => this.peerOpenPgpKeys.get(peerId),
       cachePeerOpenPgpKey: (peerId: string, armoredKey: string) => {
         this.peerOpenPgpKeys.set(peerId, armoredKey)
-      }
+      },
+      sendOrBufferStanza: this.sendOrBufferStanza.bind(this)
     }
   }
 
@@ -601,12 +748,15 @@ export class XmppNode extends EventEmitter {
       handleUnsubscribed: this.handleUnsubscribed.bind(this),
       sendCurrentPresenceToPeer: this.sendCurrentPresenceToPeer.bind(this),
       recordPresence: this.recordPresence.bind(this),
+      setPeerClientState: this.setPeerClientState.bind(this),
+      createUploadSlot: (slotId, filename, contentType, size) => this.uploads.createUploadSlot(slotId, filename, contentType, size),
       discoInfoCache: this.discoInfoCache,
       ensurePeerCapabilities: this.ensurePeerCapabilities.bind(this),
       entityCapabilities: this.entityCapabilities,
       getPubSubContext: this.getPubSubContext.bind(this),
       getSecureContext: this.getSecureContext.bind(this),
-      emit: this.emit.bind(this)
+      emit: this.emit.bind(this),
+      muc: this.muc
     }
   }
 
@@ -784,6 +934,15 @@ export class XmppNode extends EventEmitter {
     await persistAttachmentHistoryState(this.getPersistenceSaveContext())
   }
 
+  public async persistMucState(): Promise<void> {
+    await this.persistMucStateToDht()
+    await persistMucStateFile(this.getPersistenceSaveContext())
+  }
+
+  private async persistMucHistory(): Promise<void> {
+    await persistMucHistoryState(this.getPersistenceSaveContext())
+  }
+
   private async persistVCard(): Promise<void> {
     await persistVCardState(this.getPersistenceSaveContext())
   }
@@ -826,6 +985,26 @@ export class XmppNode extends EventEmitter {
       })
 
     return this.collectionSaveQueue
+  }
+
+  private scheduleMucPersist(): Promise<void> {
+    this.mucSaveQueue = this.mucSaveQueue
+      .then(() => this.persistMucState())
+      .catch(err => {
+        console.error(`[XMPP] Failed to persist MUC state to ${this.mucPath}:`, err)
+      })
+
+    return this.mucSaveQueue
+  }
+
+  private scheduleMucHistoryPersist(): Promise<void> {
+    this.mucHistorySaveQueue = this.mucHistorySaveQueue
+      .then(() => this.persistMucHistory())
+      .catch(err => {
+        console.error(`[XMPP] Failed to persist MUC history to ${this.mucHistoryPath}:`, err)
+      })
+
+    return this.mucHistorySaveQueue
   }
 
   private scheduleAttachmentPersist(): Promise<void> {
@@ -898,6 +1077,10 @@ export class XmppNode extends EventEmitter {
 
   private attachmentHistoryKey(topic: string, targetId: string, from: string): string {
     return attachmentHistoryKey(topic, targetId, from)
+  }
+
+  private mucHistoryKey(room: string, id: string): string {
+    return `${room}:${id}`
   }
 
   private followerKey(feedPeerId: string, followerPeerId: string): string {
@@ -995,6 +1178,73 @@ export class XmppNode extends EventEmitter {
     }
 
     await this.muc.joinRoom(roomName, nick)
+  }
+
+  public async updateMucRoomSettings(roomName: string, settings: { topic?: string; defaultMode?: 'secure' | 'open'; autoJoin?: boolean; communityId?: string }): Promise<void> {
+    const normalized = normalizeMucRoomSettings({
+      roomName,
+      topic: settings.topic,
+      defaultMode: settings.defaultMode,
+      autoJoin: settings.autoJoin,
+      communityId: settings.communityId,
+      updatedAt: new Date().toISOString()
+    })
+
+    this.mucRooms.set(roomName, normalized)
+    this.muc.setRoomSettings(roomName, {
+      topic: normalized.topic,
+      defaultSecure: normalized.defaultMode === 'secure',
+      autoJoin: normalized.autoJoin,
+      communityId: normalized.communityId
+    })
+  }
+
+  public async ensureMucRoomSettings(roomName: string): Promise<import('./xmpp-muc.js').MucRoomSettings | undefined> {
+    const existing = this.mucRooms.get(roomName)
+    if (existing) {
+      return {
+        topic: existing.topic,
+        defaultSecure: existing.defaultMode === 'secure',
+        autoJoin: existing.autoJoin,
+        communityId: existing.communityId
+      }
+    }
+
+    const settings = await this.readDhtJson<XmppMucRoomSettings>(this.mucSettingsKey(roomName))
+    if (!settings) {
+      return undefined
+    }
+
+    const normalized = normalizeMucRoomSettings(settings)
+    this.mucRooms.set(roomName, normalized)
+    return {
+      topic: normalized.topic,
+      defaultSecure: normalized.defaultMode === 'secure',
+      autoJoin: normalized.autoJoin,
+      communityId: normalized.communityId
+    }
+  }
+
+  public getMucRoomSettings(roomName: string): import('./xmpp-muc.js').MucRoomSettings | undefined {
+    const settings = this.mucRooms.get(roomName)
+    if (!settings) return undefined
+    return {
+      topic: settings.topic,
+      defaultSecure: settings.defaultMode === 'secure',
+      autoJoin: settings.autoJoin,
+      communityId: settings.communityId
+    }
+  }
+
+  public setMucRoomSettings(roomName: string, settings: import('./xmpp-muc.js').MucRoomSettings): void {
+    this.mucRooms.set(roomName, {
+      roomName,
+      topic: settings.topic?.trim() || undefined,
+      communityId: settings.communityId?.trim() || undefined,
+      defaultMode: settings.defaultSecure ? 'secure' : 'open',
+      autoJoin: settings.autoJoin,
+      updatedAt: new Date().toISOString()
+    })
   }
 
   public getPubSubService() {
@@ -1213,6 +1463,34 @@ export class XmppNode extends EventEmitter {
     await this.scheduleCollectionPersist()
     this.emit('collection:post', normalized)
     return true
+  }
+
+  public async recordMucMessage(msg: XmppMucMessage): Promise<boolean> {
+    await this.ready
+    const normalized = normalizeMucMessage(msg)
+    const key = this.mucHistoryKey(normalized.room, normalized.id)
+    if (this.mucHistory.has(key)) {
+      return false
+    }
+
+    this.mucHistory.set(key, normalized)
+
+    while (this.mucHistory.size > MUC_HISTORY_LIMIT) {
+      const oldestKey = this.mucHistory.keys().next().value as string | undefined
+      if (!oldestKey) {
+        break
+      }
+      this.mucHistory.delete(oldestKey)
+    }
+
+    await this.scheduleMucHistoryPersist()
+    return true
+  }
+
+  public getMucHistory(room: string): XmppMucMessage[] {
+    return Array.from(this.mucHistory.values())
+      .filter(msg => msg.room === room)
+      .sort((a, b) => a.timestamp.localeCompare(b.timestamp))
   }
 
   private async recordAttachment(attachment: XmppAttachment): Promise<boolean> {
@@ -1449,12 +1727,52 @@ export class XmppNode extends EventEmitter {
     return this.streams.get(this.peerIdFromJid(jid))
   }
 
-  private async sendIqRequest(target: string | Multiaddr, stanza: Element, timeoutMs = 10000): Promise<Element> {
+  public async sendIqRequest(target: string | Multiaddr, stanza: Element, timeoutMs = 10000): Promise<Element> {
     return await sendIqRequestFromModule(this.getRouterContext(), target, stanza, timeoutMs)
   }
 
-  private async sendIqResult(peerId: string, id: string, payload?: Element) {
+  public async sendIqResult(peerId: string, id: string, payload?: Element) {
     await sendIqResultFromModule(this.getRouterContext(), peerId, id, payload)
+  }
+
+  public async sendIqError(peerId: string, element: Element, condition: string, type: 'cancel' | 'modify' | 'auth' | 'wait' = 'cancel', text?: string) {
+    await sendIqErrorFromModule(this.getRouterContext(), peerId, element, condition, type, text)
+  }
+
+  public async requestUploadSlot(
+    target: string | Multiaddr,
+    options: { filename: string; size: number; contentType?: string }
+  ): Promise<{ putUrl: string; getUrl: string; slot: Element }> {
+    const parsed = this.parsePeerReference(target)
+    const peerId = parsed.peerId || ''
+    const to = peerId ? this.jidFromPeerId(peerId) : target.toString()
+    const id = Math.random().toString(36).substring(2, 15)
+    const stanza = xml(
+      'iq',
+      { to, from: this.jid, type: 'get', id },
+      xml('request', {
+        xmlns: HTTP_UPLOAD_XMLNS,
+        filename: options.filename,
+        size: String(options.size),
+        'content-type': options.contentType ?? 'application/octet-stream'
+      })
+    )
+
+    const response = await this.sendIqRequest(target, stanza)
+    const slot = response.getChild('slot')
+    if (!slot) {
+      throw new Error('Upload service did not return a slot')
+    }
+
+    const put = slot.getChild('put')
+    const get = slot.getChild('get')
+    const putUrl = put?.attrs.url
+    const getUrl = get?.attrs.url
+    if (!putUrl || !getUrl) {
+      throw new Error('Upload service returned an incomplete slot')
+    }
+
+    return { putUrl, getUrl, slot }
   }
 
   private buildRosterQuery(): Element {
@@ -1578,6 +1896,18 @@ export class XmppNode extends EventEmitter {
 
     this.emit('roster:presence', next)
   }
+
+  private setPeerClientState(peerId: string, state: 'active' | 'inactive') {
+    this.peerClientStates.set(peerId, state)
+    this.emit('peer:csi', { peerId, state })
+  }
+
+
+  public getUploadContentUrl(cid: string): string | undefined {
+    return this.uploads.getUploadContentUrl(cid)
+  }
+
+
 
   private buildVCardQuery(): Element {
     return buildVCard({
@@ -1732,11 +2062,37 @@ export class XmppNode extends EventEmitter {
     })
 
     xmppStream.on('close', () => {
+      if (xmppStream.smEnabled && xmppStream.smResumable) {
+        this.streamSessions.set(peerId, {
+          sessionId: xmppStream.sessionId,
+          outboundStanzaCount: xmppStream.outboundStanzaCount,
+          inboundStanzaCount: xmppStream.inboundStanzaCount,
+          unackedQueue: xmppStream.unackedQueue
+        })
+      }
       if (this.streams.get(peerId) === xmppStream) {
         this.streams.delete(peerId)
       }
       this.emit('stream-closed', peerId)
     })
+
+    // XEP-0198 negotiation or resumption
+    const savedSession = this.streamSessions.get(peerId)
+    if (savedSession) {
+      xmppStream.sessionId = savedSession.sessionId
+      xmppStream.outboundStanzaCount = savedSession.outboundStanzaCount
+      xmppStream.inboundStanzaCount = savedSession.inboundStanzaCount
+      xmppStream.unackedQueue = savedSession.unackedQueue
+
+      xmppStream.send(xml('resume', {
+        xmlns: 'urn:xmpp:sm:3',
+        previd: savedSession.sessionId,
+        h: String(savedSession.inboundStanzaCount)
+      }))
+      this.streamSessions.delete(peerId)
+    } else {
+      xmppStream.send(xml('enable', { xmlns: 'urn:xmpp:sm:3', resume: 'true' }))
+    }
 
     void this.flushRosterPresenceForPeer(peerId).catch(err => this.emit('error', err))
     void this.sendCurrentPresenceToPeer(peerId).catch(err => this.emit('error', err))
@@ -1831,9 +2187,9 @@ export class XmppNode extends EventEmitter {
       delay?: { stamp: string; from?: string }
     } = {}
   ): Promise<string> {
-    const xmppStream = await this.getOrCreateStream(peerAddr)
-    const toJid = xmppStream.remotePeer.toString() + '@p2p'
-    const id = Math.random().toString(36).substring(2, 11)
+    const peerId = this.parsePeerReference(peerAddr).peerId
+    const toJid = this.jidFromPeerId(peerId)
+    const id = Math.random().toString(36).substring(2, 15)
 
     const children: Element[] = []
     if (body) {
@@ -1846,7 +2202,9 @@ export class XmppNode extends EventEmitter {
       delay: options.delay ? {
         stamp: options.delay.stamp,
         from: options.delay.from ?? this.jid
-      } : undefined
+      } : undefined,
+      originId: id,
+      stanzaId: { id, by: this.jid }
     }))
 
     const msg = xml(
@@ -1860,8 +2218,79 @@ export class XmppNode extends EventEmitter {
       ...children
     )
 
-    xmppStream.send(msg)
+    await this.sendOrBufferStanza(peerId, msg, peerAddr)
     return id
+  }
+
+  public clientState: 'active' | 'inactive' = 'active'
+
+  public async setClientState(state: 'active' | 'inactive'): Promise<void> {
+    this.clientState = state
+    const csiEl = xml(state, { xmlns: 'urn:xmpp:csi:0' })
+    for (const stream of this.streams.values()) {
+      stream.send(csiEl)
+    }
+    if (state === 'active') {
+      await this.flushDhtMailbox()
+    }
+  }
+
+  private isPeerInactive(peerId: string): boolean {
+    return this.peerClientStates.get(peerId) === 'inactive'
+  }
+
+  public async sendOrBufferStanza(peerId: string, stanza: Element, peerAddr?: string | Multiaddr): Promise<void> {
+    if (this.isPeerInactive(peerId)) {
+      console.log(`[DEBUG] Peer ${peerId} is inactive. Buffering stanza to DHT mailbox...`)
+      await this.bufferStanzaToDht(peerId, stanza)
+      return
+    }
+
+    try {
+      const dialTarget = peerAddr || `${peerId}@p2p`
+      const stream = await this.getOrCreateStream(dialTarget)
+      stream.send(stanza)
+    } catch (err) {
+      console.warn(`[DEBUG] Failed to send stanza directly to ${peerId}. Buffering to DHT mailbox:`, err)
+      await this.bufferStanzaToDht(peerId, stanza)
+    }
+  }
+
+  private mailboxKey(peerId: string): Uint8Array {
+    return new TextEncoder().encode(`/xmpp/mailbox/queue/${peerId}`)
+  }
+
+  private async bufferStanzaToDht(peerId: string, stanza: Element): Promise<void> {
+    const key = this.mailboxKey(peerId)
+    let queue = await this.readDhtJson<string[]>(key)
+    if (!Array.isArray(queue)) {
+      queue = []
+    }
+    queue.push(stanza.toString())
+    await this.writeDhtJson(key, queue)
+  }
+
+  private async flushDhtMailbox(): Promise<void> {
+    const key = this.mailboxKey(this.libp2p.peerId.toString())
+    const queue = await this.readDhtJson<string[]>(key)
+    if (Array.isArray(queue) && queue.length > 0) {
+      console.log(`[DEBUG] Transitioned to active. Flushing ${queue.length} stanzas from DHT mailbox...`)
+      await this.writeDhtJson(key, [])
+
+      for (const xmlStr of queue) {
+        try {
+          const parser = new Parser()
+          parser.on('element', (element: Element) => {
+            const peerId = element.attrs.from ? element.attrs.from.split('@')[0] : 'unknown'
+            void this.handleStanza(peerId, element).catch(err => this.emit('error', err))
+          })
+          parser.write('<stream:stream>')
+          parser.write(xmlStr)
+        } catch (err) {
+          console.error('[DEBUG] Failed to parse buffered stanza from DHT mailbox:', err)
+        }
+      }
+    }
   }
 
   public getOmemoDeviceIdOrThrow(): number {
@@ -2089,6 +2518,10 @@ export class XmppNode extends EventEmitter {
     return await subscribeCollectionFromModule(this.getCollectionContext(), id)
   }
 
+  async unsubscribeCollection(id: string): Promise<void> {
+    await unsubscribeCollectionFromModule(this.getCollectionContext(), id)
+  }
+
   async publishCollection(id: string, body: string, options: { itemId?: string; title?: string; author?: string } = {}): Promise<string> {
     return await publishCollectionFromModule(this.getCollectionContext(), id, body, options)
   }
@@ -2230,6 +2663,7 @@ export class XmppNode extends EventEmitter {
     await this.persistAttachmentHistory()
     await this.vCardSaveQueue
     await this.persistVCard()
+    await this.uploads.close()
     await this.omemoStateManager.close()
     await this.openPgpStateManager.close()
     this.muc.close()

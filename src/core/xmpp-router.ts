@@ -1,7 +1,7 @@
 import { xml, Element } from '@xmpp/xml'
 import { Multiaddr } from '@multiformats/multiaddr'
 import { XmppStream } from './xmpp-stream.js'
-import { parseCapsPresence, getCapsCacheKey, buildDiscoInfoQuery, buildDiscoItemsQuery } from './xmpp-discovery.js'
+import { parseCapsPresence, getCapsCacheKey, buildDiscoInfoQuery, buildDiscoItemsQuery, HTTP_UPLOAD_XMLNS } from './xmpp-discovery.js'
 import { handlePubSubMessageElement as handlePubSubMessageElementFromModule } from './xmpp-pubsub.js'
 import { handleSecureMessageStanza as handleSecureMessageStanzaFromModule } from './xmpp-secure.js'
 import { buildVCard, parseVCard, VCARD_XMLNS } from './xmpp-vcard.js'
@@ -60,12 +60,15 @@ export interface XmppRouterContext {
   handleUnsubscribed(fromJid: string): Promise<void>
   sendCurrentPresenceToPeer(peerId: string): Promise<void>
   recordPresence(peerJid: string, presence: any): Promise<void>
+  setPeerClientState(peerId: string, state: 'active' | 'inactive'): void
+  createUploadSlot(slotId: string, filename: string, contentType: string, size: number): Promise<Element>
   discoInfoCache: Map<string, any>
   ensurePeerCapabilities(peerId: string, node: string, ver: string, hash?: string): Promise<void>
   entityCapabilities: Map<string, any>
   getPubSubContext(): any
   getSecureContext(): any
   emit(event: string, ...args: any[]): boolean
+  muc?: any
 }
 
 function buildIqError(
@@ -94,7 +97,7 @@ function buildIqError(
     : xml('iq', attrs, xml('error', { type }, ...errorChildren))
 }
 
-async function sendIqError(
+export async function sendIqError(
   ctx: XmppRouterContext,
   peerId: string,
   element: Element,
@@ -256,6 +259,27 @@ export async function handleIqStanza(ctx: XmppRouterContext, peerId: string, ele
     }
   }
 
+  const uploadRequest = element.getChild('request')
+  if (uploadRequest && uploadRequest.attrs.xmlns === HTTP_UPLOAD_XMLNS) {
+    if (type !== 'get') {
+      await sendIqError(ctx, peerId, element, 'service-unavailable')
+      return
+    }
+
+    const filename = uploadRequest.attrs.filename
+    const size = Number(uploadRequest.attrs.size)
+    const contentType = uploadRequest.attrs['content-type'] || uploadRequest.attrs.contentType || 'application/octet-stream'
+
+    if (!filename || !Number.isFinite(size) || size < 0) {
+      await sendIqError(ctx, peerId, element, 'bad-request', 'modify', 'Upload request must include filename and size')
+      return
+    }
+
+    const slot = await ctx.createUploadSlot(id, filename, contentType, size)
+    await sendIqResult(ctx, peerId, id, slot)
+    return
+  }
+
   if (!query) {
     const pubsub = element.getChild('pubsub')
     if (pubsub) {
@@ -282,6 +306,13 @@ export async function handleIqStanza(ctx: XmppRouterContext, peerId: string, ele
       await sendIqError(ctx, peerId, element, 'service-unavailable')
     }
     return
+  }
+
+  if (query.attrs.xmlns === 'urn:xmpp:mam:2') {
+    if (type === 'get') {
+      void (ctx as any).muc.handleIncomingMamQuery(element, peerId).catch(() => {})
+      return
+    }
   }
 
   if (query.attrs.xmlns === ROSTER_XMLNS) {
@@ -461,7 +492,18 @@ export async function handleStanza(ctx: XmppRouterContext, peerId: string, eleme
   const fromJid = element.attrs.from || `${peerId}@p2p`
   const toJid = element.attrs.to || ctx.jid
 
+  if ((element.name === 'active' || element.name === 'inactive') && element.attrs.xmlns === 'urn:xmpp:csi:0') {
+    ctx.setPeerClientState(peerId, element.name as 'active' | 'inactive')
+    return
+  }
+
   if (element.name === 'message') {
+    const resultEl = element.getChild('result')
+    if (resultEl && resultEl.attrs.xmlns === 'urn:xmpp:mam:2') {
+      void (ctx as any).muc.handleIncomingMamResult(element, peerId).catch(() => {})
+      return
+    }
+
     const eventEl = element.getChild('event')
     if (eventEl && eventEl.attrs.xmlns === PUBSUB_EVENT_XMLNS) {
       await handlePubSubMessageElementFromModule(peerId, element, ctx.getPubSubContext())

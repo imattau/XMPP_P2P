@@ -53,7 +53,18 @@ export async function createP2PNode(port?: number, options: CreateP2PNodeOptions
     services.dht = kadDHT({
       clientMode: false,
       protocol: '/ipfs/lan/kad/1.0.0',
-      peerInfoMapper: removePublicAddressesMapper
+      peerInfoMapper: removePublicAddressesMapper,
+      allowQueryWithZeroPeers: true,
+      validators: {
+        xmpp: async (key: Uint8Array, value: Uint8Array) => {
+          // Accept all xmpp custom records
+        }
+      },
+      selectors: {
+        xmpp: (key: Uint8Array, records: any[]) => {
+          return 0
+        }
+      }
     })
     services.ping = ping()
   }

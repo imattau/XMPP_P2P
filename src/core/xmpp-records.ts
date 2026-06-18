@@ -24,6 +24,8 @@ export interface XmppMessage {
   chatState?: 'active' | 'composing' | 'paused' | 'inactive' | 'gone'
   delay?: { from?: string; stamp: string }
   replace?: string
+  originId?: string
+  stanzaId?: { id: string; by: string }
 }
 
 export interface XmppPresence {
@@ -128,6 +130,17 @@ export interface XmppCollectionSubscription {
   subscribedAt: string
 }
 
+export type XmppMucDefaultMode = 'secure' | 'open'
+
+export interface XmppMucRoomSettings {
+  roomName: string
+  topic?: string
+  communityId?: string
+  defaultMode: XmppMucDefaultMode
+  autoJoin: boolean
+  updatedAt: string
+}
+
 export type XmppAttachmentKind = 'noticed' | 'reaction'
 
 export interface XmppAttachment {
@@ -188,6 +201,11 @@ export interface XmppAttachmentFile {
   attachments: XmppAttachment[]
 }
 
+export interface XmppMucFile {
+  version: number
+  rooms: XmppMucRoomSettings[]
+}
+
 export interface XmppOpenPgpStateFile {
   version: number
   privateKey: string
@@ -201,6 +219,29 @@ export interface XmppEncryptedTopicSecret {
   keyId: string
   secret: string
   updatedAt: string
+}
+
+export interface XmppUploadManifest {
+  cid: string
+  slotId?: string
+  filename?: string
+  contentType?: string
+  size?: number
+  getUrl: string
+  providers?: XmppUploadProvider[]
+  uploadedAt: string
+  from: string
+  topic?: string
+}
+
+export interface XmppUploadProvider {
+  url: string
+  jid?: string
+}
+
+export interface XmppUploadFile {
+  version: number
+  uploads: XmppUploadManifest[]
 }
 
 export interface XmppOpenPgpPublicKeyResponse {
@@ -412,6 +453,17 @@ export function normalizeCollectionPost(entry: Partial<XmppCollectionPost> & { i
   }
 }
 
+export function normalizeMucRoomSettings(entry: Partial<XmppMucRoomSettings> & { roomName: string }): XmppMucRoomSettings {
+  return {
+    roomName: entry.roomName,
+    topic: entry.topic?.trim() || undefined,
+    communityId: entry.communityId?.trim() || undefined,
+    defaultMode: entry.defaultMode === 'open' ? 'open' : 'secure',
+    autoJoin: entry.autoJoin !== false,
+    updatedAt: entry.updatedAt || new Date().toISOString()
+  }
+}
+
 export function normalizeFeedSubscription(entry: Partial<XmppFeedSubscriptionRecord> & { peerId: string; jid: string; topic: string }): XmppFeedSubscriptionRecord {
   return {
     peerId: entry.peerId,
@@ -471,4 +523,33 @@ export function buildAttachmentSummary(topic: string, targetId: string, attachme
   }
 
   return summary
+}
+
+export interface XmppMucMessage {
+  id: string
+  room: string
+  from: string
+  fromPeerId: string
+  body: string
+  timestamp: string
+  encrypted?: boolean
+  encryption?: 'omemo'
+}
+
+export interface XmppMucHistoryFile {
+  version: number
+  messages: XmppMucMessage[]
+}
+
+export function normalizeMucMessage(entry: Partial<XmppMucMessage> & { id: string; room: string; from: string; fromPeerId: string; body: string }): XmppMucMessage {
+  return {
+    id: entry.id,
+    room: entry.room,
+    from: entry.from,
+    fromPeerId: entry.fromPeerId,
+    body: entry.body,
+    timestamp: entry.timestamp || new Date().toISOString(),
+    encrypted: entry.encrypted || undefined,
+    encryption: entry.encryption || undefined
+  }
 }

@@ -77,6 +77,7 @@ async function runDiscoTest() {
       'http://jabber.org/protocol/pubsub#event',
       'urn:xmpp:collection:0',
       'urn:xmpp:feed:0',
+      'urn:xmpp:http:upload:0',
       'urn:xmpp:pubsub:account-management:0',
       'urn:xmpp:pubsub:attachments:0',
       'urn:xmpp:pubsub:followers:0'

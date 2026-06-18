@@ -115,6 +115,20 @@ export async function subscribeCollection(ctx: XmppCollectionContext, id: string
   return subscription
 }
 
+export async function unsubscribeCollection(ctx: XmppCollectionContext, id: string): Promise<void> {
+  await ctx.ready
+  const collection = ctx.collections.get(id)
+  const subscription = ctx.collectionSubscriptions.get(id)
+  if (!collection || !subscription) {
+    return
+  }
+
+  const pubsub = ctx.getPubSubService()
+  await pubsub.unsubscribe(collection.topic)
+  ctx.collectionSubscriptions.delete(id)
+  await ctx.scheduleCollectionPersist()
+}
+
 export async function publishCollection(ctx: XmppCollectionContext, id: string, body: string, options: { itemId?: string; title?: string; author?: string } = {}): Promise<string> {
   const collection = ctx.collections.get(id) ?? await createCollection(ctx, id)
   const feedPost: XmppFeedPost = {

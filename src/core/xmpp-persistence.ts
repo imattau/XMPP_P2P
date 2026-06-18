@@ -12,6 +12,10 @@ import {
   type XmppFeedPost,
   type XmppFeedSubscriptionRecord,
   type XmppFollowerFile,
+  type XmppMucFile,
+  type XmppMucRoomSettings,
+  type XmppMucMessage,
+  type XmppMucHistoryFile,
   type XmppOpenPgpStateFile,
   type XmppRosterEntry,
   type XmppRosterFile,
@@ -27,6 +31,8 @@ export interface XmppPersistenceLoadContext {
   followerPath: string
   collectionPath: string
   attachmentPath: string
+  mucPath: string
+  mucHistoryPath: string
   openPgpPath: string
   vCardPath: string
   roster: Map<string, XmppRosterEntry>
@@ -36,6 +42,8 @@ export interface XmppPersistenceLoadContext {
   collections: Map<string, XmppCollectionNode>
   collectionHistory: Map<string, XmppCollectionPost>
   attachmentHistory: Map<string, XmppAttachment>
+  mucRooms: Map<string, XmppMucRoomSettings>
+  mucHistory: Map<string, XmppMucMessage>
   vCard: XmppVCardProfile
   normalizeRosterEntry: (entry: Partial<XmppRosterEntry> & { jid: string }) => XmppRosterEntry
   normalizeFeedPost: (entry: Partial<XmppFeedPost> & { id: string; topic: string; from: string; body: string }) => XmppFeedPost
@@ -44,11 +52,14 @@ export interface XmppPersistenceLoadContext {
   normalizeCollection: (entry: Partial<XmppCollectionNode> & { id: string }) => XmppCollectionNode
   normalizeCollectionPost: (entry: Partial<XmppCollectionPost> & { id: string; collectionId: string; topic: string; sourceTopic: string; from: string; body: string }) => XmppCollectionPost
   normalizeAttachment: (entry: Partial<XmppAttachment> & { id: string; topic: string; targetId: string; from: string; kind: XmppAttachment['kind'] }) => XmppAttachment
+  normalizeMucRoomSettings: (entry: Partial<XmppMucRoomSettings> & { roomName: string }) => XmppMucRoomSettings
+  normalizeMucMessage: (entry: Partial<XmppMucMessage> & { id: string; room: string; from: string; fromPeerId: string; body: string }) => XmppMucMessage
   feedHistoryKey: (topic: string, id: string) => string
   feedSubscriptionKey: (topic: string) => string
   followerKey: (feedPeerId: string, followerPeerId: string) => string
   collectionHistoryKey: (collectionId: string, id: string) => string
   attachmentHistoryKey: (topic: string, targetId: string, from: string) => string
+  mucHistoryKey: (room: string, id: string) => string
   restoreFeedSubscriptions: () => Promise<void>
   restoreFollowerSubscriptions: () => Promise<void>
   restoreCollectionSubscriptions: () => Promise<void>
@@ -62,6 +73,8 @@ export interface XmppPersistenceSaveContext {
   followerPath: string
   collectionPath: string
   attachmentPath: string
+  mucPath: string
+  mucHistoryPath: string
   openPgpPath: string
   vCardPath: string
   roster: Map<string, XmppRosterEntry>
@@ -71,6 +84,8 @@ export interface XmppPersistenceSaveContext {
   collections: Map<string, XmppCollectionNode>
   collectionHistory: Map<string, XmppCollectionPost>
   attachmentHistory: Map<string, XmppAttachment>
+  mucRooms: Map<string, XmppMucRoomSettings>
+  mucHistory: Map<string, XmppMucMessage>
   vCard: XmppVCardProfile
   openPgpState?: XmppOpenPgpStateFile
 }
@@ -197,6 +212,33 @@ export async function loadAttachmentHistoryState(ctx: XmppPersistenceLoadContext
   }
 }
 
+export async function loadMucState(ctx: XmppPersistenceLoadContext): Promise<void> {
+  try {
+    const parsed = await readJson<XmppMucFile | XmppMucRoomSettings[]>(ctx.mucPath)
+    const rooms = Array.isArray(parsed) ? parsed : parsed?.rooms
+    for (const room of rooms ?? []) {
+      const normalized = ctx.normalizeMucRoomSettings(room)
+      ctx.mucRooms.set(normalized.roomName, normalized)
+    }
+  } catch (err: any) {
+    console.error(`[XMPP] Failed to load MUC state from ${ctx.mucPath}:`, err)
+  }
+}
+
+export async function loadMucHistoryState(ctx: XmppPersistenceLoadContext, limit: number): Promise<void> {
+  try {
+    const parsed = await readJson<XmppMucHistoryFile | XmppMucMessage[]>(ctx.mucHistoryPath)
+    const messages = Array.isArray(parsed) ? parsed : parsed?.messages
+    for (const msg of messages ?? []) {
+      const normalized = ctx.normalizeMucMessage(msg)
+      ctx.mucHistory.set(ctx.mucHistoryKey(normalized.room, normalized.id), normalized)
+    }
+    trimMap(ctx.mucHistory, limit)
+  } catch (err: any) {
+    console.error(`[XMPP] Failed to load MUC history from ${ctx.mucHistoryPath}:`, err)
+  }
+}
+
 export async function loadVCardState(ctx: XmppPersistenceLoadContext): Promise<void> {
   try {
     const parsed = await readJson<XmppVCardFile | XmppVCardProfile>(ctx.vCardPath)
@@ -262,6 +304,22 @@ export async function persistAttachmentHistoryState(ctx: XmppPersistenceSaveCont
     attachments: Array.from(ctx.attachmentHistory.values()).sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
   }
   await writeJson(ctx.attachmentPath, payload)
+}
+
+export async function persistMucState(ctx: XmppPersistenceSaveContext): Promise<void> {
+  const payload: XmppMucFile = {
+    version: 1,
+    rooms: Array.from(ctx.mucRooms.values()).sort((a, b) => a.roomName.localeCompare(b.roomName))
+  }
+  await writeJson(ctx.mucPath, payload)
+}
+
+export async function persistMucHistoryState(ctx: XmppPersistenceSaveContext): Promise<void> {
+  const payload: XmppMucHistoryFile = {
+    version: 1,
+    messages: Array.from(ctx.mucHistory.values()).sort((a, b) => a.timestamp.localeCompare(b.timestamp))
+  }
+  await writeJson(ctx.mucHistoryPath, payload)
 }
 
 export async function persistVCardState(ctx: XmppPersistenceSaveContext): Promise<void> {

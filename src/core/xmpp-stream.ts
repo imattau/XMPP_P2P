@@ -1,4 +1,4 @@
-import { Parser, Element } from '@xmpp/xml'
+import { Parser, Element, xml } from '@xmpp/xml'
 import { EventEmitter } from 'events'
 
 export class XmppStream extends EventEmitter {
@@ -7,6 +7,14 @@ export class XmppStream extends EventEmitter {
   private isClosed = false
   public readonly remotePeer: string
 
+  // XEP-0198 Stream Management properties
+  public smEnabled = false
+  public smResumable = false
+  public sessionId = Math.random().toString(36).substring(2, 15)
+  public inboundStanzaCount = 0
+  public outboundStanzaCount = 0
+  public unackedQueue: Element[] = []
+
   constructor(stream: any, remotePeer: string) {
     super()
     this.stream = stream
@@ -14,6 +22,19 @@ export class XmppStream extends EventEmitter {
     this.parser = new Parser()
 
     this.parser.on('element', (element: Element) => {
+      // Handle XEP-0198 Stream Management elements
+      if (element.attrs.xmlns === 'urn:xmpp:sm:3') {
+        this.handleSmElement(element)
+        return
+      }
+
+      if (['message', 'presence', 'iq'].includes(element.name)) {
+        this.inboundStanzaCount++
+        if (this.smEnabled && this.inboundStanzaCount % 5 === 0) {
+          this.send(xml('r', { xmlns: 'urn:xmpp:sm:3' }))
+        }
+      }
+
       this.emit('element', element)
     })
 
@@ -38,6 +59,66 @@ export class XmppStream extends EventEmitter {
     this.parser.write('<stream:stream>')
   }
 
+  private handleSmElement(element: Element) {
+    const name = element.name
+    if (name === 'enable') {
+      const resume = element.attrs.resume === 'true'
+      this.smEnabled = true
+      this.smResumable = resume
+      this.send(xml('enabled', {
+        xmlns: 'urn:xmpp:sm:3',
+        id: this.sessionId,
+        resume: resume ? 'true' : 'false'
+      }))
+    } else if (name === 'enabled') {
+      this.smEnabled = true
+      this.smResumable = element.attrs.resume === 'true'
+      if (element.attrs.id) {
+        this.sessionId = element.attrs.id
+      }
+    } else if (name === 'r') {
+      this.send(xml('a', {
+        xmlns: 'urn:xmpp:sm:3',
+        h: String(this.inboundStanzaCount)
+      }))
+    } else if (name === 'a') {
+      const h = Number(element.attrs.h ?? 0)
+      if (Number.isFinite(h)) {
+        const ackedCount = h
+        const keepCount = this.outboundStanzaCount - ackedCount
+        if (keepCount >= 0 && keepCount < this.unackedQueue.length) {
+          this.unackedQueue = this.unackedQueue.slice(this.unackedQueue.length - keepCount)
+        }
+      }
+    } else if (name === 'resume') {
+      const prevId = element.attrs.previd
+      const h = Number(element.attrs.h ?? 0)
+      this.send(xml('resumed', {
+        xmlns: 'urn:xmpp:sm:3',
+        previd: this.sessionId,
+        h: String(this.inboundStanzaCount)
+      }))
+      const sentBeforeQueue = this.outboundStanzaCount - this.unackedQueue.length
+      const resendStartIndex = h - sentBeforeQueue
+      if (resendStartIndex >= 0 && resendStartIndex < this.unackedQueue.length) {
+        const toResend = this.unackedQueue.slice(resendStartIndex)
+        for (const msg of toResend) {
+          this.sendRaw(msg.toString())
+        }
+      }
+    } else if (name === 'resumed') {
+      const h = Number(element.attrs.h ?? 0)
+      const sentBeforeQueue = this.outboundStanzaCount - this.unackedQueue.length
+      const resendStartIndex = h - sentBeforeQueue
+      if (resendStartIndex >= 0 && resendStartIndex < this.unackedQueue.length) {
+        const toResend = this.unackedQueue.slice(resendStartIndex)
+        for (const msg of toResend) {
+          this.sendRaw(msg.toString())
+        }
+      }
+    }
+  }
+
   sendRaw(text: string) {
     if (this.isClosed) return
     try {
@@ -51,9 +132,22 @@ export class XmppStream extends EventEmitter {
   send(element: Element | string) {
     if (this.isClosed) return
     try {
-      const xmlStr = element.toString()
+      let xmlStr: string
+      if (element instanceof Element) {
+        if (['message', 'presence', 'iq'].includes(element.name)) {
+          this.outboundStanzaCount++
+          this.unackedQueue.push(element)
+        }
+        xmlStr = element.toString()
+      } else {
+        xmlStr = element
+      }
       console.log(`[DEBUG] Stream sending data (peer: ${this.remotePeer}): ${xmlStr}`)
       this.sendRaw(xmlStr)
+
+      if (this.smEnabled && this.outboundStanzaCount % 5 === 0) {
+        this.sendRaw(xml('r', { xmlns: 'urn:xmpp:sm:3' }).toString())
+      }
     } catch (err) {
       this.emit('error', err)
     }

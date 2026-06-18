@@ -11,6 +11,7 @@ export const PUBSUB_EVENT_XMLNS = 'http://jabber.org/protocol/pubsub#event'
 export const FEED_XMLNS = 'urn:xmpp:feed:0'
 export const COLLECTION_XMLNS = 'urn:xmpp:collection:0'
 export const ATTACHMENT_XMLNS = 'urn:xmpp:pubsub:attachments:0'
+export const HTTP_UPLOAD_XMLNS = 'urn:xmpp:http:upload:0'
 export const PAM_XMLNS = 'urn:xmpp:pubsub:account-management:0'
 export const FOLLOWERS_XMLNS = 'urn:xmpp:pubsub:followers:0'
 export const DISCOVERY_NODE = 'urn:xmpp:p2p:discovery'
@@ -19,7 +20,8 @@ import {
   CHATSTATES_XMLNS,
   DELAY_XMLNS,
   CORRECT_XMLNS,
-  PING_XMLNS
+  PING_XMLNS,
+  SID_XMLNS
 } from './xmpp-xep-helpers.js'
 
 export {
@@ -27,7 +29,8 @@ export {
   CHATSTATES_XMLNS,
   DELAY_XMLNS,
   CORRECT_XMLNS,
-  PING_XMLNS
+  PING_XMLNS,
+  SID_XMLNS
 }
 
 export interface XmppDiscoIdentity {
@@ -126,6 +129,7 @@ export function getDiscoveryFeatures(
     FEED_XMLNS,
     COLLECTION_XMLNS,
     ATTACHMENT_XMLNS,
+    HTTP_UPLOAD_XMLNS,
     OMEMO_FEATURE,
     OMEMO_PTE_FEATURE,
     OPENPGP_FEATURE,
@@ -136,7 +140,8 @@ export function getDiscoveryFeatures(
     CHATSTATES_XMLNS,
     DELAY_XMLNS,
     CORRECT_XMLNS,
-    PING_XMLNS
+    PING_XMLNS,
+    SID_XMLNS
   ])
 
   if (findCollection(collections, node)) {
