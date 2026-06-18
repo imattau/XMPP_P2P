@@ -1,7 +1,4 @@
 export const sectionMeta = {
-  feed: 'One stream from people and communities, with source pills for context',
-  communities: 'Browse shared channels and collections',
-  chats: 'Direct messages and secure threads',
   profile: 'Identity, availability, and protocol state'
 }
 

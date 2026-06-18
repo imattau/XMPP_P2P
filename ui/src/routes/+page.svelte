@@ -228,7 +228,7 @@
 
         <section class="feed-list">
           {#each filteredFeedItems() as item}
-            <article class="feed-card surface" class:feed-card--community={item.sourceType === 'community'}>
+            <article class="feed-card" class:feed-card--community={item.sourceType === 'community'}>
               <div class="feed-card__head">
                 <div class="feed-author">
                   <div class="avatar avatar--feed" class:avatar--square={item.sourceType === 'community'}>{item.avatar}</div>
