@@ -2,6 +2,7 @@ import { mkdtemp, rm } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { createP2PNode } from '../core/p2p.js'
+import { MICROBLOG_XMLNS } from '../core/xmpp-discovery.js'
 import { XmppNode } from '../core/xmpp-node.js'
 
 async function waitFor(condition: () => boolean | Promise<boolean>, timeoutMs: number, message: string) {
@@ -76,7 +77,7 @@ async function runDiscoTest() {
       'http://jabber.org/protocol/disco#items',
       'http://jabber.org/protocol/pubsub#event',
       'urn:xmpp:collection:0',
-      'urn:xmpp:feed:0',
+      MICROBLOG_XMLNS,
       'urn:xmpp:http:upload:0',
       'urn:xmpp:pubsub:account-management:0',
       'urn:xmpp:pubsub:attachments:0',

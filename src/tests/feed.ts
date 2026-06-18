@@ -4,7 +4,7 @@ import { mkdtemp, rm } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { buildMicroblogEntry, parseMicroblogEntry } from '../core/xmpp-atom.js'
-import { ATOM_XMLNS } from '../core/xmpp-discovery.js'
+import { ATOM_XMLNS, MICROBLOG_XMLNS } from '../core/xmpp-discovery.js'
 import { createP2PNode } from '../core/p2p.js'
 import { XmppNode } from '../core/xmpp-node.js'
 
@@ -55,9 +55,9 @@ function verifyAtomMicroblogHelpers() {
   assert.deepEqual(parsed?.categories, post.categories)
   assert.equal(parsed?.body, post.body)
 
-  const legacyEntry = xml('entry', { xmlns: 'urn:xmpp:feed:0' }, xml('title', {}, 'Legacy'))
-  const legacyParsed = parseMicroblogEntry(post.topic, xml('item', { id: 'legacy' }, legacyEntry), post.from)
-  assert.equal(legacyParsed, undefined)
+  const microblogEntry = xml('entry', { xmlns: MICROBLOG_XMLNS }, xml('title', {}, 'Microblog'))
+  const microblogParsed = parseMicroblogEntry(post.topic, xml('item', { id: 'microblog' }, microblogEntry), post.from)
+  assert.equal(microblogParsed, undefined)
 }
 
 async function runFeedTest() {
