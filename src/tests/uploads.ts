@@ -29,6 +29,13 @@ async function runUploadTest() {
     return join(workDir, `.xmpp-uploads.${rosterBaseName}`, 'objects', cid)
   }
 
+  async function fetchWithDiagnostics(label: string, url: string) {
+    const response = await fetch(url)
+    const text = await response.text()
+    console.log(`[${label}] GET ${url} -> ${response.status} (${text.length} bytes)`)
+    return { response, text }
+  }
+
   let libp2p1: Awaited<ReturnType<typeof createP2PNode>> | undefined
   let xmppNode1: XmppNode | undefined
   let libp2p2: Awaited<ReturnType<typeof createP2PNode>> | undefined
@@ -115,12 +122,13 @@ async function runUploadTest() {
     console.log('Waiting for Node 1 to cache the uploaded payload...')
     await waitFor(async () => {
       const response = await fetch(node1ContentUrl!)
-      return response.status === 200 && await response.text() === payload.toString()
+      const text = await response.text()
+      return response.status === 200 && text === payload.toString()
     }, 10000, 'Timed out waiting for Node 1 to cache the uploaded payload')
 
-    const cachedResponse = await fetch(node1ContentUrl!)
+    const { response: cachedResponse, text: cachedText } = await fetchWithDiagnostics('node1 cached', node1ContentUrl!)
     assert.equal(cachedResponse.status, 200, 'cached GET should resolve from Node 1')
-    assert.equal(await cachedResponse.text(), payload.toString(), 'cached GET payload should match the uploaded bytes')
+    assert.equal(cachedText, payload.toString(), 'cached GET payload should match the uploaded bytes')
     assert.equal(cachedResponse.headers.get('content-type'), 'text/plain', 'cached GET should preserve the content type')
 
     console.log('Waiting for Node 3 to mirror the payload as a second provider...')
@@ -128,7 +136,8 @@ async function runUploadTest() {
     assert.ok(node3ContentUrl, 'node 3 should expose a local content URL')
     await waitFor(async () => {
       const response = await fetch(node3ContentUrl!)
-      return response.status === 200 && await response.text() === payload.toString()
+      const text = await response.text()
+      return response.status === 200 && text === payload.toString()
     }, 10000, 'Timed out waiting for Node 3 to mirror the uploaded payload')
 
     await new Promise(resolve => setTimeout(resolve, 1000))
@@ -142,9 +151,9 @@ async function runUploadTest() {
     console.log('Removing Node 1 local object to force a provider lookup...')
     await rm(uploadObjectPath(node1RosterPath, putJson.cid), { force: true })
 
-    const postOriginResponse = await fetch(node1ContentUrl!)
+    const { response: postOriginResponse, text: postOriginText } = await fetchWithDiagnostics('node1 post-origin', node1ContentUrl!)
     assert.equal(postOriginResponse.status, 200, 'cached GET should still work after origin shutdown')
-    assert.equal(await postOriginResponse.text(), payload.toString(), 'cached GET should still match after origin shutdown')
+    assert.equal(postOriginText, payload.toString(), 'cached GET should still match after origin shutdown')
 
     console.log('\nUpload Test Results:')
     console.log('  - XMPP Upload Slot Delivered: SUCCESS')
