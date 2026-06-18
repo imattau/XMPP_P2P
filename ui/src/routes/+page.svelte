@@ -138,8 +138,11 @@
 
 <div class="app-shell">
   <main class="main">
-    <header class="topbar surface">
+    <header class="topbar">
       <div class="topbar__identity">
+        {#if section === 'chats' && chatDetailOpen}
+          <button class="topbar__back" type="button" aria-label="Back to chats" onclick={() => (chatDetailOpen = false)}>&larr;</button>
+        {/if}
         <div class="avatar avatar--top">{initials(identity.nickname)}</div>
         <div class="topbar__copy">
           <p class="eyebrow">{sectionLabels[section]}</p>
@@ -331,10 +334,6 @@
           </div>
         {:else}
           <article class="surface thread-shell">
-            <div class="row row--space">
-              <button class="button button--ghost" type="button" onclick={() => (chatDetailOpen = false)}>&larr; Back</button>
-            </div>
-
             <div class="row row--space">
               <div>
                 <p class="eyebrow">Selected thread</p>
