@@ -268,7 +268,7 @@
         </section>
 
         {#if communitySheetId}
-          <section class="sheet" role="dialog" aria-label="Community details">
+          <div class="sheet" role="dialog" aria-label="Community details" tabindex="-1" onclick={() => {}} onkeydown={() => {}}>
             <div class="row row--space">
               <div class="row">
                 <div class="avatar avatar--square">{communitySheetTarget().name.slice(0, 1)}</div>
@@ -295,7 +295,7 @@
               </button>
               <button class="button button--ghost" type="button" onclick={() => (communitySheetId = null)}>Close</button>
             </div>
-          </section>
+          </div>
         {/if}
       </section>
     {:else if section === 'chats'}
