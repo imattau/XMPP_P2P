@@ -51,14 +51,9 @@ jobs:
       - name: Generate API Documentation
         run: npm run docs
 
-      - name: Stage GitHub Pages docs directory
-        run: |
-          rm -rf pages
-          mkdir -p pages/docs
-          cp -R docs/. pages/docs
-
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          folder: pages
+          folder: docs
+          target-folder: docs
           branch: gh-pages # The branch the action should deploy to.
