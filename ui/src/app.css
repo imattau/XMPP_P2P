@@ -383,6 +383,18 @@ textarea {
   color: var(--text);
 }
 
+.chip--plain {
+  border-color: transparent;
+  background: transparent;
+  padding-inline: 0.6rem;
+}
+
+.chip--plain.is-active {
+  background: #1c2733;
+  border-color: transparent;
+  color: var(--text);
+}
+
 .feed-controls {
   padding: var(--space-3);
 }

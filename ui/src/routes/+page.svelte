@@ -146,9 +146,7 @@
       <section class="section-stack">
         <div class="section-head">
           <div class="section__title">
-            <p class="eyebrow">Feed</p>
-            <h2>All activity from people and communities</h2>
-            <p>{sectionMeta.feed}</p>
+            <h2>Feed</h2>
           </div>
         </div>
 
@@ -189,20 +187,20 @@
           </form>
         </section>
 
-        <section class="feed-controls surface">
+        <section class="feed-controls">
           <div class="chip-row" aria-label="Feed filters">
-            <button class="chip" class:is-active={feedFilter === 'all'} type="button" onclick={() => setFeedFilter('all')}>
+            <button class="chip chip--plain" class:is-active={feedFilter === 'all'} type="button" onclick={() => setFeedFilter('all')}>
               {filterLabels.all}
             </button>
-            <button class="chip" class:is-active={feedFilter === 'people'} type="button" onclick={() => setFeedFilter('people')}>
+            <button class="chip chip--plain" class:is-active={feedFilter === 'people'} type="button" onclick={() => setFeedFilter('people')}>
               {filterLabels.people}
             </button>
-            <button class="chip" class:is-active={feedFilter === 'communities'} type="button" onclick={() => setFeedFilter('communities')}>
+            <button class="chip chip--plain" class:is-active={feedFilter === 'communities'} type="button" onclick={() => setFeedFilter('communities')}>
               {filterLabels.communities}
             </button>
             {#each communities as community}
               <button
-                class="chip chip--ghost"
+                class="chip chip--plain"
                 class:is-active={feedFilter === `community:${community.id}`}
                 type="button"
                 onclick={() => setFeedFilter(`community:${community.id}`)}
