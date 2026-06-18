@@ -1,6 +1,6 @@
 <script>
   import PeerGraph from '$lib/PeerGraph.svelte'
-  import { badgeClass, filterLabels, initialState, initials, sectionMeta } from '$lib/social-data.js'
+  import { badgeClass, chatAvatarGlyph, filterLabels, initialState, initials, sectionMeta, sortedChats } from '$lib/social-data.js'
 
   const clone = (value) => structuredClone(value)
 
@@ -258,24 +258,25 @@
         <div class="section-head">
           <div class="section__title">
             <p class="eyebrow">Chats</p>
-            <h2>Private and group conversations</h2>
-            <p>{sectionMeta.chats}</p>
+            <h2>Direct, group, and room conversations</h2>
           </div>
         </div>
 
         <div class="list">
-          {#each chats as chat}
-            <button class="list__item" class:is-active={chat.id === activeChatId} type="button" onclick={() => (activeChatId = chat.id)}>
+          {#each sortedChats(chats) as chat}
+            <button class="row-flat" class:is-active={chat.id === activeChatId} type="button" onclick={() => (activeChatId = chat.id)}>
               <div class="row row--space">
-                <strong>{chat.name}</strong>
-                <span class={chat.secure ? 'badge badge--secure' : 'badge badge--warn'}>{chat.secure ? 'secure' : 'open'}</span>
-              </div>
-              <div class="row row--space">
-                <span class="meta">{chat.preview}</span>
-                {#if chat.unread}
+                <div class="row">
+                  <div class="avatar" class:avatar--square={chat.kind === 'muc'}>{chatAvatarGlyph(chat)}</div>
+                  <div>
+                    <strong>{chat.name}</strong>
+                    <div class="meta">{chat.preview}</div>
+                  </div>
+                </div>
+                {#if chat.kind === 'muc'}
+                  <span class="meta">{chat.occupants.length} in room</span>
+                {:else if chat.unread}
                   <span class="badge">{chat.unread} unread</span>
-                {:else}
-                  <span class="badge badge--muted">caught up</span>
                 {/if}
               </div>
             </button>
@@ -287,11 +288,26 @@
             <div>
               <p class="eyebrow">Selected thread</p>
               <h3>{activeChat().name}</h3>
+              {#if activeChat().kind === 'muc'}
+                <p class="meta">{activeChat().topic}</p>
+              {/if}
             </div>
             <span class={activeChat().secure ? 'badge badge--secure' : 'badge badge--warn'}>
               {activeChat().secure ? 'E2EE' : 'open'}
             </span>
           </div>
+
+          {#if activeChat().kind === 'muc'}
+            <details class="inspector__block">
+              <summary class="eyebrow">Occupants ({activeChat().occupants.length})</summary>
+              <div class="inspector__grid">
+                {#each activeChat().occupants as occupant}
+                  <div class="kv"><span>{occupant.nick}</span><span>{occupant.presence}</span></div>
+                {/each}
+              </div>
+            </details>
+          {/if}
+
           <div class="thread">
             {#each activeChat().messages as message}
               <div class:bubble--self={message.self} class="bubble">
