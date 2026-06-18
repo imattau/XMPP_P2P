@@ -158,12 +158,7 @@
 
     {#if section === 'feed'}
       <section class="section-stack">
-        <div class="section-head row row--space">
-          <div class="section__title">
-            <h2>Feed</h2>
-          </div>
-          <button class="fab" type="button" aria-label="New post" onclick={() => (composerOpen = true)}>+</button>
-        </div>
+        <button class="fab" type="button" aria-label="New post" onclick={() => (composerOpen = true)}>+</button>
 
         {#if composerOpen}
           <div class="sheet" role="dialog" aria-label="New post" tabindex="-1" onclick={() => {}} onkeydown={() => {}}>
@@ -303,13 +298,6 @@
       </section>
     {:else if section === 'chats'}
       <section class="section-stack">
-        <div class="section-head">
-          <div class="section__title">
-            <p class="eyebrow">Chats</p>
-            <h2>Direct, group, and room conversations</h2>
-          </div>
-        </div>
-
         {#if !chatDetailOpen}
           <div class="list">
             {#each sortedChats(chats) as chat}
