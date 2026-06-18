@@ -1,7 +1,19 @@
+/**
+ * @fileoverview Main entry point for the XMPP P2P CLI application.
+ * Parses CLI configuration arguments, spins up the underlying libp2p network node,
+ * instantiates the XMPP protocol shim, and launches the interactive CLI session.
+ */
+
 import { createP2PNode } from './core/p2p.js'
 import { XmppNode } from './core/xmpp-node.js'
 import { startCli } from './cli/session.js'
 
+/**
+ * Parses startup options from the command line, starts the local P2P network node,
+ * bootstraps XMPP protocol managers, and enters the terminal CLI loop.
+ * 
+ * @returns A promise that resolves when the session completes.
+ */
 async function main() {
   const args = process.argv.slice(2)
   const portArg = args.find(arg => arg.startsWith('--port='))

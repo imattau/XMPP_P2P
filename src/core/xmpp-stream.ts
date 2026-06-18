@@ -1,6 +1,17 @@
+/**
+ * @fileoverview Stream wrapper adapting raw P2P duplex streams to XMPP parser elements.
+ * Provides parsing of XML buffers into stanzas, and implements basic support for
+ * XEP-0198: Stream Management for reliability and session resumption.
+ */
+
 import { Parser, Element, xml } from '@xmpp/xml'
 import { EventEmitter } from 'events'
 
+/**
+ * Wraps an active libp2p network stream, parsing raw XML data buffers
+ * into XML Elements (stanzas) and managing reliability/resumption state.
+ * Emits 'element' events when stanzas are successfully parsed.
+ */
 export class XmppStream extends EventEmitter {
   private stream: any
   private parser: Parser
@@ -15,6 +26,12 @@ export class XmppStream extends EventEmitter {
   public outboundStanzaCount = 0
   public unackedQueue: Element[] = []
 
+  /**
+   * Creates an instance of XmppStream.
+   * 
+   * @param stream - The underlying libp2p duplex stream.
+   * @param remotePeer - The peer ID string of the remote connection.
+   */
   constructor(stream: any, remotePeer: string) {
     super()
     this.stream = stream
@@ -59,6 +76,12 @@ export class XmppStream extends EventEmitter {
     this.parser.write('<stream:stream>')
   }
 
+  /**
+   * Processes incoming XEP-0198 Stream Management elements (enable, enabled, r, a, resume, resumed)
+   * to maintain stanza acknowledgment state and handle connection resumption.
+   * 
+   * @param element - The parsed XML element representing the stream management action.
+   */
   private handleSmElement(element: Element) {
     const name = element.name
     if (name === 'enable') {
@@ -119,6 +142,11 @@ export class XmppStream extends EventEmitter {
     }
   }
 
+  /**
+   * Converts a raw string to bytes and transmits it directly over the stream.
+   * 
+   * @param text - The raw XML or metadata text string to send.
+   */
   sendRaw(text: string) {
     if (this.isClosed) return
     try {
@@ -129,6 +157,12 @@ export class XmppStream extends EventEmitter {
     }
   }
 
+  /**
+   * Encodes and sends an XML Element stanza or raw text over the connection.
+   * Also updates Stream Management state (outbound counts, unacked queue) if it is a standard stanza.
+   * 
+   * @param element - The element to send.
+   */
   send(element: Element | string) {
     if (this.isClosed) return
     try {
@@ -153,6 +187,11 @@ export class XmppStream extends EventEmitter {
     }
   }
 
+  /**
+   * Closes the raw stream and triggers clean up, emitting the 'close' event.
+   * 
+   * @returns A promise resolving when the stream is completely closed.
+   */
   async close() {
     if (this.isClosed) return
     this.isClosed = true

@@ -1,3 +1,9 @@
+/**
+ * @fileoverview Launches and manages the interactive CLI terminal session.
+ * Subscribes to peer discovery events, handles stdin line-reading loops,
+ * and routes user commands to the command runner.
+ */
+
 import readline from 'readline'
 import { XmppNode } from '../core/xmpp-node.js'
 import { createCliContext, printCliHelp } from './output.js'
@@ -5,6 +11,15 @@ import { attachCliEventListeners } from './events.js'
 import { handleCliCommand } from './commands.js'
 import type { Libp2pNode } from './types.js'
 
+/**
+ * Starts the CLI read-eval-print loop (REPL). Registers peer discovery listeners
+ * on the libp2p node, sets up the readline interface, outputs introductory help text,
+ * and processes incoming user inputs asynchronously.
+ * 
+ * @param libp2p - The underlying P2P network node wrapper.
+ * @param xmppNode - The XMPP protocol manager node.
+ * @returns A promise resolving when the session has been started.
+ */
 export const startCli = async (libp2p: Libp2pNode, xmppNode: XmppNode) => {
   const discoveredPeers = new Map<string, string[]>()
 

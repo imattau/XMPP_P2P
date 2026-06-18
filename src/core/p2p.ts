@@ -1,3 +1,9 @@
+/**
+ * @fileoverview P2P networking utilities for configuring and constructing a libp2p node.
+ * Integrates TCP, WebSockets, Noise encryption, Yamux stream multiplexing,
+ * mDNS discovery, KadDHT (customized for XMPP protocols), and Gossipsub.
+ */
+
 import { createLibp2p } from 'libp2p'
 import { tcp } from '@libp2p/tcp'
 import { webSockets } from '@libp2p/websockets'
@@ -10,6 +16,9 @@ import { StrictSign, gossipsub } from '@libp2p/gossipsub'
 import { ping } from '@libp2p/ping'
 import { multiaddr } from '@multiformats/multiaddr'
 
+/**
+ * Options configuring the startup properties of a libp2p node.
+ */
 export interface CreateP2PNodeOptions {
   enableMdns?: boolean
   enableDht?: boolean
@@ -33,6 +42,14 @@ if (!MultiaddrProto.toOptions) {
   }
 }
 
+/**
+ * Initializes and starts a new libp2p P2P node with standard transports, protocols,
+ * security parameters, pubsub services, and optional mDNS / Kademlia DHT.
+ * 
+ * @param port - The TCP/WS listening port number.
+ * @param options - Configuration options for services like DHT and MDNS.
+ * @returns A promise resolving to the created libp2p node.
+ */
 export async function createP2PNode(port?: number, options: CreateP2PNodeOptions = {}): Promise<any> {
   const listenHost = options.host || '0.0.0.0'
   const peerDiscovery = []
