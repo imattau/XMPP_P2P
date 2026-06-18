@@ -10,7 +10,6 @@
   let presence = initialState.presence
   let presenceMessage = initialState.presenceMessage
   let activeChatId = initialState.activeChatId
-  let activeCommunityId = initialState.activeCommunityId
   let activeFeedId = initialState.activeFeedId
   let composerTargetId = initialState.composerTargetId
   let composerBody = ''
@@ -25,13 +24,11 @@
 
   const sectionLabels = {
     feed: 'Feed',
-    communities: 'Communities',
     chats: 'Chats',
     profile: 'Profile'
   }
 
   const activeChat = () => chats.find((item) => item.id === activeChatId) ?? chats[0]
-  const activeCommunity = () => communities.find((item) => item.id === activeCommunityId) ?? communities[0]
   const activeFeedItem = () => feedItems.find((item) => item.id === activeFeedId) ?? feedItems[0]
   const onlineContacts = () => contacts.filter((item) => item.presence === 'available')
 
@@ -256,54 +253,6 @@
           {/each}
         </section>
       </section>
-    {:else if section === 'communities'}
-      <section class="section-stack">
-        <div class="section-head">
-          <div class="section__title">
-            <p class="eyebrow">Communities</p>
-            <h2>Browse collections and shared spaces</h2>
-            <p>{sectionMeta.communities}</p>
-          </div>
-        </div>
-
-        <div class="list">
-          {#each communities as community}
-            <button class="list__item" class:is-active={community.id === activeCommunityId} type="button" onclick={() => (activeCommunityId = community.id)}>
-              <div class="row row--space">
-                <div class="row">
-                  <div class="avatar">{community.name.slice(0, 1)}</div>
-                  <div>
-                    <strong>{community.name}</strong>
-                    <div class="meta">{community.description}</div>
-                  </div>
-                </div>
-                <span class={community.visibility === 'public' ? 'badge badge--secure' : 'badge badge--warn'}>{community.visibility}</span>
-              </div>
-              <div class="pill-row">
-                <span class="pill pill--community">{community.tag}</span>
-                <span class="badge badge--muted">{community.members} members</span>
-              </div>
-            </button>
-          {/each}
-        </div>
-
-        <article class="surface thread-shell">
-          <div class="row row--space">
-            <div>
-              <p class="eyebrow">Selected community</p>
-              <h3>{activeCommunity().name}</h3>
-            </div>
-            <span class={activeCommunity().visibility === 'public' ? 'badge badge--secure' : 'badge badge--warn'}>
-              {activeCommunity().visibility}
-            </span>
-          </div>
-          <div class="inspector__grid">
-            <div class="kv"><span>Tag</span><span>{activeCommunity().tag}</span></div>
-            <div class="kv"><span>Members</span><span>{activeCommunity().members}</span></div>
-            <div class="kv"><span>Purpose</span><span>{activeCommunity().description}</span></div>
-          </div>
-        </article>
-      </section>
     {:else if section === 'chats'}
       <section class="section-stack">
         <div class="section-head">
@@ -436,7 +385,6 @@
 
   <nav class="bottom-nav" aria-label="Primary navigation">
     <button class="nav__item" class:is-active={section === 'feed'} onclick={() => setSection('feed')}>Feed</button>
-    <button class="nav__item" class:is-active={section === 'communities'} onclick={() => setSection('communities')}>Communities</button>
     <button class="nav__item" class:is-active={section === 'chats'} onclick={() => setSection('chats')}>Chats</button>
     <button class="nav__item" class:is-active={section === 'profile'} onclick={() => setSection('profile')}>Profile</button>
   </nav>
