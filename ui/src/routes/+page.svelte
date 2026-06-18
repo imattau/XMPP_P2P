@@ -10,6 +10,7 @@
   let presence = initialState.presence
   let presenceMessage = initialState.presenceMessage
   let activeChatId = initialState.activeChatId
+  let chatDetailOpen = false
   let activeFeedId = initialState.activeFeedId
   let composerTargetId = initialState.composerTargetId
   let composerBody = ''
@@ -307,64 +308,70 @@
           </div>
         </div>
 
-        <div class="list">
-          {#each sortedChats(chats) as chat}
-            <button class="row-flat" class:is-active={chat.id === activeChatId} type="button" onclick={() => (activeChatId = chat.id)}>
-              <div class="row row--space">
-                <div class="row">
-                  <div class="avatar" class:avatar--square={chat.kind === 'muc'}>{chatAvatarGlyph(chat)}</div>
-                  <div>
-                    <strong>{chat.name}</strong>
-                    <div class="meta">{chat.preview}</div>
-                  </div>
-                </div>
-                {#if chat.kind === 'muc'}
-                  <span class="meta">{chat.occupants.length} in room</span>
-                {:else if chat.unread}
-                  <span class="badge">{chat.unread} unread</span>
-                {/if}
-              </div>
-            </button>
-          {/each}
-        </div>
-
-        <article class="surface thread-shell">
-          <div class="row row--space">
-            <div>
-              <p class="eyebrow">Selected thread</p>
-              <h3>{activeChat().name}</h3>
-              {#if activeChat().kind === 'muc'}
-                <p class="meta">{activeChat().topic}</p>
-              {/if}
-            </div>
-            <span class={activeChat().secure ? 'badge badge--secure' : 'badge badge--warn'}>
-              {activeChat().secure ? 'E2EE' : 'open'}
-            </span>
-          </div>
-
-          {#if activeChat().kind === 'muc'}
-            <details class="inspector__block">
-              <summary class="eyebrow">Occupants ({activeChat().occupants.length})</summary>
-              <div class="inspector__grid">
-                {#each activeChat().occupants as occupant}
-                  <div class="kv"><span>{occupant.nick}</span><span>{occupant.presence}</span></div>
-                {/each}
-              </div>
-            </details>
-          {/if}
-
-          <div class="thread">
-            {#each activeChat().messages as message}
-              <div class:bubble--self={message.self} class="bubble">
+        {#if !chatDetailOpen}
+          <div class="list">
+            {#each sortedChats(chats) as chat}
+              <button class="row-flat" class:is-active={chat.id === activeChatId} type="button" onclick={() => { activeChatId = chat.id; chatDetailOpen = true }}>
                 <div class="row row--space">
-                  <strong>{message.from}</strong>
-                  <span class="meta mono">{message.time}</span>
+                  <div class="row">
+                    <div class="avatar" class:avatar--square={chat.kind === 'muc'}>{chatAvatarGlyph(chat)}</div>
+                    <div>
+                      <strong>{chat.name}</strong>
+                      <div class="meta">{chat.preview}</div>
+                    </div>
+                  </div>
+                  {#if chat.kind === 'muc'}
+                    <span class="meta">{chat.occupants.length} in room</span>
+                  {:else if chat.unread}
+                    <span class="badge">{chat.unread} unread</span>
+                  {/if}
                 </div>
-                <p>{message.text}</p>
-              </div>
+              </button>
             {/each}
           </div>
-        </article>
+        {:else}
+          <article class="surface thread-shell">
+            <div class="row row--space">
+              <button class="button button--ghost" type="button" onclick={() => (chatDetailOpen = false)}>&larr; Back</button>
+            </div>
+
+            <div class="row row--space">
+              <div>
+                <p class="eyebrow">Selected thread</p>
+                <h3>{activeChat().name}</h3>
+                {#if activeChat().kind === 'muc'}
+                  <p class="meta">{activeChat().topic}</p>
+                {/if}
+              </div>
+              <span class={activeChat().secure ? 'badge badge--secure' : 'badge badge--warn'}>
+                {activeChat().secure ? 'E2EE' : 'open'}
+              </span>
+            </div>
+
+            {#if activeChat().kind === 'muc'}
+              <details class="inspector__block">
+                <summary class="eyebrow">Occupants ({activeChat().occupants.length})</summary>
+                <div class="inspector__grid">
+                  {#each activeChat().occupants as occupant}
+                    <div class="kv"><span>{occupant.nick}</span><span>{occupant.presence}</span></div>
+                  {/each}
+                </div>
+              </details>
+            {/if}
+
+            <div class="thread">
+              {#each activeChat().messages as message}
+                <div class:bubble--self={message.self} class="bubble">
+                  <div class="row row--space">
+                    <strong>{message.from}</strong>
+                    <span class="meta mono">{message.time}</span>
+                  </div>
+                  <p>{message.text}</p>
+                </div>
+              {/each}
+            </div>
+          </article>
+        {/if}
       </section>
     {:else}
       <section class="section-stack">
