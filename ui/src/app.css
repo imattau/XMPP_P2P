@@ -211,6 +211,12 @@ textarea {
   gap: var(--space-4);
 }
 
+.profile-card {
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
 .section-head,
 .section__title {
   display: grid;

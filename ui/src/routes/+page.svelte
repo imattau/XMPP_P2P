@@ -389,7 +389,7 @@
       </section>
     {:else}
       <section class="section-stack">
-        <article class="surface profile-card">
+        <article class="profile-card">
           <div class="profile-head">
             <div class="feed-author">
               <div class="avatar avatar--feed">{initials(identity.nickname)}</div>
@@ -409,7 +409,7 @@
           </div>
         </article>
 
-        <article class="surface profile-card">
+        <article class="profile-card">
           <div class="section__title">
             <p class="eyebrow">Topology</p>
             <h3>Peer graph</h3>
@@ -417,7 +417,7 @@
           <PeerGraph {peers} />
         </article>
 
-        <article class="surface profile-card">
+        <article class="profile-card">
           <div class="section__title">
             <p class="eyebrow">Protocol</p>
             <h3>Connection state</h3>
