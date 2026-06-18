@@ -905,6 +905,25 @@ textarea {
   border-bottom: 0;
 }
 
+.advanced-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: var(--space-2);
+  padding: 0.7rem 0.4rem;
+  border: none;
+  border-top: 1px solid var(--border);
+  background: transparent;
+  color: var(--accent-text);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.advanced-link:hover {
+  color: var(--text);
+}
+
 .roster-form {
   display: grid;
   gap: var(--space-3);
