@@ -3,8 +3,9 @@ dist/
 node_modules/
 .xmpp-*.json
 .superpowers/
+.agents/
+.codex/
 ui/build/
 ui/.svelte-kit/
 output/
 docs/
-

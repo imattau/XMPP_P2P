@@ -1,9 +1,128 @@
+import { basename, extname } from 'path'
+import { readFile } from 'fs/promises'
 import { CliContext } from './types.js'
 import { printCliHelp } from './output.js'
 
+const tokenizeInput = (input: string) =>
+  Array.from(input.matchAll(/"([^"]*)"|'([^']*)'|(\S+)/g), match => match[1] ?? match[2] ?? match[3] ?? '')
+
+const parseOptionTokens = (tokens: string[]) => {
+  const positional: string[] = []
+  const options = new Map<string, string[]>()
+  let currentOption: string | undefined
+
+  for (const token of tokens) {
+    if (token.startsWith('--')) {
+      const [key, inlineValue] = token.slice(2).split('=')
+      currentOption = key
+      if (!options.has(key)) {
+        options.set(key, [])
+      }
+      if (inlineValue !== undefined) {
+        options.get(key)?.push(inlineValue)
+        currentOption = undefined
+      }
+      continue
+    }
+
+    if (currentOption) {
+      options.get(currentOption)?.push(token)
+      continue
+    }
+
+    positional.push(token)
+  }
+
+  return { positional, options }
+}
+
+const optionValue = (options: Map<string, string[]>, name: string) => options.get(name)?.join(' ').trim() || undefined
+
+const optionValues = (options: Map<string, string[]>, name: string) =>
+  (options.get(name) ?? []).map(value => value.trim()).filter(Boolean)
+
+const guessContentType = (filename: string) => {
+  switch (extname(filename).toLowerCase()) {
+    case '.jpg':
+    case '.jpeg':
+      return 'image/jpeg'
+    case '.png':
+      return 'image/png'
+    case '.gif':
+      return 'image/gif'
+    case '.webp':
+      return 'image/webp'
+    case '.svg':
+      return 'image/svg+xml'
+    default:
+      return 'application/octet-stream'
+  }
+}
+
+const uploadFileAsCover = async (xmppNode: CliContext['xmppNode'], filePath: string, target: string) => {
+  const fileBytes = await readFile(filePath)
+  const contentType = guessContentType(filePath)
+  const slot = await xmppNode.requestUploadSlot(target, {
+    filename: basename(filePath),
+    size: fileBytes.byteLength,
+    contentType
+  })
+
+  const response = await fetch(slot.putUrl, {
+    method: 'PUT',
+    headers: {
+      'content-type': contentType
+    },
+    body: fileBytes
+  })
+
+  if (!response.ok) {
+    throw new Error(`Cover upload failed with ${response.status}`)
+  }
+
+  return slot.getUrl
+}
+
+const publishFeedArticle = async (input: string, ctx: CliContext, allowCover = true) => {
+  const { xmppNode } = ctx
+  const tokens = tokenizeInput(input)
+  const commandIndex = tokens.findIndex(token => token.toLowerCase() === 'feed')
+  const args = commandIndex >= 0 ? tokens.slice(commandIndex + 2) : tokens.slice(2)
+  const { positional, options } = parseOptionTokens(args)
+
+  const body = optionValue(options, 'body') || positional.join(' ').trim()
+  if (!body) {
+    return undefined
+  }
+
+  const title = optionValue(options, 'title')
+  const tags = [
+    ...optionValues(options, 'tag'),
+    ...optionValues(options, 'category')
+  ]
+  const coverPath = allowCover ? optionValue(options, 'cover') : undefined
+  const coverTarget = optionValue(options, 'cover-target') || xmppNode.jid
+
+  let finalBody = body
+  if (coverPath) {
+    console.log(`Uploading cover image ${coverPath} via ${coverTarget}...`)
+    const coverUrl = await uploadFileAsCover(xmppNode, coverPath, coverTarget)
+    finalBody = `![cover](${coverUrl})\n\n${finalBody}`
+    console.log(`Cover uploaded: ${coverUrl}`)
+  }
+
+  console.log('Publishing feed article...')
+  const itemId = await xmppNode.publishFeed(finalBody, {
+    title,
+    categories: tags
+  })
+  console.log(`Published feed item: ${itemId}`)
+  return itemId
+}
+
 export const handleCliCommand = async (input: string, ctx: CliContext) => {
   const { libp2p, xmppNode, discoveredPeers, resolvePeerTarget } = ctx
-  const parts = input.split(' ')
+  const parts = tokenizeInput(input)
   const command = parts[0].toLowerCase()
 
   switch (command) {
@@ -234,13 +353,24 @@ export const handleCliCommand = async (input: string, ctx: CliContext) => {
       switch (feedCommand) {
         case 'post': {
           if (parts.length < 3) {
-            console.log('Usage: feed post <message>')
+            console.log('Usage: feed post <message> [--title <title>] [--tag <tag>] [--cover <path>]')
             break
           }
-          const body = parts.slice(2).join(' ')
-          console.log('Publishing feed post...')
-          const itemId = await xmppNode.publishFeed(body)
-          console.log(`Published feed item: ${itemId}`)
+          const itemId = await publishFeedArticle(input, ctx, true)
+          if (!itemId) {
+            console.log('Usage: feed post <message> [--title <title>] [--tag <tag>] [--cover <path>]')
+          }
+          break
+        }
+        case 'article': {
+          if (parts.length < 3) {
+            console.log('Usage: feed article <message> [--title <title>] [--tag <tag>] [--cover <path>] [--cover-target <peer>]')
+            break
+          }
+          const itemId = await publishFeedArticle(input, ctx, true)
+          if (!itemId) {
+            console.log('Usage: feed article <message> [--title <title>] [--tag <tag>] [--cover <path>] [--cover-target <peer>]')
+          }
           break
         }
         case 'subscribe': {
@@ -288,6 +418,15 @@ export const handleCliCommand = async (input: string, ctx: CliContext) => {
             if (post.title) {
               console.log(`      Title: ${post.title}`)
             }
+            if (post.summary) {
+              console.log(`      Summary: ${post.summary}`)
+            }
+            if (post.categories?.length) {
+              console.log(`      Categories: ${post.categories.join(', ')}`)
+            }
+            if (post.geoloc) {
+              console.log(`      Geoloc: ${[post.geoloc.lat, post.geoloc.lon].filter(Boolean).join(', ') || 'present'}`)
+            }
             console.log(`      Body: ${post.body}`)
             console.log(`      Published: ${post.publishedAt}`)
           }
@@ -320,7 +459,7 @@ export const handleCliCommand = async (input: string, ctx: CliContext) => {
           break
         }
         default:
-          console.log('Usage: feed post <message> | feed subscribe <peer> [public|private] | feed visibility <peer> <public|private> | feed unfollow <peer> | feed list | feed peers | feed followers <peer>')
+          console.log('Usage: feed post <message> [--title <title>] [--tag <tag>] [--cover <path>] | feed article <message> [--title <title>] [--tag <tag>] [--cover <path>] | feed subscribe <peer> [public|private] | feed visibility <peer> <public|private> | feed unfollow <peer> | feed list | feed peers | feed followers <peer>')
       }
       break
     }

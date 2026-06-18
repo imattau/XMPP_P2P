@@ -120,6 +120,12 @@ export const attachCliEventListeners = (ctx: CliContext) => {
     if (post.title) {
       console.log(`  Title: ${post.title}`)
     }
+    if (post.summary) {
+      console.log(`  Summary: ${post.summary}`)
+    }
+    if (post.categories?.length) {
+      console.log(`  Categories: ${post.categories.join(', ')}`)
+    }
     console.log(`  Body: ${post.body}`)
     console.log(`  Published: ${post.publishedAt}`)
     showPrompt()

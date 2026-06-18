@@ -14,6 +14,7 @@
     "test-pubsub": "node dist/tests/pubsub.js",
     "test-roster": "node dist/tests/roster.js",
     "test-feed": "node dist/tests/feed.js",
+    "test-mcp": "node dist/tests/mcp.js",
     "test-attachments": "node dist/tests/attachments.js",
     "test-subscriptions": "node dist/tests/subscriptions.js",
     "test-disco": "node dist/tests/disco.js",
@@ -41,6 +42,9 @@
     "url": "https://github.com/imattau/XMPP_P2P/issues"
   },
   "homepage": "https://github.com/imattau/XMPP_P2P#readme",
+  "engines": {
+    "node": ">=22"
+  },
   "dependencies": {
     "@libp2p/gossipsub": "^16.0.3",
     "@libp2p/identify": "^4.1.8",

@@ -35,7 +35,7 @@ This project implements a wide range of XMPP Core RFCs and XEPs (XMPP Extension 
 
 ### Prerequisites
 
-- **Node.js** (v18 or higher recommended)
+- **Node.js** (v22 or higher required)
 - **npm** (v9 or higher)
 
 ### Installation
@@ -109,7 +109,7 @@ Type `help` in the CLI to see all available commands. The main command categorie
 | **Messaging** | `msg <peer> <text>` <br> `msg secure <peer> <text>` <br> `msg correct [secure] <peer> <id> <text>` <br> `msg state <peer> <state>` | Send plaintext or OMEMO-encrypted direct messages, correct previous messages, or send chat states. |
 | **Presence & Profile** | `presence <status>` <br> `presence subscribe/unsubscribe <peer>` <br> `nick <name>` | Broadcast custom status, manage presence subscriptions, or set nickname. |
 | **Roster** | `roster list` <br> `roster add <jid> [name]` <br> `roster remove <jid>` <br> `roster fetch <peer>` | Manage and retrieve contact roster. |
-| **Feeds** | `feed post <msg>` <br> `feed subscribe <peer> [public/private]` <br> `feed list` <br> `feed followers <peer>` | Publish feed updates, follow peers, view posts, and track followers. |
+| **Feeds** | `feed post <msg> [--title <title>] [--tag <tag>] [--cover <path>]` <br> `feed article <msg> [--title <title>] [--tag <tag>] [--cover <path>] [--cover-target <peer>]` <br> `feed subscribe <peer> [public/private]` <br> `feed list` <br> `feed followers <peer>` | Publish feed updates and articles, follow peers, view posts, and track followers. |
 | **Collections** | `collection create <id> [name]` <br> `collection join <id>` <br> `collection posts [id]` | Group multiple user feeds into unified channels. |
 | **MUC Rooms** | `muc-join <room> <nick>` <br> `muc-send <room> <msg>` <br> `muc-send-secure <room> <msg>` <br> `muc-roster <room>` | Decentralized multi-user group chat rooms. |
 | **OMEMO / PGP** | `omemo key`, `omemo fetch <peer>` <br> `openpgp key`, `openpgp fetch <peer>` | View local cryptographic keys or fetch keys from a remote peer. |
