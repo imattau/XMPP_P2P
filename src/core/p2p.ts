@@ -1,5 +1,6 @@
 import { createLibp2p } from 'libp2p'
 import { tcp } from '@libp2p/tcp'
+import { webSockets } from '@libp2p/websockets'
 import { noise } from '@libp2p/noise'
 import { yamux } from '@libp2p/yamux'
 import { mdns } from '@libp2p/mdns'
@@ -57,13 +58,35 @@ export async function createP2PNode(port?: number, options: CreateP2PNodeOptions
     services.ping = ping()
   }
 
+  const listenAddresses: string[] = []
+  if (listenHost === '0.0.0.0') {
+    listenAddresses.push(port ? `/ip4/0.0.0.0/tcp/${port}` : `/ip4/0.0.0.0/tcp/0`)
+    listenAddresses.push(port ? `/ip6/::/tcp/${port}` : `/ip6/::/tcp/0`)
+    listenAddresses.push(port ? `/ip4/0.0.0.0/tcp/${port + 1000}/ws` : `/ip4/0.0.0.0/tcp/0/ws`)
+    listenAddresses.push(port ? `/ip6/::/tcp/${port + 1000}/ws` : `/ip6/::/tcp/0/ws`)
+  } else if (listenHost === '127.0.0.1') {
+    listenAddresses.push(port ? `/ip4/127.0.0.1/tcp/${port}` : `/ip4/127.0.0.1/tcp/0`)
+    listenAddresses.push(port ? `/ip6/::1/tcp/${port}` : `/ip6/::1/tcp/0`)
+    listenAddresses.push(port ? `/ip4/127.0.0.1/tcp/${port + 1000}/ws` : `/ip4/127.0.0.1/tcp/0/ws`)
+    listenAddresses.push(port ? `/ip6/::1/tcp/${port + 1000}/ws` : `/ip6/::1/tcp/0/ws`)
+  } else {
+    if (listenHost.includes(':')) {
+      listenAddresses.push(port ? `/ip6/${listenHost}/tcp/${port}` : `/ip6/${listenHost}/tcp/0`)
+      listenAddresses.push(port ? `/ip6/${listenHost}/tcp/${port + 1000}/ws` : `/ip6/${listenHost}/tcp/0/ws`)
+    } else {
+      listenAddresses.push(port ? `/ip4/${listenHost}/tcp/${port}` : `/ip4/${listenHost}/tcp/0`)
+      listenAddresses.push(port ? `/ip4/${listenHost}/tcp/${port + 1000}/ws` : `/ip4/${listenHost}/tcp/0/ws`)
+    }
+  }
+
   const node = await createLibp2p({
     addresses: {
-      listen: [
-        port ? `/ip4/${listenHost}/tcp/${port}` : `/ip4/${listenHost}/tcp/0`
-      ]
+      listen: listenAddresses
     },
-    transports: [tcp()],
+    transports: [
+      tcp(),
+      webSockets()
+    ],
     connectionEncrypters: [noise()],
     streamMuxers: [yamux()],
     peerDiscovery,
@@ -83,3 +106,4 @@ export async function createP2PNode(port?: number, options: CreateP2PNodeOptions
 
   return node
 }
+
