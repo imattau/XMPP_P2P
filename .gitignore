@@ -5,3 +5,4 @@ node_modules/
 .superpowers/
 ui/build/
 ui/.svelte-kit/
+output/
