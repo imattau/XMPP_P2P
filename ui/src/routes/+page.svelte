@@ -1063,6 +1063,16 @@
           </div>
         {/if}
 
+        {#if composerMode === 'article'}
+          <div class="rich-toolbar" role="toolbar" aria-label="Rich text formatting">
+            <button class="rt-icon" type="button" aria-label="Bold">B</button>
+            <button class="rt-icon" type="button" aria-label="Italic">I</button>
+            <button class="rt-icon" type="button" aria-label="Heading">H</button>
+            <button class="rt-icon" type="button" aria-label="Link">🔗</button>
+            <button class="rt-icon" type="button" aria-label="List">≣</button>
+          </div>
+        {/if}
+
         <form class="composer__form" onsubmit={submitComposer}>
           {#if composerActionId === 'feed-topic-post' && composerMode === 'quick'}
             <label class="field field--grow">
