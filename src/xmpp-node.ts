@@ -71,6 +71,18 @@ import {
   type XmppFeedContext
 } from './xmpp-feed.js'
 import {
+  createCollection as createCollectionFromModule,
+  addFeedToCollection as addFeedToCollectionFromModule,
+  subscribeCollection as subscribeCollectionFromModule,
+  publishCollection as publishCollectionFromModule,
+  getCollections as getCollectionsFromModule,
+  getCollectionSubscriptions as getCollectionSubscriptionsFromModule,
+  getCollectionPosts as getCollectionPostsFromModule,
+  getAttachments as getAttachmentsFromModule,
+  getAttachmentSummaries as getAttachmentSummariesFromModule,
+  type XmppCollectionContext
+} from './xmpp-collection.js'
+import {
   fetchOpenPgpPublicKey as fetchOpenPgpPublicKeyFromModule,
   getPeerOpenPgpKey as getPeerOpenPgpKeyFromModule,
   handleSecureMessageStanza as handleSecureMessageStanzaFromModule,
@@ -432,6 +444,34 @@ export class XmppNode extends EventEmitter {
       getFollowersForPeer: this.getFollowersForPeer.bind(this),
       followerKey: this.followerKey.bind(this),
       recordFeedPost: this.recordFeedPost.bind(this)
+    }
+  }
+
+  private getCollectionContext(): XmppCollectionContext {
+    return {
+      jid: this.jid,
+      ready: this.ready,
+      collections: this.collections,
+      collectionSubscriptions: this.collectionSubscriptions,
+      collectionHistory: this.collectionHistory,
+      attachmentHistory: this.attachmentHistory,
+      getOrCreateStream: this.getOrCreateStream.bind(this),
+      getPubSubService: this.getPubSubService.bind(this),
+      ensureTopicValidator: this.ensureTopicValidator.bind(this),
+      indexCollectionMembers: this.indexCollectionMembers.bind(this),
+      unindexCollectionMembers: this.unindexCollectionMembers.bind(this),
+      scheduleCollectionPersist: this.scheduleCollectionPersist.bind(this),
+      normalizeCollection: this.normalizeCollection.bind(this),
+      normalizeCollectionMember: this.normalizeCollectionMember.bind(this),
+      collectionTopicForId: this.collectionTopicForId.bind(this),
+      feedTopicForPeer: this.feedTopicForPeer.bind(this),
+      jidFromPeerId: this.jidFromPeerId.bind(this),
+      peerIdFromJid: this.peerIdFromJid.bind(this),
+      parsePeerReference: this.parsePeerReference.bind(this),
+      publishCollectionPost: this.publishCollectionPost.bind(this),
+      publishAttachment: this.publishAttachment.bind(this),
+      emitCollectionChange: (collection) => this.emit('collection:change', collection),
+      emitCollectionSubscribe: (sub) => this.emit('collection:subscribe', sub)
     }
   }
 
@@ -2278,98 +2318,19 @@ export class XmppNode extends EventEmitter {
   }
 
   async createCollection(id: string, name?: string): Promise<XmppCollectionNode> {
-    // TODO(XEP-0248): add collection roles, affiliations, and admin/configuration
-    // so communities can control membership instead of auto-creating and auto-subscribing.
-    const existing = this.collections.get(id)
-    const collection = this.normalizeCollection({
-      ...(existing ?? { id, createdAt: new Date().toISOString() }),
-      id,
-      name: name ?? existing?.name,
-      topic: this.collectionTopicForId(id),
-      members: existing?.members ?? [],
-      updatedAt: new Date().toISOString()
-    })
-
-    this.collections.set(id, collection)
-    this.indexCollectionMembers(collection)
-    this.ensureTopicValidator(collection.topic, 'collection')
-    this.ensureTopicValidator(collection.topic, 'attachment')
-    await this.getPubSubService().subscribe(collection.topic)
-    this.collectionSubscriptions.set(id, {
-      id,
-      topic: collection.topic,
-      subscribedAt: new Date().toISOString()
-    })
-    await this.scheduleCollectionPersist()
-    this.emit('collection:change', collection)
-    return collection
+    return await createCollectionFromModule(this.getCollectionContext(), id, name)
   }
 
   async addFeedToCollection(collectionId: string, peerAddr: string | Multiaddr): Promise<XmppCollectionNode> {
-    const xmppStream = await this.getOrCreateStream(peerAddr)
-    const peerId = xmppStream.remotePeer.toString()
-    const jid = this.jidFromPeerId(peerId)
-    const feedTopic = this.feedTopicForPeer(peerId)
-    const current = this.collections.get(collectionId) ?? await this.createCollection(collectionId)
-
-    this.ensureTopicValidator(feedTopic, 'feed')
-    this.ensureTopicValidator(feedTopic, 'attachment')
-    await this.getPubSubService().subscribe(feedTopic)
-
-    const existingMember = current.members.find(member => member.feedTopic === feedTopic)
-    const nextMember = this.normalizeCollectionMember({
-      jid,
-      peerId,
-      feedTopic,
-      addedAt: existingMember?.addedAt
-    })
-    const members = existingMember
-      ? current.members.map(member => member.feedTopic === feedTopic ? nextMember : member)
-      : [...current.members, nextMember]
-
-    const next = this.normalizeCollection({
-      ...current,
-      members,
-      updatedAt: new Date().toISOString()
-    })
-
-    this.unindexCollectionMembers(current)
-    this.collections.set(collectionId, next)
-    this.indexCollectionMembers(next)
-    await this.scheduleCollectionPersist()
-    this.emit('collection:change', next)
-    return next
+    return await addFeedToCollectionFromModule(this.getCollectionContext(), collectionId, peerAddr)
   }
 
   async subscribeCollection(id: string): Promise<XmppCollectionSubscription> {
-    const collection = this.collections.get(id) ?? await this.createCollection(id)
-    this.ensureTopicValidator(collection.topic, 'collection')
-    this.ensureTopicValidator(collection.topic, 'attachment')
-    await this.getPubSubService().subscribe(collection.topic)
-    const subscription: XmppCollectionSubscription = {
-      id,
-      topic: collection.topic,
-      subscribedAt: new Date().toISOString()
-    }
-    this.collectionSubscriptions.set(id, subscription)
-    this.emit('collection:subscribe', subscription)
-    return subscription
+    return await subscribeCollectionFromModule(this.getCollectionContext(), id)
   }
 
   async publishCollection(id: string, body: string, options: { itemId?: string; title?: string; author?: string } = {}): Promise<string> {
-    const collection = this.collections.get(id) ?? await this.createCollection(id)
-    const feedPost: XmppFeedPost = {
-      id: options.itemId ?? Math.random().toString(36).substring(2, 11),
-      topic: collection.topic,
-      from: this.jid,
-      body,
-      publishedAt: new Date().toISOString(),
-      receivedAt: new Date().toISOString(),
-      title: options.title,
-      author: options.author ?? this.jid
-    }
-
-    return await this.publishCollectionPost(id, feedPost)
+    return await publishCollectionFromModule(this.getCollectionContext(), id, body, options)
   }
 
   async notice(topic: string, targetId: string, value?: string): Promise<string> {
@@ -2461,62 +2422,23 @@ export class XmppNode extends EventEmitter {
   }
 
   async getCollections(): Promise<XmppCollectionNode[]> {
-    await this.ready
-    return Array.from(this.collections.values()).sort((a, b) => a.id.localeCompare(b.id))
+    return await getCollectionsFromModule(this.getCollectionContext())
   }
 
   async getCollectionSubscriptions(): Promise<XmppCollectionSubscription[]> {
-    await this.ready
-    return Array.from(this.collectionSubscriptions.values()).sort((a, b) => a.subscribedAt.localeCompare(b.subscribedAt))
+    return await getCollectionSubscriptionsFromModule(this.getCollectionContext())
   }
 
   async getCollectionPosts(collectionId?: string): Promise<XmppCollectionPost[]> {
-    await this.ready
-    const posts = Array.from(this.collectionHistory.values())
-    return collectionId ? posts.filter(post => post.collectionId === collectionId).sort((a, b) => b.publishedAt.localeCompare(a.publishedAt)) : posts.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
+    return await getCollectionPostsFromModule(this.getCollectionContext(), collectionId)
   }
 
   async getAttachments(topic?: string, targetId?: string): Promise<XmppAttachment[]> {
-    await this.ready
-    const attachments = Array.from(this.attachmentHistory.values())
-    return attachments
-      .filter(attachment => topic ? attachment.topic === topic : true)
-      .filter(attachment => targetId ? attachment.targetId === targetId : true)
-      .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
+    return await getAttachmentsFromModule(this.getCollectionContext(), topic, targetId)
   }
 
   async getAttachmentSummaries(topic?: string): Promise<XmppAttachmentSummary[]> {
-    await this.ready
-    const summaries = new Map<string, XmppAttachmentSummary>()
-    for (const attachment of this.attachmentHistory.values()) {
-      if (topic && attachment.topic !== topic) {
-        continue
-      }
-      const key = `${attachment.topic}:${attachment.targetId}`
-      const current = summaries.get(key) ?? {
-        topic: attachment.topic,
-        targetId: attachment.targetId,
-        total: 0,
-        noticed: 0,
-        reactions: 0,
-        reactionCounts: {},
-        updatedAt: attachment.publishedAt
-      }
-      current.total += 1
-      if (attachment.kind === 'noticed') {
-        current.noticed += 1
-      } else {
-        current.reactions += 1
-        if (attachment.value) {
-          current.reactionCounts[attachment.value] = (current.reactionCounts[attachment.value] ?? 0) + 1
-        }
-      }
-      if (attachment.publishedAt > current.updatedAt) {
-        current.updatedAt = attachment.publishedAt
-      }
-      summaries.set(key, current)
-    }
-    return Array.from(summaries.values()).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    return await getAttachmentSummariesFromModule(this.getCollectionContext(), topic)
   }
 
   // Close all streams
