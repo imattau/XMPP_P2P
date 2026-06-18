@@ -42,6 +42,7 @@ import {
   XmppOmemoStateManager,
   type XmppOmemoBundle
 } from './xmpp-omemo-state.js'
+import { XmppOpenPgpStateManager } from './xmpp-openpgp.js'
 import {
   fetchOmemoDeviceList as fetchOmemoDeviceListFromModule,
   fetchOmemoBundle as fetchOmemoBundleFromModule,
@@ -254,13 +255,9 @@ export class XmppNode extends EventEmitter {
   private readonly peerOmemoDeviceLists = new Map<string, number[]>()
   private readonly peerOmemoBundles = new Map<string, Map<number, XmppOmemoBundle>>()
   private readonly peerOmemoIdentityKeys = new Map<string, string>()
-  private openPgpState?: XmppOpenPgpStateFile
-  private openPgpPrivateKey?: openpgp.PrivateKey
-  private openPgpPublicKey?: openpgp.PublicKey
-  private openPgpFingerprint?: string
+  private readonly openPgpStateManager: XmppOpenPgpStateManager
   private readonly peerOpenPgpKeys = new Map<string, string>()
   private readonly encryptedTopicSecrets = new Map<string, XmppEncryptedTopicSecret>()
-  private openPgpSaveQueue: Promise<void> = Promise.resolve()
   public readonly jid: string
   public readonly ready: Promise<void>
 
@@ -278,6 +275,7 @@ export class XmppNode extends EventEmitter {
     this.omemoPath = options.omemoPath ?? process.env.XMPP_OMEMO_PATH ?? join(dirname(this.rosterPath), `.xmpp-omemo.${rosterBaseName}.json`)
     this.openPgpPath = options.openPgpPath ?? process.env.XMPP_OPENPGP_PATH ?? join(dirname(this.rosterPath), `.xmpp-openpgp.${rosterBaseName}.json`)
     this.omemoStateManager = new XmppOmemoStateManager(this.omemoPath)
+    this.openPgpStateManager = new XmppOpenPgpStateManager(this.openPgpPath, this.jid)
     this.ready = this.loadRoster()
       .then(() => this.loadFeedHistory())
       .then(() => this.loadSubscriptionState())
@@ -285,7 +283,7 @@ export class XmppNode extends EventEmitter {
       .then(() => this.loadCollectionState())
       .then(() => this.loadAttachmentHistory())
       .then(() => this.loadOmemoState())
-      .then(() => this.loadOpenPgpState())
+      .then(() => this.openPgpStateManager.load())
       .then(() => this.ensureOwnFeedSubscription())
       .then(() => this.ensureOwnFollowerSubscription())
 
@@ -362,7 +360,7 @@ export class XmppNode extends EventEmitter {
       collections: this.collections,
       collectionHistory: this.collectionHistory,
       attachmentHistory: this.attachmentHistory,
-      openPgpState: this.openPgpState
+      openPgpState: this.openPgpStateManager.getState()
     }
   }
 
@@ -554,8 +552,8 @@ export class XmppNode extends EventEmitter {
       discoveryNode: this.discoveryNode,
       collections: this.collections,
       collectionSubscriptions: this.collectionSubscriptions,
-      openPgpState: this.openPgpState,
-      openPgpFingerprint: this.openPgpFingerprint,
+      openPgpState: this.openPgpStateManager.getState(),
+      openPgpFingerprint: this.openPgpStateManager.getFingerprint(),
       deleteRosterEntry: this.deleteRosterEntry.bind(this),
       upsertRosterEntry: this.upsertRosterEntry.bind(this),
       handleSubscribe: this.handleSubscribe.bind(this),
@@ -624,61 +622,7 @@ export class XmppNode extends EventEmitter {
     return this.omemoStateManager.getStore()
   }
 
-  private async loadOpenPgpState(): Promise<void> {
-    try {
-      const raw = await fs.readFile(this.openPgpPath, 'utf8')
-      const parsed = JSON.parse(raw) as XmppOpenPgpStateFile
-      if (!parsed.privateKey || !parsed.publicKey || !parsed.fingerprint) {
-        throw new Error('OpenPGP state file is missing key material')
-      }
 
-      this.openPgpState = parsed
-      this.openPgpPrivateKey = await openpgp.readPrivateKey({ armoredKey: parsed.privateKey })
-      this.openPgpPublicKey = await openpgp.readKey({ armoredKey: parsed.publicKey })
-      this.openPgpFingerprint = parsed.fingerprint
-    } catch (err: any) {
-      if (err?.code !== 'ENOENT') {
-        console.error(`[XMPP] Failed to load OpenPGP state from ${this.openPgpPath}:`, err)
-      }
-
-      await this.generateOpenPgpState()
-    }
-  }
-
-  private async generateOpenPgpState(): Promise<void> {
-    const generated = await openpgp.generateKey({
-      userIDs: [{ name: this.jid, email: this.jid }],
-      type: 'curve25519',
-      format: 'armored'
-    })
-
-    const publicKey = await openpgp.readKey({ armoredKey: generated.publicKey })
-    this.openPgpState = {
-      version: 1,
-      privateKey: generated.privateKey,
-      publicKey: generated.publicKey,
-      fingerprint: publicKey.getFingerprint(),
-      createdAt: new Date().toISOString()
-    }
-    this.openPgpPrivateKey = await openpgp.readPrivateKey({ armoredKey: generated.privateKey })
-    this.openPgpPublicKey = publicKey
-    this.openPgpFingerprint = publicKey.getFingerprint()
-    await this.persistOpenPgpState()
-  }
-
-  private async persistOpenPgpState(): Promise<void> {
-    await persistOpenPgpStateFile(this.openPgpPath, this.openPgpState)
-  }
-
-  private scheduleOpenPgpPersist(): Promise<void> {
-    this.openPgpSaveQueue = this.openPgpSaveQueue
-      .then(() => this.persistOpenPgpState())
-      .catch(err => {
-        console.error(`[XMPP] Failed to persist OpenPGP state to ${this.openPgpPath}:`, err)
-      })
-
-    return this.openPgpSaveQueue
-  }
 
   private async ensureOwnFeedSubscription(): Promise<void> {
     const pubsub = (this.libp2p.services as any).pubsub
@@ -712,10 +656,7 @@ export class XmppNode extends EventEmitter {
   }
 
   private getOpenPgpPublicKeyOrThrow(): openpgp.PublicKey {
-    if (!this.openPgpPublicKey) {
-      throw new Error('OpenPGP public key is not loaded')
-    }
-    return this.openPgpPublicKey
+    return this.openPgpStateManager.getPublicKeyOrThrow()
   }
 
   private async persistRoster(): Promise<void> {
@@ -1843,12 +1784,12 @@ export class XmppNode extends EventEmitter {
 
   async getOpenPgpPublicKey(): Promise<string> {
     await this.ready
-    return this.openPgpState?.publicKey ?? ''
+    return this.openPgpStateManager.getPublicKeyText()
   }
 
   async getOpenPgpFingerprint(): Promise<string> {
     await this.ready
-    return this.openPgpFingerprint ?? this.openPgpState?.fingerprint ?? ''
+    return this.openPgpStateManager.getFingerprint()
   }
 
   async registerPeerOpenPgpPublicKey(peerAddr: string | Multiaddr, armoredKey: string): Promise<string> {
@@ -1869,10 +1810,7 @@ export class XmppNode extends EventEmitter {
   }
 
   private getOpenPgpPrivateKeyOrThrow(): openpgp.PrivateKey {
-    if (!this.openPgpPrivateKey) {
-      throw new Error('OpenPGP private key is not loaded')
-    }
-    return this.openPgpPrivateKey
+    return this.openPgpStateManager.getPrivateKeyOrThrow()
   }
 
   // Send presence updates
@@ -2092,7 +2030,6 @@ export class XmppNode extends EventEmitter {
     await this.attachmentSaveQueue
     await this.persistAttachmentHistory()
     await this.omemoStateManager.close()
-    await this.openPgpSaveQueue
-    await this.persistOpenPgpState()
+    await this.openPgpStateManager.close()
   }
 }
