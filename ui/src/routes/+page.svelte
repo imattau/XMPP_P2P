@@ -39,6 +39,7 @@
   let mucCommunityIdDraft = ''
   let mucDefaultModeDraft = 'secure'
   let mucAutoJoinDraft = true
+  let mucSettingsOpen = false
   let communitySheetId = null
   let rosterJid = ''
   let rosterName = ''
@@ -88,6 +89,7 @@
 
   const syncMucDraftFromChat = (chat) => {
     if (!chat || chat.kind !== 'muc') return
+    mucSettingsOpen = false
     mucTopicDraft = chat.topic ?? ''
     mucCommunityIdDraft = chat.communityId ?? ''
     mucDefaultModeDraft = chat.defaultSecure === false ? 'open' : 'secure'
@@ -1222,59 +1224,68 @@
           </div>
         {:else}
           <article class="thread-shell">
-            <div class="row row--space">
-              <div>
-                <p class="eyebrow">Selected thread</p>
-                <h3 class="thread-shell__title">{activeChat().name}</h3>
-                {#if activeChat().kind === 'muc'}
-                  <p class="meta">{activeChat().topic}</p>
-                {/if}
+            {#if activeChat().kind === 'muc'}
+              <header class="thread-header">
+                <div class="thread-header__title">
+                  <p class="eyebrow">Room</p>
+                  <h3 class="thread-shell__title">{activeChat().name} · {activeChat().occupants.length} members</h3>
+                  <p class="thread-topic">{activeChat().topic}</p>
+                </div>
+                <button
+                  class="thread-header__manage"
+                  type="button"
+                  aria-label="Room settings"
+                  onclick={() => (mucSettingsOpen = !mucSettingsOpen)}
+                >
+                  ⚙
+                </button>
+              </header>
+
+              <div class="roster-strip" aria-label="Room occupants">
+                {#each activeChat().occupants as occupant}
+                  <div class="roster-strip__item">
+                    <div class="avatar">{initials(occupant.nick)}</div>
+                    <span class="meta roster-strip__label">{occupant.nick}</span>
+                  </div>
+                {/each}
               </div>
-              {#if activeChat().kind === 'muc'}
-                <span class={activeMucChat()?.defaultSecure ? 'badge badge--secure' : 'badge badge--warn'}>
-                  {activeMucChat()?.defaultSecure ? 'secure default' : 'open default'}
-                </span>
-              {:else}
+
+              {#if mucSettingsOpen}
+                <div class="composer__settings thread-settings">
+                  <div class="section__title">
+                    <p class="eyebrow">Room controls</p>
+                    <h3>Room topic and defaults</h3>
+                  </div>
+                  <label class="field field--grow">
+                    <span>Room topic</span>
+                    <input bind:value={mucTopicDraft} type="text" placeholder="Room topic" />
+                  </label>
+                  <div class="composer__settings-row">
+                    <label class="toggle">
+                      <input checked={mucDefaultModeDraft === 'secure'} type="checkbox" onchange={(event) => (mucDefaultModeDraft = event.currentTarget.checked ? 'secure' : 'open')} />
+                      <span>Secure by default</span>
+                    </label>
+                    <label class="toggle">
+                      <input bind:checked={mucAutoJoinDraft} type="checkbox" />
+                      <span>Auto-join</span>
+                    </label>
+                  </div>
+                  <div class="composer__actions">
+                    <div class="meta">Saved settings control future room defaults and auto-join on restart.</div>
+                    <button class="button button--small" type="button" onclick={saveMucRoomSettings}>Save room settings</button>
+                  </div>
+                </div>
+              {/if}
+            {:else}
+              <div class="row row--space">
+                <div>
+                  <p class="eyebrow">Selected thread</p>
+                  <h3 class="thread-shell__title">{activeChat().name}</h3>
+                </div>
                 <span class={activeChat().secure ? 'badge badge--secure' : 'badge badge--warn'}>
                   {activeChat().secure ? 'E2EE' : 'open'}
                 </span>
-              {/if}
-            </div>
-
-            {#if activeChat().kind === 'muc'}
-              <div class="composer__settings thread-settings">
-                <div class="section__title">
-                  <p class="eyebrow">Room controls</p>
-                  <h3>Room topic and defaults</h3>
-                </div>
-                <label class="field field--grow">
-                  <span>Room topic</span>
-                  <input bind:value={mucTopicDraft} type="text" placeholder="Room topic" />
-                </label>
-                <div class="composer__settings-row">
-                  <label class="toggle">
-                    <input checked={mucDefaultModeDraft === 'secure'} type="checkbox" onchange={(event) => (mucDefaultModeDraft = event.currentTarget.checked ? 'secure' : 'open')} />
-                    <span>Secure by default</span>
-                  </label>
-                  <label class="toggle">
-                    <input bind:checked={mucAutoJoinDraft} type="checkbox" />
-                    <span>Auto-join</span>
-                  </label>
-                </div>
-                <div class="composer__actions">
-                  <div class="meta">Saved settings control future room defaults and auto-join on restart.</div>
-                  <button class="button button--small" type="button" onclick={saveMucRoomSettings}>Save room settings</button>
-                </div>
               </div>
-
-              <details class="inspector__block">
-                <summary class="eyebrow">Occupants ({activeChat().occupants.length})</summary>
-                <div class="inspector__grid">
-                  {#each activeChat().occupants as occupant}
-                    <div class="kv"><span>{occupant.nick}</span><span>{occupant.presence}</span></div>
-                  {/each}
-                </div>
-              </details>
             {/if}
 
             <div class="thread">

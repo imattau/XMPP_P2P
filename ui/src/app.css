@@ -876,6 +876,69 @@ textarea {
   margin-bottom: var(--space-3);
 }
 
+.thread-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.thread-header__title {
+  min-width: 0;
+}
+
+.thread-header__manage {
+  flex: 0 0 auto;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-muted);
+  font-size: 1.1rem;
+}
+
+.thread-header__manage:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.thread-topic {
+  margin: 0.3rem 0 0;
+  color: var(--text);
+  font-size: 0.98rem;
+  line-height: 1.4;
+}
+
+.roster-strip {
+  display: flex;
+  gap: var(--space-3);
+  overflow-x: auto;
+  padding: var(--space-2) 0;
+  scrollbar-width: none;
+}
+
+.roster-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.roster-strip__item {
+  display: grid;
+  justify-items: center;
+  gap: 0.25rem;
+  flex: 0 0 auto;
+  width: 3.4rem;
+}
+
+.roster-strip__label {
+  font-size: 0.68rem;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
 .network-stats {
   display: grid;
   gap: var(--space-2);
