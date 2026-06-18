@@ -434,28 +434,29 @@ textarea {
   font-weight: 600;
 }
 
-.mode-switch {
-  display: flex;
+.cover-dropzone {
+  display: grid;
   gap: var(--space-2);
-  padding-block: var(--space-2);
-}
-
-.mode-switch__btn {
-  flex: 1;
-  text-align: center;
-  padding: 0.45rem 0;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border);
+  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+  border: 1px dashed var(--border);
   background: rgba(255, 255, 255, 0.03);
-  color: var(--text-muted);
-  font-size: 0.85rem;
+  cursor: pointer;
 }
 
-.mode-switch__btn.is-active {
-  background: rgba(91, 75, 207, 0.16);
-  border-color: rgba(91, 75, 207, 0.32);
-  color: var(--accent-text);
-  font-weight: 600;
+.cover-dropzone--active {
+  border-color: rgba(91, 75, 207, 0.5);
+  background: rgba(91, 75, 207, 0.08);
+}
+
+.cover-dropzone input[type='file'] {
+  width: 100%;
+}
+
+.cover-dropzone__label {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.4;
 }
 
 .collapse {

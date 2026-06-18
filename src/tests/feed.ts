@@ -1,6 +1,10 @@
+import assert from 'node:assert/strict'
+import { xml } from '@xmpp/xml'
 import { mkdtemp, rm } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
+import { buildMicroblogEntry, parseMicroblogEntry } from '../core/xmpp-atom.js'
+import { ATOM_XMLNS } from '../core/xmpp-discovery.js'
 import { createP2PNode } from '../core/p2p.js'
 import { XmppNode } from '../core/xmpp-node.js'
 
@@ -15,8 +19,50 @@ async function waitFor(condition: () => boolean | Promise<boolean>, timeoutMs: n
   throw new Error(message)
 }
 
+function verifyAtomMicroblogHelpers() {
+  const post = {
+    id: 'post-1',
+    topic: 'xmpp-feed:test-peer',
+    from: 'alice@p2p',
+    body: 'Hello microblog',
+    publishedAt: '2026-06-19T00:00:00.000Z',
+    receivedAt: '2026-06-19T00:00:00.000Z',
+    updatedAt: '2026-06-19T00:00:00.000Z',
+    title: 'Hello microblog',
+    summary: 'Hello microblog summary',
+    categories: ['news', 'updates'],
+    author: 'Alice'
+  }
+
+  const entry = buildMicroblogEntry(post, {
+    title: post.title,
+    summary: post.summary,
+    categories: post.categories,
+    author: post.author,
+    publishedAt: post.publishedAt,
+    updatedAt: post.updatedAt
+  })
+
+  assert.equal(entry.attrs.xmlns, ATOM_XMLNS)
+  assert.match(entry.toString(), /<title type="text">Hello microblog<\/title>/)
+  assert.match(entry.toString(), /<summary type="text">Hello microblog summary<\/summary>/)
+  assert.match(entry.toString(), /<category term="news"/)
+  assert.match(entry.toString(), /<content type="text">Hello microblog<\/content>/)
+
+  const parsed = parseMicroblogEntry(post.topic, xml('item', { id: post.id }, entry), post.from)
+  assert.equal(parsed?.title, post.title)
+  assert.equal(parsed?.summary, post.summary)
+  assert.deepEqual(parsed?.categories, post.categories)
+  assert.equal(parsed?.body, post.body)
+
+  const legacyEntry = xml('entry', { xmlns: 'urn:xmpp:feed:0' }, xml('title', {}, 'Legacy'))
+  const legacyParsed = parseMicroblogEntry(post.topic, xml('item', { id: 'legacy' }, legacyEntry), post.from)
+  assert.equal(legacyParsed, undefined)
+}
+
 async function runFeedTest() {
   console.log('Starting XMPP feed verification test...\n')
+  verifyAtomMicroblogHelpers()
 
   const workDir = await mkdtemp(join(tmpdir(), 'xmpp-p2p-feed-'))
   const feedPath = join(workDir, 'node1-feed.json')

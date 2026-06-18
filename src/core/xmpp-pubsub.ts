@@ -1,10 +1,9 @@
 import { Element, Parser } from '@xmpp/xml'
 import * as openpgp from 'openpgp'
-import { ATTACHMENT_XMLNS, FEED_XMLNS, HTTP_UPLOAD_XMLNS, PAM_XMLNS, PUBSUB_EVENT_XMLNS } from './xmpp-discovery.js'
+import { ATOM_XMLNS, ATTACHMENT_XMLNS, HTTP_UPLOAD_XMLNS, PAM_XMLNS, PUBSUB_EVENT_XMLNS } from './xmpp-discovery.js'
 import {
   normalizeAttachment,
   normalizeCollectionPost,
-  normalizeFeedPost,
   type XmppUploadManifest,
   type XmppUploadProvider,
   type XmppAttachment,
@@ -13,6 +12,7 @@ import {
   type XmppFeedPost,
   type XmppPubSubMessage
 } from './xmpp-records.js'
+import { parseMicroblogEntry } from './xmpp-atom.js'
 
 export interface XmppPubSubContext {
   localJid: string
@@ -29,33 +29,12 @@ export interface XmppPubSubContext {
 }
 
 export function parseFeedPost(topic: string, itemEl: Element, from: string, node?: string): XmppFeedPost | undefined {
-  const id = itemEl.attrs.id
-  if (!id) {
+  const entryEl = (itemEl.children as any[]).find(child => child?.name === 'entry' && child?.attrs?.xmlns === ATOM_XMLNS) as Element | undefined
+  if (!entryEl) {
     return undefined
   }
 
-  const entryEl = (itemEl.children as any[]).find(child => child?.name === 'entry' && child?.attrs?.xmlns === FEED_XMLNS) as Element | undefined
-  const bodyEl = (itemEl.children as any[]).find(child => child?.name === 'body') as Element | undefined
-  const contentEl = entryEl?.getChild('content')
-  const publishedEl = entryEl?.getChild('published')
-  const titleEl = entryEl?.getChild('title')
-  const authorEl = entryEl?.getChild('author')
-  const body = contentEl?.text() || bodyEl?.text()
-  if (!body) {
-    return undefined
-  }
-
-  return normalizeFeedPost({
-    id,
-    topic,
-    from,
-    body,
-    node,
-    publishedAt: publishedEl?.text(),
-    title: titleEl?.text(),
-    author: authorEl?.text(),
-    receivedAt: new Date().toISOString()
-  })
+  return parseMicroblogEntry(topic, itemEl, from, node)
 }
 
 export function parseCollectionPost(topic: string, itemEl: Element, from: string): XmppCollectionPost | undefined {
@@ -65,7 +44,7 @@ export function parseCollectionPost(topic: string, itemEl: Element, from: string
     return undefined
   }
 
-  const feedPost = parseFeedPost(topic, itemEl, from, sourceTopic)
+  const feedPost = parseMicroblogEntry(topic, itemEl, from, sourceTopic)
   if (!feedPost) {
     return undefined
   }

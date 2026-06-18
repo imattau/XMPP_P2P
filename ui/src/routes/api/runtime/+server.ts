@@ -15,7 +15,13 @@ export async function POST({ request }) {
       await runtime.setPresence(payload.presence, payload.message ?? '')
       break
     case 'feed:publish':
-      await runtime.publishFeed(payload.body ?? '', payload.targetId ?? 'feed', Boolean(payload.secure), payload.title)
+      await runtime.publishFeed(
+        payload.body ?? '',
+        payload.targetId ?? 'feed',
+        Boolean(payload.secure),
+        payload.title,
+        payload.categories ?? []
+      )
       break
     case 'chat:direct':
       await runtime.sendDirectMessage(payload.peerId ?? '', payload.body ?? '', Boolean(payload.secure))

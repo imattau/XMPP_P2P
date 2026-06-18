@@ -129,7 +129,7 @@ export async function unsubscribeCollection(ctx: XmppCollectionContext, id: stri
   await ctx.scheduleCollectionPersist()
 }
 
-export async function publishCollection(ctx: XmppCollectionContext, id: string, body: string, options: { itemId?: string; title?: string; author?: string } = {}): Promise<string> {
+export async function publishCollection(ctx: XmppCollectionContext, id: string, body: string, options: { itemId?: string; title?: string; summary?: string; categories?: string[]; author?: string } = {}): Promise<string> {
   const collection = ctx.collections.get(id) ?? await createCollection(ctx, id)
   const feedPost: XmppFeedPost = {
     id: options.itemId ?? Math.random().toString(36).substring(2, 11),
@@ -138,8 +138,11 @@ export async function publishCollection(ctx: XmppCollectionContext, id: string, 
     body,
     publishedAt: new Date().toISOString(),
     receivedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     title: options.title,
-    author: options.author ?? ctx.jid
+    summary: options.summary,
+    author: options.author ?? ctx.jid,
+    categories: options.categories
   }
 
   return await ctx.publishCollectionPost(id, feedPost)

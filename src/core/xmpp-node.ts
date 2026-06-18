@@ -18,11 +18,11 @@ import {
   parseDiscoInfoQuery,
   parseDiscoItemsQuery,
   DISCOVERY_NODE,
+  ATOM_XMLNS,
   DISCO_INFO_XMLNS,
   DISCO_ITEMS_XMLNS,
   CAPS_XMLNS,
   PUBSUB_EVENT_XMLNS,
-  FEED_XMLNS,
   COLLECTION_XMLNS,
   ATTACHMENT_XMLNS,
   HTTP_UPLOAD_XMLNS,
@@ -214,6 +214,7 @@ import {
   subscriptionToFlags,
   type XmppMucMessage
 } from './xmpp-records.js'
+import { buildMicroblogEntry, deriveMicroblogTitle } from './xmpp-atom.js'
 import type {
   OmemoDirection
 } from './omemo-runtime.js'
@@ -1263,8 +1264,8 @@ export class XmppNode extends EventEmitter {
           if (allowedKinds.has('feed')) {
             const entryEl = itemEl.getChild('entry')
             const contentEl = entryEl?.getChild('content')
-            const bodyEl = itemEl.getChild('body')
-            if (entryEl && entryEl.attrs.xmlns === FEED_XMLNS && (contentEl || bodyEl)) {
+            const titleEl = entryEl?.getChild('title')
+            if (entryEl && entryEl.attrs.xmlns === ATOM_XMLNS && (contentEl || titleEl)) {
               valid = true
               return
             }
@@ -1272,7 +1273,7 @@ export class XmppNode extends EventEmitter {
 
           if (allowedKinds.has('collection')) {
             const entryEl = itemEl.getChild('entry')
-            if (entryEl && entryEl.attrs.xmlns === FEED_XMLNS && itemEl.attrs.collectionId && itemEl.attrs.sourceTopic) {
+            if (entryEl && entryEl.attrs.xmlns === ATOM_XMLNS && itemEl.attrs.collectionId && itemEl.attrs.sourceTopic) {
               valid = true
               return
             }
@@ -1557,6 +1558,7 @@ export class XmppNode extends EventEmitter {
     const pubsub = this.getPubSubService()
     const itemId = `${collectionId}:${feedPost.id}`
     const publishedAt = new Date().toISOString()
+    const title = feedPost.title?.trim() || deriveMicroblogTitle(feedPost.body)
     const stanza = xml(
       'message',
       {
@@ -1564,6 +1566,7 @@ export class XmppNode extends EventEmitter {
         to: 'pubsub.p2p',
         type: 'headline'
       },
+      xml('body', {}, title),
       xml(
         'event',
         { xmlns: PUBSUB_EVENT_XMLNS },
@@ -1573,16 +1576,15 @@ export class XmppNode extends EventEmitter {
           xml(
             'item',
             { id: itemId, collectionId, sourceTopic: feedPost.topic },
-            xml(
-              'entry',
-              { xmlns: FEED_XMLNS },
-              xml('id', {}, feedPost.id),
-              xml('published', {}, feedPost.publishedAt),
-              xml('author', {}, feedPost.author ?? feedPost.from),
-              feedPost.title ? xml('title', {}, feedPost.title) : null,
-              xml('content', { type: 'text' }, feedPost.body),
-              xml('body', {}, feedPost.body)
-            )
+            buildMicroblogEntry({
+              ...feedPost,
+              title
+            }, {
+              title,
+              author: feedPost.author ?? feedPost.from,
+              publishedAt: feedPost.publishedAt,
+              updatedAt: feedPost.updatedAt
+            })
           )
         )
       )
@@ -2402,7 +2404,7 @@ export class XmppNode extends EventEmitter {
     await unsubscribeFeedFromModule(this.getFeedContext(), peerAddr)
   }
 
-  async publishFeed(body: string, options: { topic?: string; itemId?: string; title?: string; author?: string } = {}): Promise<string> {
+  async publishFeed(body: string, options: { topic?: string; itemId?: string; title?: string; summary?: string; categories?: string[]; author?: string } = {}): Promise<string> {
     return await publishFeedFromModule(this.getFeedContext(), body, options)
   }
 
@@ -2422,7 +2424,7 @@ export class XmppNode extends EventEmitter {
     await unsubscribeCollectionFromModule(this.getCollectionContext(), id)
   }
 
-  async publishCollection(id: string, body: string, options: { itemId?: string; title?: string; author?: string } = {}): Promise<string> {
+  async publishCollection(id: string, body: string, options: { itemId?: string; title?: string; summary?: string; categories?: string[]; author?: string } = {}): Promise<string> {
     return await publishCollectionFromModule(this.getCollectionContext(), id, body, options)
   }
 

@@ -8,7 +8,8 @@ export const DISCO_INFO_XMLNS = 'http://jabber.org/protocol/disco#info'
 export const DISCO_ITEMS_XMLNS = 'http://jabber.org/protocol/disco#items'
 export const CAPS_XMLNS = 'http://jabber.org/protocol/caps'
 export const PUBSUB_EVENT_XMLNS = 'http://jabber.org/protocol/pubsub#event'
-export const FEED_XMLNS = 'urn:xmpp:feed:0'
+export const ATOM_XMLNS = 'http://www.w3.org/2005/Atom'
+export const MICROBLOG_XMLNS = 'urn:xmpp:microblog:0'
 export const COLLECTION_XMLNS = 'urn:xmpp:collection:0'
 export const ATTACHMENT_XMLNS = 'urn:xmpp:pubsub:attachments:0'
 export const HTTP_UPLOAD_XMLNS = 'urn:xmpp:http:upload:0'
@@ -126,7 +127,7 @@ export function getDiscoveryFeatures(
     CAPS_XMLNS,
     ROSTER_XMLNS,
     PUBSUB_EVENT_XMLNS,
-    FEED_XMLNS,
+    MICROBLOG_XMLNS,
     COLLECTION_XMLNS,
     ATTACHMENT_XMLNS,
     HTTP_UPLOAD_XMLNS,
@@ -146,7 +147,6 @@ export function getDiscoveryFeatures(
 
   if (findCollection(collections, node)) {
     features.add(COLLECTION_XMLNS)
-    features.add(FEED_XMLNS)
   }
 
   return Array.from(features).sort()

@@ -21,7 +21,6 @@
   let composerTargetId = snapshot.composerTargetId
   let composerActionId = 'feed-post'
   let composerBody = ''
-  let composerMode = 'quick'
   let composerCoverImageUrl = ''
   let composerTags = []
   let composerTagDraft = ''
@@ -160,6 +159,8 @@
   let uploadFile = null
   let uploadResultUrl = ''
   let uploadBusy = false
+  let composerCoverUploadBusy = false
+  let composerCoverDropActive = false
   let attachmentActionBusy = false
 
   const applySnapshot = (next) => {
@@ -259,6 +260,11 @@
         id: 'feed-post',
         label: 'New Post',
         description: 'Post to your feed'
+      },
+      {
+        id: 'feed-article',
+        label: 'New Article',
+        description: 'Write a longer post with a cover image'
       },
       {
         id: 'feed-community-post',
@@ -406,14 +412,13 @@
     composerMucTopic = ''
     composerMucCommunityId = activeCommunityId ?? communities[0]?.id ?? ''
     composerSecure = true
-    composerMode = 'quick'
     composerCoverImageUrl = ''
     composerTags = []
     composerTagDraft = ''
-    coverSectionOpen = false
-    titleSectionOpen = false
+    coverSectionOpen = actionId === 'feed-article'
+    titleSectionOpen = actionId === 'feed-article'
 
-    if (actionId === 'feed-post') {
+    if (actionId === 'feed-post' || actionId === 'feed-article') {
       composerTargetId = 'feed'
       composerSecure = secure
     } else if (actionId === 'feed-community-post' || actionId === 'feed-topic-post') {
@@ -482,6 +487,7 @@
 
   const closeComposer = () => {
     composerOpen = false
+    composerCoverDropActive = false
   }
 
   const closeComposerMenu = () => {
@@ -506,6 +512,33 @@
     return btoa(binary)
   }
 
+  const uploadFileViaXep = async (file, targetPeerId) => {
+    if (!file || !targetPeerId) {
+      throw new Error('Select an upload target first')
+    }
+
+    const slot = await postRuntimeResult('upload:request-slot', {
+      target: targetPeerId,
+      filename: file.name,
+      size: file.size,
+      contentType: file.type || 'application/octet-stream'
+    })
+
+    if (!slot?.putUrl || !slot?.getUrl) {
+      throw new Error('Upload service did not return URLs')
+    }
+
+    const base64 = arrayBufferToBase64(await file.arrayBuffer())
+    const result = await postRuntimeResult('upload:put', {
+      putUrl: slot.putUrl,
+      getUrl: slot.getUrl,
+      base64,
+      contentType: file.type || 'application/octet-stream'
+    })
+
+    return result?.getUrl ?? slot.getUrl
+  }
+
   const requestUploadSlot = async () => {
     if (!uploadFile || !uploadTargetPeerId) {
       return
@@ -514,32 +547,51 @@
     uploadBusy = true
     clearRuntimeError()
     try {
-      const slot = await postRuntimeResult('upload:request-slot', {
-        target: uploadTargetPeerId,
-        filename: uploadFile.name,
-        size: uploadFile.size,
-        contentType: uploadFile.type || 'application/octet-stream'
-      })
-
-      if (!slot?.putUrl || !slot?.getUrl) {
-        throw new Error('Upload service did not return URLs')
-      }
-
-      const base64 = arrayBufferToBase64(await uploadFile.arrayBuffer())
-      const result = await postRuntimeResult('upload:put', {
-        putUrl: slot.putUrl,
-        getUrl: slot.getUrl,
-        base64,
-        contentType: uploadFile.type || 'application/octet-stream'
-      })
-
-      uploadResultUrl = result?.getUrl ?? slot.getUrl
+      uploadResultUrl = await uploadFileViaXep(uploadFile, uploadTargetPeerId)
       uploadFile = null
     } catch (error) {
       openError(error instanceof Error ? error.message : 'Upload failed')
     } finally {
       uploadBusy = false
     }
+  }
+
+  const uploadComposerCoverImage = async (file) => {
+    if (!file) {
+      return
+    }
+
+    if (!(file.type ?? '').startsWith('image/')) {
+      openError('Choose an image file for the cover.')
+      return
+    }
+
+    const targetPeerId = uploadTargetPeerId || contacts[0]?.id
+    if (!targetPeerId) {
+      openError('Select a contact to receive the upload slot.')
+      return
+    }
+
+    composerCoverUploadBusy = true
+    composerCoverDropActive = false
+    clearRuntimeError()
+    try {
+      composerCoverImageUrl = await uploadFileViaXep(file, targetPeerId)
+    } catch (error) {
+      openError(error instanceof Error ? error.message : 'Cover image upload failed')
+    } finally {
+      composerCoverUploadBusy = false
+    }
+  }
+
+  const handleComposerCoverDrop = async (event) => {
+    event.preventDefault()
+    composerCoverDropActive = false
+    await uploadComposerCoverImage(event.dataTransfer?.files?.[0] ?? null)
+  }
+
+  const handleComposerCoverPicker = async (event) => {
+    await uploadComposerCoverImage(event.currentTarget.files?.[0] ?? null)
   }
 
   const emitAttachment = async (kind, value) => {
@@ -648,7 +700,7 @@
 
   const submitComposer = async (event) => {
     event.preventDefault()
-    const articleSuffix = composerMode === 'article'
+    const articleSuffix = composerActionId === 'feed-article'
       ? [
           composerCoverImageUrl.trim() ? `\n\n![cover](${composerCoverImageUrl.trim()})` : '',
           composerTags.length ? `\n\n${composerTags.map((tag) => `#${tag}`).join(' ')}` : ''
@@ -671,7 +723,8 @@
         body,
         targetId: 'feed',
         secure: false,
-        title: topicTitle || undefined
+        title: topicTitle || undefined,
+        categories: composerTags
       })
       section = 'feed'
       feedDetailOpen = true
@@ -681,7 +734,8 @@
         body,
         targetId: postTarget.id,
         secure: postTarget.visibility === 'private',
-        title: `Posted to ${postTarget.name}`
+        title: `Posted to ${postTarget.name}`,
+        categories: composerTags
       })
       section = 'feed'
       feedDetailOpen = true
@@ -691,7 +745,19 @@
         body,
         targetId: postTarget.id,
         secure: postTarget.visibility === 'private',
-        title: topicTitle
+        title: topicTitle,
+        categories: composerTags
+      })
+      section = 'feed'
+      feedDetailOpen = true
+    } else if (composerActionId === 'feed-article') {
+      if (!body) return
+      await postRuntimeAction('feed:publish', {
+        body,
+        targetId: postTarget.id,
+        secure: postTarget.visibility === 'private',
+        title: topicTitle || undefined,
+        categories: composerTags
       })
       section = 'feed'
       feedDetailOpen = true
@@ -739,6 +805,11 @@
     composerMucCommunityId = activeCommunityId ?? communities[0]?.id ?? ''
     composerMucDefaultMode = 'secure'
     composerMucAutoJoin = true
+    composerCoverImageUrl = ''
+    composerTags = []
+    composerTagDraft = ''
+    coverSectionOpen = false
+    titleSectionOpen = false
     composerOpen = false
   }
 </script>
@@ -920,14 +991,14 @@
           </div>
         </div>
 
-        {#if composerActionId === 'feed-post' || composerActionId === 'feed-community-post' || composerActionId === 'feed-topic-post'}
+        {#if composerActionId === 'feed-post' || composerActionId === 'feed-article' || composerActionId === 'feed-community-post' || composerActionId === 'feed-topic-post'}
           <button class="composer-dest" type="button" onclick={() => (destinationPickerOpen = !destinationPickerOpen)}>
             <span class="composer-dest__label">Posting to</span>
             <span class="composer-dest__value">{composerTarget().tag} <span aria-hidden="true">⌄</span></span>
           </button>
           {#if destinationPickerOpen}
             <div class="composer__targets" aria-label="Post destination">
-              {#each (composerActionId === 'feed-post' ? composerTargets() : communities) as target}
+              {#each (composerActionId === 'feed-post' || composerActionId === 'feed-article' ? composerTargets() : communities) as target}
                 <button
                   class="chip"
                   class:is-active={composerTargetId === target.id}
@@ -939,11 +1010,7 @@
               {/each}
             </div>
           {/if}
-          <div class="mode-switch" role="tablist" aria-label="Post mode">
-            <button class="mode-switch__btn" class:is-active={composerMode === 'quick'} type="button" onclick={() => (composerMode = 'quick')}>Quick</button>
-            <button class="mode-switch__btn" class:is-active={composerMode === 'article'} type="button" onclick={() => (composerMode = 'article')}>Article</button>
-          </div>
-          {#if composerMode === 'article'}
+          {#if composerActionId === 'feed-article'}
             <div class="collapse">
               <button class="collapse__head" type="button" onclick={() => (coverSectionOpen = !coverSectionOpen)}>
                 <span>{coverSectionOpen ? '−' : '+'} Cover image</span>
@@ -951,9 +1018,19 @@
               </button>
               {#if coverSectionOpen}
                 <div class="collapse__body">
-                  <label class="field field--grow">
-                    <span>Cover image URL</span>
-                    <input bind:value={composerCoverImageUrl} type="text" placeholder="https://..." />
+                  <label
+                    class={`cover-dropzone ${composerCoverDropActive ? 'cover-dropzone--active' : ''}`}
+                    ondragover={(event) => { event.preventDefault(); composerCoverDropActive = true }}
+                    ondragleave={() => (composerCoverDropActive = false)}
+                    ondrop={handleComposerCoverDrop}
+                  >
+                    <input accept="image/*" type="file" onchange={handleComposerCoverPicker} />
+                    <span class="cover-dropzone__label">
+                      {composerCoverUploadBusy ? 'Uploading cover...' : 'Drop an image here or choose a file'}
+                    </span>
+                    {#if composerCoverImageUrl}
+                      <a class="meta mono" href={composerCoverImageUrl} target="_blank" rel="noreferrer">{composerCoverImageUrl}</a>
+                    {/if}
                   </label>
                 </div>
               {/if}
@@ -1063,7 +1140,7 @@
           </div>
         {/if}
 
-        {#if composerMode === 'article'}
+        {#if composerActionId === 'feed-article'}
           <div class="rich-toolbar" role="toolbar" aria-label="Rich text formatting">
             <button class="rt-icon" type="button" aria-label="Bold">B</button>
             <button class="rt-icon" type="button" aria-label="Italic">I</button>
@@ -1074,7 +1151,7 @@
         {/if}
 
         <form class="composer__form" onsubmit={submitComposer}>
-          {#if composerActionId === 'feed-topic-post' && composerMode === 'quick'}
+          {#if composerActionId === 'feed-topic-post'}
             <label class="field field--grow">
               <span>Topic title</span>
               <input bind:value={composerTopicTitle} type="text" placeholder="Discussion title" />

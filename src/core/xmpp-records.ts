@@ -67,16 +67,39 @@ export interface XmppPubSubMessage {
   keyId?: string
 }
 
+export interface XmppAtomLink {
+  rel: string
+  href: string
+  type?: string
+  title?: string
+  ref?: string
+}
+
+export interface XmppAtomGeoloc {
+  lat?: string
+  lon?: string
+  country?: string
+  countryCode?: string
+  region?: string
+}
+
 export interface XmppFeedPost {
   id: string
   topic: string
   from: string
   body: string
   publishedAt: string
+  updatedAt: string
   receivedAt: string
   node?: string
+  atomId?: string
   title?: string
+  summary?: string
   author?: string
+  contentType?: 'text' | 'xhtml'
+  categories?: string[]
+  links?: XmppAtomLink[]
+  geoloc?: XmppAtomGeoloc
 }
 
 export interface XmppFeedSubscription {
@@ -417,10 +440,17 @@ export function normalizeFeedPost(entry: Partial<XmppFeedPost> & { id: string; t
     from: entry.from,
     body: entry.body,
     publishedAt: entry.publishedAt || new Date().toISOString(),
+    updatedAt: entry.updatedAt || entry.publishedAt || new Date().toISOString(),
     receivedAt: entry.receivedAt || new Date().toISOString(),
     node: entry.node,
+    atomId: entry.atomId,
     title: entry.title,
-    author: entry.author
+    summary: entry.summary,
+    author: entry.author,
+    contentType: entry.contentType,
+    categories: entry.categories?.filter(category => category.trim()),
+    links: entry.links?.filter(link => link.rel || link.href),
+    geoloc: entry.geoloc
   }
 }
 

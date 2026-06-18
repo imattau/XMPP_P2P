@@ -1,4 +1,4 @@
-import { xml, Element } from '@xmpp/xml'
+import { xml } from '@xmpp/xml'
 import { Multiaddr } from '@multiformats/multiaddr'
 import { XmppStream } from './xmpp-stream.js'
 import {
@@ -8,7 +8,8 @@ import {
   XmppFollowerWatch,
   XmppFeedVisibility
 } from './xmpp-records.js'
-import { PUBSUB_EVENT_XMLNS, FEED_XMLNS } from './xmpp-discovery.js'
+import { PUBSUB_EVENT_XMLNS } from './xmpp-discovery.js'
+import { buildMicroblogEntry, buildTagUri, deriveMicroblogTitle } from './xmpp-atom.js'
 
 export interface XmppFeedContext {
   jid: string
@@ -96,7 +97,7 @@ export async function unsubscribeFeed(ctx: XmppFeedContext, peerAddr: string | M
   await ctx.scheduleSubscriptionPersist()
 }
 
-export async function publishFeed(ctx: XmppFeedContext, body: string, options: { topic?: string; itemId?: string; title?: string; author?: string } = {}): Promise<string> {
+export async function publishFeed(ctx: XmppFeedContext, body: string, options: { topic?: string; itemId?: string; title?: string; summary?: string; categories?: string[]; author?: string } = {}): Promise<string> {
   const pubsub = ctx.getPubSubService()
   const topic = options.topic ?? ctx.feedTopicForPeer(ctx.libp2p.peerId.toString())
   ctx.ensureTopicValidator(topic, 'feed')
@@ -104,16 +105,28 @@ export async function publishFeed(ctx: XmppFeedContext, body: string, options: {
   await pubsub.subscribe(topic)
   const itemId = options.itemId ?? Math.random().toString(36).substring(2, 11)
   const publishedAt = new Date().toISOString()
-  const entryChildren: Element[] = [
-    xml('id', {}, itemId),
-    xml('published', {}, publishedAt),
-    xml('author', {}, options.author ?? ctx.jid),
-    xml('content', { type: 'text' }, body),
-    xml('body', {}, body)
-  ]
-  if (options.title) {
-    entryChildren.push(xml('title', {}, options.title))
-  }
+  const title = options.title?.trim() || deriveMicroblogTitle(body)
+  const entry = buildMicroblogEntry({
+    id: itemId,
+    topic,
+    from: ctx.jid,
+    body,
+    publishedAt,
+    updatedAt: publishedAt,
+    receivedAt: publishedAt,
+    title,
+    summary: options.summary,
+    categories: options.categories,
+    author: options.author
+  }, {
+    title,
+    summary: options.summary,
+    categories: options.categories,
+    author: options.author,
+    publishedAt,
+    updatedAt: publishedAt,
+    alternateHref: `xmpp:${ctx.jid}?;node=${encodeURIComponent(topic)};item=${encodeURIComponent(itemId)}`
+  })
   const stanza = xml(
     'message',
     {
@@ -121,6 +134,7 @@ export async function publishFeed(ctx: XmppFeedContext, body: string, options: {
       to: 'pubsub.p2p',
       type: 'headline'
     },
+    xml('body', {}, title),
     xml(
       'event',
       { xmlns: PUBSUB_EVENT_XMLNS },
@@ -130,7 +144,7 @@ export async function publishFeed(ctx: XmppFeedContext, body: string, options: {
           xml(
             'item',
             { id: itemId },
-            xml('entry', { xmlns: FEED_XMLNS }, ...entryChildren)
+            entry
           )
         )
       )
@@ -145,9 +159,18 @@ export async function publishFeed(ctx: XmppFeedContext, body: string, options: {
     from: ctx.jid,
     body,
     publishedAt,
+    updatedAt: publishedAt,
     receivedAt: publishedAt,
-    title: options.title,
-    author: options.author ?? ctx.jid
+    atomId: buildTagUri(ctx.jid, publishedAt, itemId),
+    title,
+    summary: options.summary,
+    author: options.author ?? ctx.jid,
+    contentType: 'text',
+    categories: options.categories,
+    links: [{
+      rel: 'alternate',
+      href: `xmpp:${ctx.jid}?;node=${encodeURIComponent(topic)};item=${encodeURIComponent(itemId)}`
+    }]
   })
 
   return itemId

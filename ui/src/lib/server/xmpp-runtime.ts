@@ -544,7 +544,7 @@ class XmppUiRuntime {
       topic: post.sourceTopic,
       avatar: initials(post.collectionId),
       title,
-      body: post.body,
+      body: post.summary ?? post.body,
       time: relativeLabel(post.publishedAt),
       reactions: ['↩︎ 0', '♥ 0'],
       secure: false
@@ -561,8 +561,8 @@ class XmppUiRuntime {
       sourceLabel: authorLabel,
       topic: post.topic,
       avatar: initials(authorLabel),
-      title: post.title ?? 'Feed update',
-      body: post.body,
+      title: post.title ?? post.summary ?? 'Feed update',
+      body: post.summary ?? post.body,
       time: relativeLabel(post.publishedAt),
       reactions: ['↩︎ 0', '♥ 0'],
       secure: false
@@ -866,19 +866,20 @@ class XmppUiRuntime {
     )
   }
 
-  async publishFeed(body: string, targetId: string, secure: boolean, topicTitle?: string) {
+  async publishFeed(body: string, targetId: string, secure: boolean, topicTitle?: string, categories: string[] = []) {
     const xmppNode = await this.getXmppNode()
     const profile = await xmppNode.getVCard()
     const author = profile.nickname ?? profile.fn ?? xmppNode.jid.replace('@p2p', '')
     this.secure = secure
     if (!targetId || targetId === 'feed') {
-      const itemId = await xmppNode.publishFeed(body, { title: topicTitle, author })
+      const itemId = await xmppNode.publishFeed(body, { title: topicTitle, author, categories })
       this.activeFeedId = itemId
       return
     }
 
     const itemId = await xmppNode.publishCollection(targetId, body, {
       title: topicTitle,
+      categories,
       author
     })
     this.activeFeedId = itemId
