@@ -271,6 +271,10 @@ textarea {
   align-items: center;
 }
 
+.pill-row--tight {
+  margin-top: 0.2rem;
+}
+
 .row--tight {
   flex-wrap: nowrap;
 }
@@ -556,11 +560,6 @@ textarea {
   background: rgba(110, 142, 255, 0.1);
   border-color: rgba(110, 142, 255, 0.22);
   color: #c5d7ff;
-}
-
-.pill--muted {
-  color: var(--text-muted);
-  background: rgba(255, 255, 255, 0.03);
 }
 
 .meta,

@@ -260,20 +260,18 @@
                   <div class="avatar avatar--feed" class:avatar--square={item.sourceType === 'community'}>{item.avatar}</div>
                   <div>
                     <strong>{item.title}</strong>
+                    <div class="pill-row pill-row--tight">
+                      {#if item.sourceType === 'community'}
+                        <button class="pill pill--community" type="button" onclick={() => (communitySheetId = item.sourceId)}>
+                          {item.sourceLabel}
+                        </button>
+                      {:else}
+                        <span class="pill pill--person">{item.sourceLabel}</span>
+                      {/if}
+                    </div>
                   </div>
                 </div>
                 <span class="meta mono">{item.time}</span>
-              </div>
-
-              <div class="pill-row">
-                {#if item.sourceType === 'community'}
-                  <button class="pill pill--community" type="button" onclick={() => (communitySheetId = item.sourceId)}>
-                    {item.sourceLabel}
-                  </button>
-                {:else}
-                  <span class="pill pill--person">{item.sourceLabel}</span>
-                  <span class="pill pill--muted">From {item.sourceLabel}</span>
-                {/if}
               </div>
 
               <p class="feed-card__body">{item.body}</p>
