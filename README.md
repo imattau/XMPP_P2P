@@ -56,6 +56,13 @@ Compile TypeScript source code to the `dist/` directory:
 npm run build
 ```
 
+### Documentation
+
+Generated API documentation is checked into the repo at [`docs/`](docs/) and published on GitHub Pages:
+
+- [Local docs](docs/index.html)
+- [GitHub Pages docs](https://imattau.github.io/XMPP_P2P/)
+
 ---
 
 ## Running the Application
