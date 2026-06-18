@@ -1,7 +1,3 @@
-export const sectionMeta = {
-  profile: 'Identity, availability, and protocol state'
-}
-
 export const initialState = {
   section: 'feed',
   feedFilter: 'all',

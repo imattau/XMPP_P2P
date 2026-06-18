@@ -1,6 +1,6 @@
 <script>
   import PeerGraph from '$lib/PeerGraph.svelte'
-  import { badgeClass, chatAvatarGlyph, filterLabels, initialState, initials, sectionMeta, sortedChats } from '$lib/social-data.js'
+  import { badgeClass, chatAvatarGlyph, filterLabels, initialState, initials, sortedChats } from '$lib/social-data.js'
 
   const clone = (value) => structuredClone(value)
 
@@ -361,14 +361,6 @@
       </section>
     {:else}
       <section class="section-stack">
-        <div class="section-head">
-          <div class="section__title">
-            <p class="eyebrow">Profile</p>
-            <h2>Account, availability, and connection state</h2>
-            <p>{sectionMeta.profile}</p>
-          </div>
-        </div>
-
         <article class="surface profile-card">
           <div class="profile-head">
             <div class="feed-author">
