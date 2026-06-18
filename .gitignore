@@ -6,3 +6,5 @@ node_modules/
 ui/build/
 ui/.svelte-kit/
 output/
+docs/
+
