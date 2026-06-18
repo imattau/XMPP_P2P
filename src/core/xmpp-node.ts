@@ -28,16 +28,29 @@ import {
   OMEMO_PTE_FEATURE,
   OPENPGP_FEATURE,
   OPENPGP_PUBSUB_FEATURE,
+  queryDiscoInfo as queryDiscoInfoFromModule,
+  queryDiscoItems as queryDiscoItemsFromModule,
+  ensurePeerCapabilities as ensurePeerCapabilitiesFromModule,
   type XmppCapsPresence,
   type XmppDiscoIdentity,
   type XmppDiscoInfo,
   type XmppDiscoItem,
-  type XmppEntityCapabilities
+  type XmppEntityCapabilities,
+  type XmppDiscoveryContext
 } from './xmpp-discovery.js'
 import {
   XmppOmemoStateManager,
   type XmppOmemoBundle
 } from './xmpp-omemo-state.js'
+import {
+  fetchOmemoDeviceList as fetchOmemoDeviceListFromModule,
+  fetchOmemoBundle as fetchOmemoBundleFromModule,
+  getPeerOmemoDevices as getPeerOmemoDevicesFromModule,
+  getPeerOmemoBundle as getPeerOmemoBundleFromModule,
+  parseOmemoDeviceListQuery as parseOmemoDeviceListQueryFromModule,
+  parseOmemoBundleQuery as parseOmemoBundleQueryFromModule,
+  type XmppOmemoContext
+} from './xmpp-omemo.js'
 import {
   handlePubSubPayload as handlePubSubPayloadFromModule,
   handlePubSubMessageElement as handlePubSubMessageElementFromModule,
@@ -499,6 +512,32 @@ export class XmppNode extends EventEmitter {
     }
   }
 
+  private getOmemoContext(): XmppOmemoContext {
+    return {
+      ready: this.ready,
+      jid: this.jid,
+      getOrCreateStream: this.getOrCreateStream.bind(this),
+      jidFromPeerId: this.jidFromPeerId.bind(this),
+      sendIqRequest: this.sendIqRequest.bind(this),
+      peerOmemoDeviceLists: this.peerOmemoDeviceLists,
+      peerOmemoBundles: this.peerOmemoBundles
+    }
+  }
+
+  private getDiscoveryContext(): XmppDiscoveryContext {
+    return {
+      ready: this.ready,
+      jid: this.jid,
+      discoveryNode: this.discoveryNode,
+      getOrCreateStream: this.getOrCreateStream.bind(this),
+      sendIqRequest: this.sendIqRequest.bind(this),
+      jidFromPeerId: this.jidFromPeerId.bind(this),
+      discoInfoCache: this.discoInfoCache,
+      entityCapabilities: this.entityCapabilities,
+      emit: this.emit.bind(this)
+    }
+  }
+
   private bufferToBase64(value: ArrayBuffer | Uint8Array): string {
     return Buffer.from(value instanceof Uint8Array ? value : new Uint8Array(value)).toString('base64')
   }
@@ -869,101 +908,15 @@ export class XmppNode extends EventEmitter {
   }
 
   private async queryDiscoInfo(peerAddr: string | Multiaddr, node?: string): Promise<XmppDiscoInfo> {
-    const xmppStream = await this.getOrCreateStream(peerAddr)
-    const id = Math.random().toString(36).substring(2, 11)
-    const toJid = xmppStream.remotePeer.toString() + '@p2p'
-    const queryNode = node ?? this.discoveryNode
-
-    const iq = xml(
-      'iq',
-      {
-        to: toJid,
-        from: this.jid,
-        type: 'get',
-        id
-      },
-      xml('query', { xmlns: DISCO_INFO_XMLNS, node: queryNode })
-    )
-
-    const result = await this.sendIqRequest(peerAddr, iq)
-    const query = result.getChild('query')
-    if (!query) {
-      throw new Error('Disco info response missing query payload')
-    }
-
-    const info = parseDiscoInfoQuery(query)
-    this.discoInfoCache.set(queryNode, info)
-    this.entityCapabilities.set(xmppStream.remotePeer.toString(), {
-      peerId: xmppStream.remotePeer.toString(),
-      jid: toJid,
-      node: queryNode,
-      ver: info.ver,
-      hash: 'sha-1',
-      info,
-      discoveredAt: new Date().toISOString()
-    })
-    this.emit('disco:info', { peerId: xmppStream.remotePeer.toString(), info })
-    return info
+    return await queryDiscoInfoFromModule(this.getDiscoveryContext(), peerAddr, node)
   }
 
   private async queryDiscoItems(peerAddr: string | Multiaddr, node?: string): Promise<XmppDiscoItem[]> {
-    const xmppStream = await this.getOrCreateStream(peerAddr)
-    const id = Math.random().toString(36).substring(2, 11)
-    const toJid = xmppStream.remotePeer.toString() + '@p2p'
-    const queryNode = node ?? this.discoveryNode
-
-    const iq = xml(
-      'iq',
-      {
-        to: toJid,
-        from: this.jid,
-        type: 'get',
-        id
-      },
-      xml('query', { xmlns: DISCO_ITEMS_XMLNS, node: queryNode })
-    )
-
-    const result = await this.sendIqRequest(peerAddr, iq)
-    const query = result.getChild('query')
-    if (!query) {
-      return []
-    }
-
-    const items = parseDiscoItemsQuery(query)
-    this.emit('disco:items', { peerId: xmppStream.remotePeer.toString(), items })
-    return items
+    return await queryDiscoItemsFromModule(this.getDiscoveryContext(), peerAddr, node)
   }
 
   private async ensurePeerCapabilities(peerId: string, node: string, ver: string) {
-    const cacheKey = getCapsCacheKey(node, ver)
-    if (this.discoInfoCache.has(cacheKey)) {
-      this.entityCapabilities.set(peerId, {
-        peerId,
-        jid: this.jidFromPeerId(peerId),
-        node,
-        ver,
-        hash: 'sha-1',
-        info: this.discoInfoCache.get(cacheKey)!,
-        discoveredAt: new Date().toISOString()
-      })
-      return
-    }
-
-    try {
-      const info = await this.queryDiscoInfo(peerId, cacheKey)
-      this.entityCapabilities.set(peerId, {
-        peerId,
-        jid: this.jidFromPeerId(peerId),
-        node: cacheKey,
-        ver: info.ver,
-        hash: info.hash,
-        info,
-        discoveredAt: new Date().toISOString()
-      })
-      this.emit('caps:discovered', this.entityCapabilities.get(peerId))
-    } catch (err) {
-      this.emit('error', err)
-    }
+    await ensurePeerCapabilitiesFromModule(this.getDiscoveryContext(), peerId, node, ver)
   }
 
   private indexCollectionMembers(collection: XmppCollectionNode) {
@@ -2046,141 +1999,27 @@ export class XmppNode extends EventEmitter {
   }
 
   private parseOmemoDeviceListQuery(items: Element): number[] {
-    const list = items.getChild('item')?.getChild('list')
-    if (!list || list.attrs.xmlns !== OMEMO_DEVICES_XMLNS) {
-      return []
-    }
-
-    return (list.children as any[])
-      .filter(child => child?.name === 'device')
-      .map((child: Element) => Number(child.attrs.id))
-      .filter(deviceId => Number.isFinite(deviceId) && deviceId > 0)
+    return parseOmemoDeviceListQueryFromModule(items)
   }
 
   private parseOmemoBundleQuery(items: Element): XmppOmemoBundle | undefined {
-    const item = items.getChild('item')
-    if (!item) {
-      return undefined
-    }
-
-    const bundle = item.getChild('bundle')
-    if (!bundle || bundle.attrs.xmlns !== OMEMO_XMLNS) {
-      return undefined
-    }
-
-    const identityKey = bundle.getChild('ik')?.text().trim()
-    const signedPreKeyEl = bundle.getChild('spk')
-    const signedPreKeySignature = bundle.getChild('spks')?.text().trim()
-    if (!identityKey || !signedPreKeyEl || !signedPreKeySignature) {
-      return undefined
-    }
-
-    const preKeys = (bundle.children as any[])
-      .filter(child => child?.name === 'pk')
-      .map((child: Element) => ({
-        keyId: Number(child.attrs.id ?? child.attrs.keyId ?? child.attrs.signedPreKeyId ?? 0),
-        publicKey: child.text().trim()
-      }))
-      .filter(preKey => Number.isFinite(preKey.keyId) && preKey.keyId > 0 && preKey.publicKey)
-
-    return {
-      deviceId: Number(item.attrs.id),
-      registrationId: Number(item.attrs.registrationId ?? 0),
-      identityKey,
-      signedPreKeyId: Number(signedPreKeyEl.attrs.id ?? signedPreKeyEl.attrs.signedPreKeyId ?? 0),
-      signedPreKey: signedPreKeyEl.text().trim(),
-      signedPreKeySignature,
-      preKeys
-    }
+    return parseOmemoBundleQueryFromModule(items)
   }
 
   async fetchOmemoDeviceList(peerAddr: string | Multiaddr): Promise<number[]> {
-    await this.ready
-    const xmppStream = await this.getOrCreateStream(peerAddr)
-    const peerId = xmppStream.remotePeer.toString()
-    const iq = xml(
-      'iq',
-      {
-        to: this.jidFromPeerId(peerId),
-        from: this.jid,
-        type: 'get',
-        id: Math.random().toString(36).substring(2, 11)
-      },
-      xml(
-        'pubsub',
-        { xmlns: 'http://jabber.org/protocol/pubsub' },
-        xml('items', { node: OMEMO_DEVICES_NODE })
-      )
-    )
-    const result = await this.sendIqRequest(peerAddr, iq)
-    const pubsub = result.getChild('pubsub')
-    const items = pubsub?.getChild('items')
-    const devices = items ? this.parseOmemoDeviceListQuery(items) : []
-    if (devices.length > 0) {
-      this.peerOmemoDeviceLists.set(peerId, devices)
-    }
-    return devices
+    return await fetchOmemoDeviceListFromModule(this.getOmemoContext(), peerAddr)
   }
 
   async fetchOmemoBundle(peerAddr: string | Multiaddr, deviceId: number): Promise<XmppOmemoBundle> {
-    await this.ready
-    const xmppStream = await this.getOrCreateStream(peerAddr)
-    const peerId = xmppStream.remotePeer.toString()
-    const iq = xml(
-      'iq',
-      {
-        to: this.jidFromPeerId(peerId),
-        from: this.jid,
-        type: 'get',
-        id: Math.random().toString(36).substring(2, 11)
-      },
-      xml(
-        'pubsub',
-        { xmlns: 'http://jabber.org/protocol/pubsub' },
-        xml(
-          'items',
-          { node: OMEMO_BUNDLES_NODE },
-          xml('item', { id: String(deviceId) })
-        )
-      )
-    )
-    const result = await this.sendIqRequest(peerAddr, iq)
-    const pubsub = result.getChild('pubsub')
-    const items = pubsub?.getChild('items')
-    const bundle = items ? this.parseOmemoBundleQuery(items) : undefined
-    if (!bundle) {
-      throw new Error(`No OMEMO bundle returned for device ${deviceId}`)
-    }
-
-    let bundles = this.peerOmemoBundles.get(peerId)
-    if (!bundles) {
-      bundles = new Map()
-      this.peerOmemoBundles.set(peerId, bundles)
-    }
-    bundles.set(deviceId, bundle)
-    return bundle
+    return await fetchOmemoBundleFromModule(this.getOmemoContext(), peerAddr, deviceId)
   }
 
   private async getPeerOmemoDevices(peerAddr: string | Multiaddr): Promise<number[]> {
-    const xmppStream = await this.getOrCreateStream(peerAddr)
-    const peerId = xmppStream.remotePeer.toString()
-    const cached = this.peerOmemoDeviceLists.get(peerId)
-    if (cached && cached.length > 0) {
-      return cached
-    }
-
-    return await this.fetchOmemoDeviceList(peerAddr)
+    return await getPeerOmemoDevicesFromModule(this.getOmemoContext(), peerAddr)
   }
 
   private async getPeerOmemoBundle(peerAddr: string | Multiaddr, deviceId: number): Promise<XmppOmemoBundle> {
-    const xmppStream = await this.getOrCreateStream(peerAddr)
-    const peerId = xmppStream.remotePeer.toString()
-    const cached = this.peerOmemoBundles.get(peerId)?.get(deviceId)
-    if (cached) {
-      return cached
-    }
-
-    return await this.fetchOmemoBundle(peerAddr, deviceId)
+    return await getPeerOmemoBundleFromModule(this.getOmemoContext(), peerAddr, deviceId)
   }
 
   async sendEncryptedMessage(peerAddr: string | Multiaddr, body: string): Promise<string> {
