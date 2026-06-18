@@ -26,7 +26,8 @@
     "test-muc-omemo": "node dist/tests/muc-omemo.js",
     "test-uploads": "node dist/tests/uploads.js",
     "test-reliability": "node dist/tests/xeps-reliability.js",
-    "test": "npm run build && npm run test-nodes && npm run test-pubsub && npm run test-dht && npm run test-omemo && npm run test-roster && npm run test-feed && npm run test-attachments && npm run test-uploads && npm run test-subscriptions && npm run test-disco && npm run test-protocol && npm run test-collection && npm run test-muc && npm run test-muc-omemo && npm run test-reliability"
+    "test": "npm run build && npm run test-nodes && npm run test-pubsub && npm run test-dht && npm run test-omemo && npm run test-roster && npm run test-feed && npm run test-attachments && npm run test-uploads && npm run test-subscriptions && npm run test-disco && npm run test-protocol && npm run test-collection && npm run test-muc && npm run test-muc-omemo && npm run test-reliability",
+    "docs": "typedoc --out docs --entryPointStrategy expand src"
   },
   "repository": {
     "type": "git",
@@ -59,6 +60,7 @@
   "devDependencies": {
     "@types/node": "^25.9.3",
     "ts-node": "^10.9.2",
+    "typedoc": "^0.26.11",
     "typescript": "^6.0.3"
   }
 }
