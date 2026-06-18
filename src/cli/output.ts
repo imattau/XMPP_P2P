@@ -18,6 +18,7 @@ export const printCliHelp = () => {
   console.log('  omemo fetch <peer>         Fetch and cache a peer OMEMO bundle')
   console.log('  presence <status>          Broadcast custom status')
   console.log('  nick <name>                Set and broadcast your nickname')
+  console.log('  csi <active|inactive>      Set local client state indication')
   console.log('  presence subscribe <peer>  Request presence subscription')
   console.log('  presence unsubscribe <peer> Cancel presence subscription')
   console.log('  roster list                List local roster entries')

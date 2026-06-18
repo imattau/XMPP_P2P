@@ -218,6 +218,17 @@ export const handleCliCommand = async (input: string, ctx: CliContext) => {
       console.log('Nickname updated!')
       break
     }
+    case 'csi': {
+      const state = parts[1]?.toLowerCase()
+      if (state !== 'active' && state !== 'inactive') {
+        console.log('Usage: csi <active|inactive>')
+        break
+      }
+      console.log(`Setting client state to: ${state}...`)
+      await xmppNode.setClientState(state as 'active' | 'inactive')
+      console.log(`Client state updated to ${state}!`)
+      break
+    }
     case 'feed': {
       const feedCommand = parts[1]?.toLowerCase()
       switch (feedCommand) {
