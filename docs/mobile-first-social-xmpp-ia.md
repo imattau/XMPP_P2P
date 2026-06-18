@@ -97,8 +97,7 @@ Contents:
 - Single-column content.
 - Bottom sheets or full-screen drawers for:
   - community details and join/leave
-  - room metadata
-  - security details
+  - composer and primary actions
   - message actions
 - Composer and primary actions stay close to thumb reach.
 
