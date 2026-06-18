@@ -159,7 +159,7 @@
           <div class="section__title">
             <h2>Feed</h2>
           </div>
-          <button class="avatar" type="button" aria-label="New post" onclick={() => (composerOpen = true)}>+</button>
+          <button class="fab" type="button" aria-label="New post" onclick={() => (composerOpen = true)}>+</button>
         </div>
 
         {#if composerOpen}

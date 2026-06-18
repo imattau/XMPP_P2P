@@ -412,7 +412,6 @@ textarea {
 .feed-card {
   padding: var(--space-4);
   border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
   background: var(--surface);
 }
 
@@ -448,6 +447,25 @@ textarea {
 
 .avatar--square {
   border-radius: 0.85rem;
+}
+
+.fab {
+  position: fixed;
+  right: 1rem;
+  bottom: 5.6rem;
+  z-index: 11;
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #04121a;
+  background: var(--accent);
+  border: none;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
 }
 
 .avatar--top {
