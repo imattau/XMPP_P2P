@@ -1272,46 +1272,6 @@ textarea {
   font-family: var(--font-mono);
 }
 
-.bottom-nav {
-  position: fixed;
-  left: 0.5rem;
-  right: 0.5rem;
-  bottom: 0.5rem;
-  z-index: 10;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.35rem;
-  padding: 0.45rem;
-  border-radius: 999px;
-  background: rgba(5, 6, 7, 0.94);
-  border: 1px solid var(--border);
-  backdrop-filter: blur(20px);
-}
-
-.bottom-nav .nav__item {
-  min-height: 3rem;
-  padding: 0.5rem 0.35rem;
-  font-size: 0.8rem;
-}
-
-.nav__item {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  padding: 0 var(--space-4);
-  background: transparent;
-  border: 1px solid transparent;
-  color: var(--text-muted);
-  font-weight: 600;
-  letter-spacing: 0.01em;
-}
-
-.nav__item.is-active {
-  background: rgba(91, 75, 207, 0.18);
-  border-color: rgba(91, 75, 207, 0.3);
-  color: var(--text);
-}
 
 .graph__ring {
   fill: none;
@@ -1390,13 +1350,6 @@ textarea {
     border-radius: 0;
   }
 
-  .bottom-nav {
-    left: 50%;
-    right: auto;
-    transform: translateX(-50%);
-    width: min(44rem, calc(100% - 2rem));
-    bottom: 1rem;
-  }
 }
 
 @media (max-width: 540px) {
@@ -1545,63 +1498,6 @@ textarea {
     max-width: 72rem;
   }
 
-  .bottom-nav {
-    position: relative;
-    left: auto;
-    right: auto;
-    bottom: auto;
-    transform: none;
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
-    width: 240px;
-    height: calc(100vh - 2 * var(--space-4));
-    border-radius: var(--radius-xl);
-    padding: var(--space-6) var(--space-4);
-    background: rgba(11, 13, 16, 0.45);
-    border: 1px solid var(--border);
-    backdrop-filter: blur(24px);
-    order: -1;
-    justify-content: flex-start;
-    flex-shrink: 0;
-  }
-
-  /* Sidebar Title Header */
-  .bottom-nav::before {
-    content: "XMPP P2P";
-    font-weight: 700;
-    font-size: 1.35rem;
-    letter-spacing: -0.03em;
-    color: var(--accent-strong);
-    margin-bottom: var(--space-6);
-    padding-left: var(--space-4);
-    display: block;
-    background: linear-gradient(90deg, var(--accent) 0%, var(--accent-strong) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
-
-  .bottom-nav .nav__item {
-    justify-content: flex-start;
-    width: 100%;
-    min-height: 3.25rem;
-    padding: var(--space-3) var(--space-4);
-    font-size: 0.95rem;
-    border-radius: var(--radius-md);
-    transition: all var(--ease);
-  }
-
-  .bottom-nav .nav__item:hover {
-    background: rgba(255, 255, 255, 0.04);
-    color: var(--text);
-  }
-
-  .bottom-nav .nav__item.is-active {
-    background: rgba(91, 75, 207, 0.16);
-    border-color: rgba(91, 75, 207, 0.32);
-    color: var(--accent-text);
-    box-shadow: 0 4px 12px rgba(91, 75, 207, 0.08);
-  }
 }
 
 /* Contacts Redesign Styles */

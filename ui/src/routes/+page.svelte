@@ -2,6 +2,7 @@
   import { badgeClass, chatAvatarGlyph, filterLabels, initials, sortedChats } from '$lib/social-data.js'
   import { tick } from 'svelte'
   import Topbar from '$lib/components/Topbar.svelte'
+  import BottomNav from '$lib/components/BottomNav.svelte'
 
   const clone = (value) => structuredClone(value)
   export let data
@@ -1820,9 +1821,5 @@
     {/if}
   </main>
 
-  <nav class="bottom-nav" aria-label="Primary navigation">
-    <button class="nav__item" class:is-active={section === 'feed'} onclick={() => setSection('feed')}>Feed</button>
-    <button class="nav__item" class:is-active={section === 'chats'} onclick={() => setSection('chats')}>Chats</button>
-    <button class="nav__item" class:is-active={section === 'contacts'} onclick={() => setSection('contacts')}>Contacts</button>
-  </nav>
+  <BottomNav {section} onSelect={setSection} />
 </div>
