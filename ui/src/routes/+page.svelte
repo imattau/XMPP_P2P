@@ -9,66 +9,66 @@
   import Composer from '$lib/components/Composer.svelte'
 
   const clone = (value) => structuredClone(value)
-  export let data
+  let { data } = $props()
 
   const snapshot = clone(data.snapshot)
 
-  let section = snapshot.section
-  let feedFilter = snapshot.feedFilter
-  let secure = snapshot.secure
-  let presence = snapshot.presence
-  let presenceMessage = snapshot.presenceMessage
-  let presenceSheetOpen = false
-  let profileEditorOpen = false
-  let activeChatId = snapshot.activeChatId
-  let chatDetailOpen = false
-  let activeCommunityId = snapshot.communities[0]?.id ?? ''
-  let activeFeedId = snapshot.activeFeedId
-  let feedDetailOpen = false
-  let composerTargetId = snapshot.composerTargetId
-  let composerActionId = 'feed-post'
-  let composerBody = ''
-  let composerCoverImageUrl = ''
-  let composerTags = []
-  let composerTagDraft = ''
-  let coverSectionOpen = false
-  let titleSectionOpen = false
-  let composerTopicTitle = ''
-  let composerGroupName = ''
-  let composerGroupParticipants = []
-  let composerChatContactId = snapshot.contacts[0]?.id ?? ''
-  let composerMucRoomName = ''
-  let composerMucTopic = ''
-  let composerMucCommunityId = activeCommunityId
-  let composerMucDefaultMode = 'secure'
-  let composerMucAutoJoin = true
-  let composerSecure = snapshot.secure
-  let composerOpen = false
-  let composerMenuOpen = false
-  let destinationPickerOpen = false
-  let fabPressTimer = null
-  let fabLongPressTriggered = false
-  let mucTopicDraft = ''
-  let mucCommunityIdDraft = ''
-  let mucDefaultModeDraft = 'secure'
-  let mucAutoJoinDraft = true
-  let mucSettingsOpen = false
-  let communitySheetId = null
-  let rosterActionBusy = false
-  let runtimeError = ''
-  let presenceDialogEl
-  let profileDialogEl
-  let composerMenuDialogEl
-  let composerDialogEl
-  let communityDialogEl
-  let presenceSheetWasOpen = false
-  let profileEditorWasOpen = false
-  let composerMenuWasOpen = false
-  let composerWasOpen = false
-  let communitySheetWasOpen = false
-  let advancedOpen = false
-  let advancedDialogEl
-  let advancedWasOpen = false
+  let section = $state(snapshot.section)
+  let feedFilter = $state(snapshot.feedFilter)
+  let secure = $state(snapshot.secure)
+  let presence = $state(snapshot.presence)
+  let presenceMessage = $state(snapshot.presenceMessage)
+  let presenceSheetOpen = $state(false)
+  let profileEditorOpen = $state(false)
+  let activeChatId = $state(snapshot.activeChatId)
+  let chatDetailOpen = $state(false)
+  let activeCommunityId = $state(snapshot.communities[0]?.id ?? '')
+  let activeFeedId = $state(snapshot.activeFeedId)
+  let feedDetailOpen = $state(false)
+  let composerTargetId = $state(snapshot.composerTargetId)
+  let composerActionId = $state('feed-post')
+  let composerBody = $state('')
+  let composerCoverImageUrl = $state('')
+  let composerTags = $state([])
+  let composerTagDraft = $state('')
+  let coverSectionOpen = $state(false)
+  let titleSectionOpen = $state(false)
+  let composerTopicTitle = $state('')
+  let composerGroupName = $state('')
+  let composerGroupParticipants = $state([])
+  let composerChatContactId = $state(snapshot.contacts[0]?.id ?? '')
+  let composerMucRoomName = $state('')
+  let composerMucTopic = $state('')
+  let composerMucCommunityId = $state(activeCommunityId)
+  let composerMucDefaultMode = $state('secure')
+  let composerMucAutoJoin = $state(true)
+  let composerSecure = $state(snapshot.secure)
+  let composerOpen = $state(false)
+  let composerMenuOpen = $state(false)
+  let destinationPickerOpen = $state(false)
+  let fabPressTimer = $state(null)
+  let fabLongPressTriggered = $state(false)
+  let mucTopicDraft = $state('')
+  let mucCommunityIdDraft = $state('')
+  let mucDefaultModeDraft = $state('secure')
+  let mucAutoJoinDraft = $state(true)
+  let mucSettingsOpen = $state(false)
+  let communitySheetId = $state(null)
+  let rosterActionBusy = $state(false)
+  let runtimeError = $state('')
+  let presenceDialogEl = $state()
+  let profileDialogEl = $state()
+  let composerMenuDialogEl = $state()
+  let composerDialogEl = $state()
+  let communityDialogEl = $state()
+  let presenceSheetWasOpen = $state(false)
+  let profileEditorWasOpen = $state(false)
+  let composerMenuWasOpen = $state(false)
+  let composerWasOpen = $state(false)
+  let communitySheetWasOpen = $state(false)
+  let advancedOpen = $state(false)
+  let advancedDialogEl = $state()
+  let advancedWasOpen = $state(false)
 
   const communitySheetTarget = () => communities.find((item) => item.id === communitySheetId)
   const activeMucChat = () => chats.find((item) => item.id === activeChatId && item.kind === 'muc')
@@ -130,26 +130,26 @@
     })
   }
 
-  let identity = clone(snapshot.identity)
-  let profileFnDraft = identity.displayName ?? identity.nickname ?? ''
-  let profileNicknameDraft = identity.nickname ?? identity.displayName ?? ''
-  let profileAvatarTypeDraft = identity.avatarType ?? ''
-  let profileAvatarBinvalDraft = identity.avatarBinval ?? ''
-  let profileAvatarPreview = identity.avatarDataUrl ?? ''
-  let peers = clone(snapshot.peers)
-  let contacts = clone(snapshot.contacts)
-  let communities = clone(snapshot.communities)
-  let chats = clone(snapshot.chats)
-  let feedItems = clone(snapshot.feedItems)
-  let protocol = clone(snapshot.protocol)
-  let security = clone(snapshot.security)
-  let attachmentSummaries = clone(snapshot.attachmentSummaries ?? [])
-  let uploadTargetPeerId = snapshot.contacts[0]?.id ?? ''
-  let uploadResultUrl = ''
-  let uploadBusy = false
-  let composerCoverUploadBusy = false
-  let composerCoverDropActive = false
-  let attachmentActionBusy = false
+  let identity = $state(clone(snapshot.identity))
+  let profileFnDraft = $state(identity.displayName ?? identity.nickname ?? '')
+  let profileNicknameDraft = $state(identity.nickname ?? identity.displayName ?? '')
+  let profileAvatarTypeDraft = $state(identity.avatarType ?? '')
+  let profileAvatarBinvalDraft = $state(identity.avatarBinval ?? '')
+  let profileAvatarPreview = $state(identity.avatarDataUrl ?? '')
+  let peers = $state(clone(snapshot.peers))
+  let contacts = $state(clone(snapshot.contacts))
+  let communities = $state(clone(snapshot.communities))
+  let chats = $state(clone(snapshot.chats))
+  let feedItems = $state(clone(snapshot.feedItems))
+  let protocol = $state(clone(snapshot.protocol))
+  let security = $state(clone(snapshot.security))
+  let attachmentSummaries = $state(clone(snapshot.attachmentSummaries ?? []))
+  let uploadTargetPeerId = $state(snapshot.contacts[0]?.id ?? '')
+  let uploadResultUrl = $state('')
+  let uploadBusy = $state(false)
+  let composerCoverUploadBusy = $state(false)
+  let composerCoverDropActive = $state(false)
+  let attachmentActionBusy = $state(false)
 
   const applySnapshot = (next) => {
     identity = clone(next.identity)
@@ -684,35 +684,47 @@
     }
   }
 
-  $: if (presenceSheetOpen && !presenceSheetWasOpen) {
-    void focusModal(presenceDialogEl)
-  }
-  $: presenceSheetWasOpen = presenceSheetOpen
+  $effect(() => {
+    if (presenceSheetOpen && !presenceSheetWasOpen) {
+      void focusModal(presenceDialogEl)
+    }
+    presenceSheetWasOpen = presenceSheetOpen
+  })
 
-  $: if (profileEditorOpen && !profileEditorWasOpen) {
-    void focusModal(profileDialogEl)
-  }
-  $: profileEditorWasOpen = profileEditorOpen
+  $effect(() => {
+    if (profileEditorOpen && !profileEditorWasOpen) {
+      void focusModal(profileDialogEl)
+    }
+    profileEditorWasOpen = profileEditorOpen
+  })
 
-  $: if (composerMenuOpen && !composerMenuWasOpen) {
-    void focusModal(composerMenuDialogEl)
-  }
-  $: composerMenuWasOpen = composerMenuOpen
+  $effect(() => {
+    if (composerMenuOpen && !composerMenuWasOpen) {
+      void focusModal(composerMenuDialogEl)
+    }
+    composerMenuWasOpen = composerMenuOpen
+  })
 
-  $: if (composerOpen && !composerWasOpen) {
-    void focusModal(composerDialogEl)
-  }
-  $: composerWasOpen = composerOpen
+  $effect(() => {
+    if (composerOpen && !composerWasOpen) {
+      void focusModal(composerDialogEl)
+    }
+    composerWasOpen = composerOpen
+  })
 
-  $: if (communitySheetId && !communitySheetWasOpen) {
-    void focusModal(communityDialogEl)
-  }
-  $: communitySheetWasOpen = Boolean(communitySheetId)
+  $effect(() => {
+    if (communitySheetId && !communitySheetWasOpen) {
+      void focusModal(communityDialogEl)
+    }
+    communitySheetWasOpen = Boolean(communitySheetId)
+  })
 
-  $: if (advancedOpen && !advancedWasOpen) {
-    void focusModal(advancedDialogEl)
-  }
-  $: advancedWasOpen = advancedOpen
+  $effect(() => {
+    if (advancedOpen && !advancedWasOpen) {
+      void focusModal(advancedDialogEl)
+    }
+    advancedWasOpen = advancedOpen
+  })
 
   const closeFeedDetail = () => {
     feedDetailOpen = false
@@ -844,8 +856,8 @@
 
 <svelte:window on:keydown={handleGlobalKeydown} />
 
-<div class="app-shell">
-  <main class="main">
+<div class="h-dvh min-h-dvh flex items-start justify-center overflow-hidden min-[900px]:flex-row min-[900px]:justify-start min-[900px]:items-stretch min-[900px]:w-full min-[900px]:p-4 min-[900px]:gap-4 min-[900px]:max-w-[100vw] min-[900px]:[background:radial-gradient(circle_at_12%_18%,rgba(91,75,207,0.1),transparent_35%),radial-gradient(circle_at_88%_82%,rgba(95,212,154,0.05),transparent_32%),#0c0d11]">
+  <main class="w-[min(100%,72rem)] min-w-0 h-full min-h-0 grid content-start gap-4 p-3 pb-[calc(7rem+env(safe-area-inset-bottom))] overflow-y-auto [overscroll-behavior:contain] [scrollbar-gutter:stable] transition-[padding] duration-300 min-[900px]:p-0 min-[900px]:pb-0 min-[900px]:h-[calc(100vh-2*var(--space-4))] min-[900px]:flex-1 min-[900px]:w-auto min-[900px]:max-w-[72rem]">
     <Topbar
       {section}
       {sectionLabels}
@@ -859,37 +871,37 @@
     />
 
     {#if runtimeError}
-      <div class="error-banner" role="status" aria-live="polite">
+      <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border border-warning/[0.22] rounded-lg bg-warning/[0.08] text-warning" role="status" aria-live="polite">
         <span>{runtimeError}</span>
-        <button class="button button--ghost button--small" type="button" onclick={clearRuntimeError}>Dismiss</button>
+        <button class="inline-flex items-center justify-center min-h-[2.4rem] px-[0.9rem] text-[0.88rem] rounded-full bg-transparent border border-border-strong text-text shadow-none transition-[transform,background-color,border-color,color,box-shadow] duration-[180ms] hover:-translate-y-px cursor-pointer" type="button" onclick={clearRuntimeError}>Dismiss</button>
       </div>
     {/if}
 
     {#if presenceSheetOpen}
-      <div class="backdrop" aria-hidden="true" onclick={closePresenceSheet}></div>
-      <div class="sheet" bind:this={presenceDialogEl} role="dialog" aria-label="Update presence" aria-modal="true" tabindex="-1">
-        <div class="surface__head">
+      <div class="fixed inset-0 bg-[rgba(6,7,8,0.6)] backdrop-blur-sm z-[11] [animation:fadeIn_0.15s_ease-out]" aria-hidden="true" onclick={closePresenceSheet}></div>
+      <div class="fixed left-0 right-0 bottom-0 z-[12] bg-surface border border-border rounded-t-xl shadow-[var(--shadow)] backdrop-blur-[18px] p-4 grid gap-4 max-h-[80vh] overflow-y-auto min-[900px]:static min-[900px]:rounded-xl min-[900px]:max-h-none" bind:this={presenceDialogEl} role="dialog" aria-label="Update presence" aria-modal="true" tabindex="-1">
+        <div class="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p class="eyebrow">Availability</p>
-            <h3>Update your status</h3>
+            <p class="m-0 text-text-soft text-[0.72rem] tracking-[0.16em] uppercase">Availability</p>
+            <h3 class="m-0 font-display text-[1.05rem] leading-[1.08]">Update your status</h3>
           </div>
         </div>
-        <div class="profile-controls">
-          <label class="field">
-            <span>Status</span>
-            <select bind:value={presence}>
+        <div class="grid gap-3">
+          <label class="grid gap-2 text-text-muted text-[0.9rem]">
+            <span class="text-text-soft text-[0.76rem] tracking-[0.08em] uppercase">Status</span>
+            <select bind:value={presence} class="w-full border border-border rounded-md px-[0.95rem] py-[0.85rem] bg-white/[0.03] text-text">
               <option value="available">Available</option>
               <option value="away">Away</option>
               <option value="busy">Busy</option>
               <option value="dnd">Do not disturb</option>
             </select>
           </label>
-          <label class="field">
-            <span>Message</span>
-            <input bind:value={presenceMessage} type="text" placeholder="Online and reachable" />
+          <label class="grid gap-2 text-text-muted text-[0.9rem]">
+            <span class="text-text-soft text-[0.76rem] tracking-[0.08em] uppercase">Message</span>
+            <input bind:value={presenceMessage} type="text" placeholder="Online and reachable" class="w-full border border-border rounded-md px-[0.95rem] py-[0.85rem] bg-white/[0.03] text-text" />
           </label>
           <button
-            class="button button--ghost"
+            class="inline-flex items-center justify-center min-h-[2.9rem] rounded-full px-4 bg-transparent border border-border-strong text-text shadow-none transition-[transform,background-color,border-color,color,box-shadow] duration-[180ms] hover:-translate-y-px cursor-pointer"
             type="button"
             onclick={async () => {
               await postRuntimeAction('presence:update', { presence, message: presenceMessage })
@@ -903,16 +915,16 @@
     {/if}
 
     {#if profileEditorOpen}
-      <div class="backdrop" aria-hidden="true" onclick={closeProfileEditor}></div>
-      <div class="sheet" bind:this={profileDialogEl} role="dialog" aria-label="Edit profile" aria-modal="true" tabindex="-1">
-        <div class="surface__head">
+      <div class="fixed inset-0 bg-[rgba(6,7,8,0.6)] backdrop-blur-sm z-[11] [animation:fadeIn_0.15s_ease-out]" aria-hidden="true" onclick={closeProfileEditor}></div>
+      <div class="fixed left-0 right-0 bottom-0 z-[12] bg-surface border border-border rounded-t-xl shadow-[var(--shadow)] backdrop-blur-[18px] p-4 grid gap-4 max-h-[80vh] overflow-y-auto min-[900px]:static min-[900px]:rounded-xl min-[900px]:max-h-none" bind:this={profileDialogEl} role="dialog" aria-label="Edit profile" aria-modal="true" tabindex="-1">
+        <div class="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p class="eyebrow">Profile</p>
-            <h3>Edit your identity</h3>
+            <p class="m-0 text-text-soft text-[0.72rem] tracking-[0.16em] uppercase">Profile</p>
+            <h3 class="m-0 font-display text-[1.05rem] leading-[1.08]">Edit your identity</h3>
           </div>
         </div>
         <form
-          class="profile-controls"
+          class="grid gap-3"
           onsubmit={async (event) => {
             event.preventDefault()
             const next = await postRuntimeAction('profile:update', {
@@ -930,70 +942,73 @@
             }
           }}
         >
-          <div class="profile-avatar-picker">
+          <div class="grid gap-3">
             {#if profileAvatarPreview}
-              <img class="avatar avatar--top avatar--image" src={profileAvatarPreview} alt="" />
+              <img class="w-[2.1rem] h-[2.1rem] rounded-full object-cover border border-border [background:linear-gradient(145deg,rgba(91,75,207,0.24),rgba(91,75,207,0.08))]" src={profileAvatarPreview} alt="" />
             {:else}
-              <div class="avatar avatar--top">{initials(profileDisplayName())}</div>
+              <div class="w-[2.1rem] h-[2.1rem] rounded-full grid place-items-center border border-border font-bold flex-none [background:linear-gradient(145deg,rgba(91,75,207,0.24),rgba(91,75,207,0.08))]">{initials(profileDisplayName())}</div>
             {/if}
-            <div class="profile-avatar-picker__controls">
-              <label class="field">
-                <span>Profile photo</span>
-                <input accept="image/*" type="file" onchange={handleProfileAvatarPicker} />
+            <div class="grid gap-3">
+              <label class="grid gap-2 text-text-muted text-[0.9rem]">
+                <span class="text-text-soft text-[0.76rem] tracking-[0.08em] uppercase">Profile photo</span>
+                <input accept="image/*" type="file" onchange={handleProfileAvatarPicker} class="w-full border border-border rounded-md px-[0.95rem] py-[0.85rem] bg-white/[0.03] text-text" />
               </label>
-              <div class="action-group profile-avatar-picker__actions">
+              <div class="flex flex-wrap gap-2 items-center justify-start">
                 {#if profileAvatarPreview}
-                  <button class="button button--ghost button--small button--destructive" type="button" onclick={clearProfileAvatar}>Clear photo</button>
+                  <button class="inline-flex items-center justify-center min-h-[2.4rem] px-[0.9rem] text-[0.88rem] rounded-full border border-warning/40 text-[#ffd9ae] hover:bg-warning/[0.08] transition-[transform,background-color,border-color,color,box-shadow] duration-[180ms] hover:-translate-y-px cursor-pointer" type="button" onclick={clearProfileAvatar}>Clear photo</button>
                 {/if}
               </div>
             </div>
           </div>
-          <label class="field">
-            <span>Display name</span>
-            <input bind:value={profileFnDraft} type="text" placeholder="Atlas" />
+          <label class="grid gap-2 text-text-muted text-[0.9rem]">
+            <span class="text-text-soft text-[0.76rem] tracking-[0.08em] uppercase">Display name</span>
+            <input bind:value={profileFnDraft} type="text" placeholder="Atlas" class="w-full border border-border rounded-md px-[0.95rem] py-[0.85rem] bg-white/[0.03] text-text" />
           </label>
-          <label class="field">
-            <span>Nickname</span>
-            <input bind:value={profileNicknameDraft} type="text" placeholder="atlas" />
+          <label class="grid gap-2 text-text-muted text-[0.9rem]">
+            <span class="text-text-soft text-[0.76rem] tracking-[0.08em] uppercase">Nickname</span>
+            <input bind:value={profileNicknameDraft} type="text" placeholder="atlas" class="w-full border border-border rounded-md px-[0.95rem] py-[0.85rem] bg-white/[0.03] text-text" />
           </label>
-          <p class="hint">The display name updates your vCard FN. The nickname is broadcast in presence and chat headers. The photo is saved as the vCard PHOTO payload.</p>
-          <div class="action-group">
-            <button class="button button--ghost" type="button" onclick={closeProfileEditor}>Cancel</button>
-            <button class="button" type="submit">Save profile</button>
+          <p class="text-text-muted leading-[1.5] m-0">The display name updates your vCard FN. The nickname is broadcast in presence and chat headers. The photo is saved as the vCard PHOTO payload.</p>
+          <div class="flex flex-wrap gap-2 items-center">
+            <button class="inline-flex items-center justify-center min-h-[2.9rem] rounded-full px-4 bg-transparent border border-border-strong text-text shadow-none transition-[transform,background-color,border-color,color,box-shadow] duration-[180ms] hover:-translate-y-px cursor-pointer" type="button" onclick={closeProfileEditor}>Cancel</button>
+            <button class="inline-flex items-center justify-center min-h-[2.9rem] rounded-full px-4 bg-accent text-white font-bold shadow-[0_10px_28px_rgba(91,75,207,0.22)] transition-[transform,background-color,border-color,color,box-shadow] duration-[180ms] hover:-translate-y-px cursor-pointer" type="submit">Save profile</button>
           </div>
         </form>
       </div>
     {/if}
 
     {#if advancedOpen}
-      <div class="backdrop" aria-hidden="true" onclick={() => (advancedOpen = false)}></div>
-      <div class="sheet" bind:this={advancedDialogEl} role="dialog" aria-label="Advanced protocol and peer state" aria-modal="true" tabindex="-1">
-        <div class="surface__head">
+      <div class="fixed inset-0 bg-[rgba(6,7,8,0.6)] backdrop-blur-sm z-[11] [animation:fadeIn_0.15s_ease-out]" aria-hidden="true" onclick={() => (advancedOpen = false)}></div>
+      <div class="fixed left-0 right-0 bottom-0 z-[12] bg-surface border border-border rounded-t-xl shadow-[var(--shadow)] backdrop-blur-[18px] p-4 grid gap-4 max-h-[80vh] overflow-y-auto min-[900px]:static min-[900px]:rounded-xl min-[900px]:max-h-none" bind:this={advancedDialogEl} role="dialog" aria-label="Advanced protocol and peer state" aria-modal="true" tabindex="-1">
+        <div class="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p class="eyebrow">Advanced</p>
-            <h3>Protocol &amp; peer state</h3>
+            <p class="m-0 text-text-soft text-[0.72rem] tracking-[0.16em] uppercase">Advanced</p>
+            <h3 class="m-0 font-display text-[1.05rem] leading-[1.08]">Protocol &amp; peer state</h3>
           </div>
-          <button class="button button--ghost button--small" type="button" onclick={() => (advancedOpen = false)}>Close</button>
+          <button class="inline-flex items-center justify-center min-h-[2.4rem] px-[0.9rem] text-[0.88rem] rounded-full bg-transparent border border-border-strong text-text shadow-none transition-[transform,background-color,border-color,color,box-shadow] duration-[180ms] hover:-translate-y-px cursor-pointer" type="button" onclick={() => (advancedOpen = false)}>Close</button>
         </div>
-        <div class="inspector__block">
+        <div class="grid gap-3">
           {#each protocol as item}
-            <div class="kv"><span>{item.label}</span><span>{item.value}</span></div>
+            <div class="flex justify-between gap-3 flex-wrap py-[0.55rem] border-b border-white/[0.06] min-w-0">
+              <span class="text-text-soft">{item.label}</span>
+              <span class="text-right text-text [overflow-wrap:anywhere] break-words min-w-0">{item.value}</span>
+            </div>
           {/each}
         </div>
-        <div class="peer-list">
+        <div class="grid gap-2">
           {#each peers as peer}
-            <div class="peer-row">
-              <div class="row peer-row__identity">
-                <div class="avatar-container">
-                  <div class="avatar">{initials(peer.label)}</div>
-                  <span class="avatar-status-dot status-{peer.status || 'offline'}"></span>
+            <div class="flex items-center justify-between gap-3 py-3 border-b border-white/[0.06] min-w-0 last:border-b-0">
+              <div class="flex flex-wrap gap-3 items-center">
+                <div class="relative inline-block">
+                  <div class="w-[1.9rem] h-[1.9rem] rounded-full grid place-items-center bg-white/[0.06] border border-border font-bold flex-none">{initials(peer.label)}</div>
+                  <span class={`absolute -bottom-px -right-px w-[11px] h-[11px] rounded-full border-2 border-[var(--bg-elevated)] shadow-[0_0_0_1px_rgba(0,0,0,0.2)] ${peer.status === 'available' || peer.status === 'online' ? 'bg-positive' : peer.status === 'away' ? 'bg-warning' : peer.status === 'busy' || peer.status === 'dnd' ? 'bg-[#ff8a8a]' : 'bg-text-soft'}`}></span>
                 </div>
                 <div>
-                  <strong>{peer.label}</strong>
-                  <div class="meta">{peer.kind}</div>
+                  <strong class="[overflow-wrap:anywhere] break-words min-w-0">{peer.label}</strong>
+                  <div class="text-text-muted leading-[1.5] m-0 [overflow-wrap:anywhere] break-words min-w-0">{peer.kind}</div>
                 </div>
               </div>
-              <span class="meta">{peer.status || 'offline'}</span>
+              <span class="text-text-muted leading-[1.5] m-0">{peer.status || 'offline'}</span>
             </div>
           {/each}
         </div>
@@ -1108,4 +1123,4 @@
   </main>
 
   <BottomNav {section} onSelect={setSection} />
-</div>
+  </div>
