@@ -3,6 +3,7 @@
   import { tick } from 'svelte'
   import Topbar from '$lib/components/Topbar.svelte'
   import BottomNav from '$lib/components/BottomNav.svelte'
+  import ContactsView from '$lib/components/ContactsView.svelte'
 
   const clone = (value) => structuredClone(value)
   export let data
@@ -50,12 +51,7 @@
   let mucAutoJoinDraft = true
   let mucSettingsOpen = false
   let communitySheetId = null
-  let rosterJid = ''
-  let rosterName = ''
   let rosterActionBusy = false
-  let contactsSearch = ''
-  let contactsFilter = 'all'
-  let showAddContact = false
   let runtimeError = ''
   let presenceDialogEl
   let profileDialogEl
@@ -71,23 +67,7 @@
   let advancedDialogEl
   let advancedWasOpen = false
 
-  const filteredContacts = () => {
-    let result = contacts
-    if (contactsFilter === 'online') {
-      result = result.filter(c => c.presence && c.presence !== 'offline' && c.presence !== 'unavailable')
-    }
-    const q = contactsSearch.trim().toLowerCase()
-    if (q) {
-      result = result.filter(c => 
-        (c.name || '').toLowerCase().includes(q) || 
-        (c.jid || '').toLowerCase().includes(q)
-      )
-    }
-    return result
-  }
-
   const communitySheetTarget = () => communities.find((item) => item.id === communitySheetId)
-  const nonLocalPeers = () => peers.filter((peer) => peer.kind !== 'local')
   const activeMucChat = () => chats.find((item) => item.id === activeChatId && item.kind === 'muc')
 
   const openError = (message) => {
@@ -115,17 +95,13 @@
     communitySheetId = null
   }
 
-  const addRosterContact = async (event) => {
-    event.preventDefault()
-    const jid = rosterJid.trim()
+  const addRosterContact = async (jid, name) => {
     if (!jid) return
 
     await postRuntimeAction('roster:add', {
       jid,
-      name: rosterName.trim() || undefined
+      name
     })
-    rosterJid = ''
-    rosterName = ''
   }
 
   const toggleRosterPresence = async (contact) => {
@@ -166,7 +142,6 @@
   let security = clone(snapshot.security)
   let attachmentSummaries = clone(snapshot.attachmentSummaries ?? [])
   let uploadTargetPeerId = snapshot.contacts[0]?.id ?? ''
-  let uploadFile = null
   let uploadResultUrl = ''
   let uploadBusy = false
   let composerCoverUploadBusy = false
@@ -593,16 +568,15 @@
     return result?.getUrl ?? slot.getUrl
   }
 
-  const requestUploadSlot = async () => {
-    if (!uploadFile || !uploadTargetPeerId) {
+  const requestUploadSlot = async (file, targetPeerId) => {
+    if (!file || !targetPeerId) {
       return
     }
 
     uploadBusy = true
     clearRuntimeError()
     try {
-      uploadResultUrl = await uploadFileViaXep(uploadFile, uploadTargetPeerId)
-      uploadFile = null
+      uploadResultUrl = await uploadFileViaXep(file, targetPeerId)
     } catch (error) {
       openError(error instanceof Error ? error.message : 'Upload failed')
     } finally {
@@ -1614,210 +1588,26 @@
         {/if}
       </section>
     {:else if section === 'contacts'}
-      <div class="contacts-layout">
-        <!-- Left Column: Friends & Contacts List -->
-        <section class="section-stack">
-          <article class="profile-card">
-            <div class="section__title row row--space roster-head">
-              <div>
-                <p class="eyebrow">Roster</p>
-                <h3>Contacts</h3>
-              </div>
-              <button class="button button--small" type="button" onclick={() => showAddContact = !showAddContact}>
-                {showAddContact ? 'Close' : 'Add Contact'}
-              </button>
-            </div>
-
-            {#if showAddContact}
-              <form class="roster-form" onsubmit={addRosterContact}>
-                <label class="field field--grow">
-                  <span>JID</span>
-                  <input bind:value={rosterJid} type="text" placeholder="maya@chat.mesh" />
-                </label>
-                <label class="field field--grow">
-                  <span>Name</span>
-                  <input bind:value={rosterName} type="text" placeholder="Maya" />
-                </label>
-                <button class="button" type="submit" disabled={rosterActionBusy || !rosterJid.trim()}>
-                  Add contact
-                </button>
-              </form>
-            {/if}
-
-            <!-- Search and Filter Bar -->
-            <div class="contacts-toolbar">
-              <input bind:value={contactsSearch} type="text" class="contacts-search" placeholder="Search JID or name..." />
-              <div class="filter-pills">
-                <button class="pill-btn" class:is-active={contactsFilter === 'all'} type="button" onclick={() => (contactsFilter = 'all')}>All</button>
-                <button class="pill-btn" class:is-active={contactsFilter === 'online'} type="button" onclick={() => (contactsFilter = 'online')}>Online</button>
-              </div>
-            </div>
-
-            <div class="list roster-list">
-              {#if filteredContacts().length === 0}
-                <div class="row-flat">
-                  <div>
-                    <strong>No contacts found</strong>
-                    <div class="meta">Try adjusting your filter or adding a contact.</div>
-                  </div>
-                </div>
-              {:else}
-                {#each filteredContacts() as contact}
-                  <div class="row-flat contact-item-row">
-                    <div class="row row--space">
-                      <div class="row contact-item-row__identity">
-                        <div class="avatar-container">
-                          <div class="avatar">{initials(contact.name)}</div>
-                          <span class="avatar-status-dot status-{contact.presence || 'offline'}"></span>
-                        </div>
-                        <div>
-                          <strong>{contact.name}</strong>
-                          <div class="meta">{contact.jid}</div>
-                        </div>
-                      </div>
-                      <span class="meta contact-trust">{contact.trust}</span>
-                    </div>
-
-                    <div class="row row--space contact-item-row__footer">
-                      <div class="row contact-item-row__meta">
-                        <span class="meta contact-pill">{contact.subscription}</span>
-                        <span class="meta contact-pill">{contact.capability}</span>
-                      </div>
-                      <div class="action-group contact-item-row__actions">
-                        <button class="button button--ghost button--small" type="button" onclick={() => toggleRosterPresence(contact)}>
-                          {contact.subscription === 'none' || contact.subscription === 'from' ? 'Subscribe' : 'Unsubscribe'}
-                        </button>
-                        <button class="button button--ghost button--small button--destructive" type="button" onclick={() => removeRosterContact(contact)}>
-                          Remove
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                {/each}
-              {/if}
-            </div>
-          </article>
-        </section>
-
-        <!-- Right Column: Local Profile, Network Map & State -->
-        <section class="section-stack">
-          <!-- My Profile -->
-          <article class="profile-card">
-            <div class="profile-head">
-              <div class="feed-author profile-head__identity">
-                <div class="avatar-container">
-                  {#if identity.avatarDataUrl}
-                    <img class="avatar avatar--feed avatar--image" src={identity.avatarDataUrl} alt="" />
-                  {:else}
-                    <div class="avatar avatar--feed">{initials(profileDisplayName())}</div>
-                  {/if}
-                  <span class="avatar-status-dot status-{presence || 'offline'}"></span>
-                </div>
-                <div>
-                  <strong>{profileDisplayName()} (You)</strong>
-                  <div class="meta">{identity.jid}</div>
-                </div>
-              </div>
-            </div>
-
-            <div class="profile-grid profile-grid--spaced">
-              <div class="kv"><span>Display name</span><span>{identity.displayName ?? identity.nickname}</span></div>
-              <div class="kv"><span>Nickname</span><span>{profileNickname()}</span></div>
-              <div class="kv"><span>Status message</span><span>{presenceMessage || 'Online'}</span></div>
-              <div class="kv"><span>Peer ID</span><span>{identity.peerId.slice(0, 18)}…</span></div>
-              <div class="kv"><span>Transport</span><span>{identity.transport}</span></div>
-              <div class="kv"><span>Connection</span><span>{identity.connection}</span></div>
-            </div>
-            <div class="action-group">
-              <button class="button button--ghost button--small" type="button" onclick={openProfileEditor}>Edit profile</button>
-            </div>
-          </article>
-
-          <!-- Connection summary -->
-          <article class="profile-card">
-            <div class="section__title">
-              <p class="eyebrow">Connection</p>
-              <h3>Network summary</h3>
-            </div>
-            <div class="profile-grid profile-grid--spaced">
-              <div class="kv"><span>Transport</span><span>{identity.transport}</span></div>
-              <div class="kv"><span>Peers</span><span>{nonLocalPeers().length}</span></div>
-              <div class="kv"><span>Rooms</span><span>{chats.filter((chat) => chat.kind === 'muc').length}</span></div>
-            </div>
-            <button class="advanced-link" type="button" onclick={() => (advancedOpen = true)}>
-              <span>Advanced — protocol &amp; peer state</span>
-              <span aria-hidden="true">&rsaquo;</span>
-            </button>
-          </article>
-
-          <article class="profile-card">
-            <div class="section__title">
-              <p class="eyebrow">Security</p>
-              <h3>Crypto state</h3>
-            </div>
-            <div class="inspector__block">
-              <div class="kv"><span>OMEMO device</span><span>{security.omemoDeviceId}</span></div>
-              <div class="kv"><span>OMEMO bundle</span><span>{security.omemoPreKeys} pre-keys</span></div>
-              <div class="kv"><span>OpenPGP fingerprint</span><span class="mono">{security.openPgpFingerprint}</span></div>
-              <div class="kv"><span>OpenPGP key</span><span>{security.openPgpKeyAvailable ? 'Loaded' : 'Missing'}</span></div>
-            </div>
-          </article>
-
-          <article class="profile-card">
-            <div class="section__title">
-              <p class="eyebrow">Uploads</p>
-              <h3>Send a file</h3>
-            </div>
-            <p class="meta">Requests an upload slot from a contact, uploads the file, and returns the content-addressed URL.</p>
-            <div class="roster-form">
-              <label class="field field--grow">
-                <span>Target contact</span>
-                <select bind:value={uploadTargetPeerId}>
-                  {#each contacts as contact}
-                    <option value={contact.id}>{contact.name}</option>
-                  {/each}
-                </select>
-              </label>
-              <label class="field field--grow">
-                <span>File</span>
-                <input type="file" onchange={(event) => (uploadFile = event.currentTarget.files?.[0] ?? null)} />
-              </label>
-              <button class="button" type="button" disabled={uploadBusy || !uploadFile || !uploadTargetPeerId} onclick={requestUploadSlot}>
-                {uploadBusy ? 'Uploading...' : 'Upload file'}
-              </button>
-              {#if uploadResultUrl}
-                <div class="upload-result">
-                  <span class="meta">Uploaded URL</span>
-                  <a href={uploadResultUrl} target="_blank" rel="noreferrer">{uploadResultUrl}</a>
-                </div>
-              {/if}
-            </div>
-          </article>
-
-          <article class="profile-card">
-            <div class="section__title">
-              <p class="eyebrow">Attachments</p>
-              <h3>Recent activity</h3>
-            </div>
-            {#if attachmentSummaries.length === 0}
-              <p class="meta">No attachment activity yet.</p>
-            {:else}
-              <div class="inspector__block">
-                {#each attachmentSummaries as summary}
-                  <div class="attachment-summary">
-                    <div class="row row--space">
-                      <strong>{summary.topic}</strong>
-                      <span class="meta mono">{summary.updatedAt}</span>
-                    </div>
-                    <div class="meta">Target: {summary.targetId}</div>
-                    <div class="meta">Total: {summary.total} · Notices: {summary.noticed} · Reactions: {summary.reactions}</div>
-                  </div>
-                {/each}
-              </div>
-            {/if}
-          </article>
-        </section>
-      </div>
+      <ContactsView
+        {contacts}
+        {identity}
+        {presence}
+        {presenceMessage}
+        {chats}
+        {security}
+        {attachmentSummaries}
+        {rosterActionBusy}
+        bind:uploadTargetPeerId
+        bind:uploadResultUrl
+        {uploadBusy}
+        bind:advancedOpen
+        {peers}
+        {addRosterContact}
+        {toggleRosterPresence}
+        {removeRosterContact}
+        {openProfileEditor}
+        {requestUploadSlot}
+      />
     {/if}
   </main>
 
