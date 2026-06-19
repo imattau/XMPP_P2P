@@ -41,6 +41,7 @@ interface Post {
   reposts: number
   views: number
   liked?: boolean
+  reposted?: boolean
   bookmarked?: boolean
   privacy?: 'public' | 'followers' | 'community'
   media?: { url: string; alt: string }
@@ -250,6 +251,8 @@ export default function PostPage() {
   const post = POSTS[id ?? ''] ?? POSTS['1']
   const [liked, setLiked] = useState(post.liked ?? false)
   const [likes, setLikes] = useState(post.likes)
+  const [reposts, setReposts] = useState(post.reposts)
+  const [reposted, setReposted] = useState(post.reposted ?? false)
   const [bookmarked, setBookmarked] = useState(post.bookmarked ?? false)
   const [replyText, setReplyText] = useState('')
   const [replies, setReplies] = useState<Reply[]>(REPLIES[id ?? ''] ?? REPLIES['1'] ?? [])
@@ -274,6 +277,14 @@ export default function PostPage() {
     }
     setReplies((prev) => [newReply, ...prev])
     setReplyText('')
+  }
+
+  const handleRepost = () => {
+    if (reposted) {
+      return
+    }
+    setReposted(true)
+    setReposts((count) => count + 1)
   }
 
   return (
@@ -345,7 +356,7 @@ export default function PostPage() {
               <span className="font-semibold">{formatNum(likes)}</span> <span className="text-muted-foreground">Likes</span>
             </span>
             <span className="text-[13px] text-foreground">
-              <span className="font-semibold">{formatNum(post.reposts)}</span> <span className="text-muted-foreground">Reposts</span>
+              <span className="font-semibold">{formatNum(reposts)}</span> <span className="text-muted-foreground">Reposts</span>
             </span>
             <span className="text-[13px] text-foreground">
               <span className="font-semibold">{formatNum(post.comments)}</span> <span className="text-muted-foreground">Replies</span>
@@ -356,7 +367,10 @@ export default function PostPage() {
             <button className="flex items-center gap-1.5 p-2 rounded-lg text-muted-foreground hover:text-blue-400 hover:bg-blue-400/10 transition-all">
               <MessageCircle size={19} />
             </button>
-            <button className="flex items-center gap-1.5 p-2 rounded-lg text-muted-foreground hover:text-emerald-400 hover:bg-emerald-400/10 transition-all">
+            <button
+              onClick={handleRepost}
+              className={`flex items-center gap-1.5 p-2 rounded-lg transition-all ${reposted ? 'text-emerald-400' : 'text-muted-foreground hover:text-emerald-400 hover:bg-emerald-400/10'}`}
+            >
               <Repeat2 size={19} />
             </button>
             <button onClick={() => { setLiked((v) => !v); setLikes((n) => liked ? n - 1 : n + 1) }}

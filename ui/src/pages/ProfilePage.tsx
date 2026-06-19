@@ -17,6 +17,7 @@ interface ProfilePost {
   comments: number
   reposts: number
   liked?: boolean
+  reposted?: boolean
   topic?: string
   topicColor?: string
 }
@@ -67,6 +68,9 @@ export default function ProfilePage() {
 
   const handleLike = (id: string) =>
     setPosts((prev) => prev.map((p) => p.id === id ? { ...p, liked: !p.liked, likes: p.liked ? p.likes - 1 : p.likes + 1 } : p))
+
+  const handleRepost = (id: string) =>
+    setPosts((prev) => prev.map((p) => p.id === id && !p.reposted ? { ...p, reposted: true, reposts: p.reposts + 1 } : p))
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
@@ -199,7 +203,10 @@ export default function ProfilePage() {
                     <MessageCircle size={14} />
                     <span className="font-mono text-[11px]">{formatCount(post.comments)}</span>
                   </button>
-                  <button className="flex items-center gap-1 px-1.5 py-1 rounded text-muted-foreground hover:text-emerald-400 hover:bg-emerald-400/10 transition-all">
+                  <button
+                    onClick={() => handleRepost(post.id)}
+                    className={`flex items-center gap-1 px-1.5 py-1 rounded transition-all ${post.reposted ? 'text-emerald-400' : 'text-muted-foreground hover:text-emerald-400 hover:bg-emerald-400/10'}`}
+                  >
                     <Repeat2 size={14} />
                     <span className="font-mono text-[11px]">{formatCount(post.reposts)}</span>
                   </button>

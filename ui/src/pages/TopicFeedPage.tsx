@@ -26,6 +26,7 @@ interface TopicPost {
   comments: number
   reposts: number
   liked?: boolean
+  reposted?: boolean
   bookmarked?: boolean
   media?: { url: string; alt: string }
 }
@@ -122,7 +123,13 @@ function PostCard({
               <MessageCircle size={14} />
               <span className="font-mono text-[11px]">{formatNum(post.comments)}</span>
             </button>
-            <button onClick={(e) => e.stopPropagation()} className="flex items-center gap-1 px-1.5 py-1 rounded text-muted-foreground hover:text-emerald-400 hover:bg-emerald-400/10 transition-all">
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                setPosts((prev) => prev.map((p) => p.id === post.id && !p.reposted ? { ...p, reposted: true, reposts: p.reposts + 1 } : p))
+              }}
+              className={`flex items-center gap-1 px-1.5 py-1 rounded transition-all ${post.reposted ? 'text-emerald-400' : 'text-muted-foreground hover:text-emerald-400 hover:bg-emerald-400/10'}`}
+            >
               <Repeat2 size={14} />
               <span className="font-mono text-[11px]">{formatNum(post.reposts)}</span>
             </button>

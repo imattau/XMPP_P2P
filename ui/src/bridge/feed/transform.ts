@@ -33,6 +33,7 @@ export function mapRuntimePost(record: BridgeFeedPostRecord): FeedPost {
     likes: 0,
     comments: 0,
     reposts: 0,
+    reposted: false,
     privacy: 'public'
   }
 }
@@ -64,6 +65,14 @@ export function toggleBookmark(posts: FeedPost[], id: string): FeedPost[] {
   return posts.map((post) => (
     post.id === id
       ? { ...post, bookmarked: !post.bookmarked }
+      : post
+  ))
+}
+
+export function markRepost(posts: FeedPost[], id: string): FeedPost[] {
+  return posts.map((post) => (
+    post.id === id && !post.reposted
+      ? { ...post, reposted: true, reposts: post.reposts + 1 }
       : post
   ))
 }

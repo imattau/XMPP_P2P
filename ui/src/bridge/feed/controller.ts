@@ -5,6 +5,7 @@ import {
   cloneSeedTrendingTopics,
   filterFeedPosts,
   mapRuntimePost,
+  markRepost,
   toggleBookmark,
   toggleLike
 } from './transform'
@@ -115,6 +116,28 @@ export class FeedBridgeController {
     this.emit()
   }
 
+  async repostPost(id: string) {
+    const post = this.state.posts.find((entry) => entry.id === id)
+    if (!post || post.reposted) {
+      return
+    }
+
+    if (this.runtime && post.sourceTopic) {
+      try {
+        await this.runtime.publishFeed(buildRepostBody(post), {
+          title: `Boosted by ${post.author.name}`,
+          summary: post.content,
+          categories: post.topic ? [post.topic] : undefined
+        })
+      } catch {
+        // Keep the local boost state even if publishing fails.
+      }
+    }
+
+    this.state = { ...this.state, posts: markRepost(this.state.posts, id) }
+    this.emit()
+  }
+
   async bookmarkPost(id: string) {
     this.state = { ...this.state, posts: toggleBookmark(this.state.posts, id) }
     this.emit()
@@ -156,4 +179,16 @@ function formatCount(n: number) {
     return `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k`
   }
   return String(n)
+}
+
+function buildRepostBody(post: FeedPost) {
+  const author = `@${post.author.handle}`
+  const heading = `Boosting ${author}`
+  const topic = post.topic ? `#${post.topic}` : undefined
+  const lines = [heading]
+  if (topic) {
+    lines.push(topic)
+  }
+  lines.push('', post.content)
+  return lines.join('\n')
 }

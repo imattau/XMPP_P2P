@@ -22,6 +22,7 @@ export function useFeedBridge() {
     refresh: () => controller.refresh(),
     likePost: (id: string) => controller.likePost(id),
     reactPost: (id: string, emoji?: string) => controller.reactPost(id, emoji),
+    repostPost: (id: string) => controller.repostPost(id),
     bookmarkPost: (id: string) => controller.bookmarkPost(id)
   }
 }

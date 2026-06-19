@@ -22,11 +22,13 @@ function PrivacyIcon({ privacy }: { privacy?: string }) {
 function PostCard({
   post,
   onLike,
+  onRepost,
   onBookmark,
   onOpen,
 }: {
   post: FeedPost
   onLike: (id: string) => void
+  onRepost: (id: string) => void
   onBookmark: (id: string) => void
   onOpen: (id: string) => void
 }) {
@@ -105,7 +107,13 @@ function PostCard({
               <MessageCircle size={15} />
               <span className="font-mono text-[11px] tabular-nums">{formatCount(post.comments)}</span>
             </button>
-            <button className="flex items-center gap-1 px-1.5 py-1 rounded text-muted-foreground hover:text-emerald-400 hover:bg-emerald-400/10 transition-all">
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onRepost(post.id)
+              }}
+              className={`flex items-center gap-1 px-1.5 py-1 rounded transition-all ${post.reposted ? 'text-emerald-400' : 'text-muted-foreground hover:text-emerald-400 hover:bg-emerald-400/10'}`}
+            >
               <Repeat2 size={15} />
               <span className="font-mono text-[11px] tabular-nums">{formatCount(post.reposts)}</span>
             </button>
@@ -156,6 +164,7 @@ export default function FeedPage() {
     setSearchOpen,
     setSearchQuery,
     reactPost,
+    repostPost,
     bookmarkPost,
   } = useFeedBridge()
 
@@ -259,6 +268,7 @@ export default function FeedPage() {
                 key={post.id}
                 post={post}
                 onLike={(id) => reactPost(id, '❤️')}
+                onRepost={repostPost}
                 onBookmark={bookmarkPost}
                 onOpen={(id) => navigate(`/post/${id}`)}
               />

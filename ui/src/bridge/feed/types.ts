@@ -29,6 +29,7 @@ export interface FeedPost {
   comments: number
   reposts: number
   liked?: boolean
+  reposted?: boolean
   bookmarked?: boolean
   privacy?: 'public' | 'followers' | 'community'
   media?: FeedMedia
