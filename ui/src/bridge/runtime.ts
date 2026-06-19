@@ -112,6 +112,15 @@ export interface XmppRuntimeBridge {
   ): Promise<string>
   react(topic: string, targetId: string, reaction: string): Promise<string>
   notice(topic: string, targetId: string, value?: string): Promise<string>
+  createPrivateMucRoom?(
+    roomName: string,
+    options?: {
+      topic?: string
+      nick?: string
+      communityId?: string
+      autoJoin?: boolean
+    }
+  ): Promise<{ roomName: string; roomJid: string }>
   sendChatMessage?(
     target: BridgeChatTarget,
     body: string,

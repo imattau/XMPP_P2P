@@ -1147,6 +1147,32 @@ export class XmppNode extends EventEmitter {
     await this.muc.joinRoom(roomName, nick)
   }
 
+  public async createPrivateMucRoom(
+    roomName: string,
+    options: {
+      topic?: string
+      nick?: string
+      communityId?: string
+      autoJoin?: boolean
+    } = {}
+  ): Promise<{ roomName: string; roomJid: string }> {
+    await this.ready
+
+    const nick = options.nick ?? this.selfPresence.nickname ?? this.jid.replace('@p2p', '')
+    await this.updateMucRoomSettings(roomName, {
+      topic: options.topic,
+      defaultMode: 'secure',
+      autoJoin: options.autoJoin ?? true,
+      communityId: options.communityId
+    })
+    await this.joinMucRoom(roomName, nick)
+
+    return {
+      roomName,
+      roomJid: `${roomName}@muc.p2p`
+    }
+  }
+
   public async updateMucRoomSettings(roomName: string, settings: { topic?: string; defaultMode?: 'secure' | 'open'; autoJoin?: boolean; communityId?: string }): Promise<void> {
     const normalized = normalizeMucRoomSettings({
       roomName,

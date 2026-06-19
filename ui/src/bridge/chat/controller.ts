@@ -1,5 +1,6 @@
 import type { XmppRuntimeBridge } from '../runtime'
 import type { ChatAttachment, ChatComposerState, ChatMessage, ChatMessageReply, ChatParticipant, ChatThread } from './types'
+import { appendGroupChatMessage } from '../../pages/chat-session'
 
 type Listener = (state: ChatComposerState) => void
 
@@ -185,6 +186,23 @@ export class ChatBridgeController {
       } catch {
         nextMessages[nextMessages.length - 1] = { ...message, delivered: false }
       }
+    }
+
+    if (this.chat.type === 'group') {
+      const persistedMessage = nextMessages[nextMessages.length - 1]
+      appendGroupChatMessage(this.chat.id, {
+        id: persistedMessage.id,
+        kind: persistedMessage.kind,
+        senderId: persistedMessage.senderId,
+        senderName: persistedMessage.senderName,
+        senderAvatar: persistedMessage.senderAvatar,
+        content: persistedMessage.content,
+        timestamp: persistedMessage.timestamp,
+        delivered: persistedMessage.delivered,
+        read: persistedMessage.read,
+        thread: persistedMessage.thread,
+        fileName: persistedMessage.fileName
+      })
     }
 
     this.state = {

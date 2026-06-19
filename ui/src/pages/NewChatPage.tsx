@@ -1,6 +1,8 @@
 import * as React from 'react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
+import { getBrowserXmppBridge } from '../bridge'
+import { createGroupChatSession } from './chat-session'
 import {
   ArrowLeft, Search, User, Users, Hash, X, Plus, Check,
   Shield, Zap, ChevronRight, AlertCircle,
@@ -140,6 +142,26 @@ function GroupFlow() {
   )
 
   const canCreate = groupName.trim().length > 0 && selected.length >= 1
+  const handleCreate = async () => {
+    if (!canCreate) {
+      return
+    }
+
+    const session = createGroupChatSession(groupName.trim(), selected)
+    const bridge = getBrowserXmppBridge()
+    if (bridge?.createPrivateMucRoom) {
+      try {
+        await bridge.createPrivateMucRoom(session.chat.id, {
+          topic: session.chat.subject,
+          nick: 'You',
+        })
+      } catch {
+        // Ignore backend bridge failures and keep the local room available.
+      }
+    }
+
+    navigate(`/chat/${session.chat.id}`)
+  }
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
@@ -193,7 +215,7 @@ function GroupFlow() {
         )}
         <button
           disabled={!canCreate}
-          onClick={() => navigate('/chat/2')}
+          onClick={() => void handleCreate()}
           className={`w-full py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2 ${canCreate ? 'bg-primary text-white hover:bg-primary/90' : 'bg-primary/20 text-primary/40 cursor-not-allowed'}`}>
           <Users size={15} />
           Create group · {selected.length + 1} members

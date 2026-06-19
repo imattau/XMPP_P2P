@@ -2,6 +2,7 @@ import * as React from 'react'
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { useChatBridge, type ChatMessage as BridgeChatMessage, type ChatMessageReply as BridgeChatMessageReply, type ChatThread as BridgeChatThread } from '../bridge'
+import { getGroupChatSession } from './chat-session'
 import {
   ArrowLeft, Phone, Video, Info, X, Send, Smile, Paperclip,
   Mic, Shield, Lock, BellOff, Bell, Trash2, LogOut, Users,
@@ -540,8 +541,9 @@ function MucSettings({ chat }: { chat: ChatData }) {
 export default function ChatThreadPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const chat = CHATS[id ?? ''] ?? CHATS['1']
-  const initialMessages = MESSAGES[id ?? ''] ?? MESSAGES['1'] ?? []
+  const groupSession = getGroupChatSession(id)
+  const chat = (groupSession?.chat ?? CHATS[id ?? ''] ?? CHATS['1']) as ChatData
+  const initialMessages = groupSession?.messages ?? MESSAGES[id ?? ''] ?? MESSAGES['1'] ?? []
   const [showInfo, setShowInfo] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)

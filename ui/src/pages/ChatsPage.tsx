@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
+import { listGroupChatSessions } from './chat-session'
 import {
   Search, Settings, Hash, Users, Shield, Zap, Lock,
   User, MessageCircle, CheckCheck, Check, Clock, Pin,
@@ -245,20 +246,50 @@ const FILTERS: { id: FilterType; label: string; icon: React.ComponentType<{ size
   { id: 'channels', label: 'Channels', icon: Hash },
 ]
 
+function buildPrivateGroupChatRows() {
+  return listGroupChatSessions().map((session) => ({
+    id: session.chat.id,
+    type: 'group' as const,
+    name: session.chat.name,
+    handle: session.chat.handle,
+    server: session.chat.server,
+    participants: session.chat.participants,
+    memberCount: session.chat.memberCount,
+    lastMessage: {
+      text: session.messages[session.messages.length - 1]?.content ?? 'Private group chat created',
+      timestamp: session.messages[session.messages.length - 1]?.timestamp ?? 'now',
+      read: true,
+    },
+    unread: 0,
+    encrypted: session.chat.encrypted,
+    muted: session.chat.muted,
+    online: session.chat.online,
+    persistent: session.chat.persistent,
+    moderated: session.chat.moderated,
+    anonymous: session.chat.anonymous,
+    passwordProtected: session.chat.passwordProtected,
+    memberOnly: session.chat.memberOnly,
+    archived: session.chat.archived,
+    topic: session.chat.subject,
+  }))
+}
+
 export default function ChatsPage() {
   const navigate = useNavigate()
   const [activeFilter, setActiveFilter] = useState<FilterType>('all')
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const privateGroupChats = buildPrivateGroupChatRows()
+  const chats = [...privateGroupChats, ...CHATS]
 
   const unread = {
-    all: CHATS.reduce((a, c) => a + c.unread, 0),
-    direct: CHATS.filter((c) => c.type === 'direct').reduce((a, c) => a + c.unread, 0),
-    groups: CHATS.filter((c) => c.type === 'group').reduce((a, c) => a + c.unread, 0),
-    channels: CHATS.filter((c) => c.type === 'muc').reduce((a, c) => a + c.unread, 0),
+    all: chats.reduce((a, c) => a + c.unread, 0),
+    direct: chats.filter((c) => c.type === 'direct').reduce((a, c) => a + c.unread, 0),
+    groups: chats.filter((c) => c.type === 'group').reduce((a, c) => a + c.unread, 0),
+    channels: chats.filter((c) => c.type === 'muc').reduce((a, c) => a + c.unread, 0),
   }
 
-  const filtered = CHATS
+  const filtered = chats
     .filter((c) => {
       const typeMatch = activeFilter === 'all'
         || (activeFilter === 'direct' && c.type === 'direct')
@@ -272,7 +303,7 @@ export default function ChatsPage() {
     })
     .sort((a, b) => (a.pinned === b.pinned ? 0 : a.pinned ? -1 : 1))
 
-  const onlineContacts = CHATS.filter((c) => c.type === 'direct' && c.online)
+  const onlineContacts = chats.filter((c) => c.type === 'direct' && c.online)
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
