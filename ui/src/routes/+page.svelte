@@ -5,6 +5,7 @@
   import BottomNav from '$lib/components/BottomNav.svelte'
   import ContactsView from '$lib/components/ContactsView.svelte'
   import FeedView from '$lib/components/FeedView.svelte'
+  import ChatsView from '$lib/components/ChatsView.svelte'
 
   const clone = (value) => structuredClone(value)
   export let data
@@ -1278,147 +1279,19 @@
         {toggleCommunityMembership}
       />
     {:else if section === 'chats'}
-      <section class="section-stack">
-        {#if !chatDetailOpen}
-          <div class="list">
-            {#each sortedChats(chats) as chat}
-              <button
-                class="row-flat"
-                class:is-active={chat.id === activeChatId}
-                type="button"
-                onclick={() => {
-                  activeChatId = chat.id
-                  chatDetailOpen = true
-                  syncMucDraftFromChat(chat)
-                  if (chat.kind === 'muc') {
-                    void postRuntimeAction('chat:muc:mam', { roomName: chat.roomName || chat.id })
-                  }
-                }}
-              >
-                <div class="row row--space">
-                  <div class="row">
-                    <div class="avatar" class:avatar--square={chat.kind === 'muc'}>{chatAvatarGlyph(chat)}</div>
-                    <div>
-                      <strong>{chat.name}</strong>
-                      <div class="meta">{chat.preview}</div>
-                    </div>
-                  </div>
-                  {#if chat.kind === 'muc'}
-                    <span class="meta">{chat.occupants.length} in room</span>
-                  {:else if chat.unread}
-                    <span class="badge">{chat.unread} unread</span>
-                  {/if}
-                </div>
-              </button>
-            {/each}
-          </div>
-        {:else}
-          <article class="thread-shell">
-            {#if activeChat().kind === 'muc'}
-              <header class="thread-header">
-                <div class="thread-header__title">
-                  <p class="eyebrow">Room</p>
-                  <h3 class="thread-shell__title">{activeChat().name} · {activeChat().occupants.length} members</h3>
-                  <p class="thread-topic">{activeChat().topic}</p>
-                </div>
-                <button
-                  class="thread-header__manage"
-                  type="button"
-                  aria-label={activeChat().localAffiliation === 'owner' ? 'Room settings' : 'Room info'}
-                  onclick={() => (mucSettingsOpen = !mucSettingsOpen)}
-                >
-                  {activeChat().localAffiliation === 'owner' ? '⚙' : 'ℹ'}
-                </button>
-              </header>
-
-              <div class="roster-strip" aria-label="Room occupants">
-                {#each activeChat().occupants.slice(0, 6) as occupant}
-                  <div class="roster-strip__item">
-                    <div class="avatar">{initials(occupant.nick)}</div>
-                    <span class="meta roster-strip__label">{occupant.nick}</span>
-                  </div>
-                {/each}
-                {#if activeChat().occupants.length > 6}
-                  <div class="roster-strip__item roster-strip__item--overflow">
-                    <div class="avatar">+{activeChat().occupants.length - 6}</div>
-                    <span class="meta roster-strip__label">more</span>
-                  </div>
-                {/if}
-              </div>
-
-              {#if mucSettingsOpen && activeChat().localAffiliation === 'owner'}
-                <div class="composer__settings thread-settings">
-                  <div class="section__title">
-                    <p class="eyebrow">Room controls</p>
-                    <h3>Room topic and defaults</h3>
-                  </div>
-                  <label class="field field--grow">
-                    <span>Room topic</span>
-                    <input bind:value={mucTopicDraft} type="text" placeholder="Room topic" />
-                  </label>
-                  <div class="composer__settings-row">
-                    <label class="toggle">
-                      <input checked={mucDefaultModeDraft === 'secure'} type="checkbox" onchange={(event) => (mucDefaultModeDraft = event.currentTarget.checked ? 'secure' : 'open')} />
-                      <span>Secure by default</span>
-                    </label>
-                    <label class="toggle">
-                      <input bind:checked={mucAutoJoinDraft} type="checkbox" />
-                      <span>Auto-join</span>
-                    </label>
-                  </div>
-                  <div class="composer__actions">
-                    <div class="meta">Saved settings control future room defaults and auto-join on restart.</div>
-                    <button class="button button--small" type="button" onclick={saveMucRoomSettings}>Save room settings</button>
-                  </div>
-                </div>
-              {:else if mucSettingsOpen}
-                <div class="composer__settings thread-settings">
-                  <div class="section__title">
-                    <p class="eyebrow">Room info</p>
-                    <h3>Room topic and defaults</h3>
-                  </div>
-                  <div class="kv"><span>Topic</span><span>{activeChat().topic}</span></div>
-                  <div class="kv"><span>Occupants</span><span>{activeChat().occupants.length}</span></div>
-                  <div class="kv"><span>Secure by default</span><span>{activeChat().defaultSecure === false ? 'Off' : 'On'}</span></div>
-                  <div class="kv"><span>Auto-join</span><span>{activeChat().autoJoin === false ? 'Off' : 'On'}</span></div>
-                </div>
-              {/if}
-            {:else}
-              <div class="row row--space">
-                <div>
-                  <p class="eyebrow">Selected thread</p>
-                  <h3 class="thread-shell__title">{activeChat().name}</h3>
-                </div>
-                <span class={activeChat().secure ? 'badge badge--secure' : 'badge badge--warn'}>
-                  {activeChat().secure ? 'E2EE' : 'open'}
-                </span>
-              </div>
-            {/if}
-
-            <div class="thread">
-              {#each activeChat().messages as message}
-                <div class:bubble--self={message.self} class="bubble">
-                  <div class="row row--space">
-                    <strong>{message.from}</strong>
-                    <span class="meta mono">{message.time}</span>
-                  </div>
-                  <p>{message.text} {#if message.corrected}<span class="meta message-corrected">(edited)</span>{/if}</p>
-                  {#if message.markers && Object.keys(message.markers).length > 0}
-                    <div class="row message-markers">
-                      <span>✓ Seen by: {Object.keys(message.markers).join(', ')}</span>
-                    </div>
-                  {/if}
-                </div>
-              {/each}
-              {#if activeChat().typingNicks && activeChat().typingNicks.length > 0}
-                <div class="bubble typing-bubble">
-                  <span class="meta message-corrected">{activeChat().typingNicks.join(', ')} {activeChat().typingNicks.length === 1 ? 'is' : 'are'} typing...</span>
-                </div>
-              {/if}
-            </div>
-          </article>
-        {/if}
-      </section>
+      <ChatsView
+        bind:chatDetailOpen
+        bind:activeChatId
+        {chats}
+        bind:mucSettingsOpen
+        bind:mucTopicDraft
+        bind:mucDefaultModeDraft
+        bind:mucAutoJoinDraft
+        activeChat={activeChat()}
+        {syncMucDraftFromChat}
+        {postRuntimeAction}
+        {saveMucRoomSettings}
+      />
     {:else if section === 'contacts'}
       <ContactsView
         {contacts}
