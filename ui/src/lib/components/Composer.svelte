@@ -98,7 +98,7 @@
 {#if composerOpen}
   <div class="fixed inset-0 bg-[rgba(6,7,8,0.6)] backdrop-blur-sm z-[11] [animation:fadeIn_0.15s_ease-out]" aria-hidden="true" onclick={closeComposer}></div>
   <div
-    class="fixed top-0 left-0 right-0 bottom-0 max-h-screen h-screen rounded-none z-[12] bg-surface border border-border shadow-[var(--shadow)] backdrop-blur-[18px] p-4 grid gap-4 overflow-y-auto min-[900px]:static min-[900px]:rounded-xl min-[900px]:max-h-none grid gap-4 sticky top-[calc(5.25rem+var(--spacing-3))] min-[900px]:top-[calc(5.75rem+var(--spacing-4))] z-[6]"
+    class="fixed top-0 left-0 right-0 bottom-0 max-h-screen h-screen rounded-none z-[12] bg-surface border border-border shadow-[var(--shadow)] backdrop-blur-[18px] p-4 grid gap-4 overflow-y-auto min-[900px]:static min-[900px]:rounded-xl min-[900px]:max-h-none"
     bind:this={composerDialogEl}
     role="dialog"
     aria-label={selectedComposerAction().label}
