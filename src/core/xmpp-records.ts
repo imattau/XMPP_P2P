@@ -163,6 +163,7 @@ export interface XmppMucRoomSettings {
   communityId?: string
   defaultMode: XmppMucDefaultMode
   autoJoin: boolean
+  archived?: boolean
   updatedAt: string
 }
 
@@ -508,6 +509,7 @@ export function normalizeMucRoomSettings(entry: Partial<XmppMucRoomSettings> & {
     communityId: entry.communityId?.trim() || undefined,
     defaultMode: entry.defaultMode === 'open' ? 'open' : 'secure',
     autoJoin: entry.autoJoin !== false,
+    archived: entry.archived,
     updatedAt: entry.updatedAt || new Date().toISOString()
   }
 }

@@ -114,6 +114,7 @@ async function main() {
       communityId: 'weekly',
       defaultMode: 'secure',
       autoJoin: true,
+      archived: true,
       updatedAt: '2026-01-01T00:00:00.000Z'
     }]
   ])
@@ -219,6 +220,7 @@ async function main() {
   assert.equal(loadedMucRooms.size, 1)
   assert.equal(loadedMucHistory.size, 1)
   assert.equal(loadedVCard.nickname, 'Alice')
+  assert.equal(loadedMucRooms.get('room@example.com')?.archived, true)
 
   await store.close()
   await rm(dir, { recursive: true, force: true })

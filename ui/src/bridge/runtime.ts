@@ -77,6 +77,14 @@ export type BridgeChatTarget = {
   subject?: string
 }
 
+export type BridgeMucRoomSettings = {
+  topic?: string
+  defaultSecure?: boolean
+  autoJoin?: boolean
+  communityId?: string
+  archived?: boolean
+}
+
 export interface XmppRuntimeBridge {
   getFeedPosts(): Promise<BridgeFeedPostRecord[]>
   publishFeed(
@@ -119,8 +127,11 @@ export interface XmppRuntimeBridge {
       nick?: string
       communityId?: string
       autoJoin?: boolean
+      archived?: boolean
     }
   ): Promise<{ roomName: string; roomJid: string }>
+  getMucRoomSettings?(roomName: string): Promise<BridgeMucRoomSettings | undefined>
+  updateMucRoomSettings?(roomName: string, settings: BridgeMucRoomSettings): Promise<void>
   sendChatMessage?(
     target: BridgeChatTarget,
     body: string,

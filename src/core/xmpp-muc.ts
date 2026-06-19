@@ -21,6 +21,7 @@ export interface MucRoomState {
   defaultSecure: boolean
   autoJoin: boolean
   communityId?: string
+  archived?: boolean
   occupants: Map<string, MucOccupant>
 }
 
@@ -29,6 +30,7 @@ export interface MucRoomSettings {
   defaultSecure: boolean
   autoJoin: boolean
   communityId?: string
+  archived?: boolean
 }
 
 export interface XmppMucContext {
@@ -217,6 +219,7 @@ export class XmppMucManager {
       defaultSecure: existingSettings?.defaultSecure ?? true,
       autoJoin: existingSettings?.autoJoin ?? true,
       communityId: existingSettings?.communityId,
+      archived: existingSettings?.archived,
       occupants: new Map<string, MucOccupant>()
     }
     this.rooms.set(roomName, roomState)
@@ -251,6 +254,7 @@ export class XmppMucManager {
       roomState.autoJoin = settings.autoJoin
       roomState.topic = settings.topic ?? roomState.topic
       roomState.communityId = settings.communityId
+      roomState.archived = settings.archived
     }
     this.ctx.setMucRoomSettings(roomName, settings)
     void this.ctx.persistMucState().catch(() => {})

@@ -1154,6 +1154,7 @@ export class XmppNode extends EventEmitter {
       nick?: string
       communityId?: string
       autoJoin?: boolean
+      archived?: boolean
     } = {}
   ): Promise<{ roomName: string; roomJid: string }> {
     await this.ready
@@ -1163,7 +1164,8 @@ export class XmppNode extends EventEmitter {
       topic: options.topic,
       defaultMode: 'secure',
       autoJoin: options.autoJoin ?? true,
-      communityId: options.communityId
+      communityId: options.communityId,
+      archived: options.archived
     })
     await this.joinMucRoom(roomName, nick)
 
@@ -1173,13 +1175,14 @@ export class XmppNode extends EventEmitter {
     }
   }
 
-  public async updateMucRoomSettings(roomName: string, settings: { topic?: string; defaultMode?: 'secure' | 'open'; autoJoin?: boolean; communityId?: string }): Promise<void> {
+  public async updateMucRoomSettings(roomName: string, settings: { topic?: string; defaultMode?: 'secure' | 'open'; autoJoin?: boolean; communityId?: string; archived?: boolean }): Promise<void> {
     const normalized = normalizeMucRoomSettings({
       roomName,
       topic: settings.topic,
       defaultMode: settings.defaultMode,
       autoJoin: settings.autoJoin,
       communityId: settings.communityId,
+      archived: settings.archived,
       updatedAt: new Date().toISOString()
     })
 
@@ -1188,7 +1191,8 @@ export class XmppNode extends EventEmitter {
       topic: normalized.topic,
       defaultSecure: normalized.defaultMode === 'secure',
       autoJoin: normalized.autoJoin,
-      communityId: normalized.communityId
+      communityId: normalized.communityId,
+      archived: normalized.archived
     })
   }
 
@@ -1199,7 +1203,8 @@ export class XmppNode extends EventEmitter {
         topic: existing.topic,
         defaultSecure: existing.defaultMode === 'secure',
         autoJoin: existing.autoJoin,
-        communityId: existing.communityId
+        communityId: existing.communityId,
+        archived: existing.archived
       }
     }
 
@@ -1214,7 +1219,8 @@ export class XmppNode extends EventEmitter {
       topic: normalized.topic,
       defaultSecure: normalized.defaultMode === 'secure',
       autoJoin: normalized.autoJoin,
-      communityId: normalized.communityId
+      communityId: normalized.communityId,
+      archived: normalized.archived
     }
   }
 
@@ -1225,7 +1231,8 @@ export class XmppNode extends EventEmitter {
       topic: settings.topic,
       defaultSecure: settings.defaultMode === 'secure',
       autoJoin: settings.autoJoin,
-      communityId: settings.communityId
+      communityId: settings.communityId,
+      archived: settings.archived
     }
   }
 
@@ -1236,6 +1243,7 @@ export class XmppNode extends EventEmitter {
       communityId: settings.communityId?.trim() || undefined,
       defaultMode: settings.defaultSecure ? 'secure' : 'open',
       autoJoin: settings.autoJoin,
+      archived: settings.archived,
       updatedAt: new Date().toISOString()
     })
   }

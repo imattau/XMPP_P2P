@@ -1,8 +1,8 @@
 import * as React from 'react'
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router'
-import { useChatBridge, type ChatMessage as BridgeChatMessage, type ChatMessageReply as BridgeChatMessageReply, type ChatThread as BridgeChatThread } from '../bridge'
-import { getGroupChatSession } from './chat-session'
+import { getBrowserXmppBridge, useChatBridge, type ChatMessage as BridgeChatMessage, type ChatMessageReply as BridgeChatMessageReply, type ChatThread as BridgeChatThread } from '../bridge'
+import { getGroupChatSession, removeGroupChatSession, updateGroupChatSession } from './chat-session'
 import {
   ArrowLeft, Phone, Video, Info, X, Send, Smile, Paperclip,
   Mic, Shield, Lock, BellOff, Bell, Trash2, LogOut, Users,
@@ -377,8 +377,17 @@ function DirectSettings({ chat }: { chat: ChatData }) {
   )
 }
 
-function GroupSettings({ chat }: { chat: ChatData }) {
-  const [muted, setMuted] = useState(chat.muted ?? false)
+function GroupSettings({
+  chat,
+  onToggleMute,
+  onArchive,
+  onLeave,
+}: {
+  chat: ChatData
+  onToggleMute: () => void
+  onArchive: () => void
+  onLeave: () => void
+}) {
   return (
     <div className="overflow-y-auto flex-1">
       <div className="px-4 py-4 border-b border-border">
@@ -431,15 +440,15 @@ function GroupSettings({ chat }: { chat: ChatData }) {
 
       <div className="border-b border-border">
         {[
-          { icon: muted ? Bell : BellOff, label: muted ? 'Unmute' : 'Mute notifications', action: () => setMuted((v) => !v) },
-          { icon: Archive, label: 'Archive' },
+          { icon: chat.muted ? Bell : BellOff, label: chat.muted ? 'Unmute' : 'Mute notifications', action: onToggleMute },
+          { icon: Archive, label: chat.archived ? 'Unarchive' : 'Archive', action: onArchive },
         ].map(({ icon: Icon, label, action }) => (
           <button key={label} onClick={action} className="w-full flex items-center gap-3 px-4 py-3 border-b border-border last:border-0 hover:bg-secondary transition-colors text-left text-foreground/80">
             <Icon size={15} /><span className="text-sm">{label}</span>
           </button>
         ))}
       </div>
-      <button className="w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary transition-colors text-left text-destructive">
+      <button onClick={onLeave} className="w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary transition-colors text-left text-destructive">
         <LogOut size={15} /><span className="text-sm">Leave group</span>
       </button>
     </div>
@@ -544,6 +553,8 @@ export default function ChatThreadPage() {
   const groupSession = getGroupChatSession(id)
   const chat = (groupSession?.chat ?? CHATS[id ?? ''] ?? CHATS['1']) as ChatData
   const initialMessages = groupSession?.messages ?? MESSAGES[id ?? ''] ?? MESSAGES['1'] ?? []
+  const [groupMuted, setGroupMuted] = useState(chat.muted ?? false)
+  const [groupArchived, setGroupArchived] = useState(chat.archived ?? false)
   const [showInfo, setShowInfo] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -580,6 +591,43 @@ export default function ChatThreadPage() {
     bottomRef.current?.scrollIntoView()
   }, [messages])
 
+  useEffect(() => {
+    if (!groupSession) {
+      return
+    }
+
+    const bridge = getBrowserXmppBridge()
+    if (!bridge?.getMucRoomSettings) {
+      return
+    }
+
+    let cancelled = false
+    void bridge.getMucRoomSettings(groupSession.chat.id).then((settings) => {
+      if (cancelled || !settings || typeof settings.archived !== 'boolean') {
+        return
+      }
+
+      setGroupArchived((currentArchived) => {
+        if (currentArchived === settings.archived) {
+          return currentArchived
+        }
+
+        updateGroupChatSession(groupSession.chat.id, (session) => ({
+          ...session,
+          chat: {
+            ...session.chat,
+            archived: settings.archived
+          }
+        }))
+        return settings.archived
+      })
+    }).catch(() => {})
+
+    return () => {
+      cancelled = true
+    }
+  }, [groupSession?.chat.id])
+
   const isMine = (msg: Message) => msg.senderId === ME
   const showAvatar = (i: number) => {
     const cur = messages[i]
@@ -608,44 +656,100 @@ export default function ChatThreadPage() {
     }
   }
 
+  const isPrivateGroupChat = !!groupSession
+  const groupChatState = isPrivateGroupChat
+    ? { ...chat, muted: groupMuted, archived: groupArchived }
+    : chat
+
+  const handleToggleGroupMute = () => {
+    setGroupMuted((nextMuted) => {
+      const updatedMuted = !nextMuted
+      if (groupSession) {
+        updateGroupChatSession(groupSession.chat.id, (session) => ({
+          ...session,
+          chat: {
+            ...session.chat,
+            muted: updatedMuted
+          }
+        }))
+      }
+      return updatedMuted
+    })
+  }
+
+  const handleArchiveGroup = () => {
+    const nextArchived = !groupArchived
+    setGroupArchived(nextArchived)
+    if (groupSession) {
+      updateGroupChatSession(groupSession.chat.id, (session) => ({
+        ...session,
+        chat: {
+          ...session.chat,
+          archived: nextArchived
+        }
+      }))
+    }
+
+    const bridge = getBrowserXmppBridge()
+    if (bridge?.updateMucRoomSettings && groupSession) {
+      void bridge.updateMucRoomSettings(groupSession.chat.id, {
+        topic: groupChatState.subject,
+        defaultSecure: true,
+        autoJoin: true,
+        archived: nextArchived
+      }).catch(() => {})
+    }
+
+    setShowInfo(false)
+    navigate('/chats')
+  }
+
+  const handleLeaveGroup = () => {
+    if (groupSession) {
+      removeGroupChatSession(groupSession.chat.id)
+    }
+    setShowInfo(false)
+    navigate('/chats')
+  }
+
   const renderHeader = () => {
-    if (chat.type === 'direct') {
+    if (groupChatState.type === 'direct') {
       return (
         <div className="flex items-center gap-2.5 flex-1 min-w-0">
           <div className="relative flex-shrink-0">
             <div className="w-8 h-8 rounded-full overflow-hidden bg-secondary border border-border">
-              {chat.avatar && <img src={chat.avatar} alt={chat.name} className="w-full h-full object-cover" />}
+              {groupChatState.avatar && <img src={groupChatState.avatar} alt={groupChatState.name} className="w-full h-full object-cover" />}
             </div>
-            <span className={`absolute -bottom-px -right-px w-2.5 h-2.5 rounded-full border-2 border-background ${chat.online ? 'bg-accent' : 'bg-muted-foreground/40'}`} />
+            <span className={`absolute -bottom-px -right-px w-2.5 h-2.5 rounded-full border-2 border-background ${groupChatState.online ? 'bg-accent' : 'bg-muted-foreground/40'}`} />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1">
-              <span className="font-semibold text-sm text-foreground truncate">{chat.name}</span>
-              {chat.verified && <Shield size={11} className="text-primary flex-shrink-0" />}
-              {chat.encrypted && <Lock size={9} className="text-accent flex-shrink-0" />}
+              <span className="font-semibold text-sm text-foreground truncate">{groupChatState.name}</span>
+              {groupChatState.verified && <Shield size={11} className="text-primary flex-shrink-0" />}
+              {groupChatState.encrypted && <Lock size={9} className="text-accent flex-shrink-0" />}
             </div>
-            <span className="font-mono text-[10px] text-muted-foreground">{chat.online ? 'Online' : chat.handle}</span>
+            <span className="font-mono text-[10px] text-muted-foreground">{groupChatState.online ? 'Online' : groupChatState.handle}</span>
           </div>
         </div>
       )
     }
-    if (chat.type === 'group') {
+    if (groupChatState.type === 'group') {
       return (
         <div className="flex items-center gap-2.5 flex-1 min-w-0">
           <div className="relative w-8 h-8 flex-shrink-0">
             <div className="absolute top-0 left-0 w-5 h-5 rounded-full bg-secondary border border-background overflow-hidden">
-              {chat.participants[0]?.avatar && <img src={chat.participants[0].avatar} alt="" className="w-full h-full object-cover" />}
+              {groupChatState.participants[0]?.avatar && <img src={groupChatState.participants[0].avatar} alt="" className="w-full h-full object-cover" />}
             </div>
             <div className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-secondary border border-background overflow-hidden">
-              {chat.participants[1]?.avatar && <img src={chat.participants[1].avatar} alt="" className="w-full h-full object-cover" />}
+              {groupChatState.participants[1]?.avatar && <img src={groupChatState.participants[1].avatar} alt="" className="w-full h-full object-cover" />}
             </div>
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1">
-              <span className="font-semibold text-sm text-foreground truncate">{chat.name}</span>
-              {chat.encrypted && <Lock size={9} className="text-accent flex-shrink-0" />}
+              <span className="font-semibold text-sm text-foreground truncate">{groupChatState.name}</span>
+              {groupChatState.encrypted && <Lock size={9} className="text-accent flex-shrink-0" />}
             </div>
-            <span className="font-mono text-[10px] text-muted-foreground">{chat.memberCount} members</span>
+            <span className="font-mono text-[10px] text-muted-foreground">{groupChatState.memberCount} members</span>
           </div>
         </div>
       )
@@ -656,8 +760,8 @@ export default function ChatThreadPage() {
           <Hash size={14} className="text-primary" />
         </div>
         <div className="min-w-0">
-          <span className="font-semibold text-sm text-foreground truncate block">{chat.name}</span>
-          <span className="font-mono text-[10px] text-muted-foreground">{chat.memberCount?.toLocaleString()} members</span>
+          <span className="font-semibold text-sm text-foreground truncate block">{groupChatState.name}</span>
+          <span className="font-mono text-[10px] text-muted-foreground">{groupChatState.memberCount?.toLocaleString()} members</span>
         </div>
       </div>
     )
@@ -691,9 +795,9 @@ export default function ChatThreadPage() {
           </div>
         </div>
 
-        {chat.subject && !showInfo && (
+          {groupChatState.subject && !showInfo && (
           <div className="px-4 py-1.5 border-t border-border bg-secondary/30">
-            <p className="font-mono text-[10px] text-muted-foreground truncate">{chat.subject}</p>
+            <p className="font-mono text-[10px] text-muted-foreground truncate">{groupChatState.subject}</p>
           </div>
         )}
       </header>
@@ -706,13 +810,13 @@ export default function ChatThreadPage() {
               msg={msg}
               isMine={isMine(msg)}
               showAvatar={showAvatar(i)}
-              type={chat.type}
+              type={groupChatState.type}
               onReply={(message) => {
                 setReplyTo({
                   messageId: message.id,
                   senderName: message.senderName,
                   content: message.content,
-                  to: chat.handle
+                  to: groupChatState.handle
                 })
                 setTimeout(() => textareaRef.current?.focus(), 0)
               }}
@@ -726,12 +830,19 @@ export default function ChatThreadPage() {
           <div className="flex-1 overflow-hidden flex flex-col border-l border-border">
             <div className="px-4 py-2.5 border-b border-border flex-shrink-0">
               <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-                {chat.type === 'direct' ? 'Contact info' : chat.type === 'group' ? 'Group info' : 'Room info'}
+                {groupChatState.type === 'direct' ? 'Contact info' : groupChatState.type === 'group' ? 'Group info' : 'Room info'}
               </p>
             </div>
-            {chat.type === 'direct' && <DirectSettings chat={chat} />}
-            {chat.type === 'group' && <GroupSettings chat={chat} />}
-            {chat.type === 'muc' && <MucSettings chat={chat} />}
+            {groupChatState.type === 'direct' && <DirectSettings chat={groupChatState} />}
+            {groupChatState.type === 'group' && (
+              <GroupSettings
+                chat={groupChatState}
+                onToggleMute={handleToggleGroupMute}
+                onArchive={handleArchiveGroup}
+                onLeave={handleLeaveGroup}
+              />
+            )}
+            {groupChatState.type === 'muc' && <MucSettings chat={groupChatState} />}
           </div>
         )}
       </div>

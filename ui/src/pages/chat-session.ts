@@ -164,6 +164,29 @@ export function saveGroupChatSession(session: GroupChatSession): GroupChatSessio
   return session
 }
 
+export function updateGroupChatSession(
+  id: string,
+  updater: (session: GroupChatSession) => GroupChatSession
+): GroupChatSession | undefined {
+  const current = getGroupChatSession(id)
+  if (!current) {
+    return undefined
+  }
+
+  const nextSession = updater(current)
+  saveGroupChatSession(nextSession)
+  return nextSession
+}
+
+export function removeGroupChatSession(id: string): void {
+  const storage = getSessionStorage()
+  if (!storage) {
+    return
+  }
+
+  storage.removeItem(storageKey(id))
+}
+
 export function appendGroupChatMessage(id: string, message: GroupChatMessage): GroupChatSession | undefined {
   const session = getGroupChatSession(id)
   if (!session) {
