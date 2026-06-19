@@ -155,13 +155,6 @@ textarea {
   max-width: 60ch;
 }
 
-.action-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  align-items: center;
-}
-
 .chip {
   min-height: 2.5rem;
   padding: 0 0.95rem;
