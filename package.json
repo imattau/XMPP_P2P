@@ -18,6 +18,7 @@
     "test-threads": "node dist/tests/threads.js",
     "test-sqlite": "node dist/tests/sqlite.js",
     "test-storage-node-sqlite": "node dist/tests/storage-node-sqlite.js",
+    "test-storage-indexeddb": "node dist/tests/storage-indexeddb.js",
     "test-mcp": "node dist/tests/mcp.js",
     "test-cli": "node dist/tests/cli-startup.js",
     "test-cli-profile": "node dist/tests/cli-profile.js",
@@ -33,7 +34,7 @@
     "test-muc-omemo": "node dist/tests/muc-omemo.js",
     "test-uploads": "node dist/tests/uploads.js",
     "test-reliability": "node dist/tests/xeps-reliability.js",
-    "test": "npm run build && npm run test-nodes && npm run test-pubsub && npm run test-dht && npm run test-omemo && npm run test-roster && npm run test-feed && npm run test-attachments && npm run test-uploads && npm run test-subscriptions && npm run test-disco && npm run test-protocol && npm run test-collection && npm run test-muc && npm run test-muc-omemo && npm run test-reliability && npm run test-cli && npm run test-cli-profile && npm run test-sqlite && npm run test-storage-node-sqlite",
+    "test": "npm run build && npm run test-nodes && npm run test-pubsub && npm run test-dht && npm run test-omemo && npm run test-roster && npm run test-feed && npm run test-attachments && npm run test-uploads && npm run test-subscriptions && npm run test-disco && npm run test-protocol && npm run test-collection && npm run test-muc && npm run test-muc-omemo && npm run test-reliability && npm run test-cli && npm run test-cli-profile && npm run test-sqlite && npm run test-storage-node-sqlite && npm run test-storage-indexeddb",
     "docs": "typedoc --out docs --entryPointStrategy expand src"
   },
   "repository": {
@@ -69,6 +70,7 @@
   },
   "devDependencies": {
     "@types/node": "^25.9.3",
+    "fake-indexeddb": "^6.2.5",
     "ts-node": "^10.9.2",
     "typedoc": "^0.26.11",
     "typescript": "^6.0.3"
