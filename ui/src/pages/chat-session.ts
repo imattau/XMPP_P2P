@@ -20,6 +20,7 @@ export type GroupChatMessage = {
   read?: boolean
   thread?: string
   fileName?: string
+  attachments?: Array<{ id: string; url: string; alt: string; kind: 'image' | 'file' }>
 }
 
 export type GroupChatThread = {

@@ -16,6 +16,13 @@ export interface ChatMessageReaction {
   mine?: boolean
 }
 
+export interface ChatMessageAttachment {
+  id: string
+  url: string
+  alt: string
+  kind: 'image' | 'file'
+}
+
 export interface ChatMessageReply {
   messageId: string
   senderName?: string
@@ -37,6 +44,7 @@ export interface ChatMessage {
   replyTo?: ChatMessageReply
   thread?: string
   fileName?: string
+  attachments?: ChatMessageAttachment[]
 }
 
 export interface ChatAttachment {

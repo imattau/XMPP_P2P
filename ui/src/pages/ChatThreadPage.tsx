@@ -1,7 +1,7 @@
 import * as React from 'react'
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router'
-import { getBrowserXmppBridge, useChatBridge, type ChatMessage as BridgeChatMessage, type ChatMessageReply as BridgeChatMessageReply, type ChatThread as BridgeChatThread } from '../bridge'
+import { getBrowserXmppBridge, useChatBridge, type ChatAttachment as BridgeChatAttachment, type ChatMessage as BridgeChatMessage, type ChatMessageReply as BridgeChatMessageReply, type ChatThread as BridgeChatThread } from '../bridge'
 import { getGroupChatSession, removeGroupChatSession, updateGroupChatSession } from './chat-session'
 import {
   ArrowLeft, Phone, Video, Info, X, Send, Smile, Paperclip,
@@ -38,6 +38,7 @@ interface Message {
   replyTo?: BridgeChatMessageReply
   thread?: string
   fileName?: string
+  attachments?: BridgeChatAttachment[]
 }
 
 interface ChatData {
@@ -231,6 +232,8 @@ function Bubble({
   const parsedBody = msg.kind === 'audio' || msg.kind === 'file'
     ? undefined
     : splitQuotedBody(msg.content)
+  const imageAttachments = msg.attachments?.filter((attachment) => attachment.kind === 'image') ?? []
+  const fileAttachments = msg.attachments?.filter((attachment) => attachment.kind === 'file') ?? []
 
   return (
     <div className={`flex gap-2 mb-1 ${isMine ? 'flex-row-reverse' : 'flex-row'}`}>
@@ -264,16 +267,44 @@ function Bubble({
             ? 'bg-primary text-white rounded-tr-sm'
             : 'bg-secondary text-foreground rounded-tl-sm'
         } ${msg.kind === 'audio' ? 'flex items-center gap-2' : ''}`}>
-          {msg.kind === 'audio' ? (
+          {imageAttachments.length > 0 ? (
+            <div className="space-y-2">
+              <div className={`grid gap-2 ${imageAttachments.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                {imageAttachments.map((attachment) => (
+                  <a
+                    key={attachment.id}
+                    href={attachment.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block overflow-hidden rounded-xl border border-border bg-black/10"
+                  >
+                    <img
+                      src={attachment.url}
+                      alt={attachment.alt}
+                      className="block w-full h-full max-h-72 object-cover"
+                    />
+                  </a>
+                ))}
+              </div>
+              {parsedBody?.body ? <p className="whitespace-pre-wrap">{parsedBody.body}</p> : null}
+            </div>
+          ) : msg.kind === 'audio' ? (
             <>
               <Mic size={14} className={isMine ? 'text-white/80' : 'text-muted-foreground'} />
               <span className="font-mono text-[12px]">{msg.fileName || msg.content}</span>
             </>
-          ) : msg.kind === 'file' ? (
-            <span className="flex items-center gap-1.5">
-              <FileText size={13} />
-              <span className="font-mono text-[12px]">{msg.fileName || msg.content}</span>
-            </span>
+          ) : msg.kind === 'file' || fileAttachments.length > 0 ? (
+            <div className="space-y-2">
+              {msg.content ? <p className="whitespace-pre-wrap">{msg.content}</p> : null}
+              <div className="space-y-2">
+                {(msg.attachments ?? []).filter((attachment) => attachment.kind === 'file').map((attachment) => (
+                  <div key={attachment.id} className="flex items-center gap-2 rounded-lg border border-border bg-background/40 px-2.5 py-2">
+                    <FileText size={13} className={isMine ? 'text-white/80' : 'text-muted-foreground'} />
+                    <span className="font-mono text-[12px] truncate">{attachment.alt}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           ) : (
             <div className="space-y-2">
               {parsedBody?.quote && (
@@ -550,9 +581,15 @@ function MucSettings({ chat }: { chat: ChatData }) {
 export default function ChatThreadPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const groupSession = getGroupChatSession(id)
-  const chat = (groupSession?.chat ?? CHATS[id ?? ''] ?? CHATS['1']) as ChatData
-  const initialMessages = groupSession?.messages ?? MESSAGES[id ?? ''] ?? MESSAGES['1'] ?? []
+  const groupSession = useMemo(() => getGroupChatSession(id), [id])
+  const chat = useMemo(
+    () => (groupSession?.chat ?? CHATS[id ?? ''] ?? CHATS['1']) as ChatData,
+    [groupSession, id]
+  )
+  const initialMessages = useMemo(
+    () => groupSession?.messages ?? MESSAGES[id ?? ''] ?? MESSAGES['1'] ?? [],
+    [groupSession, id]
+  )
   const [groupMuted, setGroupMuted] = useState(chat.muted ?? false)
   const [groupArchived, setGroupArchived] = useState(chat.archived ?? false)
   const [showInfo, setShowInfo] = useState(false)

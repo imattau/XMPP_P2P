@@ -201,7 +201,8 @@ export class ChatBridgeController {
         delivered: persistedMessage.delivered,
         read: persistedMessage.read,
         thread: persistedMessage.thread,
-        fileName: persistedMessage.fileName
+        fileName: persistedMessage.fileName,
+        attachments: persistedMessage.attachments
       })
     }
 
@@ -234,7 +235,7 @@ function buildOutgoingMessage(body: string, attachments: ChatAttachment[], times
     id: `new-${Date.now()}`,
     senderId: ME,
     senderName: 'You',
-    content: body || `Sent ${attachments.length} attachment${attachments.length > 1 ? 's' : ''}`,
+    content: body || '',
     timestamp,
     thread,
     delivered: false,
@@ -243,7 +244,8 @@ function buildOutgoingMessage(body: string, attachments: ChatAttachment[], times
       : attachments.length > 0
         ? 'file'
         : 'text',
-    fileName: attachments.length > 0 ? attachments.map((asset) => asset.alt).join(', ') : undefined
+    fileName: attachments.length > 0 ? attachments.map((asset) => asset.alt).join(', ') : undefined,
+    attachments: attachments.length > 0 ? attachments.map((asset) => ({ ...asset })) : undefined
   }
 }
 
