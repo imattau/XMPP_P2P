@@ -4,6 +4,7 @@
   import Topbar from '$lib/components/Topbar.svelte'
   import BottomNav from '$lib/components/BottomNav.svelte'
   import ContactsView from '$lib/components/ContactsView.svelte'
+  import FeedView from '$lib/components/FeedView.svelte'
 
   const clone = (value) => structuredClone(value)
   export let data
@@ -343,32 +344,11 @@
     }))
   ]
 
-  const filteredFeedItems = () => {
-    if (feedFilter === 'people') {
-      return feedItems.filter((item) => item.sourceType === 'person')
-    }
-
-    if (feedFilter === 'communities') {
-      return feedItems.filter((item) => item.sourceType === 'community')
-    }
-
-    if (feedFilter.startsWith('community:')) {
-      const communityId = feedFilter.split(':')[1]
-      return feedItems.filter((item) => item.sourceId === communityId)
-    }
-
-    return feedItems
-  }
-
   const setSection = (next) => {
     section = next
     composerOpen = false
     composerMenuOpen = false
     endFabPress()
-  }
-
-  const setFeedFilter = (next) => {
-    feedFilter = next
   }
 
   const setComposerTarget = (next) => {
@@ -1279,172 +1259,24 @@
     {/if}
 
     {#if section === 'feed'}
-      <section class="section-stack">
-
-        {#if feedDetailOpen}
-          <article class="feed-detail">
-            <div class="feed-detail__hero">
-              <div class="feed-card__head">
-                <div class="feed-author">
-                  <div class="avatar avatar--feed feed-detail__avatar" class:avatar--square={selectedFeedItem().sourceType === 'community'}>
-                    {selectedFeedItem().avatar}
-                  </div>
-                  <div>
-                    <p class="eyebrow">Selected post</p>
-                    <h3 class="feed-detail__title">{selectedFeedItem().title}</h3>
-                    <div class="pill-row pill-row--tight">
-                      {#if selectedFeedItem().sourceType === 'community'}
-                        <button class="pill pill--community" type="button" onclick={() => (communitySheetId = selectedFeedItem().sourceId)}>
-                          {selectedFeedItem().sourceLabel}
-                        </button>
-                      {:else}
-                        <span class="pill pill--person">{selectedFeedItem().sourceLabel}</span>
-                      {/if}
-                    </div>
-                  </div>
-                </div>
-                <div class="feed-detail__meta">
-                  <span class="meta mono">{selectedFeedItem().time}</span>
-                  <span class={selectedFeedItem().secure ? 'badge badge--secure' : 'badge badge--warn'}>
-                    {selectedFeedItem().secure ? 'Encrypted' : 'Open'}
-                  </span>
-                </div>
-              </div>
-
-              <p class="feed-detail__body">{selectedFeedItem().body}</p>
-            </div>
-
-            <div class="feed-detail__panel">
-              <div class="feed-card__actions feed-detail__actions">
-                <div class="action-group">
-                  {#each selectedFeedItem().reactions as reaction}
-                    <span class="meta">{reaction}</span>
-                  {/each}
-                </div>
-                <div class="action-group">
-                  <button
-                    class="button button--ghost button--small"
-                    type="button"
-                    disabled={attachmentActionBusy || !selectedFeedItem().topic}
-                    onclick={() => emitAttachment('notice', 'Seen')}
-                  >
-                    Notice
-                  </button>
-                  <button
-                    class="button button--ghost button--small"
-                    type="button"
-                    disabled={attachmentActionBusy || !selectedFeedItem().topic}
-                    onclick={() => emitAttachment('react', '❤️')}
-                  >
-                    React
-                  </button>
-                  <button class="button button--small" type="button" onclick={() => openReplyComposer(selectedFeedItem())}>Reply</button>
-                </div>
-              </div>
-            </div>
-          </article>
-        {:else}
-          <section class="feed-controls">
-            <div class="chip-row" aria-label="Feed filters">
-              <button class="chip chip--plain" class:is-active={feedFilter === 'all'} type="button" onclick={() => setFeedFilter('all')}>
-                {filterLabels.all}
-              </button>
-              <button class="chip chip--plain" class:is-active={feedFilter === 'people'} type="button" onclick={() => setFeedFilter('people')}>
-                {filterLabels.people}
-              </button>
-              <button class="chip chip--plain" class:is-active={feedFilter === 'communities'} type="button" onclick={() => setFeedFilter('communities')}>
-                {filterLabels.communities}
-              </button>
-              {#each communities as community}
-                <button
-                  class="chip chip--plain"
-                  class:is-active={feedFilter === `community:${community.id}`}
-                  type="button"
-                  onclick={() => setFeedFilter(`community:${community.id}`)}
-                >
-                  {community.tag}
-                </button>
-              {/each}
-            </div>
-          </section>
-
-        <section class="feed-list">
-          {#each filteredFeedItems() as item}
-              <article class="feed-card" class:feed-card--community={item.sourceType === 'community'} class:is-active={item.id === activeFeedId}>
-                <button class="feed-card__open" type="button" aria-label={`Open ${item.title}`} onclick={() => openFeedItem(item.id)}>
-                <div class="feed-card__head">
-                  <div class="feed-author">
-                    <div class="avatar avatar--feed" class:avatar--square={item.sourceType === 'community'}>{item.avatar}</div>
-                    <div>
-                      <strong>{item.title}</strong>
-                      <div class="pill-row pill-row--tight">
-                        <span class={item.sourceType === 'community' ? 'pill pill--community' : 'pill pill--person'}>
-                          {item.sourceLabel}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <span class="meta mono">{item.time}</span>
-                </div>
-
-                <p class="feed-card__body">{item.body}</p>
-                </button>
-
-                <div class="feed-card__footer">
-                  <div class="action-group">
-                    {#each item.reactions as reaction}
-                      <span class="meta">{reaction}</span>
-                    {/each}
-                    {#if item.secure}
-                      <span class="meta" aria-label="Encrypted">🔒</span>
-                    {/if}
-                  </div>
-                  <div class="action-group">
-                    {#if item.sourceType === 'community'}
-                    <button class="pill pill--community" type="button" onclick={() => (communitySheetId = item.sourceId)}>
-                        {item.sourceLabel}
-                      </button>
-                    {/if}
-                    <button class="button button--ghost button--small" type="button" onclick={() => openReplyComposer(item)}>Reply</button>
-                  </div>
-                </div>
-              </article>
-            {/each}
-          </section>
-        {/if}
-
-        {#if communitySheetId}
-          <div class="backdrop" aria-hidden="true" onclick={closeCommunitySheet}></div>
-          <div class="sheet" bind:this={communityDialogEl} role="dialog" aria-label="Community details" aria-modal="true" tabindex="-1">
-            <div class="row row--space">
-              <div class="row">
-                <div class="avatar avatar--square">{communitySheetTarget().name.slice(0, 1)}</div>
-                <div>
-                  <strong>{communitySheetTarget().name}</strong>
-                  <div class="meta">{communitySheetTarget().tag}</div>
-                </div>
-              </div>
-              <span class={communitySheetTarget().visibility === 'public' ? 'badge badge--secure' : 'badge badge--warn'}>
-                {communitySheetTarget().visibility}
-              </span>
-            </div>
-            <p>{communitySheetTarget().description}</p>
-            <div class="inspector__grid">
-              <div class="kv"><span>Members</span><span>{communitySheetTarget().members}</span></div>
-            </div>
-            <div class="composer__actions">
-              <button
-                class={communitySheetTarget().joined ? 'button button--ghost' : 'button'}
-                type="button"
-                onclick={toggleCommunityMembership}
-              >
-                {communitySheetTarget().joined ? 'Leave community' : 'Join community'}
-              </button>
-              <button class="button button--ghost" type="button" onclick={closeCommunitySheet}>Close</button>
-            </div>
-          </div>
-        {/if}
-      </section>
+      <FeedView
+        {feedDetailOpen}
+        selectedFeedItem={selectedFeedItem()}
+        bind:communitySheetId
+        {attachmentActionBusy}
+        {emitAttachment}
+        {openReplyComposer}
+        bind:feedFilter
+        {filterLabels}
+        {communities}
+        {feedItems}
+        {activeFeedId}
+        {openFeedItem}
+        {closeCommunitySheet}
+        bind:communityDialogEl
+        {communitySheetTarget}
+        {toggleCommunityMembership}
+      />
     {:else if section === 'chats'}
       <section class="section-stack">
         {#if !chatDetailOpen}
