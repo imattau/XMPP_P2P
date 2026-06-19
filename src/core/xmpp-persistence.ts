@@ -1,5 +1,4 @@
-import { promises as fs } from 'fs'
-import { dirname } from 'path'
+import type { XmppStorage } from './storage/types.js'
 import {
   type XmppAttachment,
   type XmppAttachmentFile,
@@ -25,16 +24,7 @@ import {
 } from './xmpp-records.js'
 
 export interface XmppPersistenceLoadContext {
-  rosterPath: string
-  feedPath: string
-  subscriptionPath: string
-  followerPath: string
-  collectionPath: string
-  attachmentPath: string
-  mucPath: string
-  mucHistoryPath: string
-  openPgpPath: string
-  vCardPath: string
+  storage: XmppStorage
   roster: Map<string, XmppRosterEntry>
   feedHistory: Map<string, XmppFeedPost>
   feedSubscriptions: Map<string, XmppFeedSubscriptionRecord>
@@ -67,16 +57,7 @@ export interface XmppPersistenceLoadContext {
 }
 
 export interface XmppPersistenceSaveContext {
-  rosterPath: string
-  feedPath: string
-  subscriptionPath: string
-  followerPath: string
-  collectionPath: string
-  attachmentPath: string
-  mucPath: string
-  mucHistoryPath: string
-  openPgpPath: string
-  vCardPath: string
+  storage: XmppStorage
   roster: Map<string, XmppRosterEntry>
   feedHistory: Map<string, XmppFeedPost>
   feedSubscriptions: Map<string, XmppFeedSubscriptionRecord>
@@ -90,21 +71,16 @@ export interface XmppPersistenceSaveContext {
   openPgpState?: XmppOpenPgpStateFile
 }
 
-async function readJson<T>(path: string): Promise<T | undefined> {
-  try {
-    const raw = await fs.readFile(path, 'utf8')
-    return JSON.parse(raw) as T
-  } catch (err: any) {
-    if (err?.code !== 'ENOENT') {
-      throw err
-    }
+async function readState<T>(storage: XmppStorage, namespace: string): Promise<T | undefined> {
+  const raw = await storage.getRecord(namespace, 'state')
+  if (raw === undefined) {
     return undefined
   }
+  return JSON.parse(raw) as T
 }
 
-async function writeJson(path: string, value: unknown): Promise<void> {
-  await fs.mkdir(dirname(path), { recursive: true })
-  await fs.writeFile(path, `${JSON.stringify(value, null, 2)}\n`, 'utf8')
+async function writeState(storage: XmppStorage, namespace: string, value: unknown): Promise<void> {
+  await storage.putRecord(namespace, 'state', JSON.stringify(value), new Date().toISOString())
 }
 
 function trimMap<K, V>(map: Map<K, V>, limit: number): void {
@@ -119,20 +95,20 @@ function trimMap<K, V>(map: Map<K, V>, limit: number): void {
 
 export async function loadRosterState(ctx: XmppPersistenceLoadContext): Promise<void> {
   try {
-    const parsed = await readJson<XmppRosterFile | XmppRosterEntry[]>(ctx.rosterPath)
+    const parsed = await readState<XmppRosterFile | XmppRosterEntry[]>(ctx.storage, 'roster')
     const entries = Array.isArray(parsed) ? parsed : parsed?.entries
     for (const entry of entries ?? []) {
       const normalized = ctx.normalizeRosterEntry(entry)
       ctx.roster.set(normalized.jid, normalized)
     }
   } catch (err: any) {
-    console.error(`[XMPP] Failed to load roster from ${ctx.rosterPath}:`, err)
+    console.error('[XMPP] Failed to load roster from storage:', err)
   }
 }
 
 export async function loadFeedHistoryState(ctx: XmppPersistenceLoadContext, limit: number): Promise<void> {
   try {
-    const parsed = await readJson<XmppFeedFile | XmppFeedPost[]>(ctx.feedPath)
+    const parsed = await readState<XmppFeedFile | XmppFeedPost[]>(ctx.storage, 'feed_history')
     const posts = Array.isArray(parsed) ? parsed : parsed?.posts
     for (const post of posts ?? []) {
       const normalized = ctx.normalizeFeedPost(post)
@@ -140,13 +116,13 @@ export async function loadFeedHistoryState(ctx: XmppPersistenceLoadContext, limi
     }
     trimMap(ctx.feedHistory, limit)
   } catch (err: any) {
-    console.error(`[XMPP] Failed to load feed history from ${ctx.feedPath}:`, err)
+    console.error('[XMPP] Failed to load feed history from storage:', err)
   }
 }
 
 export async function loadSubscriptionState(ctx: XmppPersistenceLoadContext, limit: number): Promise<void> {
   try {
-    const parsed = await readJson<XmppSubscriptionFile | XmppFeedSubscriptionRecord[]>(ctx.subscriptionPath)
+    const parsed = await readState<XmppSubscriptionFile | XmppFeedSubscriptionRecord[]>(ctx.storage, 'feed_subscriptions')
     const subscriptions = Array.isArray(parsed) ? parsed : parsed?.subscriptions
     for (const subscription of subscriptions ?? []) {
       const normalized = ctx.normalizeFeedSubscription(subscription)
@@ -155,13 +131,13 @@ export async function loadSubscriptionState(ctx: XmppPersistenceLoadContext, lim
     trimMap(ctx.feedSubscriptions, limit)
     await ctx.restoreFeedSubscriptions()
   } catch (err: any) {
-    console.error(`[XMPP] Failed to load subscription state from ${ctx.subscriptionPath}:`, err)
+    console.error('[XMPP] Failed to load subscription state from storage:', err)
   }
 }
 
 export async function loadFollowerState(ctx: XmppPersistenceLoadContext, limit: number): Promise<void> {
   try {
-    const parsed = await readJson<XmppFollowerFile | XmppFeedFollower[]>(ctx.followerPath)
+    const parsed = await readState<XmppFollowerFile | XmppFeedFollower[]>(ctx.storage, 'followers')
     const followers = Array.isArray(parsed) ? parsed : parsed?.followers
     for (const follower of followers ?? []) {
       const normalized = ctx.normalizeFollower(follower)
@@ -170,13 +146,13 @@ export async function loadFollowerState(ctx: XmppPersistenceLoadContext, limit: 
     trimMap(ctx.followers, limit)
     await ctx.restoreFollowerSubscriptions()
   } catch (err: any) {
-    console.error(`[XMPP] Failed to load follower state from ${ctx.followerPath}:`, err)
+    console.error('[XMPP] Failed to load follower state from storage:', err)
   }
 }
 
 export async function loadCollectionState(ctx: XmppPersistenceLoadContext, limit: number): Promise<void> {
   try {
-    const parsed = await readJson<XmppCollectionFile | XmppCollectionNode[]>(ctx.collectionPath)
+    const parsed = await readState<XmppCollectionFile | XmppCollectionNode[]>(ctx.storage, 'collections')
     const collections = Array.isArray(parsed) ? parsed : parsed?.collections
     const posts = Array.isArray(parsed) ? [] : parsed?.posts
 
@@ -194,13 +170,13 @@ export async function loadCollectionState(ctx: XmppPersistenceLoadContext, limit
     trimMap(ctx.collectionHistory, limit)
     await ctx.restoreCollectionSubscriptions()
   } catch (err: any) {
-    console.error(`[XMPP] Failed to load collection state from ${ctx.collectionPath}:`, err)
+    console.error('[XMPP] Failed to load collection state from storage:', err)
   }
 }
 
 export async function loadAttachmentHistoryState(ctx: XmppPersistenceLoadContext, limit: number): Promise<void> {
   try {
-    const parsed = await readJson<XmppAttachmentFile | XmppAttachment[]>(ctx.attachmentPath)
+    const parsed = await readState<XmppAttachmentFile | XmppAttachment[]>(ctx.storage, 'attachments')
     const attachments = Array.isArray(parsed) ? parsed : parsed?.attachments
     for (const attachment of attachments ?? []) {
       const normalized = ctx.normalizeAttachment(attachment)
@@ -208,26 +184,26 @@ export async function loadAttachmentHistoryState(ctx: XmppPersistenceLoadContext
     }
     trimMap(ctx.attachmentHistory, limit)
   } catch (err: any) {
-    console.error(`[XMPP] Failed to load attachment history from ${ctx.attachmentPath}:`, err)
+    console.error('[XMPP] Failed to load attachment history from storage:', err)
   }
 }
 
 export async function loadMucState(ctx: XmppPersistenceLoadContext): Promise<void> {
   try {
-    const parsed = await readJson<XmppMucFile | XmppMucRoomSettings[]>(ctx.mucPath)
+    const parsed = await readState<XmppMucFile | XmppMucRoomSettings[]>(ctx.storage, 'muc_rooms')
     const rooms = Array.isArray(parsed) ? parsed : parsed?.rooms
     for (const room of rooms ?? []) {
       const normalized = ctx.normalizeMucRoomSettings(room)
       ctx.mucRooms.set(normalized.roomName, normalized)
     }
   } catch (err: any) {
-    console.error(`[XMPP] Failed to load MUC state from ${ctx.mucPath}:`, err)
+    console.error('[XMPP] Failed to load MUC state from storage:', err)
   }
 }
 
 export async function loadMucHistoryState(ctx: XmppPersistenceLoadContext, limit: number): Promise<void> {
   try {
-    const parsed = await readJson<XmppMucHistoryFile | XmppMucMessage[]>(ctx.mucHistoryPath)
+    const parsed = await readState<XmppMucHistoryFile | XmppMucMessage[]>(ctx.storage, 'muc_history')
     const messages = Array.isArray(parsed) ? parsed : parsed?.messages
     for (const msg of messages ?? []) {
       const normalized = ctx.normalizeMucMessage(msg)
@@ -235,13 +211,13 @@ export async function loadMucHistoryState(ctx: XmppPersistenceLoadContext, limit
     }
     trimMap(ctx.mucHistory, limit)
   } catch (err: any) {
-    console.error(`[XMPP] Failed to load MUC history from ${ctx.mucHistoryPath}:`, err)
+    console.error('[XMPP] Failed to load MUC history from storage:', err)
   }
 }
 
 export async function loadVCardState(ctx: XmppPersistenceLoadContext): Promise<void> {
   try {
-    const parsed = await readJson<XmppVCardFile | XmppVCardProfile>(ctx.vCardPath)
+    const parsed = await readState<XmppVCardFile | XmppVCardProfile>(ctx.storage, 'vcard')
     const profile = parsed && typeof parsed === 'object' && 'profile' in parsed ? parsed.profile : parsed
     const photoType = profile?.photo?.type?.trim()
     const photoBinval = profile?.photo?.binval?.trim()
@@ -264,7 +240,7 @@ export async function loadVCardState(ctx: XmppPersistenceLoadContext): Promise<v
       ctx.vCard.photo = normalized.photo
     }
   } catch (err: any) {
-    console.error(`[XMPP] Failed to load vCard from ${ctx.vCardPath}:`, err)
+    console.error('[XMPP] Failed to load vCard from storage:', err)
   }
 }
 
@@ -273,7 +249,7 @@ export async function persistRosterState(ctx: XmppPersistenceSaveContext): Promi
     version: 1,
     entries: Array.from(ctx.roster.values()).sort((a, b) => a.jid.localeCompare(b.jid))
   }
-  await writeJson(ctx.rosterPath, payload)
+  await writeState(ctx.storage, 'roster', payload)
 }
 
 export async function persistFeedHistoryState(ctx: XmppPersistenceSaveContext): Promise<void> {
@@ -281,7 +257,7 @@ export async function persistFeedHistoryState(ctx: XmppPersistenceSaveContext): 
     version: 1,
     posts: Array.from(ctx.feedHistory.values()).sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
   }
-  await writeJson(ctx.feedPath, payload)
+  await writeState(ctx.storage, 'feed_history', payload)
 }
 
 export async function persistSubscriptionState(ctx: XmppPersistenceSaveContext): Promise<void> {
@@ -289,7 +265,7 @@ export async function persistSubscriptionState(ctx: XmppPersistenceSaveContext):
     version: 1,
     subscriptions: Array.from(ctx.feedSubscriptions.values()).sort((a, b) => a.subscribedAt.localeCompare(b.subscribedAt))
   }
-  await writeJson(ctx.subscriptionPath, payload)
+  await writeState(ctx.storage, 'feed_subscriptions', payload)
 }
 
 export async function persistFollowerState(ctx: XmppPersistenceSaveContext): Promise<void> {
@@ -297,7 +273,7 @@ export async function persistFollowerState(ctx: XmppPersistenceSaveContext): Pro
     version: 1,
     followers: Array.from(ctx.followers.values()).sort((a, b) => a.subscribedAt.localeCompare(b.subscribedAt))
   }
-  await writeJson(ctx.followerPath, payload)
+  await writeState(ctx.storage, 'followers', payload)
 }
 
 export async function persistCollectionState(ctx: XmppPersistenceSaveContext): Promise<void> {
@@ -306,7 +282,7 @@ export async function persistCollectionState(ctx: XmppPersistenceSaveContext): P
     collections: Array.from(ctx.collections.values()).sort((a, b) => a.id.localeCompare(b.id)),
     posts: Array.from(ctx.collectionHistory.values()).sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
   }
-  await writeJson(ctx.collectionPath, payload)
+  await writeState(ctx.storage, 'collections', payload)
 }
 
 export async function persistAttachmentHistoryState(ctx: XmppPersistenceSaveContext): Promise<void> {
@@ -314,7 +290,7 @@ export async function persistAttachmentHistoryState(ctx: XmppPersistenceSaveCont
     version: 1,
     attachments: Array.from(ctx.attachmentHistory.values()).sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
   }
-  await writeJson(ctx.attachmentPath, payload)
+  await writeState(ctx.storage, 'attachments', payload)
 }
 
 export async function persistMucState(ctx: XmppPersistenceSaveContext): Promise<void> {
@@ -322,7 +298,7 @@ export async function persistMucState(ctx: XmppPersistenceSaveContext): Promise<
     version: 1,
     rooms: Array.from(ctx.mucRooms.values()).sort((a, b) => a.roomName.localeCompare(b.roomName))
   }
-  await writeJson(ctx.mucPath, payload)
+  await writeState(ctx.storage, 'muc_rooms', payload)
 }
 
 export async function persistMucHistoryState(ctx: XmppPersistenceSaveContext): Promise<void> {
@@ -330,7 +306,7 @@ export async function persistMucHistoryState(ctx: XmppPersistenceSaveContext): P
     version: 1,
     messages: Array.from(ctx.mucHistory.values()).sort((a, b) => a.timestamp.localeCompare(b.timestamp))
   }
-  await writeJson(ctx.mucHistoryPath, payload)
+  await writeState(ctx.storage, 'muc_history', payload)
 }
 
 export async function persistVCardState(ctx: XmppPersistenceSaveContext): Promise<void> {
@@ -347,12 +323,12 @@ export async function persistVCardState(ctx: XmppPersistenceSaveContext): Promis
         : undefined
     }
   }
-  await writeJson(ctx.vCardPath, payload)
+  await writeState(ctx.storage, 'vcard', payload)
 }
 
-export async function persistOpenPgpState(path: string, state?: XmppOpenPgpStateFile): Promise<void> {
+export async function persistOpenPgpState(storage: XmppStorage, state?: XmppOpenPgpStateFile): Promise<void> {
   if (!state) {
     return
   }
-  await writeJson(path, state)
+  await writeState(storage, 'openpgp', state)
 }
