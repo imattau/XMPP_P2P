@@ -1,5 +1,6 @@
 <script>
   import { initials } from '$lib/social-data.js'
+  import Avatar from '$lib/components/Avatar.svelte'
 
   let {
     contacts,
@@ -120,8 +121,8 @@
               <div class="flex flex-wrap gap-2 items-center justify-between items-start">
                 <div class="flex items-center gap-3 min-w-0 items-center gap-3">
                   <div class="relative inline-block">
-                    <div class="flex items-center justify-center border border-border font-bold flex-none w-[1.9rem] h-[1.9rem] rounded-full bg-white/[0.06]">{initials(contact.name)}</div>
-                    <span class={`absolute bottom-[-1px] right-[-1px] width-[11px] height-[11px] rounded-full border-2 border-bg-elevated shadow-[0_0_0_1px_rgba(0,0,0,0.2)] w-[11px] h-[11px] ${getStatusColorClass(contact.presence)}`}></span>
+                    <Avatar glyph={initials(contact.name)} />
+                    <span class={`absolute bottom-[-1px] right-[-1px] rounded-full border-2 border-bg-elevated shadow-[0_0_0_1px_rgba(0,0,0,0.2)] w-[11px] h-[11px] ${getStatusColorClass(contact.presence)}`}></span>
                   </div>
                   <div>
                     <strong>{contact.name}</strong>
@@ -159,11 +160,7 @@
       <div>
         <div class="flex flex-nowrap gap-3 items-center min-w-0">
           <div class="relative inline-block">
-            {#if identity.avatarDataUrl}
-              <img class="flex-none w-[1.9rem] h-[1.9rem] rounded-full object-cover border border-border" src={identity.avatarDataUrl} alt="" />
-            {:else}
-              <div class="flex items-center justify-center border border-border font-bold flex-none w-[1.9rem] h-[1.9rem] rounded-full bg-white/[0.06]">{initials(profileDisplayName())}</div>
-            {/if}
+            <Avatar glyph={initials(profileDisplayName())} imageUrl={identity.avatarDataUrl} />
             <span class={`absolute bottom-[-1px] right-[-1px] w-[11px] h-[11px] rounded-full border-2 border-bg-elevated shadow-[0_0_0_1px_rgba(0,0,0,0.2)] ${getStatusColorClass(presence)}`}></span>
           </div>
           <div>

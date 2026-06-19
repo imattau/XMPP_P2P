@@ -1,4 +1,8 @@
 <script>
+  import Avatar from '$lib/components/Avatar.svelte'
+  import Badge from '$lib/components/Badge.svelte'
+  import Pill from '$lib/components/Pill.svelte'
+
   let {
     feedDetailOpen,
     selectedFeedItem,
@@ -42,31 +46,33 @@
       <div class="grid gap-4 min-[900px]:grid-cols-[minmax(0,1fr)_auto] min-[900px]:items-start">
         <div class="flex flex-wrap gap-3 justify-between items-start">
           <div class="flex flex-nowrap gap-3 items-center min-w-0">
-            <div
-              class={`flex items-center justify-center border border-border font-bold flex-none w-12 h-12 text-[1.05rem] bg-gradient-to-br from-accent/[0.24] to-accent/[0.08]
-                ${selectedFeedItem.sourceType === 'community' ? 'rounded-[0.4rem]' : 'rounded-full'}`}
-            >
-              {selectedFeedItem.avatar}
-            </div>
+            <Avatar
+              glyph={selectedFeedItem.avatar}
+              square={selectedFeedItem.sourceType === 'community'}
+              size="lg"
+              class="bg-gradient-to-br from-accent/[0.24] to-accent/[0.08]"
+            />
             <div>
               <p class="m-0 text-text-soft text-[0.72rem] tracking-[0.16em] uppercase">Selected post</p>
               <h3 class="m-0 font-display text-[1.05rem] leading-[1.08]">{selectedFeedItem.title}</h3>
               <div class="flex flex-wrap gap-2 items-center mt-[0.2rem]">
                 {#if selectedFeedItem.sourceType === 'community'}
-                  <button class="bg-accent/[0.12] border-accent/[0.28] text-accent-text inline-flex items-center gap-[0.35rem] px-[0.7rem] py-[0.45rem] rounded-full border text-[0.78rem] font-semibold cursor-pointer" type="button" onclick={() => (communitySheetId = selectedFeedItem.sourceId)}>
-                    {selectedFeedItem.sourceLabel}
-                  </button>
+                  <Pill variant="community" class="cursor-pointer">
+                    <button class="bg-transparent border-0 p-0 text-inherit font-inherit cursor-pointer" type="button" onclick={() => (communitySheetId = selectedFeedItem.sourceId)}>
+                      {selectedFeedItem.sourceLabel}
+                    </button>
+                  </Pill>
                 {:else}
-                  <span class="bg-white/5 border-white/[0.12] text-[#edf4fb] inline-flex items-center gap-[0.35rem] px-[0.7rem] py-[0.45rem] rounded-full border text-[0.78rem] font-semibold">{selectedFeedItem.sourceLabel}</span>
+                  <Pill variant="person">{selectedFeedItem.sourceLabel}</Pill>
                 {/if}
               </div>
             </div>
           </div>
           <div class="grid gap-2 justify-items-start min-[900px]:justify-items-end min-[900px]:text-right">
             <span class="text-text-muted leading-[1.5] font-mono">{selectedFeedItem.time}</span>
-            <span class={`inline-flex items-center gap-[0.35rem] px-[0.6rem] py-[0.35rem] rounded-full border text-[0.78rem] ${selectedFeedItem.secure ? 'text-positive-strong border-positive/25 bg-positive/[0.09]' : 'text-warning border-warning/25 bg-warning/[0.08]'}`}>
+            <Badge variant={selectedFeedItem.secure ? 'secure' : 'warn'}>
               {selectedFeedItem.secure ? 'Encrypted' : 'Open'}
-            </span>
+            </Badge>
           </div>
         </div>
 
@@ -134,14 +140,17 @@
           <button class="grid gap-4 w-full p-0 border-0 bg-transparent text-left cursor-pointer" type="button" aria-label={`Open ${item.title}`} onclick={() => openFeedItem(item.id)}>
             <div class="flex flex-wrap gap-3 justify-between items-start w-full">
               <div class="flex flex-nowrap gap-3 items-center min-w-0">
-                <div class={`flex items-center justify-center border border-border font-bold flex-none w-[1.9rem] h-[1.9rem] bg-gradient-to-br from-accent/[0.24] to-accent/[0.08] ${item.sourceType === 'community' ? 'rounded-[0.4rem]' : 'rounded-full'}`}>{item.avatar}</div>
+                <Avatar
+                  glyph={item.avatar}
+                  square={item.sourceType === 'community'}
+                  class="bg-gradient-to-br from-accent/[0.24] to-accent/[0.08]"
+                />
                 <div>
                   <strong>{item.title}</strong>
                   <div class="flex flex-wrap gap-2 items-center mt-[0.2rem]">
-                    <span class={`inline-flex items-center gap-[0.35rem] px-[0.7rem] py-[0.45rem] rounded-full border text-[0.78rem] font-semibold
-                      ${item.sourceType === 'community' ? 'bg-accent/[0.12] border-accent/[0.28] text-accent-text' : 'bg-white/5 border-white/[0.12] text-[#edf4fb]'}`}>
+                    <Pill variant={item.sourceType === 'community' ? 'community' : 'person'}>
                       {item.sourceLabel}
-                    </span>
+                    </Pill>
                   </div>
                 </div>
               </div>
@@ -162,9 +171,11 @@
             </div>
             <div class="flex flex-wrap gap-2 items-center">
               {#if item.sourceType === 'community'}
-                <button class="bg-accent/[0.12] border-accent/[0.28] text-accent-text inline-flex items-center gap-[0.35rem] px-[0.7rem] py-[0.45rem] rounded-full border text-[0.78rem] font-semibold cursor-pointer" type="button" onclick={() => (communitySheetId = item.sourceId)}>
-                  {item.sourceLabel}
-                </button>
+                <Pill variant="community" class="cursor-pointer">
+                  <button class="bg-transparent border-0 p-0 text-inherit font-inherit cursor-pointer" type="button" onclick={() => (communitySheetId = item.sourceId)}>
+                    {item.sourceLabel}
+                  </button>
+                </Pill>
               {/if}
               <button class="inline-flex items-center justify-center min-h-10 px-[0.9rem] text-[0.88rem] rounded-full bg-transparent border border-border-strong text-text shadow-none transition-[transform,background-color,border-color,color,box-shadow] duration-[180ms] hover:-translate-y-px cursor-pointer" type="button" onclick={() => openReplyComposer(item)}>Reply</button>
             </div>
@@ -179,15 +190,15 @@
     <div class="fixed left-0 right-0 bottom-0 z-[12] bg-surface border border-border rounded-t-xl shadow-[0_24px_60px_rgba(0,0,0,0.48)] backdrop-blur-[18px] p-4 grid gap-4 max-h-[80vh] overflow-y-auto min-[900px]:static min-[900px]:rounded-xl min-[900px]:max-h-none" bind:this={communityDialogEl} role="dialog" aria-label="Community details" aria-modal="true" tabindex="-1">
       <div class="flex flex-wrap gap-2 items-center justify-between items-start">
         <div class="flex flex-wrap gap-2 items-center">
-          <div class="flex items-center justify-center border border-border font-bold flex-none w-[1.9rem] h-[1.9rem] bg-white/[0.06] rounded-[0.4rem]">{communitySheetTarget().name.slice(0, 1)}</div>
+          <Avatar glyph={communitySheetTarget().name.slice(0, 1)} square={true} />
           <div>
             <strong>{communitySheetTarget().name}</strong>
             <div class="text-text-muted leading-[1.5] text-sm">{communitySheetTarget().tag}</div>
           </div>
         </div>
-        <span class={`inline-flex items-center gap-[0.35rem] px-[0.6rem] py-[0.35rem] rounded-full border text-[0.78rem] ${communitySheetTarget().visibility === 'public' ? 'text-positive-strong border-positive/25 bg-positive/[0.09]' : 'text-warning border-warning/25 bg-warning/[0.08]'}`}>
+        <Badge variant={communitySheetTarget().visibility === 'public' ? 'secure' : 'warn'}>
           {communitySheetTarget().visibility}
-        </span>
+        </Badge>
       </div>
       <p>{communitySheetTarget().description}</p>
       <div class="grid gap-2">

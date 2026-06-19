@@ -1,5 +1,6 @@
 <script>
   import { badgeClass, initials } from '$lib/social-data.js'
+  import Avatar from '$lib/components/Avatar.svelte'
 
   let {
     section,
@@ -27,11 +28,7 @@
         <span>{section === 'feed' ? 'Back to feed' : 'Back to chats'}</span>
       </button>
     {/if}
-    {#if identity.avatarDataUrl}
-      <img class="flex-none w-[1.9rem] h-[1.9rem] rounded-full object-cover border border-border" src={identity.avatarDataUrl} alt="" />
-    {:else}
-      <div class="flex items-center justify-center border border-border font-bold flex-none w-[1.9rem] h-[1.9rem] rounded-full bg-white/[0.06]">{initials(profileDisplayName)}</div>
-    {/if}
+    <Avatar glyph={initials(profileDisplayName)} imageUrl={identity.avatarDataUrl} />
     <div class="grid gap-[0.2rem] min-w-0">
       <p class="m-0 text-text-soft text-[0.72rem] tracking-[0.16em] uppercase">{section === 'feed' && feedDetailOpen ? 'Feed view' : sectionLabels[section]}</p>
       <strong class="font-display text-[1.05rem] leading-[1.08]">{profileDisplayName}</strong>

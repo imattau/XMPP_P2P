@@ -724,60 +724,6 @@ textarea {
 
 
 
-.badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.35rem 0.6rem;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  color: var(--text-muted);
-  font-size: 0.78rem;
-}
-
-.badge--secure {
-  color: var(--positive-strong);
-  border-color: rgba(95, 212, 154, 0.25);
-  background: rgba(95, 212, 154, 0.09);
-}
-
-.badge--warn {
-  color: var(--warning);
-  border-color: rgba(255, 204, 102, 0.25);
-  background: rgba(255, 204, 102, 0.08);
-}
-
-.badge--muted {
-  color: var(--text-soft);
-}
-
-.badge--time {
-  font-family: var(--font-mono);
-}
-
-.pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.45rem 0.7rem;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  font-size: 0.78rem;
-  font-weight: 600;
-}
-
-.pill--community {
-  background: rgba(91, 75, 207, 0.12);
-  border-color: rgba(91, 75, 207, 0.28);
-  color: var(--accent-text);
-}
-
-.pill--person {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.12);
-  color: #edf4fb;
-}
-
 .meta,
 .hint,
 .lede {

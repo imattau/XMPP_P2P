@@ -1,5 +1,7 @@
 <script>
-  import { badgeClass, chatAvatarGlyph, initials, sortedChats } from '$lib/social-data.js'
+  import { chatAvatarGlyph, initials, sortedChats } from '$lib/social-data.js'
+  import Avatar from '$lib/components/Avatar.svelte'
+  import Badge from '$lib/components/Badge.svelte'
 
   let {
     chatDetailOpen = $bindable(),
@@ -35,7 +37,7 @@
         >
           <div class="flex flex-wrap gap-2 items-center justify-between items-start">
             <div class="flex flex-wrap gap-2 items-center flex-nowrap">
-              <div class={`flex items-center justify-center border border-border font-bold flex-none w-[1.9rem] h-[1.9rem] bg-white/[0.06] ${chat.kind === 'muc' ? 'rounded-[0.4rem]' : 'rounded-full'}`}>{chatAvatarGlyph(chat)}</div>
+              <Avatar glyph={chatAvatarGlyph(chat)} square={chat.kind === 'muc'} />
               <div>
                 <strong>{chat.name}</strong>
                 <div class="text-text-muted leading-[1.5] text-sm">{chat.preview}</div>
@@ -44,7 +46,9 @@
             {#if chat.kind === 'muc'}
               <span class="text-text-muted leading-[1.5] text-sm">{chat.occupants.length} in room</span>
             {:else if chat.unread}
-              <span class="inline-flex items-center gap-[0.35rem] px-[0.6rem] py-[0.35rem] rounded-full border border-border text-text-muted text-[0.78rem] bg-accent/15 border-accent/25 text-text font-bold">{chat.unread} unread</span>
+              <Badge variant="secure" class="bg-accent/15 border-accent/25 text-text font-bold">
+                {chat.unread} unread
+              </Badge>
             {/if}
           </div>
         </button>
@@ -72,13 +76,16 @@
         <div class="flex gap-3 overflow-x-auto py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Room occupants">
           {#each activeChat.occupants.slice(0, 6) as occupant}
             <div class="grid justify-items-center gap-1 flex-none w-[3.4rem]">
-              <div class="flex items-center justify-center border border-border font-bold flex-none w-[1.9rem] h-[1.9rem] rounded-full bg-white/[0.06]">{initials(occupant.nick)}</div>
+              <Avatar glyph={initials(occupant.nick)} />
               <span class="text-[0.68rem] text-center whitespace-nowrap overflow-hidden text-ellipsis max-w-full text-text-soft">{occupant.nick}</span>
             </div>
           {/each}
           {#if activeChat.occupants.length > 6}
-            <div class="grid justify-items-center gap-1 flex-none w-[3.4rem] roster-strip__item--overflow">
-              <div class="flex items-center justify-center border border-border font-bold flex-none w-[1.9rem] h-[1.9rem] rounded-full bg-surface-soft text-text-muted text-[0.72rem] font-semibold">+{activeChat.occupants.length - 6}</div>
+            <div class="grid justify-items-center gap-1 flex-none w-[3.4rem]">
+              <Avatar
+                glyph={`+${activeChat.occupants.length - 6}`}
+                class="bg-surface-soft text-text-muted text-[0.72rem] font-semibold"
+              />
               <span class="text-[0.68rem] text-center whitespace-nowrap overflow-hidden text-ellipsis max-w-full text-text-soft">more</span>
             </div>
           {/if}
@@ -139,9 +146,9 @@
             <p class="m-0 text-text-soft text-[0.72rem] tracking-[0.16em] uppercase">Selected thread</p>
             <h3 class="margin-0 font-display text-[1.05rem] leading-[1.08]">{activeChat.name}</h3>
           </div>
-          <span class={`inline-flex items-center gap-[0.35rem] px-[0.6rem] py-[0.35rem] rounded-full border text-[0.78rem] ${activeChat.secure ? 'text-positive-strong border-positive/25 bg-positive/[0.09]' : 'text-warning border-warning/25 bg-warning/[0.08]'}`}>
+          <Badge variant={activeChat.secure ? 'secure' : 'warn'}>
             {activeChat.secure ? 'E2EE' : 'open'}
-          </span>
+          </Badge>
         </div>
       {/if}
 
