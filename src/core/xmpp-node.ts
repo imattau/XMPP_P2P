@@ -153,6 +153,7 @@ import {
   persistVCardState,
   persistSubscriptionState
 } from './xmpp-persistence.js'
+import { XmppSqliteStore } from './xmpp-sqlite.js'
 import {
   buildAttachmentSummary,
   attachmentHistoryKey,
@@ -248,6 +249,7 @@ export interface XmppNodeOptions {
   attachmentPath?: string
   mucPath?: string
   mucHistoryPath?: string
+  sqlitePath?: string
   uploadPath?: string
   vCardPath?: string
   omemoPath?: string
@@ -296,6 +298,7 @@ export class XmppNode extends EventEmitter {
   private readonly attachmentPath: string
   private readonly mucPath: string
   private readonly mucHistoryPath: string
+  private readonly sqlitePath: string
   public readonly uploadPath: string
   public readonly uploadObjectsPath: string
   public readonly uploadAliasesPath: string
@@ -304,6 +307,7 @@ export class XmppNode extends EventEmitter {
   private readonly vCardPath: string
   private readonly omemoPath: string
   private readonly openPgpPath: string
+  private readonly sqliteStore: XmppSqliteStore
   private readonly discoveryNode: string = DISCOVERY_NODE
   private readonly discoveryIdentity: XmppDiscoIdentity = {
     category: 'client',
@@ -335,6 +339,7 @@ export class XmppNode extends EventEmitter {
     this.attachmentPath = options.attachmentPath ?? process.env.XMPP_ATTACHMENT_PATH ?? join(dirname(this.rosterPath), `.xmpp-attachments.${this.libp2p.peerId.toString()}.json`)
     this.mucPath = options.mucPath ?? process.env.XMPP_MUC_PATH ?? join(dirname(this.rosterPath), `.xmpp-muc.${rosterBaseName}.json`)
     this.mucHistoryPath = options.mucHistoryPath ?? process.env.XMPP_MUC_HISTORY_PATH ?? join(dirname(this.rosterPath), `.xmpp-muc-history.${rosterBaseName}.json`)
+    this.sqlitePath = options.sqlitePath ?? process.env.XMPP_SQLITE_PATH ?? join(dirname(this.rosterPath), `.xmpp-state.${this.libp2p.peerId.toString()}.sqlite`)
     this.uploadPath = options.uploadPath ?? process.env.XMPP_UPLOAD_PATH ?? join(dirname(this.rosterPath), `.xmpp-uploads.${rosterBaseName}`)
     this.uploadObjectsPath = join(this.uploadPath, 'objects')
     this.uploadAliasesPath = join(this.uploadPath, 'aliases')
@@ -343,6 +348,7 @@ export class XmppNode extends EventEmitter {
     this.vCardPath = options.vCardPath ?? process.env.XMPP_VCARD_PATH ?? join(dirname(this.rosterPath), `.xmpp-vcard.${rosterBaseName}.json`)
     this.omemoPath = options.omemoPath ?? process.env.XMPP_OMEMO_PATH ?? join(dirname(this.rosterPath), `.xmpp-omemo.${rosterBaseName}.json`)
     this.openPgpPath = options.openPgpPath ?? process.env.XMPP_OPENPGP_PATH ?? join(dirname(this.rosterPath), `.xmpp-openpgp.${rosterBaseName}.json`)
+    this.sqliteStore = new XmppSqliteStore(this.sqlitePath)
     this.omemoStateManager = new XmppOmemoStateManager(this.omemoPath)
     this.openPgpStateManager = new XmppOpenPgpStateManager(this.openPgpPath, this.jid)
     this.muc = new XmppMucManager(this)
@@ -362,6 +368,7 @@ export class XmppNode extends EventEmitter {
       .then(() => this.uploads.ensureUploadServer())
       .then(() => this.uploads.ensureUploadAnnouncementSubscription())
       .then(() => this.loadVCard())
+      .then(() => this.loadSqliteState())
       .then(() => this.loadOmemoState())
       .then(() => this.openPgpStateManager.load())
       .then(() => this.ensureOwnFeedSubscription())
@@ -524,6 +531,17 @@ export class XmppNode extends EventEmitter {
     await loadVCardState(this.getPersistenceLoadContext())
     if (this.selfVCard.nickname && !this.selfPresence.nickname) {
       this.selfPresence.nickname = this.selfVCard.nickname
+    }
+  }
+
+  private async loadSqliteState(): Promise<void> {
+    try {
+      await this.sqliteStore.loadSnapshot(this.getPersistenceLoadContext())
+      if (this.selfVCard.nickname && !this.selfPresence.nickname) {
+        this.selfPresence.nickname = this.selfVCard.nickname
+      }
+    } catch (err) {
+      console.error(`[XMPP] Failed to load SQLite state from ${this.sqlitePath}:`, err)
     }
   }
 
@@ -787,6 +805,7 @@ export class XmppNode extends EventEmitter {
 
   private async persistRoster(): Promise<void> {
     await persistRosterState(this.getPersistenceSaveContext())
+    await this.persistSqliteState()
   }
 
   private scheduleRosterPersist(): Promise<void> {
@@ -801,6 +820,7 @@ export class XmppNode extends EventEmitter {
 
   private async persistFeedHistory(): Promise<void> {
     await persistFeedHistoryState(this.getPersistenceSaveContext())
+    await this.persistSqliteState()
   }
 
   private async publishSubscriptionDeclaration(subscription: XmppFeedSubscriptionRecord, action: 'upsert' | 'remove') {
@@ -857,23 +877,28 @@ export class XmppNode extends EventEmitter {
 
   private async persistSubscriptionState(): Promise<void> {
     await persistSubscriptionState(this.getPersistenceSaveContext())
+    await this.persistSqliteState()
   }
 
   private async persistFollowerState(): Promise<void> {
     await persistFollowerState(this.getPersistenceSaveContext())
+    await this.persistSqliteState()
   }
 
   private async persistCollectionState(): Promise<void> {
     await persistCollectionState(this.getPersistenceSaveContext())
+    await this.persistSqliteState()
   }
 
   private async persistAttachmentHistory(): Promise<void> {
     await persistAttachmentHistoryState(this.getPersistenceSaveContext())
+    await this.persistSqliteState()
   }
 
   public async persistMucState(): Promise<void> {
     await persistMucStateToDht(this.getDhtContext())
     await persistMucStateFile(this.getPersistenceSaveContext())
+    await this.persistSqliteState()
   }
 
   private async persistMucHistory(): Promise<void> {
@@ -882,6 +907,11 @@ export class XmppNode extends EventEmitter {
 
   private async persistVCard(): Promise<void> {
     await persistVCardState(this.getPersistenceSaveContext())
+    await this.persistSqliteState()
+  }
+
+  private async persistSqliteState(): Promise<void> {
+    await this.sqliteStore.persistSnapshot(this.getPersistenceSaveContext())
   }
 
   private scheduleFeedPersist(): Promise<void> {
@@ -2578,6 +2608,7 @@ export class XmppNode extends EventEmitter {
     await this.uploads.close()
     await this.omemoStateManager.close()
     await this.openPgpStateManager.close()
+    this.sqliteStore.close()
     this.reliabilityManager.clear()
     this.muc.close()
   }

@@ -6,12 +6,17 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
+    "ui:dev": "npm --prefix ui run dev",
+    "ui:build": "npm --prefix ui run build",
+    "ui:preview": "npm --prefix ui run preview",
     "mcp": "node dist/mcp/index.js",
     "test-nodes": "node dist/tests/nodes.js",
     "test-pubsub": "node dist/tests/pubsub.js",
     "test-roster": "node dist/tests/roster.js",
     "test-feed": "node dist/tests/feed.js",
+    "test-sqlite": "node dist/tests/sqlite.js",
     "test-mcp": "node dist/tests/mcp.js",
+    "test-cli": "node dist/tests/cli-startup.js",
     "test-cli-profile": "node dist/tests/cli-profile.js",
     "test-attachments": "node dist/tests/attachments.js",
     "test-subscriptions": "node dist/tests/subscriptions.js",
@@ -25,7 +30,7 @@
     "test-muc-omemo": "node dist/tests/muc-omemo.js",
     "test-uploads": "node dist/tests/uploads.js",
     "test-reliability": "node dist/tests/xeps-reliability.js",
-    "test": "npm run build && npm run test-nodes && npm run test-pubsub && npm run test-dht && npm run test-omemo && npm run test-roster && npm run test-feed && npm run test-attachments && npm run test-uploads && npm run test-subscriptions && npm run test-disco && npm run test-protocol && npm run test-collection && npm run test-muc && npm run test-muc-omemo && npm run test-reliability",
+    "test": "npm run build && npm run test-nodes && npm run test-pubsub && npm run test-dht && npm run test-omemo && npm run test-roster && npm run test-feed && npm run test-attachments && npm run test-uploads && npm run test-subscriptions && npm run test-disco && npm run test-protocol && npm run test-collection && npm run test-muc && npm run test-muc-omemo && npm run test-reliability && npm run test-cli && npm run test-cli-profile",
     "docs": "typedoc --out docs --entryPointStrategy expand src"
   },
   "repository": {

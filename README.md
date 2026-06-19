@@ -80,7 +80,34 @@ You can optionally define the hostname and roster path:
 npm start -- --port=9001 --host=127.0.0.1 --roster-file=/path/to/roster.json
 ```
 
+To see the startup flags without launching the node:
+
+```bash
+npm start -- --help
+npm start -- --version
+```
+
 Once started, the CLI will output your local Peer ID, JID, and listen addresses, and drop you into an interactive `xmpp-p2p>` prompt.
+
+### Starting the Frontend
+
+The Figma-based web frontend lives in [`ui/`](ui/). Run it with:
+
+```bash
+npm run ui:dev
+```
+
+To build the web app for production:
+
+```bash
+npm run ui:build
+```
+
+To preview the built frontend:
+
+```bash
+npm run ui:preview
+```
 
 ### Running Verification Tests
 
@@ -108,16 +135,17 @@ Or run individual verification tests:
 
 ## CLI Commands Reference
 
-Type `help` in the CLI to see all available commands. The main command categories are:
+Type `help` in the CLI to see all available commands. You can also use scoped help like `help feed`, `help feed post`, or `help profile set` to narrow the output. The main command categories are:
 
 | Category | Commands | Description |
 |---|---|---|
 | **System** | `id`, `peers`, `dial`, `ping`, `help`, `exit` | View local identifiers, discover peers, manually connect, and test latency. |
 | **Messaging** | `msg <peer> <text>` <br> `msg secure <peer> <text>` <br> `msg correct [secure] <peer> <id> <text>` <br> `msg state <peer> <state>` | Send plaintext or OMEMO-encrypted direct messages, correct previous messages, or send chat states. |
-| **Presence & Profile** | `presence <status>` <br> `presence subscribe/unsubscribe <peer>` <br> `profile [show]` <br> `profile set [--fn <name>] [--nick <nickname>] [--photo <path>] [--photo-type <mime>]` <br> `profile clear-photo` <br> `nick <name>` | Broadcast custom status, view or update local profile details, manage presence subscriptions, or set nickname. |
+| **Presence & Profile** | `presence <status>` <br> `presence subscribe/unsubscribe <peer>` <br> `presence send <peer> [type] [--show <show>] [--status <msg>]` <br> `profile [show]` <br> `profile set [--fn <name>] [--nick <nickname>] [--photo <path>] [--photo-type <mime>]` <br> `profile clear-photo` <br> `nick <name>` | Broadcast custom status, send direct presence stanzas, view or update local profile details, manage presence subscriptions, or set nickname. |
 | **Roster** | `roster list` <br> `roster add <jid> [name]` <br> `roster remove <jid>` <br> `roster fetch <peer>` | Manage and retrieve contact roster. |
-| **Feeds** | `feed post <msg> [--title <title>] [--tag <tag>] [--cover <path>]` <br> `feed article <msg> [--title <title>] [--tag <tag>] [--cover <path>] [--cover-target <peer>]` <br> `feed subscribe <peer> [public/private]` <br> `feed list` <br> `feed followers <peer>` | Publish feed updates and articles, follow peers, view posts, and track followers. |
-| **Collections** | `collection create <id> [name]` <br> `collection join <id>` <br> `collection posts [id]` | Group multiple user feeds into unified channels. |
+| **Feeds** | `feed post <msg> [--title <title>] [--tag <tag>] [--cover <path>]` <br> `feed article <msg> [--title <title>] [--tag <tag>] [--cover <path>] [--cover-target <peer>]` <br> `feed subscribe <peer> [public/private]` <br> `feed public` <br> `feed list` <br> `feed followers <peer>` | Publish feed updates and articles, follow peers, inspect public subscriptions, view posts, and track followers. |
+| **Collections** | `collection create <id> [name]` <br> `collection join <id>` <br> `collection leave <id>` <br> `collection post <id> <msg>` <br> `collection subscriptions` <br> `collection posts [id]` | Group multiple user feeds into unified channels and publish community posts. |
+| **Discovery** | `disco info <peer> [node]` <br> `disco items <peer> [node]` <br> `disco caps <peer> [node]` | Query service discovery info, items, and capabilities. |
 | **MUC Rooms** | `muc-join <room> <nick>` <br> `muc-send <room> <msg>` <br> `muc-send-secure <room> <msg>` <br> `muc-roster <room>` | Decentralized multi-user group chat rooms. |
 | **OMEMO / PGP** | `omemo key`, `omemo fetch <peer>` <br> `openpgp key`, `openpgp fetch <peer>` | View local cryptographic keys or fetch keys from a remote peer. |
 | **PubSub** | `pubsub-sub <topic>`, `pubsub-pub <topic> <msg>` <br> `pubsub-react <topic> <id> <emoji>` <br> `pubsub-attachments [topic]` | Generic PubSub topic subscriptions, emoji reactions, and attachment logs. |

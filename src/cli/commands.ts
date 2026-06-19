@@ -120,6 +120,39 @@ const publishFeedArticle = async (input: string, ctx: CliContext, allowCover = t
   return itemId
 }
 
+const publishCollectionPost = async (input: string, ctx: CliContext) => {
+  const { xmppNode } = ctx
+  const tokens = tokenizeInput(input)
+  const commandIndex = tokens.findIndex(token => token.toLowerCase() === 'collection')
+  const args = commandIndex >= 0 ? tokens.slice(commandIndex + 2) : tokens.slice(2)
+  const collectionId = args[0]
+  if (!collectionId) {
+    return undefined
+  }
+
+  const { positional, options } = parseOptionTokens(args.slice(1))
+  const body = optionValue(options, 'body') || positional.join(' ').trim()
+  if (!body) {
+    return undefined
+  }
+
+  const title = optionValue(options, 'title')
+  const summary = optionValue(options, 'summary')
+  const categories = [
+    ...optionValues(options, 'tag'),
+    ...optionValues(options, 'category')
+  ]
+
+  console.log(`Publishing collection post to ${collectionId}...`)
+  const itemId = await xmppNode.publishCollection(collectionId, body, {
+    title,
+    summary,
+    categories
+  })
+  console.log(`Published collection item: ${itemId}`)
+  return itemId
+}
+
 export const handleCliCommand = async (input: string, ctx: CliContext) => {
   const { libp2p, xmppNode, discoveredPeers, resolvePeerTarget } = ctx
   const parts = tokenizeInput(input)
@@ -306,6 +339,22 @@ export const handleCliCommand = async (input: string, ctx: CliContext) => {
         break
       }
 
+      if (presenceCommand === 'send') {
+        if (parts.length < 3) {
+          console.log('Usage: presence send <peer-id|jid|multiaddr> [type] [--show <show>] [--status <message>]')
+          break
+        }
+        const target = resolvePeerTarget(parts[2])
+        const { positional, options } = parseOptionTokens(parts.slice(3))
+        const type = (positional[0] || 'available').toLowerCase()
+        const show = optionValue(options, 'show') || positional[1]
+        const status = optionValue(options, 'status') || positional.slice(2).join(' ')
+        console.log(`Sending presence ${type} to ${target}${show ? ` [${show}]` : ''}${status ? ` (${status})` : ''}...`)
+        await xmppNode.sendPresence(target, type, status, show)
+        console.log('Presence sent!')
+        break
+      }
+
       if (presenceCommand === 'available' || presenceCommand === 'show') {
         const show = presenceCommand === 'show' ? parts[2] : parts[2]
         const status = parts.slice(presenceCommand === 'show' ? 3 : 2).join(' ')
@@ -440,6 +489,17 @@ export const handleCliCommand = async (input: string, ctx: CliContext) => {
           console.log('Subscribed!')
           break
         }
+        case 'public': {
+          const subscriptions = await xmppNode.getPublicFeedSubscriptions()
+          console.log(`Public feed subscriptions (${subscriptions.length}):`)
+          for (const subscription of subscriptions) {
+            console.log(`  - ${subscription.jid}`)
+            console.log(`      Topic: ${subscription.topic}`)
+            console.log(`      Visibility: ${subscription.visibility}`)
+            console.log(`      Subscribed At: ${subscription.subscribedAt}`)
+          }
+          break
+        }
         case 'visibility': {
           if (parts.length < 4) {
             console.log('Usage: feed visibility <peer-id|jid|multiaddr> <public|private>')
@@ -513,8 +573,19 @@ export const handleCliCommand = async (input: string, ctx: CliContext) => {
           }
           break
         }
+        case 'watch-followers': {
+          if (parts.length < 3) {
+            console.log('Usage: feed watch-followers <peer-id|jid|multiaddr>')
+            break
+          }
+          const target = resolvePeerTarget(parts[2])
+          console.log(`Watching follower updates for ${target}...`)
+          const watch = await xmppNode.watchFeedFollowers(target)
+          console.log(`Watching ${watch.topic} for peer ${watch.peerId} since ${watch.watchedAt}`)
+          break
+        }
         default:
-          console.log('Usage: feed post <message> [--title <title>] [--tag <tag>] [--cover <path>] | feed article <message> [--title <title>] [--tag <tag>] [--cover <path>] | feed subscribe <peer> [public|private] | feed visibility <peer> <public|private> | feed unfollow <peer> | feed list | feed peers | feed followers <peer>')
+          console.log('Usage: feed post <message> [--title <title>] [--tag <tag>] [--cover <path>] | feed article <message> [--title <title>] [--tag <tag>] [--cover <path>] | feed subscribe <peer> [public|private] | feed public | feed visibility <peer> <public|private> | feed unfollow <peer> | feed list | feed peers | feed followers <peer> | feed watch-followers <peer>')
       }
       break
     }
@@ -554,8 +625,28 @@ export const handleCliCommand = async (input: string, ctx: CliContext) => {
           }
           break
         }
+        case 'caps': {
+          if (parts.length < 3) {
+            console.log('Usage: disco caps <peer-id|jid|multiaddr> [node]')
+            break
+          }
+          const target = resolvePeerTarget(parts[2])
+          console.log(`Querying capabilities for ${target}...`)
+          const caps = await xmppNode.getEntityCapabilities(target)
+          if (!caps) {
+            console.log('No capabilities found.')
+            break
+          }
+          console.log(`Peer ID: ${caps.peerId}`)
+          console.log(`JID: ${caps.jid}`)
+          console.log(`Node: ${caps.node}`)
+          console.log(`Ver: ${caps.ver}`)
+          console.log(`Hash: ${caps.hash}`)
+          console.log(`Discovered At: ${caps.discoveredAt}`)
+          break
+        }
         default:
-          console.log('Usage: disco info <peer> [node] | disco items <peer> [node]')
+          console.log('Usage: disco info <peer> [node] | disco items <peer> [node] | disco caps <peer> [node]')
       }
       break
     }
@@ -597,6 +688,28 @@ export const handleCliCommand = async (input: string, ctx: CliContext) => {
           console.log('Joined!')
           break
         }
+        case 'leave': {
+          if (parts.length < 3) {
+            console.log('Usage: collection leave <id>')
+            break
+          }
+          const id = parts[2]
+          console.log(`Leaving collection ${id}...`)
+          await xmppNode.unsubscribeCollection(id)
+          console.log('Left!')
+          break
+        }
+        case 'post': {
+          if (parts.length < 4) {
+            console.log('Usage: collection post <id> <message> [--title <title>] [--tag <tag>] [--summary <summary>]')
+            break
+          }
+          const itemId = await publishCollectionPost(input, ctx)
+          if (!itemId) {
+            console.log('Usage: collection post <id> <message> [--title <title>] [--tag <tag>] [--summary <summary>]')
+          }
+          break
+        }
         case 'list': {
           const collections = await xmppNode.getCollections()
           console.log(`Collections (${collections.length}):`)
@@ -607,6 +720,16 @@ export const handleCliCommand = async (input: string, ctx: CliContext) => {
               console.log(`      Name: ${collection.name}`)
             }
             console.log(`      Members: ${collection.members.length}`)
+          }
+          break
+        }
+        case 'subscriptions': {
+          const subscriptions = await xmppNode.getCollectionSubscriptions()
+          console.log(`Collection subscriptions (${subscriptions.length}):`)
+          for (const subscription of subscriptions) {
+            console.log(`  - ${subscription.id}`)
+            console.log(`      Topic: ${subscription.topic}`)
+            console.log(`      Subscribed At: ${subscription.subscribedAt}`)
           }
           break
         }
@@ -624,7 +747,7 @@ export const handleCliCommand = async (input: string, ctx: CliContext) => {
           break
         }
         default:
-          console.log('Usage: collection create <id> [name] | collection add <id> <peer> | collection join <id> | collection list | collection posts [id]')
+          console.log('Usage: collection create <id> [name] | collection add <id> <peer> | collection join <id> | collection leave <id> | collection post <id> <message> | collection list | collection subscriptions | collection posts [id]')
       }
       break
     }
@@ -932,7 +1055,7 @@ export const handleCliCommand = async (input: string, ctx: CliContext) => {
       break
     }
     case 'help': {
-      printCliHelp()
+      printCliHelp(...parts.slice(1))
       break
     }
     case 'exit': {

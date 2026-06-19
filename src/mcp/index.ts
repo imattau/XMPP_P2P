@@ -7,6 +7,7 @@ import {
 import { createP2PNode } from '../core/p2p.js'
 import { XmppNode } from '../core/xmpp-node.js'
 import { executeMcpTool, listMcpTools } from './tools.js'
+import { getPackageVersion, parseCliStartupArgs, printMcpUsage } from '../cli/startup.js'
 
 // Redirect all standard console.log output to stderr
 // to prevent corrupting the stdio transport JSON-RPC stream on stdout.
@@ -15,19 +16,35 @@ console.log = (...args: any[]) => {
 }
 
 async function runMcpServer() {
-  const args = process.argv.slice(2)
-  const portArg = args.find(arg => arg.startsWith('--port='))
-  const port = portArg ? parseInt(portArg.split('=')[1], 10) : undefined
-  const rosterPathArg = args.find(arg => arg.startsWith('--roster-file='))?.split('=')[1]
-  const hostArg = args.find(arg => arg.startsWith('--host='))?.split('=')[1]
+  const startupOptions = parseCliStartupArgs(process.argv.slice(2))
+
+  if (startupOptions.errors.length > 0) {
+    console.error('Unable to start MCP server:')
+    for (const error of startupOptions.errors) {
+      console.error(`  - ${error}`)
+    }
+    console.error('')
+    printMcpUsage()
+    process.exit(1)
+  }
+
+  if (startupOptions.helpRequested) {
+    printMcpUsage()
+    process.exit(0)
+  }
+
+  if (startupOptions.versionRequested) {
+    console.error(await getPackageVersion())
+    process.exit(0)
+  }
 
   console.error('Initializing libp2p Node for MCP...')
-  const libp2p = await createP2PNode(port, { host: hostArg })
+  const libp2p = await createP2PNode(startupOptions.port, { host: startupOptions.host })
   await libp2p.start()
 
   console.error(`libp2p Node started! Peer ID: ${libp2p.peerId.toString()}`)
 
-  const xmppNode = new XmppNode(libp2p, rosterPathArg ? { rosterPath: rosterPathArg } : {})
+  const xmppNode = new XmppNode(libp2p, startupOptions.rosterPath ? { rosterPath: startupOptions.rosterPath } : {})
   await xmppNode.ready
   console.error(`XmppNode initialized! JID: ${xmppNode.jid}`)
 

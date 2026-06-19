@@ -7,6 +7,7 @@
 import { createP2PNode } from './core/p2p.js'
 import { XmppNode } from './core/xmpp-node.js'
 import { startCli } from './cli/session.js'
+import { getPackageVersion, parseCliStartupArgs, printCliUsage } from './cli/startup.js'
 
 /**
  * Parses startup options from the command line, starts the local P2P network node,
@@ -15,14 +16,30 @@ import { startCli } from './cli/session.js'
  * @returns A promise that resolves when the session completes.
  */
 async function main() {
-  const args = process.argv.slice(2)
-  const portArg = args.find(arg => arg.startsWith('--port='))
-  const port = portArg ? parseInt(portArg.split('=')[1], 10) : undefined
-  const rosterPathArg = args.find(arg => arg.startsWith('--roster-file='))?.split('=')[1]
-  const hostArg = args.find(arg => arg.startsWith('--host='))?.split('=')[1]
+  const startupOptions = parseCliStartupArgs(process.argv.slice(2))
+
+  if (startupOptions.errors.length > 0) {
+    console.error('Unable to start CLI:')
+    for (const error of startupOptions.errors) {
+      console.error(`  - ${error}`)
+    }
+    console.error('')
+    printCliUsage()
+    process.exit(1)
+  }
+
+  if (startupOptions.helpRequested) {
+    printCliUsage()
+    process.exit(0)
+  }
+
+  if (startupOptions.versionRequested) {
+    console.log(await getPackageVersion())
+    process.exit(0)
+  }
 
   console.log('Initializing libp2p Node...')
-  const libp2p = await createP2PNode(port, { host: hostArg })
+  const libp2p = await createP2PNode(startupOptions.port, { host: startupOptions.host })
 
   await libp2p.start()
   console.log('libp2p Node started!')
@@ -32,7 +49,7 @@ async function main() {
     console.log(`  ${ma.toString()}`)
   })
 
-  const xmppNode = new XmppNode(libp2p, rosterPathArg ? { rosterPath: rosterPathArg } : {})
+  const xmppNode = new XmppNode(libp2p, startupOptions.rosterPath ? { rosterPath: startupOptions.rosterPath } : {})
   await xmppNode.ready
 
   await startCli(libp2p, xmppNode)

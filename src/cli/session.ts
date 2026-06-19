@@ -54,10 +54,15 @@ export const startCli = async (libp2p: Libp2pNode, xmppNode: XmppNode) => {
   console.log('\n======================================')
   console.log('XMPP over libp2p CLI')
   printCliHelp()
-  const profile = await xmppNode.getVCard()
-  const displayName = profile.fn ?? profile.nickname ?? xmppNode.jid.replace('@p2p', '')
-  const nickname = profile.nickname ?? profile.fn
-  console.log(`Local profile: ${displayName}${nickname && nickname !== displayName ? ` <${nickname}>` : ''}`)
+  try {
+    const profile = await xmppNode.getVCard()
+    const displayName = profile.fn ?? profile.nickname ?? xmppNode.jid.replace('@p2p', '')
+    const nickname = profile.nickname ?? profile.fn
+    console.log(`Local profile: ${displayName}${nickname && nickname !== displayName ? ` <${nickname}>` : ''}`)
+  } catch (err: any) {
+    console.log(`Local profile: ${xmppNode.jid.replace('@p2p', '')}`)
+    console.log(`Profile details unavailable: ${err.message}`)
+  }
   console.log('======================================\n')
 
   ctx.showPrompt()
