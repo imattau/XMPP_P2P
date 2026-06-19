@@ -326,6 +326,61 @@ export const handleCliCommand = async (input: string, ctx: CliContext) => {
       await xmppNode.broadcastPresence('available', status)
       break
     }
+    case 'profile': {
+      const profileCommand = parts[1]?.toLowerCase()
+
+      if (!profileCommand || profileCommand === 'show') {
+        const profile = await xmppNode.getVCard()
+        const displayName = profile.fn ?? profile.nickname ?? xmppNode.jid.replace('@p2p', '')
+        const nickname = profile.nickname ?? profile.fn ?? '(unset)'
+        const avatarStatus = profile.photo?.type ? `set (${profile.photo.type})` : 'none'
+        console.log('Local profile:')
+        console.log(`  Display name: ${displayName}`)
+        console.log(`  Nickname: ${nickname}`)
+        console.log(`  Avatar: ${avatarStatus}`)
+        console.log(`  JID: ${xmppNode.jid}`)
+        break
+      }
+
+      if (profileCommand === 'set' || profileCommand === 'update') {
+        const { positional, options } = parseOptionTokens(parts.slice(2))
+        const fn = optionValue(options, 'fn') || optionValue(options, 'name') || positional[0]
+        const nickname = optionValue(options, 'nick') || optionValue(options, 'nickname') || positional[1]
+        const photoPath = optionValue(options, 'photo')
+        const photoContentType = photoPath ? optionValue(options, 'photo-type') || guessContentType(photoPath) : undefined
+        const photoBytes = photoPath ? await readFile(photoPath) : undefined
+        const photo = photoBytes && photoContentType
+          ? {
+              type: photoContentType,
+              binval: Buffer.from(photoBytes).toString('base64')
+            }
+          : undefined
+
+        if (!fn && !nickname && !photo) {
+          console.log('Usage: profile set [--fn <name>] [--nick <nickname>] [--photo <path>] [--photo-type <mime>]')
+          break
+        }
+
+        console.log('Updating profile...')
+        await xmppNode.setVCard({
+          ...(fn ? { fn } : {}),
+          ...(nickname ? { nickname } : {}),
+          ...(photo ? { photo } : {})
+        })
+        console.log('Profile updated!')
+        break
+      }
+
+      if (profileCommand === 'clear-photo' || profileCommand === 'remove-photo') {
+        console.log('Clearing profile photo...')
+        await xmppNode.setVCard({ photo: null })
+        console.log('Profile photo cleared!')
+        break
+      }
+
+      console.log('Usage: profile [show] | profile set [--fn <name>] [--nick <nickname>] [--photo <path>] [--photo-type <mime>] | profile clear-photo')
+      break
+    }
     case 'nick': {
       const nickname = parts.slice(1).join(' ').trim()
       if (!nickname) {

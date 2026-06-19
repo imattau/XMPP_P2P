@@ -243,14 +243,25 @@ export async function loadVCardState(ctx: XmppPersistenceLoadContext): Promise<v
   try {
     const parsed = await readJson<XmppVCardFile | XmppVCardProfile>(ctx.vCardPath)
     const profile = parsed && typeof parsed === 'object' && 'profile' in parsed ? parsed.profile : parsed
+    const photoType = profile?.photo?.type?.trim()
+    const photoBinval = profile?.photo?.binval?.trim()
     const normalized = {
       fn: profile?.fn?.trim() || undefined,
-      nickname: profile?.nickname?.trim() || undefined
+      nickname: profile?.nickname?.trim() || undefined,
+      photo: photoType && photoBinval
+        ? {
+            type: photoType,
+            binval: photoBinval
+          }
+        : undefined
     }
 
     ctx.vCard.fn = normalized.fn ?? ctx.vCard.fn
     if (!ctx.vCard.nickname && normalized.nickname) {
       ctx.vCard.nickname = normalized.nickname
+    }
+    if (normalized.photo) {
+      ctx.vCard.photo = normalized.photo
     }
   } catch (err: any) {
     console.error(`[XMPP] Failed to load vCard from ${ctx.vCardPath}:`, err)
@@ -327,7 +338,13 @@ export async function persistVCardState(ctx: XmppPersistenceSaveContext): Promis
     version: 1,
     profile: {
       fn: ctx.vCard.fn?.trim() || undefined,
-      nickname: ctx.vCard.nickname?.trim() || undefined
+      nickname: ctx.vCard.nickname?.trim() || undefined,
+      photo: ctx.vCard.photo?.type && ctx.vCard.photo.binval
+        ? {
+            type: ctx.vCard.photo.type.trim() || undefined,
+            binval: ctx.vCard.photo.binval.trim() || undefined
+          }
+        : undefined
     }
   }
   await writeJson(ctx.vCardPath, payload)

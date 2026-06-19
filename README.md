@@ -114,7 +114,7 @@ Type `help` in the CLI to see all available commands. The main command categorie
 |---|---|---|
 | **System** | `id`, `peers`, `dial`, `ping`, `help`, `exit` | View local identifiers, discover peers, manually connect, and test latency. |
 | **Messaging** | `msg <peer> <text>` <br> `msg secure <peer> <text>` <br> `msg correct [secure] <peer> <id> <text>` <br> `msg state <peer> <state>` | Send plaintext or OMEMO-encrypted direct messages, correct previous messages, or send chat states. |
-| **Presence & Profile** | `presence <status>` <br> `presence subscribe/unsubscribe <peer>` <br> `nick <name>` | Broadcast custom status, manage presence subscriptions, or set nickname. |
+| **Presence & Profile** | `presence <status>` <br> `presence subscribe/unsubscribe <peer>` <br> `profile [show]` <br> `profile set [--fn <name>] [--nick <nickname>] [--photo <path>] [--photo-type <mime>]` <br> `profile clear-photo` <br> `nick <name>` | Broadcast custom status, view or update local profile details, manage presence subscriptions, or set nickname. |
 | **Roster** | `roster list` <br> `roster add <jid> [name]` <br> `roster remove <jid>` <br> `roster fetch <peer>` | Manage and retrieve contact roster. |
 | **Feeds** | `feed post <msg> [--title <title>] [--tag <tag>] [--cover <path>]` <br> `feed article <msg> [--title <title>] [--tag <tag>] [--cover <path>] [--cover-target <peer>]` <br> `feed subscribe <peer> [public/private]` <br> `feed list` <br> `feed followers <peer>` | Publish feed updates and articles, follow peers, view posts, and track followers. |
 | **Collections** | `collection create <id> [name]` <br> `collection join <id>` <br> `collection posts [id]` | Group multiple user feeds into unified channels. |

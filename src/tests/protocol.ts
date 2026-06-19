@@ -154,7 +154,9 @@ async function runProtocolTest() {
     await node2.sendMessage(node1Address, 'Nickname check')
     await waitFor(() => receivedMessageNickname === 'Bobster', 10000, 'Timed out waiting for nickname on chat message')
 
-    await node2.setVCard({ fn: 'Bob Example', nickname: 'Bobster' })
+    const initialAvatar = Buffer.from('bob-avatar-1').toString('base64')
+    const updatedAvatar = Buffer.from('bob-avatar-2').toString('base64')
+    await node2.setVCard({ fn: 'Bob Example', nickname: 'Bobster', photo: { type: 'image/png', binval: initialAvatar } })
 
     const streamToNode2 = await node1.getOrCreateStream(node2Address)
 
@@ -180,8 +182,10 @@ async function runProtocolTest() {
     const vCardGet = vCardGetResponse.getChild('vCard')
     const vCardGetFn = vCardGet?.getChild('FN')?.text()
     const vCardGetNickname = vCardGet?.getChild('NICKNAME')?.text()
-    if (vCardGetFn !== 'Bob Example' || vCardGetNickname !== 'Bobster') {
-      throw new Error(`Unexpected initial vCard payload: FN=${vCardGetFn ?? 'missing'} NICKNAME=${vCardGetNickname ?? 'missing'}`)
+    const vCardGetPhotoType = vCardGet?.getChild('PHOTO')?.getChild('TYPE')?.text()
+    const vCardGetPhotoBinval = vCardGet?.getChild('PHOTO')?.getChild('BINVAL')?.text()
+    if (vCardGetFn !== 'Bob Example' || vCardGetNickname !== 'Bobster' || vCardGetPhotoType !== 'image/png' || vCardGetPhotoBinval !== initialAvatar) {
+      throw new Error(`Unexpected initial vCard payload: FN=${vCardGetFn ?? 'missing'} NICKNAME=${vCardGetNickname ?? 'missing'} PHOTO.TYPE=${vCardGetPhotoType ?? 'missing'} PHOTO.BINVAL=${vCardGetPhotoBinval ?? 'missing'}`)
     }
 
     const vCardSetPromise = new Promise<any>((resolve, reject) => {
@@ -199,7 +203,7 @@ async function runProtocolTest() {
     })
 
     streamToNode2.send(
-      `<iq to='${libp2p2.peerId.toString()}@p2p' from='${libp2p1.peerId.toString()}@p2p' type='set' id='vcard-2'><vCard xmlns='vcard-temp'><FN>Bob Relay</FN><NICKNAME>Bobby</NICKNAME></vCard></iq>`
+      `<iq to='${libp2p2.peerId.toString()}@p2p' from='${libp2p1.peerId.toString()}@p2p' type='set' id='vcard-2'><vCard xmlns='vcard-temp'><FN>Bob Relay</FN><NICKNAME>Bobby</NICKNAME><PHOTO><TYPE>image/png</TYPE><BINVAL>${updatedAvatar}</BINVAL></PHOTO></vCard></iq>`
     )
 
     await vCardSetPromise
@@ -231,8 +235,10 @@ async function runProtocolTest() {
     const vCardGetUpdated = vCardGetUpdatedResponse.getChild('vCard')
     const vCardGetUpdatedFn = vCardGetUpdated?.getChild('FN')?.text()
     const vCardGetUpdatedNickname = vCardGetUpdated?.getChild('NICKNAME')?.text()
-    if (vCardGetUpdatedFn !== 'Bob Relay' || vCardGetUpdatedNickname !== 'Bobby') {
-      throw new Error(`Unexpected updated vCard payload: FN=${vCardGetUpdatedFn ?? 'missing'} NICKNAME=${vCardGetUpdatedNickname ?? 'missing'}`)
+    const vCardGetUpdatedPhotoType = vCardGetUpdated?.getChild('PHOTO')?.getChild('TYPE')?.text()
+    const vCardGetUpdatedPhotoBinval = vCardGetUpdated?.getChild('PHOTO')?.getChild('BINVAL')?.text()
+    if (vCardGetUpdatedFn !== 'Bob Relay' || vCardGetUpdatedNickname !== 'Bobby' || vCardGetUpdatedPhotoType !== 'image/png' || vCardGetUpdatedPhotoBinval !== updatedAvatar) {
+      throw new Error(`Unexpected updated vCard payload: FN=${vCardGetUpdatedFn ?? 'missing'} NICKNAME=${vCardGetUpdatedNickname ?? 'missing'} PHOTO.TYPE=${vCardGetUpdatedPhotoType ?? 'missing'} PHOTO.BINVAL=${vCardGetUpdatedPhotoBinval ?? 'missing'}`)
     }
 
     console.log('\nProtocol Test Results:')

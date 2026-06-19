@@ -1850,12 +1850,14 @@ export class XmppNode extends EventEmitter {
   private buildVCardQuery(): Element {
     return buildVCard({
       fn: this.selfVCard.fn,
-      nickname: this.selfPresence.nickname ?? this.selfVCard.nickname
+      nickname: this.selfPresence.nickname ?? this.selfVCard.nickname,
+      photo: this.selfVCard.photo
     }, this.libp2p.peerId.toString())
   }
 
   private async updateVCard(profile: XmppVCardProfile): Promise<XmppVCardProfile> {
     await this.ready
+    const photoCleared = profile.photo === null
     const normalized = normalizeVCardProfile(profile)
     const nicknameChanged = normalized.nickname !== undefined && normalized.nickname !== this.selfPresence.nickname
 
@@ -1868,6 +1870,12 @@ export class XmppNode extends EventEmitter {
       this.selfPresence.nickname = normalized.nickname
     }
 
+    if (photoCleared) {
+      this.selfVCard.photo = undefined
+    } else if (normalized.photo !== undefined) {
+      this.selfVCard.photo = normalized.photo
+    }
+
     await this.scheduleVCardPersist()
 
     if (nicknameChanged) {
@@ -1876,7 +1884,8 @@ export class XmppNode extends EventEmitter {
 
     return {
       fn: this.selfVCard.fn,
-      nickname: this.selfPresence.nickname ?? this.selfVCard.nickname
+      nickname: this.selfPresence.nickname ?? this.selfVCard.nickname,
+      ...(this.selfVCard.photo ? { photo: this.selfVCard.photo } : {})
     }
   }
 
@@ -2109,7 +2118,8 @@ export class XmppNode extends EventEmitter {
     await this.ready
     return {
       fn: this.selfVCard.fn,
-      nickname: this.selfPresence.nickname ?? this.selfVCard.nickname
+      nickname: this.selfPresence.nickname ?? this.selfVCard.nickname,
+      ...(this.selfVCard.photo ? { photo: this.selfVCard.photo } : {})
     }
   }
 

@@ -5,6 +5,4 @@ node_modules/
 .superpowers/
 .agents/
 .codex/
-ui/build/
-ui/.svelte-kit/
 output/
