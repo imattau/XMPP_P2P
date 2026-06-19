@@ -93,7 +93,7 @@
 
         {#if mucSettingsOpen && activeChat.localAffiliation === 'owner'}
           <div class="grid gap-4 p-4 rounded-lg border border-white/[0.06] bg-white/[0.02] mb-3">
-            <div class="section__title">
+            <div class="grid gap-2">
               <p class="m-0 text-text-soft text-[0.72rem] tracking-[0.16em] uppercase">Room controls</p>
               <h3 class="margin-0 font-display text-[1.05rem] leading-[1.08]">Room topic and defaults</h3>
             </div>
@@ -118,7 +118,7 @@
           </div>
         {:else if mucSettingsOpen}
           <div class="grid gap-4 p-4 rounded-lg border border-white/[0.06] bg-white/[0.02] mb-3">
-            <div class="section__title">
+            <div class="grid gap-2">
               <p class="m-0 text-text-soft text-[0.72rem] tracking-[0.16em] uppercase">Room info</p>
               <h3 class="margin-0 font-display text-[1.05rem] leading-[1.08]">Room topic and defaults</h3>
             </div>

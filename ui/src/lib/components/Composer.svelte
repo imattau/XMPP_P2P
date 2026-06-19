@@ -78,7 +78,7 @@
   >
     <div class="surface__head">
       <div>
-        <p class="eyebrow">{sectionLabels[section]}</p>
+        <p class="m-0 text-text-soft text-[0.72rem] tracking-[0.16em] uppercase">{sectionLabels[section]}</p>
         <h3>Choose an action</h3>
       </div>
       <button class="inline-flex items-center justify-center min-h-10 px-[0.9rem] text-[0.88rem] rounded-full bg-transparent border border-border-strong text-text shadow-none transition-[transform,background-color,border-color,color,box-shadow] duration-[180ms] hover:-translate-y-px" type="button" onclick={closeComposerMenu}>Cancel</button>
@@ -88,7 +88,7 @@
       {#each composerMenuActions() as action}
         <button class="grid gap-1 w-full text-left p-3 rounded-md border border-border bg-white/[0.03] text-text hover:border-accent/[0.24] hover:bg-accent/[0.06]" type="button" onclick={() => openComposerAction(action.id)}>
           <strong class="font-display text-base">{action.label}</strong>
-          <span class="meta">{action.description}</span>
+          <span class="text-text-muted leading-[1.5]">{action.description}</span>
         </button>
       {/each}
     </div>
@@ -132,8 +132,7 @@
         <div class="flex flex-wrap gap-2 items-center" aria-label="Post destination">
           {#each (composerActionId === 'feed-post' || composerActionId === 'feed-article' ? composerTargets() : communities) as target}
             <button
-              class="chip"
-              class:is-active={composerTargetId === target.id}
+              class={`min-h-10 px-[0.95rem] rounded-full border whitespace-nowrap ${composerTargetId === target.id ? 'bg-accent/[0.16] border-accent/[0.32] text-text' : 'border-border bg-white/[0.03] text-text-muted'}`}
               type="button"
               onclick={() => { setComposerTarget(target.id); destinationPickerOpen = false }}
             >
@@ -161,7 +160,7 @@
                   {composerCoverUploadBusy ? 'Uploading cover...' : 'Drop an image here or choose a file'}
                 </span>
                 {#if composerCoverImageUrl}
-                  <a class="meta mono" href={composerCoverImageUrl} target="_blank" rel="noreferrer">{composerCoverImageUrl}</a>
+                  <a class="text-text-muted leading-[1.5] font-mono" href={composerCoverImageUrl} target="_blank" rel="noreferrer">{composerCoverImageUrl}</a>
                 {/if}
               </label>
             </div>
@@ -204,8 +203,7 @@
         <div class="flex flex-wrap gap-2 items-center" aria-label="Chat contact">
           {#each contacts as contact}
             <button
-              class="chip"
-              class:is-active={composerChatContactId === contact.id}
+              class={`min-h-10 px-[0.95rem] rounded-full border whitespace-nowrap ${composerChatContactId === contact.id ? 'bg-accent/[0.16] border-accent/[0.32] text-text' : 'border-border bg-white/[0.03] text-text-muted'}`}
               type="button"
               onclick={() => { setComposerChatContact(contact.id); destinationPickerOpen = false }}
             >
@@ -222,8 +220,7 @@
       <div class="flex flex-wrap gap-2 items-center flex-wrap overflow-x-visible" aria-label="Group participants">
         {#each contacts as contact}
           <button
-            class="chip"
-            class:is-active={composerGroupParticipants.includes(contact.id)}
+            class={`min-h-10 px-[0.95rem] rounded-full border whitespace-nowrap ${composerGroupParticipants.includes(contact.id) ? 'bg-accent/[0.16] border-accent/[0.32] text-text' : 'border-border bg-white/[0.03] text-text-muted'}`}
             type="button"
             onclick={() => toggleComposerGroupParticipant(contact.id)}
           >
@@ -233,10 +230,10 @@
       </div>
     {:else if composerActionId === 'chat-muc'}
       <div class="grid gap-4 p-4 rounded-lg border border-white/[0.06] bg-white/[0.02]">
-        <div class="section__title">
-          <p class="eyebrow">Room settings</p>
+        <div class="grid gap-2">
+          <p class="m-0 text-text-soft text-[0.72rem] tracking-[0.16em] uppercase">Room settings</p>
           <h3>Configure the new MUC</h3>
-          <p class="hint">The room topic and community choice are stored with the live thread snapshot when the room is created.</p>
+          <p class="text-text-muted leading-[1.5]">The room topic and community choice are stored with the live thread snapshot when the room is created.</p>
         </div>
 
         <label class="grid gap-2 text-text-muted text-[0.9rem] flex-[1_1_100%]">
@@ -246,8 +243,7 @@
         <div class="flex flex-wrap gap-2 items-center" aria-label="Room community">
           {#each communities as community}
             <button
-              class="chip"
-              class:is-active={composerMucCommunityId === community.id}
+              class={`min-h-10 px-[0.95rem] rounded-full border whitespace-nowrap ${composerMucCommunityId === community.id ? 'bg-accent/[0.16] border-accent/[0.32] text-text' : 'border-border bg-white/[0.03] text-text-muted'}`}
               type="button"
               onclick={() => (composerMucCommunityId = community.id)}
             >
@@ -300,7 +296,7 @@
       </label>
 
       <div class="flex flex-wrap items-center justify-between gap-3 max-[540px]:flex-col max-[540px]:items-stretch">
-        <p class="hint">
+        <p class="text-text-muted leading-[1.5]">
           {#if composerActionId === 'feed-post'}
             Posting to: {composerTarget().tag}
           {:else if composerActionId === 'feed-community-post' || composerActionId === 'feed-topic-post'}
@@ -313,7 +309,7 @@
             Room: {composerMucRoomName || 'New MUC'}
           {/if}
         </p>
-        <div class="action-group">
+        <div class="flex flex-wrap gap-2 items-center">
           <button class="inline-flex items-center justify-center min-h-[2.9rem] rounded-full px-4 bg-transparent border border-border-strong text-text shadow-none font-bold transition-[transform,background-color,border-color,color,box-shadow] duration-[180ms] hover:-translate-y-px max-[540px]:w-full" type="button" onclick={closeComposer}>Cancel</button>
           <button class="inline-flex items-center justify-center min-h-[2.9rem] rounded-full px-4 bg-accent text-white font-bold shadow-[0_10px_28px_rgba(91,75,207,0.22)] transition-[transform,background-color,border-color,color,box-shadow] duration-[180ms] hover:-translate-y-px max-[540px]:w-full" type="submit">
             {composerActionId === 'chat-muc' ? 'Create room' : selectedComposerAction().label}
