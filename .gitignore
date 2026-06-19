@@ -2,6 +2,7 @@ AGENTS.md
 dist/
 node_modules/
 .xmpp-*.json
+.xmpp-state*.sqlite*
 .superpowers/
 .agents/
 .codex/
