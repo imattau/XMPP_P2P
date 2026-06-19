@@ -6,6 +6,7 @@
   import ContactsView from '$lib/components/ContactsView.svelte'
   import FeedView from '$lib/components/FeedView.svelte'
   import ChatsView from '$lib/components/ChatsView.svelte'
+  import Composer from '$lib/components/Composer.svelte'
 
   const clone = (value) => structuredClone(value)
   export let data
@@ -999,265 +1000,55 @@
       </div>
     {/if}
 
-    {#if section === 'feed' || section === 'chats'}
-      <button
-        class={`fab ${section === 'chats' ? 'fab--chat' : 'fab--feed'}`}
-        type="button"
-        aria-label={`Create a new ${section === 'feed' ? 'feed' : 'chat'} item`}
-        title="Press and hold for more options"
-        onpointerdown={startFabPress}
-        onpointerup={endFabPress}
-        onpointercancel={endFabPress}
-        onpointerleave={endFabPress}
-        onclick={activateFab}
-      >
-        +
-      </button>
-    {/if}
-
-    {#if composerMenuOpen}
-      <div class="backdrop" aria-hidden="true" onclick={closeComposerMenu}></div>
-      <div class="sheet fab-menu" bind:this={composerMenuDialogEl} role="dialog" aria-label="Choose create action" aria-modal="true" tabindex="-1">
-        <div class="surface__head">
-          <div>
-            <p class="eyebrow">{sectionLabels[section]}</p>
-            <h3>Choose an action</h3>
-          </div>
-          <button class="button button--ghost button--small" type="button" onclick={closeComposerMenu}>Cancel</button>
-        </div>
-
-        <div class="fab-menu__grid">
-          {#each composerMenuActions() as action}
-            <button class="composer-option" type="button" onclick={() => openComposerAction(action.id)}>
-              <strong>{action.label}</strong>
-              <span class="meta">{action.description}</span>
-            </button>
-          {/each}
-        </div>
-      </div>
-    {/if}
-
-    {#if composerOpen}
-      <div class="backdrop" aria-hidden="true" onclick={closeComposer}></div>
-      <div class="sheet composer composer--context" bind:this={composerDialogEl} role="dialog" aria-label={selectedComposerAction().label} aria-modal="true" tabindex="-1">
-        <div class="composer-header">
-          <button class="composer-header__cancel" type="button" onclick={closeComposer}>Cancel</button>
-          <strong class="composer-header__title">{selectedComposerAction().label}</strong>
-          <div class="composer-header__icons">
-            {#if composerActionId === 'chat-direct' || composerActionId === 'chat-group'}
-              <button
-                class="icon-toggle"
-                class:is-on={composerSecure}
-                type="button"
-                aria-pressed={composerSecure}
-                aria-label={composerSecure ? 'Encryption on' : 'Encryption off'}
-                onclick={() => (composerSecure = !composerSecure)}
-              >
-                🔒
-              </button>
-            {/if}
-          </div>
-        </div>
-
-        {#if composerActionId === 'feed-post' || composerActionId === 'feed-article' || composerActionId === 'feed-community-post' || composerActionId === 'feed-topic-post'}
-          <button class="composer-dest" type="button" onclick={() => (destinationPickerOpen = !destinationPickerOpen)}>
-            <span class="composer-dest__label">Posting to</span>
-            <span class="composer-dest__value">{composerTarget().tag} <span aria-hidden="true">⌄</span></span>
-          </button>
-          {#if destinationPickerOpen}
-            <div class="composer__targets" aria-label="Post destination">
-              {#each (composerActionId === 'feed-post' || composerActionId === 'feed-article' ? composerTargets() : communities) as target}
-                <button
-                  class="chip"
-                  class:is-active={composerTargetId === target.id}
-                  type="button"
-                  onclick={() => { setComposerTarget(target.id); destinationPickerOpen = false }}
-                >
-                  {target.tag}
-                </button>
-              {/each}
-            </div>
-          {/if}
-          {#if composerActionId === 'feed-article'}
-            <div class="collapse">
-              <button class="collapse__head" type="button" onclick={() => (coverSectionOpen = !coverSectionOpen)}>
-                <span>{coverSectionOpen ? '−' : '+'} Cover image</span>
-                <span aria-hidden="true">{coverSectionOpen ? '⌃' : '⌄'}</span>
-              </button>
-              {#if coverSectionOpen}
-                <div class="collapse__body">
-                  <label
-                    class={`cover-dropzone ${composerCoverDropActive ? 'cover-dropzone--active' : ''}`}
-                    ondragover={(event) => { event.preventDefault(); composerCoverDropActive = true }}
-                    ondragleave={() => (composerCoverDropActive = false)}
-                    ondrop={handleComposerCoverDrop}
-                  >
-                    <input accept="image/*" type="file" onchange={handleComposerCoverPicker} />
-                    <span class="cover-dropzone__label">
-                      {composerCoverUploadBusy ? 'Uploading cover...' : 'Drop an image here or choose a file'}
-                    </span>
-                    {#if composerCoverImageUrl}
-                      <a class="meta mono" href={composerCoverImageUrl} target="_blank" rel="noreferrer">{composerCoverImageUrl}</a>
-                    {/if}
-                  </label>
-                </div>
-              {/if}
-            </div>
-            <div class="collapse">
-              <button class="collapse__head" type="button" onclick={() => (titleSectionOpen = !titleSectionOpen)}>
-                <span>{titleSectionOpen ? '−' : '+'} Title &amp; tags</span>
-                <span aria-hidden="true">{titleSectionOpen ? '⌃' : '⌄'}</span>
-              </button>
-              {#if titleSectionOpen}
-                <div class="collapse__body">
-                  <label class="field field--grow">
-                    <span>Title</span>
-                    <input bind:value={composerTopicTitle} type="text" placeholder="Post title" />
-                  </label>
-                  <div class="tags-row">
-                    {#each composerTags as tag}
-                      <button class="tag-chip" type="button" onclick={() => removeComposerTag(tag)}>#{tag} ✕</button>
-                    {/each}
-                    <input
-                      class="tag-add-input"
-                      type="text"
-                      placeholder="+ tag"
-                      bind:value={composerTagDraft}
-                      onkeydown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addComposerTag() } }}
-                      onblur={addComposerTag}
-                    />
-                  </div>
-                </div>
-              {/if}
-            </div>
-          {/if}
-        {:else if composerActionId === 'chat-direct'}
-          <button class="composer-dest" type="button" onclick={() => (destinationPickerOpen = !destinationPickerOpen)}>
-            <span class="composer-dest__label">Sending to</span>
-            <span class="composer-dest__value">{contacts.find((contact) => contact.id === composerChatContactId)?.name ?? 'Select a contact'} <span aria-hidden="true">⌄</span></span>
-          </button>
-          {#if destinationPickerOpen}
-            <div class="composer__targets" aria-label="Chat contact">
-              {#each contacts as contact}
-                <button
-                  class="chip"
-                  class:is-active={composerChatContactId === contact.id}
-                  type="button"
-                  onclick={() => { setComposerChatContact(contact.id); destinationPickerOpen = false }}
-                >
-                  {contact.name}
-                </button>
-              {/each}
-            </div>
-          {/if}
-        {:else if composerActionId === 'chat-group'}
-          <label class="field field--grow">
-            <span>Group name</span>
-            <input bind:value={composerGroupName} type="text" placeholder="Project team" />
-          </label>
-          <div class="composer__targets composer__targets--wrap" aria-label="Group participants">
-            {#each contacts as contact}
-              <button
-                class="chip"
-                class:is-active={composerGroupParticipants.includes(contact.id)}
-                type="button"
-                onclick={() => toggleComposerGroupParticipant(contact.id)}
-              >
-                {contact.name}
-              </button>
-            {/each}
-          </div>
-        {:else if composerActionId === 'chat-muc'}
-          <div class="composer__settings">
-            <div class="section__title">
-              <p class="eyebrow">Room settings</p>
-              <h3>Configure the new MUC</h3>
-              <p class="hint">The room topic and community choice are stored with the live thread snapshot when the room is created.</p>
-            </div>
-
-            <label class="field field--grow">
-              <span>Room name</span>
-              <input bind:value={composerMucRoomName} type="text" placeholder="lobby" required />
-            </label>
-            <div class="composer__targets" aria-label="Room community">
-              {#each communities as community}
-                <button
-                  class="chip"
-                  class:is-active={composerMucCommunityId === community.id}
-                  type="button"
-                  onclick={() => (composerMucCommunityId = community.id)}
-                >
-                  {community.tag}
-                </button>
-              {/each}
-            </div>
-            <label class="field field--grow">
-              <span>Room topic</span>
-              <input bind:value={composerMucTopic} type="text" placeholder="Protocol discussion" />
-            </label>
-            <div class="composer__settings-row">
-              <label class="toggle">
-                <input checked={composerMucDefaultMode === 'secure'} type="checkbox" onchange={(event) => (composerMucDefaultMode = event.currentTarget.checked ? 'secure' : 'open')} />
-                <span>Secure by default</span>
-              </label>
-              <label class="toggle">
-                <input bind:checked={composerMucAutoJoin} type="checkbox" />
-                <span>Auto-join</span>
-              </label>
-            </div>
-          </div>
-        {/if}
-
-        {#if composerActionId === 'feed-article'}
-          <div class="rich-toolbar" role="toolbar" aria-label="Rich text formatting">
-            <button class="rt-icon" type="button" aria-label="Bold">B</button>
-            <button class="rt-icon" type="button" aria-label="Italic">I</button>
-            <button class="rt-icon" type="button" aria-label="Heading">H</button>
-            <button class="rt-icon" type="button" aria-label="Link">🔗</button>
-            <button class="rt-icon" type="button" aria-label="List">≣</button>
-          </div>
-        {/if}
-
-        <form class="composer__form" onsubmit={submitComposer}>
-          {#if composerActionId === 'feed-topic-post'}
-            <label class="field field--grow">
-              <span>Topic title</span>
-              <input bind:value={composerTopicTitle} type="text" placeholder="Discussion title" />
-            </label>
-          {/if}
-
-          <label class="field field--grow composer__body-field">
-            <span>{composerActionId.startsWith('chat') ? 'Message' : 'Post text'}</span>
-            <textarea
-              bind:value={composerBody}
-              placeholder={composerActionId === 'chat-muc' ? 'Optional opening message' : composerActionId.startsWith('chat') ? 'Write the opening message' : 'Write a post'}
-            ></textarea>
-          </label>
-
-          <div class="composer__actions">
-            <p class="hint">
-              {#if composerActionId === 'feed-post'}
-                Posting to: {composerTarget().tag}
-              {:else if composerActionId === 'feed-community-post' || composerActionId === 'feed-topic-post'}
-                Posting to: {composerTarget().tag}
-              {:else if composerActionId === 'chat-direct'}
-                Starting chat with: {contacts.find((contact) => contact.id === composerChatContactId)?.name}
-              {:else if composerActionId === 'chat-group'}
-                Members: {composerGroupParticipants.length || 2}
-              {:else}
-                Room: {composerMucRoomName || 'New MUC'}
-              {/if}
-            </p>
-            <div class="action-group">
-                <button class="button button--ghost" type="button" onclick={closeComposer}>Cancel</button>
-              <button class="button" type="submit">
-                {composerActionId === 'chat-muc' ? 'Create room' : selectedComposerAction().label}
-              </button>
-            </div>
-          </div>
-        </form>
-      </div>
-    {/if}
+    <Composer
+      {section}
+      {sectionLabels}
+      {contacts}
+      {communities}
+      {startFabPress}
+      {endFabPress}
+      {activateFab}
+      bind:composerMenuOpen
+      bind:composerMenuDialogEl
+      {closeComposerMenu}
+      {composerMenuActions}
+      {openComposerAction}
+      bind:composerOpen
+      bind:composerDialogEl
+      {closeComposer}
+      {selectedComposerAction}
+      bind:composerActionId
+      bind:composerSecure
+      bind:destinationPickerOpen
+      {composerTarget}
+      bind:composerTargetId
+      {composerTargets}
+      {setComposerTarget}
+      bind:coverSectionOpen
+      bind:titleSectionOpen
+      bind:composerCoverDropActive
+      {composerCoverUploadBusy}
+      bind:composerCoverImageUrl
+      {handleComposerCoverDrop}
+      {handleComposerCoverPicker}
+      bind:composerTopicTitle
+      bind:composerTags
+      bind:composerTagDraft
+      bind:composerBody
+      {addComposerTag}
+      {removeComposerTag}
+      bind:composerChatContactId
+      {setComposerChatContact}
+      bind:composerGroupName
+      bind:composerGroupParticipants
+      {toggleComposerGroupParticipant}
+      bind:composerMucRoomName
+      bind:composerMucCommunityId
+      bind:composerMucTopic
+      bind:composerMucDefaultMode
+      bind:composerMucAutoJoin
+      {submitComposer}
+    />
 
     {#if section === 'feed'}
       <FeedView
