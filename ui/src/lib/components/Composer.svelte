@@ -41,6 +41,7 @@
     composerGroupName = $bindable(),
     composerGroupParticipants = $bindable(),
     toggleComposerGroupParticipant,
+    composerCommunityName = $bindable(),
     composerMucRoomName = $bindable(),
     composerMucCommunityId = $bindable(),
     composerMucTopic = $bindable(),
@@ -123,14 +124,14 @@
       </div>
     </div>
 
-    {#if composerActionId === 'feed-post' || composerActionId === 'feed-article' || composerActionId === 'feed-community-post' || composerActionId === 'feed-topic-post'}
+    {#if composerActionId === 'feed-post' || composerActionId === 'feed-article' || composerActionId === 'feed-topic'}
       <button class="flex items-center justify-between w-full py-[0.6rem] bg-transparent border-0 border-b border-border text-text-muted text-[0.85rem]" type="button" onclick={() => (destinationPickerOpen = !destinationPickerOpen)}>
         <span>Posting to</span>
         <span class="text-accent-text font-semibold">{composerTarget().tag} <span aria-hidden="true">⌄</span></span>
       </button>
       {#if destinationPickerOpen}
         <div class="flex flex-wrap gap-2 items-center" aria-label="Post destination">
-          {#each (composerActionId === 'feed-post' || composerActionId === 'feed-article' ? composerTargets() : communities) as target}
+          {#each composerTargets() as target}
             <button
               class={`min-h-10 px-[0.95rem] rounded-full border whitespace-nowrap ${composerTargetId === target.id ? 'bg-accent/[0.16] border-accent/[0.32] text-text' : 'border-border bg-white/[0.03] text-text-muted'}`}
               type="button"
@@ -194,6 +195,19 @@
           {/if}
         </div>
       {/if}
+    {:else if composerActionId === 'community-create'}
+      <div class="grid gap-4 p-4 rounded-lg border border-white/[0.06] bg-white/[0.02]">
+        <div class="grid gap-2">
+          <p class="m-0 text-text-soft text-[0.72rem] tracking-[0.16em] uppercase">Community setup</p>
+          <h3>Create a new community</h3>
+          <p class="text-text-muted leading-[1.5]">The community ID will be derived from the name, deduplicated if needed, and the new community will be joined right away.</p>
+        </div>
+
+        <label class="grid gap-2 text-text-muted text-[0.9rem] flex-[1_1_100%]">
+          <span class="text-text-soft text-[0.76rem] tracking-[0.08em] uppercase">Community name</span>
+          <input class="w-full border border-border rounded-md px-[0.95rem] py-[0.85rem] bg-white/[0.03] text-text" bind:value={composerCommunityName} type="text" placeholder="Garden Club" required />
+        </label>
+      </div>
     {:else if composerActionId === 'chat-direct'}
       <button class="flex items-center justify-between w-full py-[0.6rem] bg-transparent border-0 border-b border-border text-text-muted text-[0.85rem]" type="button" onclick={() => (destinationPickerOpen = !destinationPickerOpen)}>
         <span>Sending to</span>
@@ -279,32 +293,36 @@
     {/if}
 
     <form class="flex flex-col flex-1 gap-3 min-h-0" onsubmit={submitComposer}>
-      {#if composerActionId === 'feed-topic-post'}
+      {#if composerActionId === 'feed-topic'}
         <label class="grid gap-2 text-text-muted text-[0.9rem] flex-[1_1_100%]">
           <span class="text-text-soft text-[0.76rem] tracking-[0.08em] uppercase">Topic title</span>
           <input class="w-full border border-border rounded-md px-[0.95rem] py-[0.85rem] bg-white/[0.03] text-text" bind:value={composerTopicTitle} type="text" placeholder="Discussion title" />
         </label>
       {/if}
 
-      <label class="grid gap-2 text-text-muted text-[0.9rem] flex-[1_1_100%] flex-1 flex flex-col min-h-0">
-        <span class="text-text-soft text-[0.76rem] tracking-[0.08em] uppercase">{composerActionId.startsWith('chat') ? 'Message' : 'Post text'}</span>
-        <textarea
-          class="w-full border border-border rounded-md px-[0.95rem] py-[0.85rem] bg-white/[0.03] text-text flex-1 min-h-24 resize-none"
-          bind:value={composerBody}
-          placeholder={composerActionId === 'chat-muc' ? 'Optional opening message' : composerActionId.startsWith('chat') ? 'Write the opening message' : 'Write a post'}
-        ></textarea>
-      </label>
+      {#if composerActionId !== 'community-create'}
+        <label class="grid gap-2 text-text-muted text-[0.9rem] flex-[1_1_100%] flex-1 flex flex-col min-h-0">
+          <span class="text-text-soft text-[0.76rem] tracking-[0.08em] uppercase">{composerActionId.startsWith('chat') ? 'Message' : 'Post text'}</span>
+          <textarea
+            class="w-full border border-border rounded-md px-[0.95rem] py-[0.85rem] bg-white/[0.03] text-text flex-1 min-h-24 resize-none"
+            bind:value={composerBody}
+            placeholder={composerActionId === 'chat-muc' ? 'Optional opening message' : composerActionId.startsWith('chat') ? 'Write the opening message' : 'Write a post'}
+          ></textarea>
+        </label>
+      {/if}
 
       <div class="flex flex-wrap items-center justify-between gap-3 max-[540px]:flex-col max-[540px]:items-stretch">
         <p class="text-text-muted leading-[1.5]">
           {#if composerActionId === 'feed-post'}
             Posting to: {composerTarget().tag}
-          {:else if composerActionId === 'feed-community-post' || composerActionId === 'feed-topic-post'}
+          {:else if composerActionId === 'feed-topic'}
             Posting to: {composerTarget().tag}
           {:else if composerActionId === 'chat-direct'}
             Starting chat with: {contacts.find((contact) => contact.id === composerChatContactId)?.name}
           {:else if composerActionId === 'chat-group'}
             Members: {composerGroupParticipants.length || 2}
+          {:else if composerActionId === 'community-create'}
+            Community: {composerCommunityName || 'New community'}
           {:else}
             Room: {composerMucRoomName || 'New MUC'}
           {/if}
@@ -312,7 +330,7 @@
         <div class="flex flex-wrap gap-2 items-center">
           <button class="inline-flex items-center justify-center min-h-[2.9rem] rounded-full px-4 bg-transparent border border-border-strong text-text shadow-none font-bold transition-[transform,background-color,border-color,color,box-shadow] duration-[180ms] hover:-translate-y-px max-[540px]:w-full" type="button" onclick={closeComposer}>Cancel</button>
           <button class="inline-flex items-center justify-center min-h-[2.9rem] rounded-full px-4 bg-accent text-white font-bold shadow-[0_10px_28px_rgba(91,75,207,0.22)] transition-[transform,background-color,border-color,color,box-shadow] duration-[180ms] hover:-translate-y-px max-[540px]:w-full" type="submit">
-            {composerActionId === 'chat-muc' ? 'Create room' : selectedComposerAction().label}
+            {composerActionId === 'chat-muc' ? 'Create room' : composerActionId === 'community-create' ? 'Create community' : selectedComposerAction().label}
           </button>
         </div>
       </div>
