@@ -34,6 +34,12 @@ export const attachCliEventListeners = (ctx: CliContext) => {
     if (msg.replace) {
       console.log(`  Correction: Replaces message ${msg.replace}`)
     }
+    if (msg.reply) {
+      console.log(`  Reply: References message ${msg.reply.id}${msg.reply.to ? ` (${msg.reply.to})` : ''}`)
+    }
+    if (msg.thread) {
+      console.log(`  Thread: ${msg.thread}`)
+    }
     if (msg.delay) {
       console.log(`  Original Timestamp: ${msg.delay.stamp} (Delayed from ${msg.delay.from || msg.from})`)
     }

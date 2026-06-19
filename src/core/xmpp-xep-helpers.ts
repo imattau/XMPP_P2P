@@ -4,6 +4,7 @@ export const RECEIPTS_XMLNS = 'urn:xmpp:receipts'
 export const CHATSTATES_XMLNS = 'urn:xmpp:chatstates'
 export const DELAY_XMLNS = 'urn:xmpp:delay'
 export const CORRECT_XMLNS = 'urn:xmpp:message-correct:0'
+export const REPLY_XMLNS = 'urn:xmpp:reply:0'
 export const PING_XMLNS = 'urn:xmpp:ping'
 export const NICK_XMLNS = 'http://jabber.org/protocol/nick'
 export const SID_XMLNS = 'urn:xmpp:sid:0'
@@ -13,6 +14,8 @@ export interface XepMetadata {
   chatState?: 'active' | 'composing' | 'paused' | 'inactive' | 'gone'
   delay?: { from?: string; stamp: string }
   replace?: string
+  reply?: { id: string; to?: string }
+  thread?: string
   nick?: string
   originId?: string
   stanzaId?: { id: string; by: string }
@@ -58,6 +61,20 @@ export function parseXepMetadata(element: Element): XepMetadata {
     metadata.replace = replaceEl.attrs.id
   }
 
+  const replyEl = element.getChild('reply')
+  if (replyEl && replyEl.attrs.xmlns === REPLY_XMLNS && replyEl.attrs.id) {
+    metadata.reply = {
+      id: replyEl.attrs.id,
+      to: replyEl.attrs.to
+    }
+  }
+
+  const threadEl = element.getChild('thread')
+  const thread = threadEl?.text().trim()
+  if (thread) {
+    metadata.thread = thread
+  }
+
   const nickEl = element.getChild('nick')
   if (nickEl && nickEl.attrs.xmlns === NICK_XMLNS) {
     const nick = nickEl.text().trim()
@@ -85,6 +102,8 @@ export function parseXepMetadata(element: Element): XepMetadata {
 
 export function buildXepElements(options: {
   replace?: string
+  reply?: { id: string; to?: string }
+  thread?: string
   requestReceipt?: boolean
   chatState?: 'active' | 'composing' | 'paused' | 'inactive' | 'gone'
   delay?: { stamp: string; from?: string }
@@ -120,6 +139,21 @@ export function buildXepElements(options: {
     }))
   }
 
+  if (options.reply) {
+    const replyAttrs: Record<string, string> = {
+      xmlns: REPLY_XMLNS,
+      id: options.reply.id
+    }
+    if (options.reply.to) {
+      replyAttrs.to = options.reply.to
+    }
+    elements.push(xml('reply', replyAttrs))
+  }
+
+  if (options.thread) {
+    elements.push(xml('thread', {}, options.thread))
+  }
+
   if (options.nick) {
     elements.push(xml('nick', { xmlns: NICK_XMLNS }, options.nick))
   }
@@ -134,4 +168,3 @@ export function buildXepElements(options: {
 
   return elements
 }
-

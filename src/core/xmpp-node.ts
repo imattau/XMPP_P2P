@@ -2159,6 +2159,8 @@ export class XmppNode extends EventEmitter {
     body: string,
     options: {
       replace?: string
+      reply?: { id: string; to?: string }
+      thread?: string
       requestReceipt?: boolean
       chatState?: 'active' | 'composing' | 'paused' | 'inactive' | 'gone'
       delay?: { stamp: string; from?: string }
@@ -2180,6 +2182,7 @@ export class XmppNode extends EventEmitter {
         stamp: options.delay.stamp,
         from: options.delay.from ?? this.jid
       } : undefined,
+      thread: options.thread,
       originId: id,
       stanzaId: { id, by: this.jid }
     }))
@@ -2288,6 +2291,8 @@ export class XmppNode extends EventEmitter {
     body: string,
     options: {
       replace?: string
+      reply?: { id: string; to?: string }
+      thread?: string
       requestReceipt?: boolean
       chatState?: 'active' | 'composing' | 'paused' | 'inactive' | 'gone'
       delay?: { stamp: string; from?: string }

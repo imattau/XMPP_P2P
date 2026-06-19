@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getBrowserXmppBridge } from '../runtime'
-import type { ChatComposerState, ChatMessage, ChatParticipant, ChatThread } from './types'
+import type { ChatComposerState, ChatMessage, ChatMessageReply, ChatParticipant, ChatThread } from './types'
 import { ChatBridgeController } from './controller'
 
 export function useChatBridge(chat: ChatThread, initialMessages: ChatMessage[]) {
@@ -36,6 +36,7 @@ export function useChatBridge(chat: ChatThread, initialMessages: ChatMessage[]) 
     setShowMentionPicker: (showMentionPicker: boolean) => controller.setShowMentionPicker(showMentionPicker),
     setEmojiCategory: (emojiCategory: string) => controller.setEmojiCategory(emojiCategory),
     setEmojiSearch: (emojiSearch: string) => controller.setEmojiSearch(emojiSearch),
+    setReplyTo: (replyTo?: ChatMessageReply) => controller.setReplyTo(replyTo),
     sendMessage: () => controller.sendMessage()
   }
 }

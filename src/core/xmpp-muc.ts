@@ -148,6 +148,24 @@ function buildGroupchatMessage(roomName: string, nick: string, children: Element
   )
 }
 
+function parseReplyElement(element: Element): { id: string; to?: string } | undefined {
+  const replyEl = element.getChild('reply')
+  if (!replyEl || replyEl.attrs.xmlns !== 'urn:xmpp:reply:0' || !replyEl.attrs.id) {
+    return undefined
+  }
+
+  return {
+    id: replyEl.attrs.id,
+    to: replyEl.attrs.to
+  }
+}
+
+function parseThreadElement(element: Element): string | undefined {
+  const threadEl = element.getChild('thread')
+  const thread = threadEl?.text().trim()
+  return thread || undefined
+}
+
 export class XmppMucManager {
   private ctx: XmppMucContext
   private rooms = new Map<string, MucRoomState>()
@@ -249,7 +267,7 @@ export class XmppMucManager {
     }
   }
 
-  async sendGroupMessage(roomName: string, body: string, replaceId?: string, messageId?: string): Promise<string> {
+  async sendGroupMessage(roomName: string, body: string, replaceId?: string, messageId?: string, reply?: { id: string; to?: string }, thread?: string): Promise<string> {
     const roomState = this.rooms.get(roomName)
     if (!roomState) {
       throw new Error(`Not joined in MUC room: ${roomName}`)
@@ -259,6 +277,16 @@ export class XmppMucManager {
     const children = [xml('body', {}, body)]
     if (replaceId) {
       children.push(xml('replace', { xmlns: 'urn:xmpp:message-correct:0', id: replaceId }))
+    }
+    if (reply) {
+      const replyAttrs: Record<string, string> = { xmlns: 'urn:xmpp:reply:0', id: reply.id }
+      if (reply.to) {
+        replyAttrs.to = reply.to
+      }
+      children.push(xml('reply', replyAttrs))
+    }
+    if (thread) {
+      children.push(xml('thread', {}, thread))
     }
 
     const stanza = buildGroupchatMessage(roomName, roomState.localNick, children, id)
@@ -273,13 +301,15 @@ export class XmppMucManager {
       from: roomState.localNick,
       fromPeerId: this.ctx.jid.split('@')[0],
       body,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      reply,
+      thread
     })
 
     return id
   }
 
-  async sendGroupMessageSecure(roomName: string, body: string, replaceId?: string, messageId?: string): Promise<string> {
+  async sendGroupMessageSecure(roomName: string, body: string, replaceId?: string, messageId?: string, reply?: { id: string; to?: string }, thread?: string): Promise<string> {
     const roomState = this.rooms.get(roomName)
     if (!roomState) {
       throw new Error(`Not joined in MUC room: ${roomName}`)
@@ -342,6 +372,16 @@ export class XmppMucManager {
     if (replaceId) {
       children.push(xml('replace', { xmlns: 'urn:xmpp:message-correct:0', id: replaceId }))
     }
+    if (reply) {
+      const replyAttrs: Record<string, string> = { xmlns: 'urn:xmpp:reply:0', id: reply.id }
+      if (reply.to) {
+        replyAttrs.to = reply.to
+      }
+      children.push(xml('reply', replyAttrs))
+    }
+    if (thread) {
+      children.push(xml('thread', {}, thread))
+    }
 
     const stanza = buildGroupchatMessage(roomName, roomState.localNick, children, id)
 
@@ -357,7 +397,9 @@ export class XmppMucManager {
       body,
       timestamp: new Date().toISOString(),
       encrypted: true,
-      encryption: 'omemo'
+      encryption: 'omemo',
+      reply,
+      thread
     })
 
     return id
@@ -421,6 +463,16 @@ export class XmppMucManager {
         type: 'groupchat',
         id: msg.id
       }, xml('body', {}, msg.body))
+      if (msg.reply) {
+        const replyAttrs: Record<string, string> = { xmlns: 'urn:xmpp:reply:0', id: msg.reply.id }
+        if (msg.reply.to) {
+          replyAttrs.to = msg.reply.to
+        }
+        msgEl.children.push(xml('reply', replyAttrs))
+      }
+      if (msg.thread) {
+        msgEl.children.push(xml('thread', {}, msg.thread))
+      }
 
       if (msg.encrypted && msg.encryption === 'omemo') {
         // We do not have easy access to reconstruct full OMEMO payload details, so we just wrap clean body in mam message response.
@@ -470,6 +522,8 @@ export class XmppMucManager {
       const senderNick = fromVal.split('/')[1] || fromVal
       const body = innerMsg.getChild('body')?.text()
       const msgId = innerMsg.attrs.id || resultEl.attrs.id
+      const reply = parseReplyElement(innerMsg)
+      const thread = parseThreadElement(innerMsg)
 
       if (body) {
         const mamMsg = {
@@ -478,7 +532,9 @@ export class XmppMucManager {
           from: senderNick,
           fromPeerId: peerId,
           body,
-          timestamp: delayStamp || new Date().toISOString()
+          timestamp: delayStamp || new Date().toISOString(),
+          reply,
+          thread
         }
         await this.ctx.recordMucMessage(mamMsg)
 
@@ -493,6 +549,8 @@ export class XmppMucManager {
           timestamp: delayStamp || new Date().toISOString(),
           id: msgId,
           mam: true,
+          reply,
+          thread,
           queryId
         })
       }
@@ -658,6 +716,8 @@ export class XmppMucManager {
             const payloadKey = await decryptOmemoKey(this.ctx as any, remoteAddress, encryptedKey)
             const body = decryptOmemoPayload(payload, payloadKey, iv)
             const msgId = element.attrs.id || Math.random().toString(36).substring(2, 11)
+            const reply = parseReplyElement(element)
+            const thread = parseThreadElement(element)
 
             await this.ctx.recordMucMessage({
               id: msgId,
@@ -667,7 +727,9 @@ export class XmppMucManager {
               body,
               timestamp: new Date().toISOString(),
               encrypted: true,
-              encryption: 'omemo'
+              encryption: 'omemo',
+              reply,
+              thread
             })
 
             const replaceEl = element.getChild('replace')
@@ -685,7 +747,9 @@ export class XmppMucManager {
               encrypted: true,
               encryption: 'omemo',
               id: msgId,
-              replace
+              replace,
+              reply,
+              thread
             })
           }
         } catch (err: any) {
@@ -695,13 +759,17 @@ export class XmppMucManager {
         const body = element.getChild('body')?.text()
         if (body) {
           const msgId = element.attrs.id || Math.random().toString(36).substring(2, 11)
+          const reply = parseReplyElement(element)
+          const thread = parseThreadElement(element)
           await this.ctx.recordMucMessage({
             id: msgId,
             room: roomName,
             from: senderNick,
             fromPeerId,
             body,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            reply,
+            thread
           })
 
           const replaceEl = element.getChild('replace')
@@ -717,7 +785,9 @@ export class XmppMucManager {
             body,
             timestamp: new Date().toISOString(),
             id: msgId,
-            replace
+            replace,
+            reply,
+            thread
           })
         }
       }

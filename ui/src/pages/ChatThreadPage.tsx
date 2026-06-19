@@ -1,13 +1,13 @@
 import * as React from 'react'
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router'
-import { useChatBridge, type ChatMessage as BridgeChatMessage, type ChatThread as BridgeChatThread } from '../bridge'
+import { useChatBridge, type ChatMessage as BridgeChatMessage, type ChatMessageReply as BridgeChatMessageReply, type ChatThread as BridgeChatThread } from '../bridge'
 import {
   ArrowLeft, Phone, Video, Info, X, Send, Smile, Paperclip,
   Mic, Shield, Lock, BellOff, Bell, Trash2, LogOut, Users,
   Hash, Globe, EyeOff, UserPlus, UserMinus, Settings,
   CheckCheck, Check, Image, FileText, MoreHorizontal,
-  MessageSquare, Key, Archive, ChevronRight, Crown, Gavel,
+  MessageSquare, Key, Archive, ChevronRight, Crown, Gavel, CornerUpLeft,
   Zap, Copy, Star, AlertTriangle, Upload, ImagePlus, AtSign,
 } from 'lucide-react'
 
@@ -34,7 +34,8 @@ interface Message {
   delivered?: boolean
   read?: boolean
   reactions?: { emoji: string; count: number; mine?: boolean }[]
-  replyTo?: { senderName: string; content: string }
+  replyTo?: BridgeChatMessageReply
+  thread?: string
   fileName?: string
 }
 
@@ -178,7 +179,46 @@ function RoleIcon({ role }: { role?: string }) {
   return null
 }
 
-function Bubble({ msg, isMine, showAvatar, type }: { msg: Message; isMine: boolean; showAvatar: boolean; type: ChatType }) {
+function splitQuotedBody(content: string) {
+  const lines = content.split('\n')
+  const quoteLines: string[] = []
+  let index = 0
+
+  while (index < lines.length) {
+    const line = lines[index]
+    if (line.startsWith('> ')) {
+      quoteLines.push(line.slice(2))
+      index += 1
+      continue
+    }
+    if (line === '' && quoteLines.length > 0) {
+      index += 1
+      break
+    }
+    break
+  }
+
+  return {
+    quote: quoteLines.length > 0 ? quoteLines.join('\n') : undefined,
+    body: lines.slice(index).join('\n').trim()
+  }
+}
+
+function Bubble({
+  msg,
+  isMine,
+  showAvatar,
+  type,
+  onReply,
+  replyPreview,
+}: {
+  msg: Message
+  isMine: boolean
+  showAvatar: boolean
+  type: ChatType
+  onReply: (message: Message) => void
+  replyPreview?: { senderName: string; content: string }
+}) {
   if (msg.kind === 'system') {
     return (
       <div className="flex justify-center my-3">
@@ -186,6 +226,10 @@ function Bubble({ msg, isMine, showAvatar, type }: { msg: Message; isMine: boole
       </div>
     )
   }
+
+  const parsedBody = msg.kind === 'audio' || msg.kind === 'file'
+    ? undefined
+    : splitQuotedBody(msg.content)
 
   return (
     <div className={`flex gap-2 mb-1 ${isMine ? 'flex-row-reverse' : 'flex-row'}`}>
@@ -207,10 +251,10 @@ function Bubble({ msg, isMine, showAvatar, type }: { msg: Message; isMine: boole
           <span className="font-mono text-[10px] text-muted-foreground mb-0.5 px-1">{msg.senderName}</span>
         )}
 
-        {msg.replyTo && (
+        {replyPreview && (
           <div className={`text-[11px] px-2.5 py-1 mb-0.5 rounded border-l-2 border-primary bg-primary/5 text-muted-foreground max-w-full ${isMine ? 'text-right' : ''}`}>
-            <span className="font-mono text-primary">{msg.replyTo.senderName}</span>
-            <p className="truncate">{msg.replyTo.content}</p>
+            <span className="font-mono text-primary">{replyPreview.senderName}</span>
+            <p className="truncate">{replyPreview.content}</p>
           </div>
         )}
 
@@ -230,7 +274,19 @@ function Bubble({ msg, isMine, showAvatar, type }: { msg: Message; isMine: boole
               <span className="font-mono text-[12px]">{msg.fileName || msg.content}</span>
             </span>
           ) : (
-            msg.content
+            <div className="space-y-2">
+              {parsedBody?.quote && (
+                <div className={`rounded-lg border-l-2 px-2.5 py-1.5 text-[11px] leading-relaxed ${isMine ? 'border-white/40 bg-white/10 text-white/85' : 'border-primary bg-primary/5 text-muted-foreground'}`}>
+                  <p className="font-mono mb-1 opacity-80">Quoted</p>
+                  <p className="whitespace-pre-wrap">{parsedBody.quote}</p>
+                </div>
+              )}
+              {parsedBody?.body ? (
+                <p className="whitespace-pre-wrap">{parsedBody.body}</p>
+              ) : !parsedBody?.quote ? (
+                <p className="whitespace-pre-wrap">{msg.content}</p>
+              ) : null}
+            </div>
           )}
         </div>
 
@@ -248,6 +304,14 @@ function Bubble({ msg, isMine, showAvatar, type }: { msg: Message; isMine: boole
           <span className="font-mono text-[9px] text-muted-foreground">{msg.timestamp}</span>
           <MessageStatus msg={msg} />
         </div>
+
+        <button
+          onClick={() => onReply(msg)}
+          className={`mt-1 inline-flex items-center gap-1 font-mono text-[10px] text-muted-foreground hover:text-primary transition-colors ${isMine ? 'flex-row-reverse' : ''}`}
+        >
+          <CornerUpLeft size={10} />
+          Reply
+        </button>
       </div>
     </div>
   )
@@ -492,6 +556,7 @@ export default function ChatThreadPage() {
     emojiCategory,
     emojiSearch,
     selectedAttachments,
+    replyTo,
     filteredMentions,
     handleInputChange,
     insertMention,
@@ -505,6 +570,7 @@ export default function ChatThreadPage() {
     setShowMentionPicker,
     setEmojiCategory,
     setEmojiSearch,
+    setReplyTo,
     sendMessage,
   } = useChatBridge(chat as BridgeChatThread, initialMessages as BridgeChatMessage[])
 
@@ -517,6 +583,27 @@ export default function ChatThreadPage() {
     const cur = messages[i]
     const next = messages[i + 1]
     return !next || next.senderId !== cur.senderId || next.kind === 'system'
+  }
+
+  const resolveReplyPreview = (msg: Message) => {
+    const replyId = msg.replyTo?.messageId
+    if (!replyId) {
+      return msg.replyTo?.senderName || msg.replyTo?.content
+        ? { senderName: msg.replyTo?.senderName ?? 'Reply', content: msg.replyTo?.content ?? 'Referenced message' }
+        : undefined
+    }
+
+    const original = messages.find((entry) => entry.id === replyId)
+    if (!original) {
+      return msg.replyTo?.senderName || msg.replyTo?.content
+        ? { senderName: msg.replyTo?.senderName ?? 'Reply', content: msg.replyTo?.content ?? 'Referenced message' }
+        : undefined
+    }
+
+    return {
+      senderName: original.senderName,
+      content: original.content
+    }
   }
 
   const renderHeader = () => {
@@ -612,7 +699,23 @@ export default function ChatThreadPage() {
       <div className="flex flex-1 overflow-hidden">
         <main className={`flex-1 overflow-y-auto px-3 py-3 flex flex-col gap-0.5 ${showInfo ? 'hidden' : ''}`}>
           {messages.map((msg, i) => (
-            <Bubble key={msg.id} msg={msg} isMine={isMine(msg)} showAvatar={showAvatar(i)} type={chat.type} />
+            <Bubble
+              key={msg.id}
+              msg={msg}
+              isMine={isMine(msg)}
+              showAvatar={showAvatar(i)}
+              type={chat.type}
+              onReply={(message) => {
+                setReplyTo({
+                  messageId: message.id,
+                  senderName: message.senderName,
+                  content: message.content,
+                  to: chat.handle
+                })
+                setTimeout(() => textareaRef.current?.focus(), 0)
+              }}
+              replyPreview={resolveReplyPreview(msg)}
+            />
           ))}
           <div ref={bottomRef} />
         </main>
@@ -633,6 +736,28 @@ export default function ChatThreadPage() {
 
       {!showInfo && (
         <>
+          {replyTo && (
+            <div className="border-t border-border bg-background px-3 py-2 flex items-start gap-2">
+              <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary flex-shrink-0">
+                <CornerUpLeft size={13} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-[10px] uppercase tracking-widest text-primary">Replying</span>
+                  <span className="font-mono text-[10px] text-muted-foreground truncate">@{replyTo.senderName ?? 'message'}</span>
+                </div>
+                <p className="mt-0.5 text-[12px] text-foreground/80 truncate">{replyTo.content ?? 'Referenced message'}</p>
+              </div>
+              <button
+                onClick={() => setReplyTo(undefined)}
+                className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors flex-shrink-0"
+                aria-label="Cancel reply"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          )}
+
           {showMentionPicker && (
             <div className="border-t border-border bg-background">
               <div className="px-3 py-1.5 border-b border-border flex items-center gap-1.5">

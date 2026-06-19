@@ -118,6 +118,11 @@ export interface XmppRuntimeBridge {
     options?: {
       attachments?: BridgeChatAttachment[]
       replyTo?: string
+      reply?: {
+        id: string
+        to?: string
+      }
+      thread?: string
     }
   ): Promise<string>
   getVCard(): Promise<BridgeVCard>

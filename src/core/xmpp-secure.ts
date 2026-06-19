@@ -179,6 +179,8 @@ export async function handleSecureMessageStanza(
       type: element.attrs.type || 'chat',
       receipt: metadata.receipt,
       nickname: metadata.nick,
+      reply: metadata.reply,
+      thread: metadata.thread,
       originId: metadata.originId,
       stanzaId: metadata.stanzaId
     })
@@ -201,6 +203,8 @@ export async function handleSecureMessageStanza(
       delay: metadata.delay,
       replace: metadata.replace,
       nickname: metadata.nick,
+      reply: metadata.reply,
+      thread: metadata.thread,
       originId: metadata.originId,
       stanzaId: metadata.stanzaId
     })
@@ -239,6 +243,8 @@ export async function handleSecureMessageStanza(
         delay: metadata.delay,
         replace: metadata.replace,
         nickname: metadata.nick,
+        reply: metadata.reply,
+        thread: metadata.thread,
         originId: metadata.originId,
         stanzaId: metadata.stanzaId
       })
@@ -263,6 +269,8 @@ export async function handleSecureMessageStanza(
         delay: metadata.delay,
         replace: metadata.replace,
         nickname: metadata.nick,
+        reply: metadata.reply,
+        thread: metadata.thread,
         originId: metadata.originId,
         stanzaId: metadata.stanzaId
       })
@@ -282,6 +290,8 @@ export async function handleSecureMessageStanza(
       delay: metadata.delay,
       replace: metadata.replace,
       nickname: metadata.nick,
+      reply: metadata.reply,
+      thread: metadata.thread,
       originId: metadata.originId,
       stanzaId: metadata.stanzaId
     })
@@ -297,6 +307,8 @@ export async function sendEncryptedMessage(
   ctx: XmppSecureContext,
   options: {
     replace?: string
+    reply?: { id: string; to?: string }
+    thread?: string
     requestReceipt?: boolean
     chatState?: 'active' | 'composing' | 'paused' | 'inactive' | 'gone'
     delay?: { stamp: string; from?: string }
@@ -351,6 +363,8 @@ export async function sendEncryptedMessage(
       stamp: options.delay.stamp,
       from: options.delay.from ?? ctx.jid
     } : undefined,
+    reply: options.reply,
+    thread: options.thread,
     originId: itemId,
     stanzaId: { id: itemId, by: ctx.jid }
   }))

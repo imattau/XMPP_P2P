@@ -14,6 +14,8 @@
     "test-pubsub": "node dist/tests/pubsub.js",
     "test-roster": "node dist/tests/roster.js",
     "test-feed": "node dist/tests/feed.js",
+    "test-replies": "node dist/tests/replies.js",
+    "test-threads": "node dist/tests/threads.js",
     "test-sqlite": "node dist/tests/sqlite.js",
     "test-mcp": "node dist/tests/mcp.js",
     "test-cli": "node dist/tests/cli-startup.js",

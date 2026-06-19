@@ -22,7 +22,8 @@ import {
   DELAY_XMLNS,
   CORRECT_XMLNS,
   PING_XMLNS,
-  SID_XMLNS
+  SID_XMLNS,
+  REPLY_XMLNS
 } from './xmpp-xep-helpers.js'
 
 export {
@@ -31,7 +32,8 @@ export {
   DELAY_XMLNS,
   CORRECT_XMLNS,
   PING_XMLNS,
-  SID_XMLNS
+  SID_XMLNS,
+  REPLY_XMLNS
 }
 
 export interface XmppDiscoIdentity {
@@ -142,7 +144,8 @@ export function getDiscoveryFeatures(
     DELAY_XMLNS,
     CORRECT_XMLNS,
     PING_XMLNS,
-    SID_XMLNS
+    SID_XMLNS,
+    REPLY_XMLNS
   ])
 
   if (findCollection(collections, node)) {

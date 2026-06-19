@@ -24,6 +24,8 @@ export interface XmppMessage {
   chatState?: 'active' | 'composing' | 'paused' | 'inactive' | 'gone'
   delay?: { from?: string; stamp: string }
   replace?: string
+  reply?: { id: string; to?: string }
+  thread?: string
   originId?: string
   stanzaId?: { id: string; by: string }
 }
@@ -580,6 +582,8 @@ export interface XmppMucMessage {
   timestamp: string
   encrypted?: boolean
   encryption?: 'omemo'
+  reply?: { id: string; to?: string }
+  thread?: string
 }
 
 export interface XmppMucHistoryFile {
@@ -596,6 +600,13 @@ export function normalizeMucMessage(entry: Partial<XmppMucMessage> & { id: strin
     body: entry.body,
     timestamp: entry.timestamp || new Date().toISOString(),
     encrypted: entry.encrypted || undefined,
-    encryption: entry.encryption || undefined
+    encryption: entry.encryption || undefined,
+    reply: entry.reply?.id
+      ? {
+          id: entry.reply.id,
+          to: entry.reply.to
+        }
+      : undefined,
+    thread: entry.thread
   }
 }

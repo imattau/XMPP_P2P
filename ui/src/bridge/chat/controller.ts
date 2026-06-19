@@ -1,5 +1,5 @@
 import type { XmppRuntimeBridge } from '../runtime'
-import type { ChatAttachment, ChatComposerState, ChatMessage, ChatParticipant, ChatThread } from './types'
+import type { ChatAttachment, ChatComposerState, ChatMessage, ChatMessageReply, ChatParticipant, ChatThread } from './types'
 
 type Listener = (state: ChatComposerState) => void
 
@@ -18,6 +18,8 @@ export class ChatBridgeController {
     this.state = {
       messages: initialMessages.map((message) => ({ ...message })),
       input: '',
+      replyTo: undefined,
+      thread: undefined,
       showImagePicker: false,
       showEmojiPicker: false,
       showMentionPicker: false,
@@ -52,6 +54,11 @@ export class ChatBridgeController {
       mentionQuery: atMatch ? atMatch[1] : '',
       showMentionPicker: !!atMatch
     }
+    this.emit()
+  }
+
+  setReplyTo(replyTo?: ChatMessageReply) {
+    this.state = { ...this.state, replyTo }
     this.emit()
   }
 
@@ -155,18 +162,25 @@ export class ChatBridgeController {
   async sendMessage() {
     const body = this.state.input.trim()
     const attachments = this.state.selectedAttachments
+    const replyTo = this.state.replyTo
+    const thread = this.state.thread ?? replyTo?.messageId
+    const quotedBody = replyTo ? buildQuotedBody(replyTo, body) : body
 
-    if (!body && attachments.length === 0) {
+    if (!quotedBody && attachments.length === 0) {
       return false
     }
 
     const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    const message = buildOutgoingMessage(body, attachments, timestamp)
+    const message = buildOutgoingMessage(quotedBody, attachments, timestamp, thread)
     const nextMessages = [...this.state.messages, message]
 
     if (this.runtime?.sendChatMessage) {
       try {
-        const bridgeId = await this.runtime.sendChatMessage(this.chat, body, { attachments })
+        const bridgeId = await this.runtime.sendChatMessage(this.chat, quotedBody, {
+          attachments,
+          reply: replyTo ? { id: replyTo.messageId, to: replyTo.to } : undefined,
+          thread
+        })
         nextMessages[nextMessages.length - 1] = { ...message, id: bridgeId, delivered: true }
       } catch {
         nextMessages[nextMessages.length - 1] = { ...message, delivered: false }
@@ -182,7 +196,9 @@ export class ChatBridgeController {
       showMentionPicker: false,
       mentionQuery: '',
       emojiSearch: '',
-      selectedAttachments: []
+      selectedAttachments: [],
+      replyTo: undefined,
+      thread: undefined
     }
     this.emit()
     return true
@@ -195,13 +211,14 @@ export class ChatBridgeController {
   }
 }
 
-function buildOutgoingMessage(body: string, attachments: ChatAttachment[], timestamp: string): ChatMessage {
+function buildOutgoingMessage(body: string, attachments: ChatAttachment[], timestamp: string, thread?: string): ChatMessage {
   return {
     id: `new-${Date.now()}`,
     senderId: ME,
     senderName: 'You',
     content: body || `Sent ${attachments.length} attachment${attachments.length > 1 ? 's' : ''}`,
     timestamp,
+    thread,
     delivered: false,
     kind: attachments.length > 0 && attachments.every((asset) => asset.kind === 'image')
       ? 'image'
@@ -210,6 +227,27 @@ function buildOutgoingMessage(body: string, attachments: ChatAttachment[], times
         : 'text',
     fileName: attachments.length > 0 ? attachments.map((asset) => asset.alt).join(', ') : undefined
   }
+}
+
+function buildQuotedBody(replyTo: ChatMessageReply, body: string): string {
+  const lines: string[] = []
+  const senderLine = replyTo.senderName ? `> ${replyTo.senderName}` : '> Quoted message'
+  lines.push(senderLine)
+
+  const quotedContent = (replyTo.content ?? '').trim()
+  if (quotedContent) {
+    for (const line of quotedContent.split('\n')) {
+      lines.push(`> ${line}`)
+    }
+  } else {
+    lines.push('> Referenced message')
+  }
+
+  if (body) {
+    lines.push('', body)
+  }
+
+  return lines.join('\n')
 }
 
 function toggleSelectedAttachment(selectedAttachments: ChatAttachment[], attachment: ChatAttachment) {

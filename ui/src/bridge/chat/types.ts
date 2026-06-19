@@ -17,8 +17,10 @@ export interface ChatMessageReaction {
 }
 
 export interface ChatMessageReply {
-  senderName: string
-  content: string
+  messageId: string
+  senderName?: string
+  content?: string
+  to?: string
 }
 
 export interface ChatMessage {
@@ -33,6 +35,7 @@ export interface ChatMessage {
   read?: boolean
   reactions?: ChatMessageReaction[]
   replyTo?: ChatMessageReply
+  thread?: string
   fileName?: string
 }
 
@@ -68,6 +71,8 @@ export interface ChatThread {
 export interface ChatComposerState {
   messages: ChatMessage[]
   input: string
+  replyTo?: ChatMessageReply
+  thread?: string
   showImagePicker: boolean
   showEmojiPicker: boolean
   showMentionPicker: boolean
