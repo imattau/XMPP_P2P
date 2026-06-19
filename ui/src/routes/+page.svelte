@@ -1,6 +1,7 @@
 <script>
   import { badgeClass, chatAvatarGlyph, filterLabels, initials, sortedChats } from '$lib/social-data.js'
   import { tick } from 'svelte'
+  import Topbar from '$lib/components/Topbar.svelte'
 
   const clone = (value) => structuredClone(value)
   export let data
@@ -13,6 +14,7 @@
   let presence = snapshot.presence
   let presenceMessage = snapshot.presenceMessage
   let presenceSheetOpen = false
+  let profileEditorOpen = false
   let activeChatId = snapshot.activeChatId
   let chatDetailOpen = false
   let activeCommunityId = snapshot.communities[0]?.id ?? ''
@@ -55,10 +57,12 @@
   let showAddContact = false
   let runtimeError = ''
   let presenceDialogEl
+  let profileDialogEl
   let composerMenuDialogEl
   let composerDialogEl
   let communityDialogEl
   let presenceSheetWasOpen = false
+  let profileEditorWasOpen = false
   let composerMenuWasOpen = false
   let composerWasOpen = false
   let communitySheetWasOpen = false
@@ -147,6 +151,11 @@
   }
 
   let identity = clone(snapshot.identity)
+  let profileFnDraft = identity.displayName ?? identity.nickname ?? ''
+  let profileNicknameDraft = identity.nickname ?? identity.displayName ?? ''
+  let profileAvatarTypeDraft = identity.avatarType ?? ''
+  let profileAvatarBinvalDraft = identity.avatarBinval ?? ''
+  let profileAvatarPreview = identity.avatarDataUrl ?? ''
   let peers = clone(snapshot.peers)
   let contacts = clone(snapshot.contacts)
   let communities = clone(snapshot.communities)
@@ -165,6 +174,9 @@
 
   const applySnapshot = (next) => {
     identity = clone(next.identity)
+    if (!profileEditorOpen) {
+      syncProfileDraftFromIdentity()
+    }
     peers = clone(next.peers)
     contacts = clone(next.contacts)
     communities = clone(next.communities)
@@ -254,6 +266,17 @@
     contacts: 'Contacts'
   }
 
+  const syncProfileDraftFromIdentity = () => {
+    profileFnDraft = identity.displayName ?? identity.nickname ?? ''
+    profileNicknameDraft = identity.nickname ?? identity.displayName ?? ''
+    profileAvatarTypeDraft = identity.avatarType ?? ''
+    profileAvatarBinvalDraft = identity.avatarBinval ?? ''
+    profileAvatarPreview = identity.avatarDataUrl ?? ''
+  }
+
+  const profileDisplayName = () => identity.displayName ?? identity.nickname
+  const profileNickname = () => identity.nickname ?? identity.displayName
+
   const composerActions = {
     feed: [
       {
@@ -311,8 +334,8 @@
     id: 'empty',
     sourceType: 'person',
     sourceId: 'self',
-    sourceLabel: identity.nickname,
-    avatar: initials(identity.nickname),
+    sourceLabel: profileDisplayName(),
+    avatar: initials(profileDisplayName()),
     title: 'No feed items yet',
     body: 'Publish a post to populate the live feed.',
     time: 'now',
@@ -500,6 +523,36 @@
     section = 'feed'
   }
 
+  const openProfileEditor = () => {
+    syncProfileDraftFromIdentity()
+    profileEditorOpen = true
+  }
+
+  const closeProfileEditor = () => {
+    profileEditorOpen = false
+  }
+
+  const handleProfileAvatarPicker = async (event) => {
+    const file = event.currentTarget.files?.[0] ?? null
+    if (!file) return
+
+    if (!(file.type ?? '').startsWith('image/')) {
+      openError('Choose an image file for the profile photo.')
+      return
+    }
+
+    clearRuntimeError()
+    profileAvatarTypeDraft = file.type
+    profileAvatarBinvalDraft = arrayBufferToBase64(await file.arrayBuffer())
+    profileAvatarPreview = `data:${profileAvatarTypeDraft};base64,${profileAvatarBinvalDraft}`
+  }
+
+  const clearProfileAvatar = () => {
+    profileAvatarTypeDraft = ''
+    profileAvatarBinvalDraft = ''
+    profileAvatarPreview = ''
+  }
+
   const arrayBufferToBase64 = (buffer) => {
     const bytes = new Uint8Array(buffer)
     const chunkSize = 0x8000
@@ -649,6 +702,11 @@
       return
     }
 
+    if (profileEditorOpen) {
+      closeProfileEditor()
+      return
+    }
+
     if (communitySheetId) {
       closeCommunitySheet()
       return
@@ -673,6 +731,11 @@
     void focusModal(presenceDialogEl)
   }
   $: presenceSheetWasOpen = presenceSheetOpen
+
+  $: if (profileEditorOpen && !profileEditorWasOpen) {
+    void focusModal(profileDialogEl)
+  }
+  $: profileEditorWasOpen = profileEditorOpen
 
   $: if (composerMenuOpen && !composerMenuWasOpen) {
     void focusModal(composerMenuDialogEl)
@@ -784,7 +847,7 @@
       if (!roomName) return
       await postRuntimeAction('chat:muc', {
         roomName: roomName.startsWith('#') ? roomName.slice(1) : roomName,
-        body: body || 'Opened a new room.',
+        body,
         secure: composerMucDefaultMode === 'secure',
         topic: roomTopic || undefined,
         communityId: composerMucCommunityId || undefined,
@@ -826,31 +889,17 @@
 
 <div class="app-shell">
   <main class="main">
-    <header class="topbar">
-      <div class="topbar__identity">
-        {#if (section === 'chats' && chatDetailOpen) || (section === 'feed' && feedDetailOpen)}
-          <button
-            class="topbar__back"
-            type="button"
-            aria-label={section === 'feed' ? 'Back to feed list' : 'Back to chats'}
-            onclick={() => (section === 'feed' ? closeFeedDetail() : (chatDetailOpen = false))}
-          >
-            <span aria-hidden="true">&larr;</span>
-            <span>{section === 'feed' ? 'Back to feed' : 'Back to chats'}</span>
-          </button>
-        {/if}
-        <div class="avatar avatar--top">{initials(identity.nickname)}</div>
-        <div class="topbar__copy">
-          <p class="eyebrow">{section === 'feed' && feedDetailOpen ? 'Feed view' : sectionLabels[section]}</p>
-          <strong>{identity.nickname}</strong>
-        </div>
-      </div>
-
-      <button class="topbar__status" type="button" onclick={() => (presenceSheetOpen = true)}>
-        <span class={`status-dot status-dot--${presence}`} aria-hidden="true"></span>
-        <span class={badgeClass(presence)}>{presence}</span>
-      </button>
-    </header>
+    <Topbar
+      {section}
+      {sectionLabels}
+      {feedDetailOpen}
+      {chatDetailOpen}
+      {presence}
+      {identity}
+      profileDisplayName={profileDisplayName()}
+      onBack={() => (section === 'feed' ? closeFeedDetail() : (chatDetailOpen = false))}
+      onTogglePresence={() => (presenceSheetOpen = true)}
+    />
 
     {#if runtimeError}
       <div class="error-banner" role="status" aria-live="polite">
@@ -893,6 +942,69 @@
             Done
           </button>
         </div>
+      </div>
+    {/if}
+
+    {#if profileEditorOpen}
+      <div class="backdrop" aria-hidden="true" onclick={closeProfileEditor}></div>
+      <div class="sheet" bind:this={profileDialogEl} role="dialog" aria-label="Edit profile" aria-modal="true" tabindex="-1">
+        <div class="surface__head">
+          <div>
+            <p class="eyebrow">Profile</p>
+            <h3>Edit your identity</h3>
+          </div>
+        </div>
+        <form
+          class="profile-controls"
+          onsubmit={async (event) => {
+            event.preventDefault()
+            const next = await postRuntimeAction('profile:update', {
+              fn: profileFnDraft.trim() || undefined,
+              nickname: profileNicknameDraft.trim() || undefined,
+              photo: profileAvatarTypeDraft && profileAvatarBinvalDraft
+                ? {
+                    type: profileAvatarTypeDraft,
+                    binval: profileAvatarBinvalDraft
+                  }
+                : undefined
+            })
+            if (next) {
+              profileEditorOpen = false
+            }
+          }}
+        >
+          <div class="profile-avatar-picker">
+            {#if profileAvatarPreview}
+              <img class="avatar avatar--top avatar--image" src={profileAvatarPreview} alt="" />
+            {:else}
+              <div class="avatar avatar--top">{initials(profileDisplayName())}</div>
+            {/if}
+            <div class="profile-avatar-picker__controls">
+              <label class="field">
+                <span>Profile photo</span>
+                <input accept="image/*" type="file" onchange={handleProfileAvatarPicker} />
+              </label>
+              <div class="action-group profile-avatar-picker__actions">
+                {#if profileAvatarPreview}
+                  <button class="button button--ghost button--small button--destructive" type="button" onclick={clearProfileAvatar}>Clear photo</button>
+                {/if}
+              </div>
+            </div>
+          </div>
+          <label class="field">
+            <span>Display name</span>
+            <input bind:value={profileFnDraft} type="text" placeholder="Atlas" />
+          </label>
+          <label class="field">
+            <span>Nickname</span>
+            <input bind:value={profileNicknameDraft} type="text" placeholder="atlas" />
+          </label>
+          <p class="hint">The display name updates your vCard FN. The nickname is broadcast in presence and chat headers. The photo is saved as the vCard PHOTO payload.</p>
+          <div class="action-group">
+            <button class="button button--ghost" type="button" onclick={closeProfileEditor}>Cancel</button>
+            <button class="button" type="submit">Save profile</button>
+          </div>
+        </form>
       </div>
     {/if}
 
@@ -1162,7 +1274,7 @@
             <span>{composerActionId.startsWith('chat') ? 'Message' : 'Post text'}</span>
             <textarea
               bind:value={composerBody}
-              placeholder={composerActionId.startsWith('chat') ? 'Write the opening message' : 'Write a post'}
+              placeholder={composerActionId === 'chat-muc' ? 'Optional opening message' : composerActionId.startsWith('chat') ? 'Write the opening message' : 'Write a post'}
             ></textarea>
           </label>
 
@@ -1593,21 +1705,30 @@
             <div class="profile-head">
               <div class="feed-author profile-head__identity">
                 <div class="avatar-container">
-                  <div class="avatar avatar--feed">{initials(identity.nickname)}</div>
+                  {#if identity.avatarDataUrl}
+                    <img class="avatar avatar--feed avatar--image" src={identity.avatarDataUrl} alt="" />
+                  {:else}
+                    <div class="avatar avatar--feed">{initials(profileDisplayName())}</div>
+                  {/if}
                   <span class="avatar-status-dot status-{presence || 'offline'}"></span>
                 </div>
                 <div>
-                  <strong>{identity.nickname} (You)</strong>
+                  <strong>{profileDisplayName()} (You)</strong>
                   <div class="meta">{identity.jid}</div>
                 </div>
               </div>
             </div>
 
             <div class="profile-grid profile-grid--spaced">
+              <div class="kv"><span>Display name</span><span>{identity.displayName ?? identity.nickname}</span></div>
+              <div class="kv"><span>Nickname</span><span>{profileNickname()}</span></div>
               <div class="kv"><span>Status message</span><span>{presenceMessage || 'Online'}</span></div>
               <div class="kv"><span>Peer ID</span><span>{identity.peerId.slice(0, 18)}…</span></div>
               <div class="kv"><span>Transport</span><span>{identity.transport}</span></div>
               <div class="kv"><span>Connection</span><span>{identity.connection}</span></div>
+            </div>
+            <div class="action-group">
+              <button class="button button--ghost button--small" type="button" onclick={openProfileEditor}>Edit profile</button>
             </div>
           </article>
 

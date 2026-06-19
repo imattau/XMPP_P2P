@@ -163,49 +163,6 @@ textarea {
   text-transform: uppercase;
 }
 
-.topbar {
-  position: sticky;
-  top: 0;
-  z-index: 8;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  margin: calc(var(--space-3) * -1) calc(var(--space-3) * -1) 0;
-  padding: 0.55rem var(--space-3);
-  background: rgba(6, 7, 8, 0.96);
-  border-bottom: 1px solid var(--border);
-}
-
-.topbar__back {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: 2.3rem;
-  padding: 0 0.8rem;
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--text);
-  font-size: 0.88rem;
-  font-weight: 600;
-  flex: 0 0 auto;
-}
-
-.topbar__identity {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  min-width: 0;
-}
-
-.topbar__copy {
-  display: grid;
-  gap: 0.2rem;
-  min-width: 0;
-}
-
-.topbar__copy strong,
 .surface h3,
 .sheet h3,
 .profile-card h3,
@@ -217,47 +174,11 @@ textarea {
   line-height: 1.08;
 }
 
-.topbar__copy strong {
-  font-size: 1.05rem;
-}
-
 .meta,
 .hint,
 .lede {
   color: var(--text-muted);
   line-height: 1.5;
-}
-
-.topbar__status {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex: 0 0 auto;
-  border: none;
-  background: transparent;
-  padding: 0;
-  font: inherit;
-  color: inherit;
-}
-
-.status-dot {
-  width: 0.65rem;
-  height: 0.65rem;
-  border-radius: 999px;
-  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.04);
-}
-
-.status-dot--available {
-  background: var(--positive);
-}
-
-.status-dot--away {
-  background: var(--warning);
-}
-
-.status-dot--busy,
-.status-dot--dnd {
-  background: #ff8a8a;
 }
 
 .section-stack,
@@ -1426,9 +1347,6 @@ textarea {
     padding: var(--space-6);
   }
 
-  .topbar {
-    top: var(--space-4);
-  }
 
   .composer {
     top: calc(5.75rem + var(--space-4));
@@ -1490,9 +1408,6 @@ textarea {
     border-radius: 22px;
   }
 
-  .topbar {
-    align-items: flex-start;
-  }
 
   .composer__actions {
     flex-direction: column;
@@ -1584,10 +1499,10 @@ textarea {
 }
 
 /* Status dot pulse animation */
-.status-dot--available {
+.status-pulse {
   position: relative;
 }
-.status-dot--available::after {
+.status-pulse::after {
   content: "";
   position: absolute;
   top: 0;
