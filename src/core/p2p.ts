@@ -42,28 +42,29 @@ if (!MultiaddrProto.toOptions) {
   }
 }
 
+interface BaseLibp2pConfigOptions {
+  enableDht?: boolean
+}
+
 /**
- * Initializes and starts a new libp2p P2P node with standard transports, protocols,
- * security parameters, pubsub services, and optional mDNS / Kademlia DHT.
- * 
- * @param port - The TCP/WS listening port number.
- * @param options - Configuration options for services like DHT and MDNS.
- * @returns A promise resolving to the created libp2p node.
+ * Builds the shared libp2p `services` map (identify, gossipsub pubsub, and
+ * optionally KadDHT + ping) used by both the Node and browser factories.
+ *
+ * @param options - Configuration options for services like DHT.
+ * @returns A map of libp2p service factories.
  */
-export async function createP2PNode(port?: number, options: CreateP2PNodeOptions = {}): Promise<any> {
-  const listenHost = options.host || '0.0.0.0'
-  const peerDiscovery = []
-
-  if (options.enableMdns !== false) {
-    peerDiscovery.push(
-      mdns({
-        interval: 2000
-      })
-    )
-  }
-
+export function createBaseLibp2pServices(options: BaseLibp2pConfigOptions = {}): Record<string, any> {
   const services: Record<string, any> = {
-    identify: identify()
+    identify: identify(),
+    pubsub: gossipsub({
+      allowPublishToZeroTopicPeers: true,
+      globalSignaturePolicy: StrictSign,
+      scoreParams: {},
+      scoreThresholds: {},
+      emitSelf: false,
+      maxInboundDataLength: 16 * 1024,
+      messageProcessingConcurrency: 4
+    })
   }
 
   if (options.enableDht) {
@@ -85,6 +86,31 @@ export async function createP2PNode(port?: number, options: CreateP2PNodeOptions
     })
     services.ping = ping()
   }
+
+  return services
+}
+
+/**
+ * Initializes and starts a new libp2p P2P node with standard transports, protocols,
+ * security parameters, pubsub services, and optional mDNS / Kademlia DHT.
+ *
+ * @param port - The TCP/WS listening port number.
+ * @param options - Configuration options for services like DHT and MDNS.
+ * @returns A promise resolving to the created libp2p node.
+ */
+export async function createP2PNode(port?: number, options: CreateP2PNodeOptions = {}): Promise<any> {
+  const listenHost = options.host || '0.0.0.0'
+  const peerDiscovery = []
+
+  if (options.enableMdns !== false) {
+    peerDiscovery.push(
+      mdns({
+        interval: 2000
+      })
+    )
+  }
+
+  const services = createBaseLibp2pServices({ enableDht: options.enableDht })
 
   const listenAddresses: string[] = []
   if (listenHost === '0.0.0.0') {
@@ -118,18 +144,7 @@ export async function createP2PNode(port?: number, options: CreateP2PNodeOptions
     connectionEncrypters: [noise()],
     streamMuxers: [yamux()],
     peerDiscovery,
-    services: {
-      ...services,
-      pubsub: gossipsub({
-        allowPublishToZeroTopicPeers: true,
-        globalSignaturePolicy: StrictSign,
-        scoreParams: {},
-        scoreThresholds: {},
-        emitSelf: false,
-        maxInboundDataLength: 16 * 1024,
-        messageProcessingConcurrency: 4
-      })
-    }
+    services
   })
 
   return node

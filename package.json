@@ -19,6 +19,7 @@
     "test-sqlite": "node dist/tests/sqlite.js",
     "test-storage-node-sqlite": "node dist/tests/storage-node-sqlite.js",
     "test-storage-indexeddb": "node dist/tests/storage-indexeddb.js",
+    "test-p2p-browser": "node dist/tests/p2p-browser.js",
     "test-mcp": "node dist/tests/mcp.js",
     "test-cli": "node dist/tests/cli-startup.js",
     "test-cli-profile": "node dist/tests/cli-profile.js",
@@ -34,7 +35,7 @@
     "test-muc-omemo": "node dist/tests/muc-omemo.js",
     "test-uploads": "node dist/tests/uploads.js",
     "test-reliability": "node dist/tests/xeps-reliability.js",
-    "test": "npm run build && npm run test-nodes && npm run test-pubsub && npm run test-dht && npm run test-omemo && npm run test-roster && npm run test-feed && npm run test-attachments && npm run test-uploads && npm run test-subscriptions && npm run test-disco && npm run test-protocol && npm run test-collection && npm run test-muc && npm run test-muc-omemo && npm run test-reliability && npm run test-cli && npm run test-cli-profile && npm run test-sqlite && npm run test-storage-node-sqlite && npm run test-storage-indexeddb",
+    "test": "npm run build && npm run test-nodes && npm run test-pubsub && npm run test-dht && npm run test-omemo && npm run test-roster && npm run test-feed && npm run test-attachments && npm run test-uploads && npm run test-subscriptions && npm run test-disco && npm run test-protocol && npm run test-collection && npm run test-muc && npm run test-muc-omemo && npm run test-reliability && npm run test-cli && npm run test-cli-profile && npm run test-sqlite && npm run test-storage-node-sqlite && npm run test-storage-indexeddb && npm run test-p2p-browser",
     "docs": "typedoc --out docs --entryPointStrategy expand src"
   },
   "repository": {
@@ -53,6 +54,8 @@
     "node": ">=22"
   },
   "dependencies": {
+    "@libp2p/bootstrap": "^12.0.25",
+    "@libp2p/circuit-relay-v2": "^4.2.7",
     "@libp2p/gossipsub": "^16.0.3",
     "@libp2p/identify": "^4.1.8",
     "@libp2p/kad-dht": "^16.3.3",
@@ -60,6 +63,7 @@
     "@libp2p/noise": "^1.0.1",
     "@libp2p/ping": "^3.1.7",
     "@libp2p/tcp": "^11.0.22",
+    "@libp2p/webrtc": "^6.0.25",
     "@libp2p/websockets": "^10.1.15",
     "@libp2p/yamux": "^8.0.1",
     "@modelcontextprotocol/sdk": "^1.29.0",
