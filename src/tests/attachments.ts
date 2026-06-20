@@ -3,6 +3,7 @@ import { tmpdir } from 'os'
 import { join } from 'path'
 import { createP2PNode } from '../core/p2p.js'
 import { XmppNode } from '../core/xmpp-node.js'
+import { NodeSqliteStorage } from '../core/storage/node-sqlite-storage.js'
 
 async function waitFor(condition: () => boolean | Promise<boolean>, timeoutMs: number, message: string) {
   const startedAt = Date.now()
@@ -19,10 +20,8 @@ async function runAttachmentTest() {
   console.log('Starting XMPP attachment verification test...\n')
 
   const workDir = await mkdtemp(join(tmpdir(), 'xmpp-p2p-attachments-'))
-  const node1FeedPath = join(workDir, 'node1-feed.json')
-  const node1AttachmentPath = join(workDir, 'node1-attachments.json')
-  const node2FeedPath = join(workDir, 'node2-feed.json')
-  const node2AttachmentPath = join(workDir, 'node2-attachments.json')
+  const node1SqlitePath = join(workDir, 'node1-state.sqlite')
+  const node2SqlitePath = join(workDir, 'node2-state.sqlite')
 
   let libp2p1: Awaited<ReturnType<typeof createP2PNode>> | undefined
   let xmppNode1: XmppNode | undefined
@@ -32,11 +31,11 @@ async function runAttachmentTest() {
   try {
     libp2p1 = await createP2PNode(9501)
     await libp2p1.start()
-    xmppNode1 = new XmppNode(libp2p1, { feedPath: node1FeedPath, attachmentPath: node1AttachmentPath })
+    xmppNode1 = new XmppNode(libp2p1, new NodeSqliteStorage(node1SqlitePath))
 
     libp2p2 = await createP2PNode(9502)
     await libp2p2.start()
-    xmppNode2 = new XmppNode(libp2p2, { feedPath: node2FeedPath, attachmentPath: node2AttachmentPath })
+    xmppNode2 = new XmppNode(libp2p2, new NodeSqliteStorage(node2SqlitePath))
 
     await Promise.all([
       xmppNode1.ready,
@@ -123,7 +122,7 @@ async function runAttachmentTest() {
 
     const restartedLibp2p1 = await createP2PNode(9501)
     await restartedLibp2p1.start()
-    const restartedXmppNode1 = new XmppNode(restartedLibp2p1, { feedPath: node1FeedPath, attachmentPath: node1AttachmentPath })
+    const restartedXmppNode1 = new XmppNode(restartedLibp2p1, new NodeSqliteStorage(node1SqlitePath))
     await restartedXmppNode1.ready
 
     const persistedAttachments = await restartedXmppNode1.getAttachments(expectedTopic, itemId)

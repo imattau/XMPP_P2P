@@ -4,8 +4,10 @@
  * instantiates the XMPP protocol shim, and launches the interactive CLI session.
  */
 
+import { join } from 'path'
 import { createP2PNode } from './core/p2p.js'
 import { XmppNode } from './core/xmpp-node.js'
+import { NodeSqliteStorage } from './core/storage/node-sqlite-storage.js'
 import { startCli } from './cli/session.js'
 import { getPackageVersion, parseCliStartupArgs, printCliUsage } from './cli/startup.js'
 
@@ -38,6 +40,10 @@ async function main() {
     process.exit(0)
   }
 
+  const storage = new NodeSqliteStorage(
+    startupOptions.sqlitePath ?? process.env.XMPP_SQLITE_PATH ?? join(process.cwd(), 'data', 'state.sqlite')
+  )
+
   console.log('Initializing libp2p Node...')
   const libp2p = await createP2PNode(startupOptions.port, { host: startupOptions.host })
 
@@ -49,7 +55,7 @@ async function main() {
     console.log(`  ${ma.toString()}`)
   })
 
-  const xmppNode = new XmppNode(libp2p, startupOptions.rosterPath ? { rosterPath: startupOptions.rosterPath } : {})
+  const xmppNode = new XmppNode(libp2p, storage, {})
   await xmppNode.ready
 
   await startCli(libp2p, xmppNode)

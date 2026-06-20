@@ -16,14 +16,11 @@ async function runCliStartupTest() {
     const parsed = parseCliStartupArgs([
       '--port=9001',
       '--host',
-      '127.0.0.1',
-      '--roster-file',
-      '/tmp/roster.json'
+      '127.0.0.1'
     ])
 
     assert.equal(parsed.port, 9001)
     assert.equal(parsed.host, '127.0.0.1')
-    assert.equal(parsed.rosterPath, '/tmp/roster.json')
     assert.equal(parsed.helpRequested, false)
     assert.equal(parsed.versionRequested, false)
     assert.deepEqual(parsed.errors, [])
@@ -40,7 +37,6 @@ async function runCliStartupTest() {
     outputs.length = 0
     printCliUsage()
     assert.ok(outputs.some(line => line.includes('--help, -h')), 'startup usage should mention help')
-    assert.ok(outputs.some(line => line.includes('--roster-file=<path>')), 'startup usage should mention roster files')
 
     outputs.length = 0
     printCliHelp()
@@ -139,7 +135,7 @@ async function runCliStartupTest() {
     assert.ok(outputs.some(line => line.includes('Presence sent!')), 'presence send should confirm success')
 
     originalLog('CLI startup and help verification results:')
-    originalLog('  - startup option parsing handles port, host, and roster file: SUCCESS')
+    originalLog('  - startup option parsing handles port and host: SUCCESS')
     originalLog('  - help/version flags are recognized: SUCCESS')
     originalLog('  - startup usage mentions supported flags: SUCCESS')
     originalLog('  - CLI command help includes ping and OpenPGP commands: SUCCESS')

@@ -3,6 +3,7 @@ import { tmpdir } from 'os'
 import { join } from 'path'
 import { createP2PNode } from '../core/p2p.js'
 import { XmppNode } from '../core/xmpp-node.js'
+import { NodeSqliteStorage } from '../core/storage/node-sqlite-storage.js'
 
 async function waitFor(condition: () => boolean | Promise<boolean>, timeoutMs: number, message: string) {
   const startedAt = Date.now()
@@ -49,15 +50,15 @@ async function runDhtTest() {
   try {
     libp2p1 = await createP2PNode(9701, { enableDht: true, enableMdns: false })
     await libp2p1.start()
-    xmppNode1 = new XmppNode(libp2p1, { rosterPath: join(workDir, 'node1-roster.json') })
+    xmppNode1 = new XmppNode(libp2p1, new NodeSqliteStorage(join(workDir, 'node1-state.sqlite')))
 
     libp2p2 = await createP2PNode(9702, { enableDht: true, enableMdns: false })
     await libp2p2.start()
-    xmppNode2 = new XmppNode(libp2p2, { rosterPath: join(workDir, 'node2-roster.json') })
+    xmppNode2 = new XmppNode(libp2p2, new NodeSqliteStorage(join(workDir, 'node2-state.sqlite')))
 
     libp2p3 = await createP2PNode(9703, { enableDht: true, enableMdns: false })
     await libp2p3.start()
-    xmppNode3 = new XmppNode(libp2p3, { rosterPath: join(workDir, 'node3-roster.json') })
+    xmppNode3 = new XmppNode(libp2p3, new NodeSqliteStorage(join(workDir, 'node3-state.sqlite')))
 
     await Promise.all([xmppNode1.ready, xmppNode2.ready, xmppNode3.ready])
 

@@ -3,6 +3,7 @@ import { tmpdir } from 'os'
 import { join } from 'path'
 import { createP2PNode } from '../core/p2p.js'
 import { XmppNode } from '../core/xmpp-node.js'
+import { NodeSqliteStorage } from '../core/storage/node-sqlite-storage.js'
 
 async function waitFor(condition: () => boolean | Promise<boolean>, timeoutMs: number, message: string) {
   const startedAt = Date.now()
@@ -19,7 +20,8 @@ async function runRosterTest() {
   console.log('Starting XMPP roster and presence verification test...\n')
 
   const workDir = await mkdtemp(join(tmpdir(), 'xmpp-p2p-roster-'))
-  const rosterPath = join(workDir, 'node1-roster.json')
+  const node1SqlitePath = join(workDir, 'node1-state.sqlite')
+  const storage2 = new NodeSqliteStorage(join(workDir, 'node2-state.sqlite'))
 
   let libp2p1: Awaited<ReturnType<typeof createP2PNode>> | undefined
   let xmppNode1: XmppNode | undefined
@@ -29,11 +31,11 @@ async function runRosterTest() {
   try {
     libp2p1 = await createP2PNode(9201)
     await libp2p1.start()
-    xmppNode1 = new XmppNode(libp2p1, { rosterPath })
+    xmppNode1 = new XmppNode(libp2p1, new NodeSqliteStorage(node1SqlitePath))
 
     libp2p2 = await createP2PNode(9202)
     await libp2p2.start()
-    xmppNode2 = new XmppNode(libp2p2)
+    xmppNode2 = new XmppNode(libp2p2, storage2)
 
     await xmppNode1.ready
     await xmppNode2.ready
@@ -92,7 +94,7 @@ async function runRosterTest() {
 
     const restartedLibp2p1 = await createP2PNode(9201)
     await restartedLibp2p1.start()
-    const restartedXmppNode1 = new XmppNode(restartedLibp2p1, { rosterPath })
+    const restartedXmppNode1 = new XmppNode(restartedLibp2p1, new NodeSqliteStorage(node1SqlitePath))
     await restartedXmppNode1.ready
 
     const persistedEntry = await restartedXmppNode1.getRosterEntry(node2Jid)

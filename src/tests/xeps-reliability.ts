@@ -4,6 +4,7 @@ import { join } from 'path'
 import { xml } from '@xmpp/xml'
 import { createP2PNode } from '../core/p2p.js'
 import { XmppNode } from '../core/xmpp-node.js'
+import { NodeSqliteStorage } from '../core/storage/node-sqlite-storage.js'
 
 async function waitFor(condition: () => boolean | Promise<boolean>, timeoutMs: number, message: string) {
   const startedAt = Date.now()
@@ -26,8 +27,8 @@ async function runXepsReliabilityTest() {
   await libp2p1.start()
   await libp2p2.start()
 
-  const xmppNode1 = new XmppNode(libp2p1, { rosterPath: join(workDir, 'node1-roster.json') })
-  const xmppNode2 = new XmppNode(libp2p2, { rosterPath: join(workDir, 'node2-roster.json') })
+  const xmppNode1 = new XmppNode(libp2p1, new NodeSqliteStorage(join(workDir, 'node1-state.sqlite')))
+  const xmppNode2 = new XmppNode(libp2p2, new NodeSqliteStorage(join(workDir, 'node2-state.sqlite')))
 
   const node2Address = libp2p2.getMultiaddrs().find((ma: any) => ma.toString().includes('127.0.0.1')) || libp2p2.getMultiaddrs()[0]
   console.log(`Connecting Node 1 -> Node 2 via: ${node2Address.toString()}...`)

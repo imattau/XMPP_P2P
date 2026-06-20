@@ -1,14 +1,13 @@
-import { promises as fs } from 'fs'
-import { dirname } from 'path'
 import { xml, Element } from '@xmpp/xml'
-import { loadOmemoModule } from './omemo-runtime.js'
-import type { OmemoDirection } from './omemo-runtime.js'
+import { loadOmemoModule as nodeLoadOmemoModule } from './omemo-runtime.js'
+import type { OmemoDirection, OmemoModule } from './omemo-runtime.js'
 import {
   bufferToBase64,
   base64ToArrayBuffer,
   serializeKeyPair,
   deserializeKeyPair
 } from './xmpp-utils.js'
+import type { XmppStorage } from './storage/types.js'
 
 export interface XmppOmemoStateFile {
   version: number
@@ -75,53 +74,53 @@ export class XmppOmemoStateManager {
   private readonly peerIdentityKeys = new Map<string, string>()
   private saveQueue: Promise<void> = Promise.resolve()
 
-  constructor(private readonly omemoPath: string) {}
+  constructor(
+    private readonly storage: XmppStorage,
+    private readonly loadOmemoModule: () => Promise<OmemoModule> = nodeLoadOmemoModule
+  ) {}
 
   async load(): Promise<void> {
-    try {
-      const raw = await fs.readFile(this.omemoPath, 'utf8')
-      const parsed = JSON.parse(raw) as Partial<XmppOmemoStateFile>
-      if (!parsed.deviceId || !parsed.registrationId || !parsed.identityKeyPair || !parsed.signedPreKey) {
-        throw new Error('OMEMO state file is missing key material')
-      }
-
-      this.state = {
-        version: parsed.version ?? 1,
-        deviceId: parsed.deviceId,
-        registrationId: parsed.registrationId,
-        store: parsed.store ?? {},
-        identityKeyPair: parsed.identityKeyPair,
-        signedPreKey: parsed.signedPreKey,
-        preKeys: parsed.preKeys ?? [],
-        identities: parsed.identities ?? {},
-        sessions: parsed.sessions ?? {}
-      }
-      this.deviceId = parsed.deviceId
-      this.registrationId = parsed.registrationId
-      this.identityKeyPair = deserializeKeyPair(parsed.identityKeyPair)
-      this.signedPreKey = {
-        keyId: parsed.signedPreKey.keyId,
-        keyPair: deserializeKeyPair(parsed.signedPreKey.keyPair),
-        signature: base64ToArrayBuffer(parsed.signedPreKey.signature)
-      }
-      this.storeData.clear()
-      for (const [key, value] of Object.entries(parsed.store ?? {})) {
-        this.storeData.set(key, value)
-      }
-      this.preKeys.clear()
-      for (const preKey of this.state.preKeys) {
-        this.preKeys.set(preKey.keyId, deserializeKeyPair(preKey.keyPair))
-      }
-      this.peerIdentityKeys.clear()
-      for (const [address, identityKey] of Object.entries(this.state.identities)) {
-        this.peerIdentityKeys.set(address, identityKey)
-      }
-    } catch (err: any) {
-      if (err?.code !== 'ENOENT') {
-        console.error(`[XMPP] Failed to load OMEMO state from ${this.omemoPath}:`, err)
-      }
-
+    const raw = await this.storage.getRecord('omemo', 'state')
+    if (raw === undefined) {
       await this.generate()
+      return
+    }
+
+    const parsed = JSON.parse(raw) as Partial<XmppOmemoStateFile>
+    if (!parsed.deviceId || !parsed.registrationId || !parsed.identityKeyPair || !parsed.signedPreKey) {
+      throw new Error('OMEMO state is missing key material')
+    }
+
+    this.state = {
+      version: parsed.version ?? 1,
+      deviceId: parsed.deviceId,
+      registrationId: parsed.registrationId,
+      store: parsed.store ?? {},
+      identityKeyPair: parsed.identityKeyPair,
+      signedPreKey: parsed.signedPreKey,
+      preKeys: parsed.preKeys ?? [],
+      identities: parsed.identities ?? {},
+      sessions: parsed.sessions ?? {}
+    }
+    this.deviceId = parsed.deviceId
+    this.registrationId = parsed.registrationId
+    this.identityKeyPair = deserializeKeyPair(parsed.identityKeyPair)
+    this.signedPreKey = {
+      keyId: parsed.signedPreKey.keyId,
+      keyPair: deserializeKeyPair(parsed.signedPreKey.keyPair),
+      signature: base64ToArrayBuffer(parsed.signedPreKey.signature)
+    }
+    this.storeData.clear()
+    for (const [key, value] of Object.entries(parsed.store ?? {})) {
+      this.storeData.set(key, value)
+    }
+    this.preKeys.clear()
+    for (const preKey of this.state.preKeys) {
+      this.preKeys.set(preKey.keyId, deserializeKeyPair(preKey.keyPair))
+    }
+    this.peerIdentityKeys.clear()
+    for (const [address, identityKey] of Object.entries(this.state.identities)) {
+      this.peerIdentityKeys.set(address, identityKey)
     }
   }
 
@@ -372,8 +371,7 @@ export class XmppOmemoStateManager {
     }
 
     this.state.store = Object.fromEntries(this.storeData.entries())
-    await fs.mkdir(dirname(this.omemoPath), { recursive: true })
-    await fs.writeFile(this.omemoPath, `${JSON.stringify(this.state, null, 2)}\n`, 'utf8')
+    await this.storage.putRecord('omemo', 'state', JSON.stringify(this.state), new Date().toISOString())
   }
 
   async close(): Promise<void> {
@@ -390,7 +388,7 @@ export class XmppOmemoStateManager {
   }
 
   private async generate(): Promise<void> {
-    const omemo = await loadOmemoModule()
+    const omemo = await this.loadOmemoModule()
     const identityKeyPair = await omemo.KeyHelper.generateIdentityKeyPair()
     const signedPreKey = await omemo.KeyHelper.generateSignedPreKey(identityKeyPair, 1)
     const preKeys = await Promise.all(
@@ -434,7 +432,7 @@ export class XmppOmemoStateManager {
     this.saveQueue = this.saveQueue
       .then(() => this.persist())
       .catch(err => {
-        console.error(`[XMPP] Failed to persist OMEMO state to ${this.omemoPath}:`, err)
+        console.error('[XMPP] Failed to persist OMEMO state:', err)
       })
 
     return this.saveQueue

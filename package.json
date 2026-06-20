@@ -16,7 +16,14 @@
     "test-feed": "node dist/tests/feed.js",
     "test-replies": "node dist/tests/replies.js",
     "test-threads": "node dist/tests/threads.js",
-    "test-sqlite": "node dist/tests/sqlite.js",
+    "test-storage-node-sqlite": "node dist/tests/storage-node-sqlite.js",
+    "test-storage-indexeddb": "node dist/tests/storage-indexeddb.js",
+    "test-p2p-browser": "node dist/tests/p2p-browser.js",
+    "test-persistence-storage": "node dist/tests/persistence-storage.js",
+    "test-openpgp-storage": "node dist/tests/openpgp-storage.js",
+    "test-omemo-state-storage": "node dist/tests/omemo-state-storage.js",
+    "test-uploads-storage": "node dist/tests/uploads-storage.js",
+    "test-omemo-runtime-browser": "node dist/tests/omemo-runtime-browser.js",
     "test-mcp": "node dist/tests/mcp.js",
     "test-cli": "node dist/tests/cli-startup.js",
     "test-cli-profile": "node dist/tests/cli-profile.js",
@@ -32,7 +39,9 @@
     "test-muc-omemo": "node dist/tests/muc-omemo.js",
     "test-uploads": "node dist/tests/uploads.js",
     "test-reliability": "node dist/tests/xeps-reliability.js",
-    "test": "npm run build && npm run test-nodes && npm run test-pubsub && npm run test-dht && npm run test-omemo && npm run test-roster && npm run test-feed && npm run test-attachments && npm run test-uploads && npm run test-subscriptions && npm run test-disco && npm run test-protocol && npm run test-collection && npm run test-muc && npm run test-muc-omemo && npm run test-reliability && npm run test-cli && npm run test-cli-profile",
+    "test": "npm run build && npm run test-nodes && npm run test-pubsub && npm run test-dht && npm run test-omemo && npm run test-roster && npm run test-feed && npm run test-attachments && npm run test-uploads && npm run test-subscriptions && npm run test-disco && npm run test-protocol && npm run test-collection && npm run test-muc && npm run test-muc-omemo && npm run test-reliability && npm run test-cli && npm run test-cli-profile && npm run test-storage-node-sqlite && npm run test-storage-indexeddb && npm run test-p2p-browser && npm run test-persistence-storage && npm run test-openpgp-storage && npm run test-omemo-state-storage && npm run test-uploads-storage && npm run test-omemo-runtime-browser",
+    "pretest-browser-e2e": "esbuild src/tests/browser/fixture-bundle-entry.ts --bundle --outfile=src/tests/browser/fixture-bundle.js --format=iife",
+    "test-browser-e2e": "npx playwright test",
     "docs": "typedoc --out docs --entryPointStrategy expand src"
   },
   "repository": {
@@ -51,6 +60,8 @@
     "node": ">=22"
   },
   "dependencies": {
+    "@libp2p/bootstrap": "^12.0.25",
+    "@libp2p/circuit-relay-v2": "^4.2.7",
     "@libp2p/gossipsub": "^16.0.3",
     "@libp2p/identify": "^4.1.8",
     "@libp2p/kad-dht": "^16.3.3",
@@ -58,6 +69,7 @@
     "@libp2p/noise": "^1.0.1",
     "@libp2p/ping": "^3.1.7",
     "@libp2p/tcp": "^11.0.22",
+    "@libp2p/webrtc": "^6.0.25",
     "@libp2p/websockets": "^10.1.15",
     "@libp2p/yamux": "^8.0.1",
     "@modelcontextprotocol/sdk": "^1.29.0",
@@ -67,7 +79,10 @@
     "openpgp": "^6.3.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.0",
     "@types/node": "^25.9.3",
+    "esbuild": "^0.28.1",
+    "fake-indexeddb": "^6.2.5",
     "ts-node": "^10.9.2",
     "typedoc": "^0.26.11",
     "typescript": "^6.0.3"

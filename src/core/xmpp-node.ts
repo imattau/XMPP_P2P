@@ -1,5 +1,3 @@
-import { promises as fs } from 'fs'
-import { basename, dirname, join } from 'path'
 import { Libp2p } from 'libp2p'
 import { xml, Element, Parser } from '@xmpp/xml'
 import { buildXepElements } from './xmpp-xep-helpers.js'
@@ -153,7 +151,7 @@ import {
   persistVCardState,
   persistSubscriptionState
 } from './xmpp-persistence.js'
-import { XmppSqliteStore } from './xmpp-sqlite.js'
+import type { XmppStorage } from './storage/types.js'
 import {
   buildAttachmentSummary,
   attachmentHistoryKey,
@@ -243,18 +241,8 @@ const OPENPGP_XMLNS = 'urn:xmpp:openpgp:0'
 const OPENPGP_PUBSUB_XMLNS = 'urn:xmpp:openpgp:pubsub:0'
 
 export interface XmppNodeOptions {
-  rosterPath?: string
-  feedPath?: string
-  collectionPath?: string
-  attachmentPath?: string
-  mucPath?: string
-  mucHistoryPath?: string
-  sqlitePath?: string
-  uploadPath?: string
-  vCardPath?: string
-  omemoPath?: string
-  openPgpPath?: string
   nickname?: string
+  omemoModuleLoader?: () => Promise<import('./omemo-runtime.js').OmemoModule>
 }
 
 export class XmppNode extends EventEmitter {
@@ -290,24 +278,9 @@ export class XmppNode extends EventEmitter {
     type: 'available'
   }
   private selfVCard: XmppVCardProfile = {}
-  private readonly rosterPath: string
-  private readonly feedPath: string
-  private readonly subscriptionPath: string
-  private readonly followerPath: string
-  private readonly collectionPath: string
-  private readonly attachmentPath: string
-  private readonly mucPath: string
-  private readonly mucHistoryPath: string
-  private readonly sqlitePath: string
-  public readonly uploadPath: string
-  public readonly uploadObjectsPath: string
-  public readonly uploadAliasesPath: string
+  public readonly storage: XmppStorage
   public readonly uploadHost: string
   public readonly uploadPort: number
-  private readonly vCardPath: string
-  private readonly omemoPath: string
-  private readonly openPgpPath: string
-  private readonly sqliteStore: XmppSqliteStore
   private readonly discoveryNode: string = DISCOVERY_NODE
   private readonly discoveryIdentity: XmppDiscoIdentity = {
     category: 'client',
@@ -326,31 +299,15 @@ export class XmppNode extends EventEmitter {
   public readonly uploads: XmppUploadManager
   public readonly ready: Promise<void>
 
-  constructor(libp2p: Libp2p, options: XmppNodeOptions = {}) {
+  constructor(libp2p: Libp2p, storage: XmppStorage, options: XmppNodeOptions = {}) {
     super()
     this.libp2p = libp2p
     this.jid = `${this.libp2p.peerId.toString()}@p2p`
-    this.rosterPath = options.rosterPath ?? process.env.XMPP_ROSTER_PATH ?? join(process.cwd(), `.xmpp-roster.${this.libp2p.peerId.toString()}.json`)
-    this.feedPath = options.feedPath ?? process.env.XMPP_FEED_PATH ?? join(dirname(this.rosterPath), `.xmpp-feed.${this.libp2p.peerId.toString()}.json`)
-    const rosterBaseName = basename(this.rosterPath).replace(/\.[^.]+$/, '')
-    this.subscriptionPath = join(dirname(this.rosterPath), `.xmpp-subscriptions.${rosterBaseName}.json`)
-    this.followerPath = join(dirname(this.rosterPath), `.xmpp-followers.${rosterBaseName}.json`)
-    this.collectionPath = options.collectionPath ?? process.env.XMPP_COLLECTION_PATH ?? join(dirname(this.rosterPath), `.xmpp-collection.${this.libp2p.peerId.toString()}.json`)
-    this.attachmentPath = options.attachmentPath ?? process.env.XMPP_ATTACHMENT_PATH ?? join(dirname(this.rosterPath), `.xmpp-attachments.${this.libp2p.peerId.toString()}.json`)
-    this.mucPath = options.mucPath ?? process.env.XMPP_MUC_PATH ?? join(dirname(this.rosterPath), `.xmpp-muc.${rosterBaseName}.json`)
-    this.mucHistoryPath = options.mucHistoryPath ?? process.env.XMPP_MUC_HISTORY_PATH ?? join(dirname(this.rosterPath), `.xmpp-muc-history.${rosterBaseName}.json`)
-    this.sqlitePath = options.sqlitePath ?? process.env.XMPP_SQLITE_PATH ?? join(dirname(this.rosterPath), `.xmpp-state.${this.libp2p.peerId.toString()}.sqlite`)
-    this.uploadPath = options.uploadPath ?? process.env.XMPP_UPLOAD_PATH ?? join(dirname(this.rosterPath), `.xmpp-uploads.${rosterBaseName}`)
-    this.uploadObjectsPath = join(this.uploadPath, 'objects')
-    this.uploadAliasesPath = join(this.uploadPath, 'aliases')
+    this.storage = storage
     this.uploadHost = process.env.XMPP_UPLOAD_HOST ?? '127.0.0.1'
     this.uploadPort = Number.parseInt(process.env.XMPP_UPLOAD_PORT ?? '0', 10) || 0
-    this.vCardPath = options.vCardPath ?? process.env.XMPP_VCARD_PATH ?? join(dirname(this.rosterPath), `.xmpp-vcard.${rosterBaseName}.json`)
-    this.omemoPath = options.omemoPath ?? process.env.XMPP_OMEMO_PATH ?? join(dirname(this.rosterPath), `.xmpp-omemo.${rosterBaseName}.json`)
-    this.openPgpPath = options.openPgpPath ?? process.env.XMPP_OPENPGP_PATH ?? join(dirname(this.rosterPath), `.xmpp-openpgp.${rosterBaseName}.json`)
-    this.sqliteStore = new XmppSqliteStore(this.sqlitePath)
-    this.omemoStateManager = new XmppOmemoStateManager(this.omemoPath)
-    this.openPgpStateManager = new XmppOpenPgpStateManager(this.openPgpPath, this.jid)
+    this.omemoStateManager = new XmppOmemoStateManager(storage, options.omemoModuleLoader)
+    this.openPgpStateManager = new XmppOpenPgpStateManager(storage, this.jid)
     this.muc = new XmppMucManager(this)
     this.uploads = new XmppUploadManager(this)
     if (options.nickname) {
@@ -368,7 +325,6 @@ export class XmppNode extends EventEmitter {
       .then(() => this.uploads.ensureUploadServer())
       .then(() => this.uploads.ensureUploadAnnouncementSubscription())
       .then(() => this.loadVCard())
-      .then(() => this.loadSqliteState())
       .then(() => this.loadOmemoState())
       .then(() => this.openPgpStateManager.load())
       .then(() => this.ensureOwnFeedSubscription())
@@ -405,16 +361,7 @@ export class XmppNode extends EventEmitter {
 
   private getPersistenceLoadContext() {
     return {
-      rosterPath: this.rosterPath,
-      feedPath: this.feedPath,
-      subscriptionPath: this.subscriptionPath,
-      followerPath: this.followerPath,
-      collectionPath: this.collectionPath,
-      attachmentPath: this.attachmentPath,
-      mucPath: this.mucPath,
-      mucHistoryPath: this.mucHistoryPath,
-      vCardPath: this.vCardPath,
-      openPgpPath: this.openPgpPath,
+      storage: this.storage,
       roster: this.roster,
       feedHistory: this.feedHistory,
       feedSubscriptions: this.feedSubscriptions,
@@ -449,16 +396,7 @@ export class XmppNode extends EventEmitter {
 
   private getPersistenceSaveContext() {
     return {
-      rosterPath: this.rosterPath,
-      feedPath: this.feedPath,
-      subscriptionPath: this.subscriptionPath,
-      followerPath: this.followerPath,
-      collectionPath: this.collectionPath,
-      attachmentPath: this.attachmentPath,
-      mucPath: this.mucPath,
-      mucHistoryPath: this.mucHistoryPath,
-      vCardPath: this.vCardPath,
-      openPgpPath: this.openPgpPath,
+      storage: this.storage,
       roster: this.roster,
       feedHistory: this.feedHistory,
       feedSubscriptions: this.feedSubscriptions,
@@ -531,17 +469,6 @@ export class XmppNode extends EventEmitter {
     await loadVCardState(this.getPersistenceLoadContext())
     if (this.selfVCard.nickname && !this.selfPresence.nickname) {
       this.selfPresence.nickname = this.selfVCard.nickname
-    }
-  }
-
-  private async loadSqliteState(): Promise<void> {
-    try {
-      await this.sqliteStore.loadSnapshot(this.getPersistenceLoadContext())
-      if (this.selfVCard.nickname && !this.selfPresence.nickname) {
-        this.selfPresence.nickname = this.selfVCard.nickname
-      }
-    } catch (err) {
-      console.error(`[XMPP] Failed to load SQLite state from ${this.sqlitePath}:`, err)
     }
   }
 
@@ -805,14 +732,13 @@ export class XmppNode extends EventEmitter {
 
   private async persistRoster(): Promise<void> {
     await persistRosterState(this.getPersistenceSaveContext())
-    await this.persistSqliteState()
   }
 
   private scheduleRosterPersist(): Promise<void> {
     this.rosterSaveQueue = this.rosterSaveQueue
       .then(() => this.persistRoster())
       .catch(err => {
-        console.error(`[XMPP] Failed to persist roster to ${this.rosterPath}:`, err)
+        console.error('[XMPP] Failed to persist roster:', err)
       })
 
     return this.rosterSaveQueue
@@ -820,7 +746,6 @@ export class XmppNode extends EventEmitter {
 
   private async persistFeedHistory(): Promise<void> {
     await persistFeedHistoryState(this.getPersistenceSaveContext())
-    await this.persistSqliteState()
   }
 
   private async publishSubscriptionDeclaration(subscription: XmppFeedSubscriptionRecord, action: 'upsert' | 'remove') {
@@ -877,28 +802,23 @@ export class XmppNode extends EventEmitter {
 
   private async persistSubscriptionState(): Promise<void> {
     await persistSubscriptionState(this.getPersistenceSaveContext())
-    await this.persistSqliteState()
   }
 
   private async persistFollowerState(): Promise<void> {
     await persistFollowerState(this.getPersistenceSaveContext())
-    await this.persistSqliteState()
   }
 
   private async persistCollectionState(): Promise<void> {
     await persistCollectionState(this.getPersistenceSaveContext())
-    await this.persistSqliteState()
   }
 
   private async persistAttachmentHistory(): Promise<void> {
     await persistAttachmentHistoryState(this.getPersistenceSaveContext())
-    await this.persistSqliteState()
   }
 
   public async persistMucState(): Promise<void> {
     await persistMucStateToDht(this.getDhtContext())
     await persistMucStateFile(this.getPersistenceSaveContext())
-    await this.persistSqliteState()
   }
 
   private async persistMucHistory(): Promise<void> {
@@ -907,18 +827,13 @@ export class XmppNode extends EventEmitter {
 
   private async persistVCard(): Promise<void> {
     await persistVCardState(this.getPersistenceSaveContext())
-    await this.persistSqliteState()
-  }
-
-  private async persistSqliteState(): Promise<void> {
-    await this.sqliteStore.persistSnapshot(this.getPersistenceSaveContext())
   }
 
   private scheduleFeedPersist(): Promise<void> {
     this.feedSaveQueue = this.feedSaveQueue
       .then(() => this.persistFeedHistory())
       .catch(err => {
-        console.error(`[XMPP] Failed to persist feed history to ${this.feedPath}:`, err)
+        console.error('[XMPP] Failed to persist feed history:', err)
       })
 
     return this.feedSaveQueue
@@ -928,7 +843,7 @@ export class XmppNode extends EventEmitter {
     this.subscriptionSaveQueue = this.subscriptionSaveQueue
       .then(() => this.persistSubscriptionState())
       .catch(err => {
-        console.error(`[XMPP] Failed to persist subscription state to ${this.subscriptionPath}:`, err)
+        console.error('[XMPP] Failed to persist subscription state:', err)
       })
 
     return this.subscriptionSaveQueue
@@ -938,7 +853,7 @@ export class XmppNode extends EventEmitter {
     this.followerSaveQueue = this.followerSaveQueue
       .then(() => this.persistFollowerState())
       .catch(err => {
-        console.error(`[XMPP] Failed to persist follower state to ${this.followerPath}:`, err)
+        console.error('[XMPP] Failed to persist follower state:', err)
       })
 
     return this.followerSaveQueue
@@ -948,7 +863,7 @@ export class XmppNode extends EventEmitter {
     this.collectionSaveQueue = this.collectionSaveQueue
       .then(() => this.persistCollectionState())
       .catch(err => {
-        console.error(`[XMPP] Failed to persist collection state to ${this.collectionPath}:`, err)
+        console.error('[XMPP] Failed to persist collection state:', err)
       })
 
     return this.collectionSaveQueue
@@ -958,7 +873,7 @@ export class XmppNode extends EventEmitter {
     this.mucSaveQueue = this.mucSaveQueue
       .then(() => this.persistMucState())
       .catch(err => {
-        console.error(`[XMPP] Failed to persist MUC state to ${this.mucPath}:`, err)
+        console.error('[XMPP] Failed to persist MUC state:', err)
       })
 
     return this.mucSaveQueue
@@ -968,7 +883,7 @@ export class XmppNode extends EventEmitter {
     this.mucHistorySaveQueue = this.mucHistorySaveQueue
       .then(() => this.persistMucHistory())
       .catch(err => {
-        console.error(`[XMPP] Failed to persist MUC history to ${this.mucHistoryPath}:`, err)
+        console.error('[XMPP] Failed to persist MUC history:', err)
       })
 
     return this.mucHistorySaveQueue
@@ -978,7 +893,7 @@ export class XmppNode extends EventEmitter {
     this.attachmentSaveQueue = this.attachmentSaveQueue
       .then(() => this.persistAttachmentHistory())
       .catch(err => {
-        console.error(`[XMPP] Failed to persist attachment history to ${this.attachmentPath}:`, err)
+        console.error('[XMPP] Failed to persist attachment history:', err)
       })
 
     return this.attachmentSaveQueue
@@ -988,7 +903,7 @@ export class XmppNode extends EventEmitter {
     this.vCardSaveQueue = this.vCardSaveQueue
       .then(() => this.persistVCard())
       .catch(err => {
-        console.error(`[XMPP] Failed to persist vCard to ${this.vCardPath}:`, err)
+        console.error('[XMPP] Failed to persist vCard:', err)
       })
 
     return this.vCardSaveQueue
@@ -2647,7 +2562,6 @@ export class XmppNode extends EventEmitter {
     await this.uploads.close()
     await this.omemoStateManager.close()
     await this.openPgpStateManager.close()
-    this.sqliteStore.close()
     this.reliabilityManager.clear()
     this.muc.close()
   }

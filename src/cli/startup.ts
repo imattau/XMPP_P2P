@@ -4,7 +4,7 @@ import { fileURLToPath } from 'url'
 export type CliStartupOptions = {
   port?: number
   host?: string
-  rosterPath?: string
+  sqlitePath?: string
   helpRequested: boolean
   versionRequested: boolean
   errors: string[]
@@ -81,10 +81,10 @@ export const parseCliStartupArgs = (args: string[]): CliStartupOptions => {
         }
         break
       }
-      case '--roster-file': {
+      case '--sqlite-path': {
         const value = takeValue()
         if (value) {
-          options.rosterPath = value
+          options.sqlitePath = value
         }
         break
       }
@@ -109,7 +109,7 @@ export const printStartupUsage = (title: string, launchCommand: string, footer: 
   console.log('Options:')
   console.log('  --port=<port>         Bind libp2p to a specific TCP port')
   console.log('  --host=<host>         Bind libp2p to a specific host')
-  console.log('  --roster-file=<path>  Load and persist roster state from a JSON file')
+  console.log('  --sqlite-path=<path>  Load and persist all XMPP state from a SQLite database file')
   console.log('  --help, -h            Show this message and exit')
   console.log('  --version, -v         Print the CLI version and exit')
   console.log('')
@@ -119,7 +119,7 @@ export const printStartupUsage = (title: string, launchCommand: string, footer: 
 export const printCliUsage = () => {
   printStartupUsage(
     'XMPP over libp2p CLI',
-    'npm start -- [--port=<port>] [--host=<host>] [--roster-file=<path>]',
+    'npm start -- [--port=<port>] [--host=<host>] [--sqlite-path=<path>]',
     'Start the CLI, then type `help` for interactive commands.'
   )
 }
@@ -127,7 +127,7 @@ export const printCliUsage = () => {
 export const printMcpUsage = () => {
   printStartupUsage(
     'XMPP over libp2p MCP server',
-    'npm run mcp -- [--port=<port>] [--host=<host>] [--roster-file=<path>]',
+    'npm run mcp -- [--port=<port>] [--host=<host>] [--sqlite-path=<path>]',
     'Start the MCP server, then connect through a JSON-RPC client.'
   )
 }

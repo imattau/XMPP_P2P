@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict'
+import { mkdtemp, rm } from 'fs/promises'
+import { tmpdir } from 'os'
+import { join } from 'path'
 import { createP2PNode } from '../core/p2p.js'
 import { XmppNode } from '../core/xmpp-node.js'
+import { NodeSqliteStorage } from '../core/storage/node-sqlite-storage.js'
 
 async function waitFor(condition: () => boolean | Promise<boolean>, timeoutMs: number, message: string) {
   const startedAt = Date.now()
@@ -16,13 +20,17 @@ async function waitFor(condition: () => boolean | Promise<boolean>, timeoutMs: n
 async function runThreadsTest() {
   console.log('Starting XMPP Message Threads verification test...\n')
 
+  const workDir = await mkdtemp(join(tmpdir(), 'xmpp-p2p-threads-'))
+  const storage1 = new NodeSqliteStorage(join(workDir, 'node1-state.sqlite'))
+  const storage2 = new NodeSqliteStorage(join(workDir, 'node2-state.sqlite'))
+
   const libp2p1 = await createP2PNode(9310)
   await libp2p1.start()
-  const xmppNode1 = new XmppNode(libp2p1)
+  const xmppNode1 = new XmppNode(libp2p1, storage1)
 
   const libp2p2 = await createP2PNode(9311)
   await libp2p2.start()
-  const xmppNode2 = new XmppNode(libp2p2)
+  const xmppNode2 = new XmppNode(libp2p2, storage2)
 
   await xmppNode1.ready
   await xmppNode2.ready
@@ -99,6 +107,7 @@ async function runThreadsTest() {
   await xmppNode2.close()
   await libp2p1.stop()
   await libp2p2.stop()
+  await rm(workDir, { recursive: true, force: true }).catch(() => {})
 
   assert.ok(directThreadObserved, 'Direct message thread metadata should arrive')
   assert.ok(liveRoomThreadObserved, 'Live MUC message thread metadata should arrive')

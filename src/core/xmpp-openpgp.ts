@@ -1,6 +1,6 @@
-import { promises as fs } from 'fs'
 import * as openpgp from 'openpgp'
-import { persistOpenPgpState as persistOpenPgpStateFile } from './xmpp-persistence.js'
+import type { XmppStorage } from './storage/types.js'
+import { persistOpenPgpState } from './xmpp-persistence.js'
 import { type XmppOpenPgpStateFile } from './xmpp-records.js'
 
 export class XmppOpenPgpStateManager {
@@ -11,29 +11,26 @@ export class XmppOpenPgpStateManager {
   private saveQueue: Promise<void> = Promise.resolve()
 
   constructor(
-    private readonly openPgpPath: string,
+    private readonly storage: XmppStorage,
     private readonly jid: string
   ) {}
 
   async load(): Promise<void> {
-    try {
-      const raw = await fs.readFile(this.openPgpPath, 'utf8')
-      const parsed = JSON.parse(raw) as XmppOpenPgpStateFile
-      if (!parsed.privateKey || !parsed.publicKey || !parsed.fingerprint) {
-        throw new Error('OpenPGP state file is missing key material')
-      }
-
-      this.state = parsed
-      this.privateKey = await openpgp.readPrivateKey({ armoredKey: parsed.privateKey })
-      this.publicKey = await openpgp.readKey({ armoredKey: parsed.publicKey })
-      this.fingerprint = parsed.fingerprint
-    } catch (err: any) {
-      if (err?.code !== 'ENOENT') {
-        console.error(`[XMPP] Failed to load OpenPGP state from ${this.openPgpPath}:`, err)
-      }
-
+    const raw = await this.storage.getRecord('openpgp', 'state')
+    if (raw === undefined) {
       await this.generate()
+      return
     }
+
+    const parsed = JSON.parse(raw) as XmppOpenPgpStateFile
+    if (!parsed.privateKey || !parsed.publicKey || !parsed.fingerprint) {
+      throw new Error('OpenPGP state file is missing key material')
+    }
+
+    this.state = parsed
+    this.privateKey = await openpgp.readPrivateKey({ armoredKey: parsed.privateKey })
+    this.publicKey = await openpgp.readKey({ armoredKey: parsed.publicKey })
+    this.fingerprint = parsed.fingerprint
   }
 
   async generate(): Promise<void> {
@@ -58,14 +55,14 @@ export class XmppOpenPgpStateManager {
   }
 
   async persist(): Promise<void> {
-    await persistOpenPgpStateFile(this.openPgpPath, this.state)
+    await persistOpenPgpState(this.storage, this.state)
   }
 
   schedulePersist(): Promise<void> {
     this.saveQueue = this.saveQueue
       .then(() => this.persist())
       .catch(err => {
-        console.error(`[XMPP] Failed to persist OpenPGP state to ${this.openPgpPath}:`, err)
+        console.error('[XMPP] Failed to persist OpenPGP state:', err)
       })
 
     return this.saveQueue

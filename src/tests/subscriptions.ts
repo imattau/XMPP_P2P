@@ -3,6 +3,7 @@ import { tmpdir } from 'os'
 import { join } from 'path'
 import { createP2PNode } from '../core/p2p.js'
 import { XmppNode } from '../core/xmpp-node.js'
+import { NodeSqliteStorage } from '../core/storage/node-sqlite-storage.js'
 
 async function waitFor(condition: () => boolean | Promise<boolean>, timeoutMs: number, message: string) {
   const startedAt = Date.now()
@@ -19,6 +20,7 @@ async function runSubscriptionTest() {
   console.log('Starting XMPP public subscription verification test...\n')
 
   const workDir = await mkdtemp(join(tmpdir(), 'xmpp-p2p-subscriptions-'))
+  const node2SqlitePath = join(workDir, 'node2-state.sqlite')
 
   let libp2p1: Awaited<ReturnType<typeof createP2PNode>> | undefined
   let xmppNode1: XmppNode | undefined
@@ -30,15 +32,15 @@ async function runSubscriptionTest() {
   try {
     libp2p1 = await createP2PNode(9601)
     await libp2p1.start()
-    xmppNode1 = new XmppNode(libp2p1, { rosterPath: join(workDir, 'node1-roster.json') })
+    xmppNode1 = new XmppNode(libp2p1, new NodeSqliteStorage(join(workDir, 'node1-state.sqlite')))
 
     libp2p2 = await createP2PNode(9602)
     await libp2p2.start()
-    xmppNode2 = new XmppNode(libp2p2, { rosterPath: join(workDir, 'node2-roster.json') })
+    xmppNode2 = new XmppNode(libp2p2, new NodeSqliteStorage(node2SqlitePath))
 
     libp2p3 = await createP2PNode(9603)
     await libp2p3.start()
-    xmppNode3 = new XmppNode(libp2p3, { rosterPath: join(workDir, 'node3-roster.json') })
+    xmppNode3 = new XmppNode(libp2p3, new NodeSqliteStorage(join(workDir, 'node3-state.sqlite')))
 
     await Promise.all([
       xmppNode1.ready,
@@ -112,7 +114,7 @@ async function runSubscriptionTest() {
 
     const restartedLibp2p2 = await createP2PNode(9602)
     await restartedLibp2p2.start()
-    const restartedXmppNode2 = new XmppNode(restartedLibp2p2, { rosterPath: join(workDir, 'node2-roster.json') })
+    const restartedXmppNode2 = new XmppNode(restartedLibp2p2, new NodeSqliteStorage(node2SqlitePath))
     await restartedXmppNode2.ready
 
     await restartedXmppNode2.setFeedSubscriptionVisibility(node1Address, 'public')

@@ -3,6 +3,7 @@ import { tmpdir } from 'os'
 import { join } from 'path'
 import { createP2PNode } from '../core/p2p.js'
 import { XmppNode } from '../core/xmpp-node.js'
+import { NodeSqliteStorage } from '../core/storage/node-sqlite-storage.js'
 
 async function waitFor(condition: () => boolean | Promise<boolean>, timeoutMs: number, message: string) {
   const startedAt = Date.now()
@@ -19,6 +20,7 @@ async function runOmemoTest() {
   console.log('Starting XMPP OMEMO verification test...\n')
 
   const workDir = await mkdtemp(join(tmpdir(), 'xmpp-p2p-omemo-'))
+  const node1SqlitePath = join(workDir, 'node1-state.sqlite')
 
   let libp2p1: Awaited<ReturnType<typeof createP2PNode>> | undefined
   let xmppNode1: XmppNode | undefined
@@ -28,11 +30,11 @@ async function runOmemoTest() {
   try {
     libp2p1 = await createP2PNode(9801)
     await libp2p1.start()
-    xmppNode1 = new XmppNode(libp2p1, { rosterPath: join(workDir, 'node1-roster.json') })
+    xmppNode1 = new XmppNode(libp2p1, new NodeSqliteStorage(node1SqlitePath))
 
     libp2p2 = await createP2PNode(9802)
     await libp2p2.start()
-    xmppNode2 = new XmppNode(libp2p2, { rosterPath: join(workDir, 'node2-roster.json') })
+    xmppNode2 = new XmppNode(libp2p2, new NodeSqliteStorage(join(workDir, 'node2-state.sqlite')))
 
     await Promise.all([xmppNode1.ready, xmppNode2.ready])
 
@@ -87,7 +89,7 @@ async function runOmemoTest() {
 
     const restartedLibp2p1 = await createP2PNode(9801)
     await restartedLibp2p1.start()
-    const restartedNode1 = new XmppNode(restartedLibp2p1, { rosterPath: join(workDir, 'node1-roster.json') })
+    const restartedNode1 = new XmppNode(restartedLibp2p1, new NodeSqliteStorage(node1SqlitePath))
     await restartedNode1.ready
 
     const restartedDeviceId = await restartedNode1.getOmemoDeviceId()

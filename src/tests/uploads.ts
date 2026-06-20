@@ -1,17 +1,18 @@
 import assert from 'node:assert/strict'
 import { mkdtemp, rm } from 'fs/promises'
 import { tmpdir } from 'os'
-import { basename, join } from 'path'
+import { join } from 'path'
 import { multiaddr } from '@multiformats/multiaddr'
 import { createP2PNode } from '../core/p2p.js'
 import { XmppNode } from '../core/xmpp-node.js'
+import { NodeSqliteStorage } from '../core/storage/node-sqlite-storage.js'
 
 async function runUploadTest() {
   console.log('Starting XMPP HTTP Upload / IPFS shim verification test...\n')
 
   const workDir = await mkdtemp(join(tmpdir(), 'xmpp-p2p-uploads-'))
-  const node1RosterPath = join(workDir, 'node1-roster.json')
-  const node2RosterPath = join(workDir, 'node2-roster.json')
+  const node1SqlitePath = join(workDir, 'node1-state.sqlite')
+  const storage1 = new NodeSqliteStorage(node1SqlitePath)
 
   async function waitFor(condition: () => boolean | Promise<boolean>, timeoutMs: number, message: string) {
     const startedAt = Date.now()
@@ -22,11 +23,6 @@ async function runUploadTest() {
       await new Promise(resolve => setTimeout(resolve, 200))
     }
     throw new Error(message)
-  }
-
-  function uploadObjectPath(rosterPath: string, cid: string) {
-    const rosterBaseName = basename(rosterPath).replace(/\.[^.]+$/, '')
-    return join(workDir, `.xmpp-uploads.${rosterBaseName}`, 'objects', cid)
   }
 
   async function fetchWithDiagnostics(label: string, url: string) {
@@ -46,16 +42,15 @@ async function runUploadTest() {
   try {
     libp2p1 = await createP2PNode(9601)
     await libp2p1.start()
-    xmppNode1 = new XmppNode(libp2p1, { rosterPath: node1RosterPath })
+    xmppNode1 = new XmppNode(libp2p1, storage1)
 
     libp2p2 = await createP2PNode(9602)
     await libp2p2.start()
-    xmppNode2 = new XmppNode(libp2p2, { rosterPath: node2RosterPath })
+    xmppNode2 = new XmppNode(libp2p2, new NodeSqliteStorage(join(workDir, 'node2-state.sqlite')))
 
-    const node3RosterPath = join(workDir, 'node3-roster.json')
     libp2p3 = await createP2PNode(9603)
     await libp2p3.start()
-    xmppNode3 = new XmppNode(libp2p3, { rosterPath: node3RosterPath })
+    xmppNode3 = new XmppNode(libp2p3, new NodeSqliteStorage(join(workDir, 'node3-state.sqlite')))
 
     await Promise.all([xmppNode1.ready, xmppNode2.ready, xmppNode3.ready])
 
@@ -149,7 +144,7 @@ async function runUploadTest() {
     libp2p2 = undefined
 
     console.log('Removing Node 1 local object to force a provider lookup...')
-    await rm(uploadObjectPath(node1RosterPath, putJson.cid), { force: true })
+    await storage1.deleteBlob('uploads', putJson.cid)
 
     const { response: postOriginResponse, text: postOriginText } = await fetchWithDiagnostics('node1 post-origin', node1ContentUrl!)
     assert.equal(postOriginResponse.status, 200, 'cached GET should still work after origin shutdown')
