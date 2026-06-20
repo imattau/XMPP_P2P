@@ -242,6 +242,7 @@ const OPENPGP_PUBSUB_XMLNS = 'urn:xmpp:openpgp:pubsub:0'
 
 export interface XmppNodeOptions {
   nickname?: string
+  omemoModuleLoader?: () => Promise<import('./omemo-runtime.js').OmemoModule>
 }
 
 export class XmppNode extends EventEmitter {
@@ -305,7 +306,7 @@ export class XmppNode extends EventEmitter {
     this.storage = storage
     this.uploadHost = process.env.XMPP_UPLOAD_HOST ?? '127.0.0.1'
     this.uploadPort = Number.parseInt(process.env.XMPP_UPLOAD_PORT ?? '0', 10) || 0
-    this.omemoStateManager = new XmppOmemoStateManager(storage)
+    this.omemoStateManager = new XmppOmemoStateManager(storage, options.omemoModuleLoader)
     this.openPgpStateManager = new XmppOpenPgpStateManager(storage, this.jid)
     this.muc = new XmppMucManager(this)
     this.uploads = new XmppUploadManager(this)
