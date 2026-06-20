@@ -1,6 +1,6 @@
 import { Libp2p } from 'libp2p'
-import { createCipheriv, createDecipheriv, randomBytes, createHash } from 'crypto'
 import { xml, Element, Parser } from '@xmpp/xml'
+import { XmppChatManager } from './xmpp-chat.js'
 import { buildXepElements, parseXepMetadata } from './xmpp-xep-helpers.js'
 import { bufferToBase64 } from './xmpp-utils.js'
 import { EventEmitter } from 'events'
@@ -266,7 +266,10 @@ export class XmppNode extends EventEmitter {
   private attachmentHistory = new Map<string, XmppAttachment>()
   private mucRooms = new Map<string, XmppMucRoomSettings>()
   private mucHistory = new Map<string, XmppMucMessage>()
-  private chatHistory = new Map<string, XmppMessage>()
+  private chat!: XmppChatManager
+  public get chatHistory() {
+    return this.chat.chatHistory
+  }
   private discoInfoCache = new Map<string, XmppDiscoInfo>()
   private entityCapabilities = new Map<string, XmppEntityCapabilities>()
   private pendingIq = new Map<string, PendingIq>()
@@ -279,7 +282,6 @@ export class XmppNode extends EventEmitter {
   private attachmentSaveQueue: Promise<void> = Promise.resolve()
   private mucSaveQueue: Promise<void> = Promise.resolve()
   private mucHistorySaveQueue: Promise<void> = Promise.resolve()
-  private chatHistorySaveQueue: Promise<void> = Promise.resolve()
   private vCardSaveQueue: Promise<void> = Promise.resolve()
   private selfPresence: { type: 'available' | 'unavailable'; status?: string; show?: string; nickname?: string } = {
     type: 'available'
@@ -317,6 +319,17 @@ export class XmppNode extends EventEmitter {
     this.openPgpStateManager = new XmppOpenPgpStateManager(storage, this.jid)
     this.muc = new XmppMucManager(this)
     this.uploads = new XmppUploadManager(this)
+    this.chat = new XmppChatManager({
+      libp2p: this.libp2p,
+      storage: this.storage,
+      jid: this.jid,
+      getOrCreateStream: this.getOrCreateStream.bind(this),
+      sendIqRequest: this.sendIqRequest.bind(this),
+      sendIqResult: this.sendIqResult.bind(this),
+      parsePeerReference: this.parsePeerReference.bind(this),
+      jidFromPeerId: this.jidFromPeerId.bind(this),
+      emit: this.emit.bind(this)
+    })
     if (options.nickname) {
       this.selfPresence.nickname = options.nickname
       this.selfVCard.nickname = options.nickname
@@ -329,7 +342,7 @@ export class XmppNode extends EventEmitter {
       .then(() => this.loadAttachmentHistory())
       .then(() => this.loadMucState())
       .then(() => this.loadMucHistory())
-      .then(() => this.loadChatHistory())
+      .then(() => this.chat.initialize())
       .then(() => this.uploads.ensureUploadServer())
       .then(() => this.uploads.ensureUploadAnnouncementSubscription())
       .then(() => this.loadVCard())
@@ -465,110 +478,8 @@ export class XmppNode extends EventEmitter {
     await loadMucHistoryState(this.getPersistenceLoadContext(), MUC_HISTORY_LIMIT)
   }
 
-  private getLibp2pPrivateKeyBytes(): Uint8Array | undefined {
-    const components = (this.libp2p as any).components?.components
-    if (components?.privateKey?.raw instanceof Uint8Array) {
-      return components.privateKey.raw
-    }
-    if ((this.libp2p.peerId as any).privateKey instanceof Uint8Array) {
-      return (this.libp2p.peerId as any).privateKey
-    }
-    if (typeof (this.libp2p.peerId as any).privateKey?.marshal === 'function') {
-      return (this.libp2p.peerId as any).privateKey.marshal()
-    }
-    return undefined
-  }
-
-  private async getDhtEncryptionKey(): Promise<Buffer> {
-    const pkBytes = this.getLibp2pPrivateKeyBytes()
-    if (pkBytes) {
-      return createHash('sha256').update(pkBytes).digest()
-    }
-
-    const namespace = 'security'
-    const keyName = 'dht_storage_key'
-    let raw = await this.storage.getRecord(namespace, keyName)
-    if (!raw) {
-      const newKey = randomBytes(32).toString('base64')
-      await this.storage.putRecord(namespace, keyName, newKey, new Date().toISOString())
-      raw = newKey
-    }
-    return Buffer.from(raw, 'base64')
-  }
-
-  private async loadChatHistory(): Promise<void> {
-    await loadChatHistoryState(this.getPersistenceLoadContext(), CHAT_HISTORY_LIMIT)
-
-    try {
-      const dhtKey = new TextEncoder().encode(`/xmpp/archive/chats/${this.libp2p.peerId.toString()}`)
-      const dhtData = await readDhtJson<any>(this.libp2p, dhtKey)
-      if (dhtData) {
-        let chatData: { version: number; messages: XmppMessage[] } | undefined = undefined
-
-        // Detect if it is encrypted (has ciphertext, iv, tag)
-        if (dhtData.ciphertext && dhtData.iv && dhtData.tag) {
-          try {
-            const key = await this.getDhtEncryptionKey()
-            const decryptedJson = decryptDhtPayload(dhtData, key)
-            chatData = JSON.parse(decryptedJson)
-          } catch (decErr) {
-            console.error('[XMPP] Failed to decrypt DHT chat history record:', decErr)
-          }
-        } else if (Array.isArray(dhtData.messages)) {
-          // Fallback to legacy plaintext parsing
-          chatData = dhtData
-        }
-
-        if (chatData && Array.isArray(chatData.messages)) {
-          for (const msg of chatData.messages) {
-            if (!this.chatHistory.has(msg.id || '')) {
-              this.chatHistory.set(msg.id || Math.random().toString(36).substring(2, 15), msg)
-            }
-          }
-          while (this.chatHistory.size > CHAT_HISTORY_LIMIT) {
-            const oldestKey = this.chatHistory.keys().next().value
-            if (oldestKey == null) break
-            this.chatHistory.delete(oldestKey)
-          }
-        }
-      }
-    } catch (err) {
-      console.warn('[XMPP] Failed to load chat history from DHT:', err)
-    }
-  }
-
   public async recordChatMessage(msg: XmppMessage): Promise<void> {
-    const key = msg.id || Math.random().toString(36).substring(2, 15)
-    this.chatHistory.set(key, msg)
-    while (this.chatHistory.size > CHAT_HISTORY_LIMIT) {
-      const oldestKey = this.chatHistory.keys().next().value
-      if (oldestKey == null) break
-      this.chatHistory.delete(oldestKey)
-    }
-
-    this.chatHistorySaveQueue = this.chatHistorySaveQueue.then(async () => {
-      await persistChatHistoryState(this.getPersistenceSaveContext())
-      await this.persistChatHistoryToDht()
-    })
-  }
-
-  private async persistChatHistoryToDht(): Promise<void> {
-    try {
-      const historyList = Array.from(this.chatHistory.values())
-      const key = new TextEncoder().encode(`/xmpp/archive/chats/${this.libp2p.peerId.toString()}`)
-      
-      const plaintext = JSON.stringify({
-        version: 1,
-        messages: historyList
-      })
-
-      const encKey = await this.getDhtEncryptionKey()
-      const encryptedPayload = encryptDhtPayload(plaintext, encKey)
-
-      await writeDhtJson(this.libp2p, key, encryptedPayload)
-    } catch (err) {
-      console.warn('[XMPP] Failed to persist chat history to DHT:', err)
-    }
+    await this.chat.recordChatMessage(msg)
   }
 
   private getDhtContext(): import('./xmpp-dht.js').XmppDhtContext {
@@ -2306,140 +2217,19 @@ export class XmppNode extends EventEmitter {
   }
 
   // Handle incoming MAM query (XEP-0313) for 1-to-1 chats
+  // Handle incoming MAM query (XEP-0313) for 1-to-1 chats
   async handleIncomingMamQuery(element: Element, peerId: string): Promise<void> {
-    const query = element.getChild('query')
-    if (!query) return
-
-    const queryId = query.attrs.queryid
-
-    // Parse 'with' filter if present
-    let filterWith: string | undefined = undefined
-    const xEl = query.getChild('x')
-    if (xEl && xEl.attrs.xmlns === 'jabber:x:data') {
-      const fields = (xEl.children as any[]).filter(child => child?.name === 'field')
-      for (const f of fields) {
-        if (f.attrs.var === 'with') {
-          filterWith = f.getChild('value')?.text()
-        }
-      }
-    }
-
-    let history = Array.from(this.chatHistory.values())
-    if (filterWith) {
-      const bareFilterWith = filterWith.split('/')[0]
-      history = history.filter(msg => {
-        const fromBare = msg.from.split('/')[0]
-        const toBare = msg.to.split('/')[0]
-        return fromBare === bareFilterWith || toBare === bareFilterWith
-      })
-    }
-
-    // Send archived stanzas wrapped in <result>
-    for (const msg of history) {
-      const children: Element[] = []
-      if (msg.body) {
-        children.push(xml('body', {}, msg.body))
-      }
-
-      children.push(...buildXepElements({
-        replace: msg.replace,
-        reply: msg.reply,
-        thread: msg.thread,
-        private: msg.private,
-        originId: msg.originId,
-        stanzaId: msg.stanzaId
-      }))
-
-      const msgEl = xml('message', {
-        to: msg.to,
-        from: msg.from,
-        type: msg.type || 'chat',
-        id: msg.id ?? ''
-      }, ...children)
-
-      const resultEl = xml('result', {
-        xmlns: 'urn:xmpp:mam:2',
-        queryid: queryId,
-        id: msg.id ?? ''
-      }, xml('forwarded', { xmlns: 'urn:xmpp:forward:0' },
-        xml('delay', { xmlns: 'urn:xmpp:delay', stamp: msg.delay?.stamp || new Date().toISOString() }),
-        msgEl
-      ))
-
-      const wrapperMsg = xml('message', {
-        to: `${peerId}@p2p`,
-        from: this.jid
-      }, resultEl)
-
-      const stream = await this.getOrCreateStream(`${peerId}@p2p`)
-      stream.send(wrapperMsg)
-    }
-
-    const finEl = xml('fin', { xmlns: 'urn:xmpp:mam:2', complete: 'true' },
-      xml('count', {}, String(history.length))
-    )
-    await this.sendIqResult(peerId, element.attrs.id, finEl)
+    await this.chat.handleIncomingMamQuery(element, peerId)
   }
 
   // Handle incoming MAM result (XEP-0313) for 1-to-1 chats
   async handleIncomingMamResult(element: Element, peerId: string): Promise<void> {
-    const resultEl = element.getChild('result')
-    if (!resultEl) return
-
-    const queryId = resultEl.attrs.queryid
-    const forwardedEl = resultEl.getChild('forwarded')
-    const delayEl = forwardedEl?.getChild('delay')
-    const delayStamp = delayEl?.attrs.stamp
-    const innerMsg = forwardedEl?.getChild('message')
-
-    if (innerMsg) {
-      const fromVal = innerMsg.attrs.from || ''
-      const toVal = innerMsg.attrs.to || ''
-      const body = innerMsg.getChild('body')?.text() || ''
-      const msgId = innerMsg.attrs.id || resultEl.attrs.id
-
-      const metadata = parseXepMetadata(innerMsg)
-
-      const msg: XmppMessage = {
-        from: fromVal,
-        to: toVal,
-        body,
-        id: msgId,
-        type: innerMsg.attrs.type || 'chat',
-        delay: delayStamp ? { stamp: delayStamp, from: delayEl?.attrs.from } : undefined,
-        ...metadata
-      }
-
-      await this.recordChatMessage(msg)
-
-      this.emit('message', {
-        ...msg,
-        mam: true,
-        queryId
-      })
-    }
+    await this.chat.handleIncomingMamResult(element, peerId)
   }
 
   // Query 1-to-1 MAM message history from a peer
   async queryChatHistory(targetPeerJid: string, withJid?: string, queryId?: string): Promise<string> {
-    const id = Math.random().toString(36).substring(2, 11)
-    const toJid = this.jidFromPeerId(this.parsePeerReference(targetPeerJid).peerId)
-
-    const children: Element[] = []
-    if (withJid) {
-      children.push(
-        xml('x', { xmlns: 'jabber:x:data', type: 'submit' },
-          xml('field', { var: 'FORM_TYPE', type: 'hidden' }, xml('value', {}, 'urn:xmpp:mam:2')),
-          xml('field', { var: 'with' }, xml('value', {}, withJid))
-        )
-      )
-    }
-
-    const iq = xml('iq', { type: 'get', id, to: toJid, from: this.jid },
-      xml('query', { xmlns: 'urn:xmpp:mam:2', ...(queryId ? { queryid: queryId } : {}) }, ...children)
-    )
-    await this.sendIqRequest(toJid, iq)
-    return id
+    return this.chat.queryChatHistory(targetPeerJid, withJid, queryId)
   }
 
   public get clientState(): 'active' | 'inactive' {
@@ -2865,37 +2655,11 @@ export class XmppNode extends EventEmitter {
     await this.persistAttachmentHistory()
     await this.vCardSaveQueue
     await this.persistVCard()
+    await this.chat.flushSaveQueue()
     await this.uploads.close()
     await this.omemoStateManager.close()
     await this.openPgpStateManager.close()
     this.reliabilityManager.clear()
     this.muc.close()
   }
-}
-
-interface EncryptedDhtPayload {
-  iv: string
-  tag: string
-  ciphertext: string
-}
-
-function encryptDhtPayload(plaintext: string, key: Buffer): EncryptedDhtPayload {
-  const iv = randomBytes(12)
-  const cipher = createCipheriv('aes-256-gcm', key, iv)
-  const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()])
-  const tag = cipher.getAuthTag()
-  return {
-    iv: iv.toString('base64'),
-    tag: tag.toString('base64'),
-    ciphertext: encrypted.toString('base64')
-  }
-}
-
-function decryptDhtPayload(payload: EncryptedDhtPayload, key: Buffer): string {
-  const ivBuf = Buffer.from(payload.iv, 'base64')
-  const tagBuf = Buffer.from(payload.tag, 'base64')
-  const ciphertextBuf = Buffer.from(payload.ciphertext, 'base64')
-  const decipher = createDecipheriv('aes-256-gcm', key, ivBuf)
-  decipher.setAuthTag(tagBuf)
-  return Buffer.concat([decipher.update(ciphertextBuf), decipher.final()]).toString('utf8')
 }
