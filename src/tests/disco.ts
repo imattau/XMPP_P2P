@@ -4,6 +4,7 @@ import { join } from 'path'
 import { createP2PNode } from '../core/p2p.js'
 import { MICROBLOG_XMLNS } from '../core/xmpp-discovery.js'
 import { XmppNode } from '../core/xmpp-node.js'
+import { NodeSqliteStorage } from '../core/storage/node-sqlite-storage.js'
 
 async function waitFor(condition: () => boolean | Promise<boolean>, timeoutMs: number, message: string) {
   const startedAt = Date.now()
@@ -29,11 +30,11 @@ async function runDiscoTest() {
   try {
     libp2p1 = await createP2PNode(9901)
     await libp2p1.start()
-    xmppNode1 = new XmppNode(libp2p1, { rosterPath: join(workDir, 'node1-roster.json') })
+    xmppNode1 = new XmppNode(libp2p1, new NodeSqliteStorage(join(workDir, 'node1-state.sqlite')))
 
     libp2p2 = await createP2PNode(9902)
     await libp2p2.start()
-    xmppNode2 = new XmppNode(libp2p2, { rosterPath: join(workDir, 'node2-roster.json') })
+    xmppNode2 = new XmppNode(libp2p2, new NodeSqliteStorage(join(workDir, 'node2-state.sqlite')))
 
     await Promise.all([xmppNode1.ready, xmppNode2.ready])
     const node1 = xmppNode1 as XmppNode

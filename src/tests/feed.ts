@@ -7,6 +7,7 @@ import { buildMicroblogEntry, parseMicroblogEntry } from '../core/xmpp-atom.js'
 import { ATOM_XMLNS, MICROBLOG_XMLNS } from '../core/xmpp-discovery.js'
 import { createP2PNode } from '../core/p2p.js'
 import { XmppNode } from '../core/xmpp-node.js'
+import { NodeSqliteStorage } from '../core/storage/node-sqlite-storage.js'
 
 async function waitFor(condition: () => boolean | Promise<boolean>, timeoutMs: number, message: string) {
   const startedAt = Date.now()
@@ -65,7 +66,7 @@ async function runFeedTest() {
   verifyAtomMicroblogHelpers()
 
   const workDir = await mkdtemp(join(tmpdir(), 'xmpp-p2p-feed-'))
-  const feedPath = join(workDir, 'node1-feed.json')
+  const node1SqlitePath = join(workDir, 'node1-state.sqlite')
 
   let libp2p1: Awaited<ReturnType<typeof createP2PNode>> | undefined
   let xmppNode1: XmppNode | undefined
@@ -75,11 +76,11 @@ async function runFeedTest() {
   try {
     libp2p1 = await createP2PNode(9301)
     await libp2p1.start()
-    xmppNode1 = new XmppNode(libp2p1, { feedPath })
+    xmppNode1 = new XmppNode(libp2p1, new NodeSqliteStorage(node1SqlitePath))
 
     libp2p2 = await createP2PNode(9302)
     await libp2p2.start()
-    xmppNode2 = new XmppNode(libp2p2)
+    xmppNode2 = new XmppNode(libp2p2, new NodeSqliteStorage(join(workDir, 'node2-state.sqlite')))
 
     await xmppNode1.ready
     await xmppNode2.ready
@@ -164,7 +165,7 @@ async function runFeedTest() {
 
     const restartedLibp2p1 = await createP2PNode(9301)
     await restartedLibp2p1.start()
-    const restartedXmppNode1 = new XmppNode(restartedLibp2p1, { feedPath })
+    const restartedXmppNode1 = new XmppNode(restartedLibp2p1, new NodeSqliteStorage(node1SqlitePath))
     await restartedXmppNode1.ready
 
     const persistedPosts = await restartedXmppNode1.getFeedPosts()

@@ -3,6 +3,7 @@ import { tmpdir } from 'os'
 import { join } from 'path'
 import { createP2PNode } from '../core/p2p.js'
 import { XmppNode } from '../core/xmpp-node.js'
+import { NodeSqliteStorage } from '../core/storage/node-sqlite-storage.js'
 
 async function waitFor(condition: () => boolean | Promise<boolean>, timeoutMs: number, message: string) {
   const startedAt = Date.now()
@@ -19,7 +20,7 @@ async function runCollectionTest() {
   console.log('Starting XMPP collection verification test...\n')
 
   const workDir = await mkdtemp(join(tmpdir(), 'xmpp-p2p-collection-'))
-  const collectionPath = join(workDir, 'node3-collection.json')
+  const node3SqlitePath = join(workDir, 'node3-state.sqlite')
 
   let libp2p1: Awaited<ReturnType<typeof createP2PNode>> | undefined
   let xmppNode1: XmppNode | undefined
@@ -33,19 +34,19 @@ async function runCollectionTest() {
   try {
     libp2p1 = await createP2PNode(9401)
     await libp2p1.start()
-    xmppNode1 = new XmppNode(libp2p1)
+    xmppNode1 = new XmppNode(libp2p1, new NodeSqliteStorage(join(workDir, 'node1-state.sqlite')))
 
     libp2p2 = await createP2PNode(9402)
     await libp2p2.start()
-    xmppNode2 = new XmppNode(libp2p2)
+    xmppNode2 = new XmppNode(libp2p2, new NodeSqliteStorage(join(workDir, 'node2-state.sqlite')))
 
     libp2p3 = await createP2PNode(9403)
     await libp2p3.start()
-    xmppNode3 = new XmppNode(libp2p3, { collectionPath })
+    xmppNode3 = new XmppNode(libp2p3, new NodeSqliteStorage(node3SqlitePath))
 
     libp2p4 = await createP2PNode(9404)
     await libp2p4.start()
-    xmppNode4 = new XmppNode(libp2p4)
+    xmppNode4 = new XmppNode(libp2p4, new NodeSqliteStorage(join(workDir, 'node4-state.sqlite')))
 
     await Promise.all([
       xmppNode1.ready,
@@ -130,7 +131,7 @@ async function runCollectionTest() {
 
     const restartedLibp2p3 = await createP2PNode(9403)
     await restartedLibp2p3.start()
-    const restartedXmppNode3 = new XmppNode(restartedLibp2p3, { collectionPath })
+    const restartedXmppNode3 = new XmppNode(restartedLibp2p3, new NodeSqliteStorage(node3SqlitePath))
     await restartedXmppNode3.ready
 
     const persistedCollections = await restartedXmppNode3.getCollections()

@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict'
+import { mkdtemp, rm } from 'fs/promises'
+import { tmpdir } from 'os'
+import { join } from 'path'
 import { createP2PNode } from '../core/p2p.js'
 import { XmppNode } from '../core/xmpp-node.js'
+import { NodeSqliteStorage } from '../core/storage/node-sqlite-storage.js'
 import { REPLY_XMLNS } from '../core/xmpp-xep-helpers.js'
 
 async function waitFor(condition: () => boolean | Promise<boolean>, timeoutMs: number, message: string) {
@@ -17,13 +21,17 @@ async function waitFor(condition: () => boolean | Promise<boolean>, timeoutMs: n
 async function runRepliesTest() {
   console.log('Starting XMPP Message Replies verification test...\n')
 
+  const workDir = await mkdtemp(join(tmpdir(), 'xmpp-p2p-replies-'))
+  const storage1 = new NodeSqliteStorage(join(workDir, 'node1-state.sqlite'))
+  const storage2 = new NodeSqliteStorage(join(workDir, 'node2-state.sqlite'))
+
   const libp2p1 = await createP2PNode(9305)
   await libp2p1.start()
-  const xmppNode1 = new XmppNode(libp2p1)
+  const xmppNode1 = new XmppNode(libp2p1, storage1)
 
   const libp2p2 = await createP2PNode(9306)
   await libp2p2.start()
-  const xmppNode2 = new XmppNode(libp2p2)
+  const xmppNode2 = new XmppNode(libp2p2, storage2)
 
   await xmppNode1.ready
   await xmppNode2.ready
@@ -81,6 +89,7 @@ async function runRepliesTest() {
   await xmppNode2.close()
   await libp2p1.stop()
   await libp2p2.stop()
+  await rm(workDir, { recursive: true, force: true }).catch(() => {})
 
   console.log('\nReply Test Results:')
   console.log(`  - Disco advertises urn:xmpp:reply:0: SUCCESS`)

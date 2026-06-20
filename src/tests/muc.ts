@@ -1,19 +1,27 @@
+import { mkdtemp, rm } from 'fs/promises'
+import { tmpdir } from 'os'
+import { join } from 'path'
 import { createP2PNode } from '../core/p2p.js'
 import { XmppNode } from '../core/xmpp-node.js'
+import { NodeSqliteStorage } from '../core/storage/node-sqlite-storage.js'
 
 async function runMucTest() {
   console.log('Starting XMPP Multi-User Chat (MUC) over Gossipsub verification test...\n')
 
+  const workDir = await mkdtemp(join(tmpdir(), 'xmpp-p2p-muc-'))
+  const storage1 = new NodeSqliteStorage(join(workDir, 'node1-state.sqlite'))
+  const storage2 = new NodeSqliteStorage(join(workDir, 'node2-state.sqlite'))
+
   // Create Node 1 (Alice)
   const libp2p1 = await createP2PNode(9201)
   await libp2p1.start()
-  const xmppNode1 = new XmppNode(libp2p1)
+  const xmppNode1 = new XmppNode(libp2p1, storage1)
   console.log(`Node 1 JID: ${xmppNode1.jid}`)
 
   // Create Node 2 (Bob)
   const libp2p2 = await createP2PNode(9202)
   await libp2p2.start()
-  const xmppNode2 = new XmppNode(libp2p2)
+  const xmppNode2 = new XmppNode(libp2p2, storage2)
   console.log(`Node 2 JID: ${xmppNode2.jid}\n`)
 
   // Connect the two nodes first
@@ -145,6 +153,7 @@ async function runMucTest() {
   await xmppNode2.close()
   await libp2p1.stop()
   await libp2p2.stop()
+  await rm(workDir, { recursive: true, force: true }).catch(() => {})
 
   console.log('\nMUC Test Results:')
   console.log(`  - Alice discovered Bob's join: ${aliceReceivedJoin ? 'SUCCESS' : 'FAILED'}`)

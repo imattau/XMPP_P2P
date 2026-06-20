@@ -4,8 +4,10 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js'
+import { join } from 'path'
 import { createP2PNode } from '../core/p2p.js'
 import { XmppNode } from '../core/xmpp-node.js'
+import { NodeSqliteStorage } from '../core/storage/node-sqlite-storage.js'
 import { executeMcpTool, listMcpTools } from './tools.js'
 import { getPackageVersion, parseCliStartupArgs, printMcpUsage } from '../cli/startup.js'
 
@@ -38,13 +40,17 @@ async function runMcpServer() {
     process.exit(0)
   }
 
+  const storage = new NodeSqliteStorage(
+    startupOptions.sqlitePath ?? process.env.XMPP_SQLITE_PATH ?? join(process.cwd(), 'data', 'state.sqlite')
+  )
+
   console.error('Initializing libp2p Node for MCP...')
   const libp2p = await createP2PNode(startupOptions.port, { host: startupOptions.host })
   await libp2p.start()
 
   console.error(`libp2p Node started! Peer ID: ${libp2p.peerId.toString()}`)
 
-  const xmppNode = new XmppNode(libp2p, startupOptions.rosterPath ? { rosterPath: startupOptions.rosterPath } : {})
+  const xmppNode = new XmppNode(libp2p, storage, {})
   await xmppNode.ready
   console.error(`XmppNode initialized! JID: ${xmppNode.jid}`)
 
