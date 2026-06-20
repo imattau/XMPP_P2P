@@ -120,7 +120,7 @@ function PostCard({
           )}
 
           <div className="flex items-center justify-between -ml-1">
-            <button onClick={(e) => e.stopPropagation()} className="flex items-center gap-1 px-1.5 py-1 rounded text-muted-foreground hover:text-blue-400 hover:bg-blue-400/10 transition-all">
+            <button onClick={(e) => { e.stopPropagation(); onOpen(post.id); }} className="flex items-center gap-1 px-1.5 py-1 rounded text-muted-foreground hover:text-blue-400 hover:bg-blue-400/10 transition-all">
               <MessageCircle size={14} />
               <span className="font-mono text-[11px]">{formatNum(post.comments)}</span>
             </button>
