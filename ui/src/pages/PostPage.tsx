@@ -4,7 +4,7 @@ import { useNavigate, useParams } from 'react-router'
 import {
   ArrowLeft, Heart, MessageCircle, Repeat2, Share2,
   Bookmark, Hash, Users, Globe, Lock, Shield, MoreHorizontal,
-  Zap, Image, Smile, AtSign, Send, ChevronDown, Check,
+  Zap, Image, Smile, AtSign, Send, ChevronDown, Check, X,
 } from 'lucide-react'
 
 interface Author {
