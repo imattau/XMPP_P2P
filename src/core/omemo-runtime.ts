@@ -10,7 +10,7 @@ import type {
   SessionCipher as OmemoSessionCipher
 } from 'libomemo.js'
 
-type OmemoModule = typeof import('libomemo.js')
+export type OmemoModule = typeof import('libomemo.js')
 
 let omemoModulePromise: Promise<OmemoModule> | undefined
 let omemoFetchShimInstalled = false

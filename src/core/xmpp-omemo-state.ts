@@ -1,6 +1,6 @@
 import { xml, Element } from '@xmpp/xml'
-import { loadOmemoModule } from './omemo-runtime.js'
-import type { OmemoDirection } from './omemo-runtime.js'
+import { loadOmemoModule as nodeLoadOmemoModule } from './omemo-runtime.js'
+import type { OmemoDirection, OmemoModule } from './omemo-runtime.js'
 import {
   bufferToBase64,
   base64ToArrayBuffer,
@@ -74,7 +74,10 @@ export class XmppOmemoStateManager {
   private readonly peerIdentityKeys = new Map<string, string>()
   private saveQueue: Promise<void> = Promise.resolve()
 
-  constructor(private readonly storage: XmppStorage) {}
+  constructor(
+    private readonly storage: XmppStorage,
+    private readonly loadOmemoModule: () => Promise<OmemoModule> = nodeLoadOmemoModule
+  ) {}
 
   async load(): Promise<void> {
     const raw = await this.storage.getRecord('omemo', 'state')
@@ -385,7 +388,7 @@ export class XmppOmemoStateManager {
   }
 
   private async generate(): Promise<void> {
-    const omemo = await loadOmemoModule()
+    const omemo = await this.loadOmemoModule()
     const identityKeyPair = await omemo.KeyHelper.generateIdentityKeyPair()
     const signedPreKey = await omemo.KeyHelper.generateSignedPreKey(identityKeyPair, 1)
     const preKeys = await Promise.all(
