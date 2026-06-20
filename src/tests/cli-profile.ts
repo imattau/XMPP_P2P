@@ -1,3 +1,8 @@
+/**
+ * @fileoverview CLI profile command verification script covering profile show,
+ * update, photo clearing, and nickname alias behavior.
+ */
+
 import assert from 'node:assert/strict'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -25,6 +30,9 @@ type TestContext = {
   resolvePeerTarget: (target: string) => string
 }
 
+/**
+ * Executes the CLI profile verification scenario.
+ */
 async function runCliProfileTest() {
   console.log('Starting CLI profile command verification test...\n')
 

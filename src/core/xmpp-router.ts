@@ -1,3 +1,8 @@
+/**
+ * @fileoverview Central stanza router for inbound XMPP IQ and presence
+ * handling, including discovery, roster, pubsub, secure messaging, and MAM.
+ */
+
 import { xml, Element } from '@xmpp/xml'
 import { Multiaddr } from '@multiformats/multiaddr'
 import { XmppStream } from './xmpp-stream.js'
@@ -29,12 +34,18 @@ const VALID_PRESENCE_TYPES = new Set([
 ])
 const VALID_PRESENCE_SHOW_VALUES = new Set(['away', 'chat', 'dnd', 'xa'])
 
+/**
+ * Tracks an outstanding IQ request and its completion handlers.
+ */
 export interface PendingIq {
   resolve: (element: Element) => void
   reject: (error: Error) => void
   timer: ReturnType<typeof setTimeout>
 }
 
+/**
+ * Execution context required by the stanza router.
+ */
 export interface XmppRouterContext {
   jid: string
   pendingIq: Map<string, PendingIq>
@@ -74,6 +85,17 @@ export interface XmppRouterContext {
   muc?: any
 }
 
+/**
+ * Builds an XMPP IQ error stanza from the incoming payload.
+ *
+ * @param element - The offending incoming IQ stanza.
+ * @param peerId - Remote peer identifier.
+ * @param ctx - Router context with local identity and helpers.
+ * @param condition - XMPP stanza error condition.
+ * @param type - Error type to emit.
+ * @param text - Optional human-readable error detail.
+ * @returns A serialized IQ error stanza.
+ */
 function buildIqError(
   element: Element,
   peerId: string,
@@ -100,6 +122,17 @@ function buildIqError(
     : xml('iq', attrs, xml('error', { type }, ...errorChildren))
 }
 
+/**
+ * Sends an IQ error response to the peer if a stream is still available.
+ *
+ * @param ctx - Router context.
+ * @param peerId - Remote peer identifier.
+ * @param element - Original incoming IQ stanza.
+ * @param condition - XMPP stanza error condition.
+ * @param type - Error type to emit.
+ * @param text - Optional human-readable error detail.
+ * @returns Nothing.
+ */
 export async function sendIqError(
   ctx: XmppRouterContext,
   peerId: string,
@@ -147,6 +180,15 @@ function sendPresenceError(
   )
 }
 
+/**
+ * Sends an IQ request and awaits the response or timeout.
+ *
+ * @param ctx - Router context.
+ * @param target - Target peer address or JID.
+ * @param stanza - IQ stanza to transmit.
+ * @param timeoutMs - Response timeout in milliseconds.
+ * @returns The matching IQ response stanza.
+ */
 export async function sendIqRequest(
   ctx: XmppRouterContext,
   target: string | Multiaddr,
@@ -181,6 +223,15 @@ export async function sendIqRequest(
   })
 }
 
+/**
+ * Sends an IQ result response back to the requester.
+ *
+ * @param ctx - Router context.
+ * @param peerId - Remote peer identifier.
+ * @param id - IQ stanza id to echo.
+ * @param payload - Optional payload element to include in the response.
+ * @returns Nothing.
+ */
 export async function sendIqResult(
   ctx: XmppRouterContext,
   peerId: string,
@@ -199,6 +250,14 @@ export async function sendIqResult(
   xmppStream.send(stanza)
 }
 
+/**
+ * Handles an inbound IQ stanza and dispatches it to the relevant subsystem.
+ *
+ * @param ctx - Router context.
+ * @param peerId - Remote peer identifier.
+ * @param element - Incoming IQ stanza.
+ * @returns Nothing.
+ */
 export async function handleIqStanza(ctx: XmppRouterContext, peerId: string, element: Element) {
   const id = element.attrs.id
   if (!id) {

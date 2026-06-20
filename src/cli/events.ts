@@ -1,6 +1,17 @@
+/**
+ * @fileoverview CLI event listeners that translate XmppNode events into
+ * terminal output and local discovered-peer bookkeeping.
+ */
+
 import { CliContext } from './types.js'
 import { formatPresence } from './output.js'
 
+/**
+ * Attaches runtime event handlers to the interactive CLI context.
+ *
+ * @param ctx - Shared CLI execution context.
+ * @returns Nothing.
+ */
 export const attachCliEventListeners = (ctx: CliContext) => {
   const { xmppNode, showPrompt, discoveredPeers, libp2p } = ctx
 

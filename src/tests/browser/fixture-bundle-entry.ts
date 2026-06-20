@@ -1,3 +1,8 @@
+/**
+ * @fileoverview Browser test fixture that exposes createBrowserXmppClient on
+ * window and records outbound connections for the browser OMEMO/runtime tests.
+ */
+
 import { createBrowserXmppClient } from '../../browser-index.js'
 
 ;(window as unknown as { createBrowserXmppClient: typeof createBrowserXmppClient }).createBrowserXmppClient = createBrowserXmppClient

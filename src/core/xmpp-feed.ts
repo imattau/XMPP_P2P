@@ -1,3 +1,8 @@
+/**
+ * @fileoverview Feed subscription, follower tracking, and feed history
+ * persistence for XMPP microblog-style posts.
+ */
+
 import { xml, Element } from '@xmpp/xml'
 import { Multiaddr } from '@multiformats/multiaddr'
 import { XmppStream } from './xmpp-stream.js'
@@ -35,6 +40,9 @@ import { XmppStorage } from './storage/types.js'
 const FEED_HISTORY_LIMIT = 50
 const SUBSCRIPTION_HISTORY_LIMIT = 200
 
+/**
+ * Dependencies required by the feed manager.
+ */
 export interface XmppFeedContext {
   jid: string
   ready: Promise<void>
@@ -50,6 +58,9 @@ export interface XmppFeedContext {
   requestFollowersFromPeer(peerAddr: string | Multiaddr): Promise<XmppFeedFollower[]>
 }
 
+/**
+ * Manages local feed history, subscriptions, and follower visibility state.
+ */
 export class XmppFeedManager {
   private readonly ctx: XmppFeedContext
   public readonly feedHistory = new Map<string, XmppFeedPost>()

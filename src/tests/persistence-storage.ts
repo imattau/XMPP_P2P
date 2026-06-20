@@ -1,3 +1,8 @@
+/**
+ * @fileoverview Persistence smoke test covering roster state round-tripping
+ * through the storage abstraction.
+ */
+
 import assert from 'node:assert/strict'
 import type { XmppStorage, StorageRecord } from '../core/storage/types.js'
 import { loadRosterState, persistRosterState, type XmppPersistenceLoadContext, type XmppPersistenceSaveContext } from '../core/xmpp-persistence.js'
@@ -34,6 +39,9 @@ function normalizeRosterEntry(entry: Partial<XmppRosterEntry> & { jid: string })
   }
 }
 
+/**
+ * Executes the persistence round-trip verification script.
+ */
 async function main() {
   const storage = new FakeStorage()
   const roster = new Map<string, XmppRosterEntry>()

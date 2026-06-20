@@ -1,3 +1,8 @@
+/**
+ * @fileoverview Chat history management and DHT-backed archive helpers for
+ * one-to-one XMPP messages.
+ */
+
 import { Libp2p } from 'libp2p'
 import { xml, Element } from '@xmpp/xml'
 import { createCipheriv, createDecipheriv, randomBytes, createHash } from 'crypto'
@@ -7,8 +12,14 @@ import { readDhtJson, writeDhtJson } from './xmpp-dht.js'
 import { loadChatHistoryState, persistChatHistoryState } from './xmpp-persistence.js'
 import { buildXepElements, parseXepMetadata } from './xmpp-xep-helpers.js'
 
+/**
+ * Maximum number of chat messages retained locally and in the DHT archive.
+ */
 export const CHAT_HISTORY_LIMIT = 500
 
+/**
+ * Dependencies required by the chat manager.
+ */
 export interface XmppChatContext {
   libp2p: Libp2p
   storage: XmppStorage
@@ -21,6 +32,9 @@ export interface XmppChatContext {
   emit(event: string, ...args: any[]): boolean
 }
 
+/**
+ * AES-GCM wrapper used to store chat archives in the DHT.
+ */
 interface EncryptedDhtPayload {
   iv: string
   tag: string
@@ -48,6 +62,9 @@ function decryptDhtPayload(payload: EncryptedDhtPayload, key: Buffer): string {
   return Buffer.concat([decipher.update(ciphertextBuf), decipher.final()]).toString('utf8')
 }
 
+/**
+ * Stores, reloads, and archives one-to-one chat history.
+ */
 export class XmppChatManager {
   private readonly ctx: XmppChatContext
   public readonly chatHistory = new Map<string, XmppMessage>()

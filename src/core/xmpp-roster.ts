@@ -1,3 +1,8 @@
+/**
+ * @fileoverview Roster and vCard state management, including presence sync
+ * and subscription handling.
+ */
+
 import { xml, Element } from '@xmpp/xml'
 import { Multiaddr } from '@multiformats/multiaddr'
 import { XmppStream } from './xmpp-stream.js'
@@ -25,6 +30,9 @@ import { XmppStorage } from './storage/types.js'
 
 const ROSTER_XMLNS = 'jabber:iq:roster'
 
+/**
+ * Dependencies required by the roster manager.
+ */
 export interface XmppRosterContext {
   jid: string
   libp2p: any
@@ -40,6 +48,9 @@ export interface XmppRosterContext {
   collections: any
 }
 
+/**
+ * Manages roster entries, local vCard state, and presence subscriptions.
+ */
 export class XmppRosterManager {
   private readonly ctx: XmppRosterContext
   public readonly entries = new Map<string, XmppRosterEntry>()

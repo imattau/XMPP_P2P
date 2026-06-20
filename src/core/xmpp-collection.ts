@@ -1,3 +1,8 @@
+/**
+ * @fileoverview Collection management for aggregating member feeds, syncing
+ * subscriptions, and persisting collection history and attachments.
+ */
+
 import { xml, Element } from '@xmpp/xml'
 import { Multiaddr } from '@multiformats/multiaddr'
 import { XmppStream } from './xmpp-stream.js'
@@ -37,6 +42,9 @@ const ATTACHMENT_XMLNS = 'urn:xmpp:pubsub:attachments:0'
 const COLLECTION_HISTORY_LIMIT = 100
 const ATTACHMENT_HISTORY_LIMIT = 200
 
+/**
+ * Runtime dependencies required by the collection manager.
+ */
 export interface XmppCollectionContext {
   jid: string
   ready: Promise<void>
@@ -48,6 +56,9 @@ export interface XmppCollectionContext {
   emit(event: string, ...args: any[]): boolean
 }
 
+/**
+ * Manages community collections and their aggregated content.
+ */
 export class XmppCollectionManager {
   private readonly ctx: XmppCollectionContext
   public readonly collections = new Map<string, XmppCollectionNode>()

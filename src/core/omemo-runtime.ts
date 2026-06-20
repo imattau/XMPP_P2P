@@ -1,3 +1,8 @@
+/**
+ * @fileoverview Node-side OMEMO runtime loader and libomemo.js compatibility
+ * shim used by the secure messaging layer.
+ */
+
 import { promises as fs } from 'fs'
 import { join, dirname } from 'path'
 import { createRequire } from 'module'
@@ -10,11 +15,20 @@ import type {
   SessionCipher as OmemoSessionCipher
 } from 'libomemo.js'
 
+/**
+ * Dynamically loaded OMEMO module surface.
+ */
 export type OmemoModule = typeof import('libomemo.js')
 
 let omemoModulePromise: Promise<OmemoModule> | undefined
 let omemoFetchShimInstalled = false
 
+/**
+ * Installs a small fetch shim so libomemo.js can resolve local WASM assets.
+ *
+ * @param distDir - Directory containing the libomemo.js distribution files.
+ * @returns Nothing.
+ */
 function installOmemoFetchShim(distDir: string) {
   if (omemoFetchShimInstalled || !globalThis.fetch) {
     return
@@ -50,6 +64,11 @@ function installOmemoFetchShim(distDir: string) {
   omemoFetchShimInstalled = true
 }
 
+/**
+ * Loads the libomemo.js runtime, patching the packaged UMD build if needed.
+ *
+ * @returns The loaded OMEMO module.
+ */
 async function loadOmemoModule(): Promise<OmemoModule> {
   if (!omemoModulePromise) {
     const distDir = fileURLToPath(new URL('../../node_modules/libomemo.js/dist/', import.meta.url))

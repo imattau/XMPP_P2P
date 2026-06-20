@@ -17,6 +17,11 @@ export type OmemoModule = typeof import('libomemo.js')
 
 let omemoModulePromise: Promise<OmemoModule> | undefined
 
+/**
+ * Loads the browser build of libomemo.js once and reuses it for later callers.
+ *
+ * @returns The browser OMEMO module.
+ */
 async function loadOmemoModule(): Promise<OmemoModule> {
   if (!omemoModulePromise) {
     omemoModulePromise = import('libomemo.js')

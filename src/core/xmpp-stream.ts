@@ -1,7 +1,6 @@
 /**
- * @fileoverview Stream wrapper adapting raw P2P duplex streams to XMPP parser elements.
- * Provides parsing of XML buffers into stanzas, and implements basic support for
- * XEP-0198: Stream Management for reliability and session resumption.
+ * @fileoverview Stream wrapper adapting raw P2P duplex streams to XMPP parser
+ * elements and XEP-0198 stream management acknowledgements.
  */
 
 import { Parser, Element, xml } from '@xmpp/xml'
@@ -27,10 +26,10 @@ export class XmppStream extends EventEmitter {
   public unackedQueue: Element[] = []
 
   /**
-   * Creates an instance of XmppStream.
-   * 
-   * @param stream - The underlying libp2p duplex stream.
-   * @param remotePeer - The peer ID string of the remote connection.
+   * Creates an XMPP parser wrapper around a libp2p stream.
+   *
+   * @param stream - The underlying duplex stream from libp2p.
+   * @param remotePeer - String form of the remote peer ID.
    */
   constructor(stream: any, remotePeer: string) {
     super()
@@ -59,7 +58,8 @@ export class XmppStream extends EventEmitter {
       this.emit('error', err)
     })
 
-    // Listen to incoming data directly using the stream's onData callback
+    // The stream API exposes data through a callback rather than a Node stream,
+    // so we bridge that callback into the XML parser here.
     this.stream.onData = (data: any) => {
       if (this.isClosed) return
       try {
@@ -72,15 +72,15 @@ export class XmppStream extends EventEmitter {
       }
     }
 
-    // Initialize the local XMPP parser stream wrapper so stanzas are parsed as children
+    // Prime the parser with a synthetic root so stanza fragments parse cleanly.
     this.parser.write('<stream:stream>')
   }
 
   /**
-   * Processes incoming XEP-0198 Stream Management elements (enable, enabled, r, a, resume, resumed)
-   * to maintain stanza acknowledgment state and handle connection resumption.
-   * 
-   * @param element - The parsed XML element representing the stream management action.
+   * Handles inbound XEP-0198 stream management stanzas.
+   *
+   * @param element - The parsed SM element to process.
+   * @returns Nothing.
    */
   private handleSmElement(element: Element) {
     const name = element.name
@@ -143,9 +143,10 @@ export class XmppStream extends EventEmitter {
   }
 
   /**
-   * Converts a raw string to bytes and transmits it directly over the stream.
-   * 
-   * @param text - The raw XML or metadata text string to send.
+   * Sends raw XML text bytes to the remote peer.
+   *
+   * @param text - The XML payload to transmit.
+   * @returns Nothing.
    */
   sendRaw(text: string) {
     if (this.isClosed) return
@@ -158,10 +159,10 @@ export class XmppStream extends EventEmitter {
   }
 
   /**
-   * Encodes and sends an XML Element stanza or raw text over the connection.
-   * Also updates Stream Management state (outbound counts, unacked queue) if it is a standard stanza.
-   * 
-   * @param element - The element to send.
+   * Encodes and sends a stanza or raw XML string to the remote peer.
+   *
+   * @param element - The payload to send.
+   * @returns Nothing.
    */
   send(element: Element | string) {
     if (this.isClosed) return
@@ -188,9 +189,9 @@ export class XmppStream extends EventEmitter {
   }
 
   /**
-   * Closes the raw stream and triggers clean up, emitting the 'close' event.
-   * 
-   * @returns A promise resolving when the stream is completely closed.
+   * Closes the underlying transport stream and emits `close`.
+   *
+   * @returns A promise that resolves when shutdown completes.
    */
   async close() {
     if (this.isClosed) return

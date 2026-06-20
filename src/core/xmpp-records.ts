@@ -1,5 +1,13 @@
+/**
+ * @fileoverview Normalized XMPP record shapes and helper functions for
+ * mapping protocol payloads into persisted application state.
+ */
+
 import { multiaddr, Multiaddr } from '@multiformats/multiaddr'
 
+/**
+ * Supported presence stanza types used throughout the runtime.
+ */
 export type XmppPresenceType =
   | 'available'
   | 'unavailable'
@@ -11,6 +19,9 @@ export type XmppPresenceType =
 
 export type XmppRosterSubscription = 'none' | 'to' | 'from' | 'both'
 
+/**
+ * Normalized chat message record used for local history and resends.
+ */
 export interface XmppMessage {
   from: string
   to: string
@@ -32,6 +43,9 @@ export interface XmppMessage {
   private?: boolean
 }
 
+/**
+ * Normalized presence record used by the roster manager.
+ */
 export interface XmppPresence {
   from: string
   to: string
@@ -293,6 +307,9 @@ export interface XmppVCardFile {
   profile: XmppVCardProfile
 }
 
+/**
+ * Normalizes vCard data so callers always receive a complete profile object.
+ */
 export function normalizeVCardProfile(profile?: Partial<XmppVCardProfile>): XmppVCardProfile {
   const fn = profile?.fn?.trim()
   const nickname = profile?.nickname?.trim()

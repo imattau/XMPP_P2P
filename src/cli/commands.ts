@@ -1,11 +1,29 @@
+/**
+ * @fileoverview Command dispatcher for the interactive CLI.
+ * Parses user input, resolves peer references, and forwards each action to
+ * the XmppNode runtime or local helper routines.
+ */
+
 import { basename, extname } from 'path'
 import { readFile } from 'fs/promises'
 import { CliContext } from './types.js'
 import { printCliHelp } from './output.js'
 
+/**
+ * Tokenizes a command line string while preserving quoted segments.
+ *
+ * @param input - Raw terminal input from the user.
+ * @returns A token list ready for subcommand parsing.
+ */
 const tokenizeInput = (input: string) =>
   Array.from(input.matchAll(/"([^"]*)"|'([^']*)'|(\S+)/g), match => match[1] ?? match[2] ?? match[3] ?? '')
 
+/**
+ * Splits tokens into positional arguments and repeated `--option` values.
+ *
+ * @param tokens - Tokenized input after the command name.
+ * @returns Parsed positional arguments and named option groups.
+ */
 const parseOptionTokens = (tokens: string[]) => {
   const positional: string[] = []
   const options = new Map<string, string[]>()
@@ -41,6 +59,12 @@ const optionValue = (options: Map<string, string[]>, name: string) => options.ge
 const optionValues = (options: Map<string, string[]>, name: string) =>
   (options.get(name) ?? []).map(value => value.trim()).filter(Boolean)
 
+/**
+ * Returns a content type based on the file extension.
+ *
+ * @param filename - The file path or name to inspect.
+ * @returns A best-effort MIME type.
+ */
 const guessContentType = (filename: string) => {
   switch (extname(filename).toLowerCase()) {
     case '.jpg':
@@ -59,6 +83,14 @@ const guessContentType = (filename: string) => {
   }
 }
 
+/**
+ * Uploads a local file and returns the resulting HTTP URL for embedding.
+ *
+ * @param xmppNode - Runtime used to request an upload slot.
+ * @param filePath - Local file path to upload.
+ * @param target - Peer JID or multiaddr that provides the slot.
+ * @returns The public content URL for the uploaded file.
+ */
 const uploadFileAsCover = async (xmppNode: CliContext['xmppNode'], filePath: string, target: string) => {
   const fileBytes = await readFile(filePath)
   const contentType = guessContentType(filePath)
@@ -83,6 +115,14 @@ const uploadFileAsCover = async (xmppNode: CliContext['xmppNode'], filePath: str
   return slot.getUrl
 }
 
+/**
+ * Publishes a feed article using CLI-style `feed article` input.
+ *
+ * @param input - Raw command string.
+ * @param ctx - CLI runtime context.
+ * @param allowCover - Whether a cover upload is allowed for this invocation.
+ * @returns The published item id when a post is created.
+ */
 const publishFeedArticle = async (input: string, ctx: CliContext, allowCover = true) => {
   const { xmppNode } = ctx
   const tokens = tokenizeInput(input)
@@ -120,6 +160,13 @@ const publishFeedArticle = async (input: string, ctx: CliContext, allowCover = t
   return itemId
 }
 
+/**
+ * Publishes a collection post using CLI-style `collection post` input.
+ *
+ * @param input - Raw command string.
+ * @param ctx - CLI runtime context.
+ * @returns The published item id when a post is created.
+ */
 const publishCollectionPost = async (input: string, ctx: CliContext) => {
   const { xmppNode } = ctx
   const tokens = tokenizeInput(input)
@@ -153,6 +200,13 @@ const publishCollectionPost = async (input: string, ctx: CliContext) => {
   return itemId
 }
 
+/**
+ * Executes a single CLI command.
+ *
+ * @param input - Raw command line entered by the user.
+ * @param ctx - Shared runtime context for network and storage actions.
+ * @returns `true` when the caller should exit the REPL.
+ */
 export const handleCliCommand = async (input: string, ctx: CliContext) => {
   const { libp2p, xmppNode, discoveredPeers, resolvePeerTarget } = ctx
   const parts = tokenizeInput(input)

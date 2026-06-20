@@ -1,3 +1,8 @@
+/**
+ * @fileoverview Multi-User Chat room management, occupant tracking, and group
+ * message handling, including secure room variants.
+ */
+
 import { xml, Element, Parser } from '@xmpp/xml'
 import { randomBytes, createCipheriv } from 'crypto'
 import { loadOmemoModule } from './omemo-runtime.js'
@@ -30,6 +35,9 @@ export const MUC_XMLNS = 'http://jabber.org/protocol/muc'
 const MUC_USER_XMLNS = 'http://jabber.org/protocol/muc#user'
 const MUC_HISTORY_LIMIT = 500
 
+/**
+ * Represents a live participant in a MUC room.
+ */
 export interface MucOccupant {
   nick: string
   peerId: string
@@ -38,6 +46,9 @@ export interface MucOccupant {
   lastSeen: string
 }
 
+/**
+ * Live room state tracked by the MUC manager.
+ */
 export interface MucRoomState {
   name: string
   topic: string
@@ -49,6 +60,9 @@ export interface MucRoomState {
   occupants: Map<string, MucOccupant>
 }
 
+/**
+ * Persisted room configuration settings.
+ */
 export interface MucRoomSettings {
   topic?: string
   defaultSecure: boolean
@@ -57,6 +71,9 @@ export interface MucRoomSettings {
   archived?: boolean
 }
 
+/**
+ * Dependencies required by the MUC manager.
+ */
 export interface XmppMucContext {
   jid: string
   libp2p: any
@@ -195,6 +212,10 @@ function parseThreadElement(element: Element): string | undefined {
   return thread || undefined
 }
 
+/**
+ * Manager class that encapsulates multi-user chat (MUC) rooms, occupancy tracking,
+ * message histories, configuration state persistence, and OMEMO end-to-end group encryption.
+ */
 export class XmppMucManager {
   private ctx: XmppMucContext
   private rooms = new Map<string, MucRoomState>()

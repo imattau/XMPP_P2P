@@ -1,14 +1,12 @@
 /**
- * @fileoverview Reliability manager for XMPP sessions.
- * Tracks client connection states (Active/Inactive) according to XEP-0352 CSI,
- * and maintains Stream Management session state across re-dials.
+ * @fileoverview Reliability manager for XMPP client state indication and
+ * stream resumption bookkeeping.
  */
 
 import { Element } from '@xmpp/xml'
 
 /**
- * Holds Stream Management state (XEP-0198) for a connection session,
- * allowing tracking of stanza acknowledgment counts and outstanding unacknowledged stanzas.
+ * Stream Management bookkeeping for a single remote peer.
  */
 export interface StreamSession {
   sessionId: string
@@ -18,8 +16,7 @@ export interface StreamSession {
 }
 
 /**
- * Manages peer connection states and buffers/recovers Stream Management sessions.
- * Used to implement Client State Indication (XEP-0352) and session resumption (XEP-0198).
+ * Tracks peer CSI state and saved XEP-0198 sessions.
  */
 export class XmppReliabilityManager {
   private peerClientStates = new Map<string, 'active' | 'inactive'>()

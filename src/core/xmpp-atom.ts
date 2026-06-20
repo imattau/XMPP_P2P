@@ -1,3 +1,8 @@
+/**
+ * @fileoverview Atom entry building and parsing helpers for feed posts and
+ * microblog content.
+ */
+
 import { xml, Element } from '@xmpp/xml'
 import { ATOM_XMLNS } from './xmpp-discovery.js'
 import {
@@ -7,6 +12,9 @@ import {
   normalizeFeedPost
 } from './xmpp-records.js'
 
+/**
+ * Options used when building an Atom entry for a microblog post.
+ */
 export interface XmppMicroblogPostOptions {
   title?: string
   summary?: string
@@ -28,6 +36,12 @@ const trimText = (value?: string) => value?.trim() ?? ''
 
 const collapseWhitespace = (value: string) => value.replace(/\s+/g, ' ').trim()
 
+/**
+ * Derives a short display title from a body of text.
+ *
+ * @param body - The post body text.
+ * @returns A concise title suitable for Atom entry headers.
+ */
 export const deriveMicroblogTitle = (body: string) => {
   const text = collapseWhitespace(body)
   if (!text) {
@@ -47,6 +61,14 @@ const deriveSummary = (body: string) => {
   return text.length > 280 ? `${text.slice(0, 277)}...` : text
 }
 
+/**
+ * Builds a tag URI that uniquely identifies a published feed post.
+ *
+ * @param sourceJid - Sender JID for the post.
+ * @param publishedAt - Publication timestamp.
+ * @param itemId - Feed item identifier.
+ * @returns A tag URI string.
+ */
 export const buildTagUri = (sourceJid: string, publishedAt: string, itemId: string) => {
   const jidParts = sourceJid.split('@')
   const authority = (jidParts[1] ?? jidParts[0] ?? 'p2p').split('/')[0] || 'p2p'
@@ -88,10 +110,23 @@ const parseGeoloc = (entryEl: Element): XmppAtomGeoloc | undefined => {
   return { lat, lon, country, countryCode, region }
 }
 
+/**
+ * Returns whether an element is an Atom microblog entry.
+ *
+ * @param entryEl - Candidate Atom entry element.
+ * @returns `true` when the element is Atom namespaced.
+ */
 export function isMicroblogEntryElement(entryEl?: Element): boolean {
   return Boolean(entryEl && entryEl.attrs.xmlns === ATOM_XMLNS)
 }
 
+/**
+ * Builds an Atom entry for a feed post.
+ *
+ * @param post - Normalized feed post content.
+ * @param options - Optional overrides for Atom metadata.
+ * @returns A serialized Atom `<entry/>`.
+ */
 export function buildMicroblogEntry(post: XmppFeedPost, options: XmppMicroblogPostOptions = {}): Element {
   const publishedAt = options.publishedAt ?? post.publishedAt ?? new Date().toISOString()
   const updatedAt = options.updatedAt ?? post.updatedAt ?? publishedAt
@@ -150,6 +185,15 @@ export function buildMicroblogEntry(post: XmppFeedPost, options: XmppMicroblogPo
   return xml('entry', { xmlns: ATOM_XMLNS }, ...entryChildren)
 }
 
+/**
+ * Parses an Atom entry or plain post body into a normalized feed post.
+ *
+ * @param topic - PubSub topic for the feed.
+ * @param itemEl - PubSub item element containing the entry.
+ * @param from - Sender JID or peer reference.
+ * @param node - Optional PubSub node name.
+ * @returns A normalized feed post or `undefined` when the payload is not usable.
+ */
 export function parseMicroblogEntry(topic: string, itemEl: Element, from: string, node?: string): XmppFeedPost | undefined {
   const id = itemEl.attrs.id
   if (!id) {

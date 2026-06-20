@@ -1,3 +1,8 @@
+/**
+ * @fileoverview XMPP service discovery, entity capabilities, and feature
+ * advertisement helpers shared by peers and collections.
+ */
+
 import { createHash } from 'crypto'
 import { xml, Element } from '@xmpp/xml'
 import { Multiaddr } from '@multiformats/multiaddr'
@@ -39,6 +44,9 @@ export {
   CARBONS_XMLNS
 }
 
+/**
+ * Service identity published in disco#info responses.
+ */
 export interface XmppDiscoIdentity {
   category: string
   type?: string
@@ -46,6 +54,9 @@ export interface XmppDiscoIdentity {
   lang?: string
 }
 
+/**
+ * Cached disco#info payload with computed entity capability hash.
+ */
 export interface XmppDiscoInfo {
   node?: string
   identities: XmppDiscoIdentity[]
@@ -55,12 +66,18 @@ export interface XmppDiscoInfo {
   cachedAt: string
 }
 
+/**
+ * Entry in a disco#items response.
+ */
 export interface XmppDiscoItem {
   jid: string
   node?: string
   name?: string
 }
 
+/**
+ * Cached capabilities data for a discovered peer.
+ */
 export interface XmppEntityCapabilities {
   peerId: string
   jid: string
@@ -105,6 +122,9 @@ function findCollection(
   return collections.get(node) ?? Array.from(collections.values()).find(entry => entry.topic === node)
 }
 
+/**
+ * Returns the identities that should be advertised for a node or collection.
+ */
 export function getDiscoveryIdentities(
   discoveryIdentity: XmppDiscoIdentity,
   collections: ReadonlyMap<string, XmppDiscoveryCollection>,

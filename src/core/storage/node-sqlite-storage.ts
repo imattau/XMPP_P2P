@@ -12,8 +12,20 @@ import type { XmppStorage, StorageRecord } from './types.js'
 export class NodeSqliteStorage implements XmppStorage {
   private db?: DatabaseSync
 
+  /**
+   * Creates a storage wrapper backed by a SQLite database file.
+   *
+   * @param dbPath - Path to the SQLite database file.
+   */
   constructor(private readonly dbPath: string) {}
 
+  /**
+   * Reads a serialized record from SQLite.
+   *
+   * @param namespace - Logical storage namespace.
+   * @param key - Record key within the namespace.
+   * @returns The stored value or `undefined`.
+   */
   async getRecord(namespace: string, key: string): Promise<string | undefined> {
     const db = this.open()
     const row = db
@@ -22,6 +34,15 @@ export class NodeSqliteStorage implements XmppStorage {
     return row?.payload
   }
 
+  /**
+   * Writes or updates a serialized record in SQLite.
+   *
+   * @param namespace - Logical storage namespace.
+   * @param key - Record key within the namespace.
+   * @param value - Serialized payload.
+   * @param updatedAt - Update timestamp stored alongside the payload.
+   * @returns Nothing.
+   */
   async putRecord(namespace: string, key: string, value: string, updatedAt: string): Promise<void> {
     const db = this.open()
     db.prepare(
@@ -30,11 +51,24 @@ export class NodeSqliteStorage implements XmppStorage {
     ).run(namespace, key, updatedAt, value)
   }
 
+  /**
+   * Deletes a serialized record from SQLite.
+   *
+   * @param namespace - Logical storage namespace.
+   * @param key - Record key within the namespace.
+   * @returns Nothing.
+   */
   async deleteRecord(namespace: string, key: string): Promise<void> {
     const db = this.open()
     db.prepare('DELETE FROM state_records WHERE namespace = ? AND record_key = ?').run(namespace, key)
   }
 
+  /**
+   * Lists all records in a namespace ordered by age.
+   *
+   * @param namespace - Logical storage namespace.
+   * @returns The stored records.
+   */
   async listRecords(namespace: string): Promise<StorageRecord[]> {
     const db = this.open()
     const rows = db
@@ -45,6 +79,13 @@ export class NodeSqliteStorage implements XmppStorage {
     return rows
   }
 
+  /**
+   * Reads a binary blob from SQLite.
+   *
+   * @param namespace - Logical storage namespace.
+   * @param key - Blob key within the namespace.
+   * @returns The stored bytes or `undefined`.
+   */
   async getBlob(namespace: string, key: string): Promise<Uint8Array | undefined> {
     const db = this.open()
     const row = db
@@ -53,6 +94,14 @@ export class NodeSqliteStorage implements XmppStorage {
     return row?.data ? new Uint8Array(row.data) : undefined
   }
 
+  /**
+   * Writes or updates a binary blob in SQLite.
+   *
+   * @param namespace - Logical storage namespace.
+   * @param key - Blob key within the namespace.
+   * @param data - Binary payload to store.
+   * @returns Nothing.
+   */
   async putBlob(namespace: string, key: string, data: Uint8Array): Promise<void> {
     const db = this.open()
     db.prepare(
@@ -61,16 +110,33 @@ export class NodeSqliteStorage implements XmppStorage {
     ).run(namespace, key, data)
   }
 
+  /**
+   * Deletes a binary blob from SQLite.
+   *
+   * @param namespace - Logical storage namespace.
+   * @param key - Blob key within the namespace.
+   * @returns Nothing.
+   */
   async deleteBlob(namespace: string, key: string): Promise<void> {
     const db = this.open()
     db.prepare('DELETE FROM state_blobs WHERE namespace = ? AND blob_key = ?').run(namespace, key)
   }
 
+  /**
+   * Closes the underlying SQLite database handle if it is open.
+   *
+   * @returns Nothing.
+   */
   async close(): Promise<void> {
     this.db?.close()
     this.db = undefined
   }
 
+  /**
+   * Lazily opens the database and creates the schema if needed.
+   *
+   * @returns The open SQLite database connection.
+   */
   private open(): DatabaseSync {
     if (!this.db) {
       mkdirSync(dirname(this.dbPath), { recursive: true })

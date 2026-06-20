@@ -1,5 +1,13 @@
+/**
+ * @fileoverview Helpers for parsing and building XMPP extension elements such
+ * as receipts, chat state, delays, replies, stanza ids, and carbons.
+ */
+
 import { xml, Element } from '@xmpp/xml'
 
+/**
+ * XML namespace constants for the supported XMPP extension payloads.
+ */
 export const RECEIPTS_XMLNS = 'urn:xmpp:receipts'
 export const CHATSTATES_XMLNS = 'urn:xmpp:chatstates'
 export const DELAY_XMLNS = 'urn:xmpp:delay'
@@ -12,6 +20,9 @@ export const SID_XMLNS = 'urn:xmpp:sid:0'
 export const CARBONS_XMLNS = 'urn:xmpp:carbons:2'
 export const FORWARD_XMLNS = 'urn:xmpp:forward:0'
 
+/**
+ * Normalized metadata extracted from XEP extension child elements.
+ */
 export interface XepMetadata {
   receipt?: { type: 'request' | 'received'; id: string }
   chatState?: 'active' | 'composing' | 'paused' | 'inactive' | 'gone'
@@ -26,6 +37,12 @@ export interface XepMetadata {
   private?: boolean
 }
 
+/**
+ * Extracts XEP extension metadata from a stanza.
+ *
+ * @param element - The incoming stanza element.
+ * @returns Normalized metadata for receipts, replies, chat state, and related extensions.
+ */
 export function parseXepMetadata(element: Element): XepMetadata {
   const metadata: XepMetadata = {}
 
@@ -133,6 +150,12 @@ export function parseXepMetadata(element: Element): XepMetadata {
   return metadata
 }
 
+/**
+ * Builds XEP extension child elements for an outgoing stanza.
+ *
+ * @param options - Optional protocol decorations to attach to the stanza.
+ * @returns A list of XML elements to append to a message stanza.
+ */
 export function buildXepElements(options: {
   replace?: string
   reply?: { id: string; to?: string }

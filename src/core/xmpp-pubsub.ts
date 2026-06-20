@@ -1,3 +1,8 @@
+/**
+ * @fileoverview PubSub event parsing and dispatch helpers for feed items,
+ * collection posts, attachments, encrypted payloads, and upload manifests.
+ */
+
 import { Element, Parser } from '@xmpp/xml'
 import * as openpgp from 'openpgp'
 import { ATOM_XMLNS, ATTACHMENT_XMLNS, HTTP_UPLOAD_XMLNS, PAM_XMLNS, PUBSUB_EVENT_XMLNS } from './xmpp-discovery.js'
@@ -14,6 +19,9 @@ import {
 } from './xmpp-records.js'
 import { parseMicroblogEntry } from './xmpp-atom.js'
 
+/**
+ * Execution context used while processing pubsub event payloads.
+ */
 export interface XmppPubSubContext {
   localJid: string
   feedTopicForPeer(peerId: string): string
@@ -28,6 +36,15 @@ export interface XmppPubSubContext {
   emitError(error: unknown): void
 }
 
+/**
+ * Parses a microblog post item from a PubSub item element.
+ *
+ * @param topic - PubSub topic that carried the item.
+ * @param itemEl - Item element to parse.
+ * @param from - Sender JID or peer reference.
+ * @param node - Optional PubSub node name.
+ * @returns A normalized feed post or `undefined` when the item is not a post.
+ */
 export function parseFeedPost(topic: string, itemEl: Element, from: string, node?: string): XmppFeedPost | undefined {
   const entryEl = (itemEl.children as any[]).find(child => child?.name === 'entry' && child?.attrs?.xmlns === ATOM_XMLNS) as Element | undefined
   if (!entryEl) {
@@ -37,6 +54,14 @@ export function parseFeedPost(topic: string, itemEl: Element, from: string, node
   return parseMicroblogEntry(topic, itemEl, from, node)
 }
 
+/**
+ * Parses a collection post from a PubSub item element.
+ *
+ * @param topic - PubSub topic that carried the item.
+ * @param itemEl - Item element to parse.
+ * @param from - Sender JID or peer reference.
+ * @returns A normalized collection post or `undefined`.
+ */
 export function parseCollectionPost(topic: string, itemEl: Element, from: string): XmppCollectionPost | undefined {
   const collectionId = itemEl.attrs.collectionId
   const sourceTopic = itemEl.attrs.sourceTopic
@@ -56,6 +81,14 @@ export function parseCollectionPost(topic: string, itemEl: Element, from: string
   }
 }
 
+/**
+ * Parses noticed/reaction attachment records from a PubSub item element.
+ *
+ * @param topic - PubSub topic that carried the item.
+ * @param itemEl - Item element to parse.
+ * @param from - Sender JID or peer reference.
+ * @returns A normalized attachment record or `undefined`.
+ */
 export function parseAttachment(topic: string, itemEl: Element, from: string): XmppAttachment | undefined {
   const targetId = itemEl.attrs.targetId
   if (!targetId) {
@@ -137,6 +170,14 @@ async function parseEncryptedPubSubItem(
   }
 }
 
+/**
+ * Parses an upload manifest from a PubSub item element.
+ *
+ * @param topic - PubSub topic that carried the item.
+ * @param itemEl - Item element to parse.
+ * @param from - Sender JID or peer reference.
+ * @returns A normalized upload manifest or `undefined`.
+ */
 function parseUploadManifest(
   topic: string,
   itemEl: Element,
@@ -189,6 +230,14 @@ function parseUploadManifest(
   }
 }
 
+/**
+ * Routes a PubSub event message to the correct local handler.
+ *
+ * @param topic - The pubsub topic the message arrived on.
+ * @param element - Incoming `<message/>` stanza.
+ * @param ctx - PubSub execution context.
+ * @returns Nothing.
+ */
 export async function handlePubSubMessageElement(topic: string, element: Element, ctx: XmppPubSubContext): Promise<void> {
   const eventEl = element.getChild('event')
   if (!eventEl || eventEl.attrs.xmlns !== PUBSUB_EVENT_XMLNS) {

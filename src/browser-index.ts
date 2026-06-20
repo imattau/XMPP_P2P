@@ -15,6 +15,12 @@ export interface CreateBrowserXmppClientOptions {
   nickname?: string
 }
 
+/**
+ * Creates and initializes the browser XMPP client runtime.
+ *
+ * @param options - Browser bootstrap and persistence configuration.
+ * @returns The started libp2p node and ready XmppNode wrapper.
+ */
 export async function createBrowserXmppClient(
   options: CreateBrowserXmppClientOptions
 ): Promise<{ libp2p: Libp2p; xmppNode: XmppNode }> {

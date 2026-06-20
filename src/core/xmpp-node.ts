@@ -1,3 +1,8 @@
+/**
+ * @fileoverview Main XMPP runtime node that wires libp2p transport, roster
+ * state, feeds, collections, MUC, uploads, and secure messaging together.
+ */
+
 import { Libp2p } from 'libp2p'
 import { xml, Element, Parser } from '@xmpp/xml'
 import { XmppChatManager } from './xmpp-chat.js'
@@ -206,11 +211,17 @@ const OMEMO_BUNDLES_NODE = 'urn:xmpp:omemo:2:bundles'
 const OPENPGP_XMLNS = 'urn:xmpp:openpgp:0'
 const OPENPGP_PUBSUB_XMLNS = 'urn:xmpp:openpgp:pubsub:0'
 
+/**
+ * Optional configuration for the XMPP node wrapper.
+ */
 export interface XmppNodeOptions {
   nickname?: string
   omemoModuleLoader?: () => Promise<import('./omemo-runtime.js').OmemoModule>
 }
 
+/**
+ * High-level facade around the XMPP protocol managers and libp2p streams.
+ */
 export class XmppNode extends EventEmitter {
   private libp2p: Libp2p
   private streams = new Map<string, XmppStream>()

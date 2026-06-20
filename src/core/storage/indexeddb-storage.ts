@@ -26,24 +26,41 @@ interface BlobRow {
 export class IndexedDbStorage implements XmppStorage {
   private dbPromise?: Promise<IDBDatabase>
 
+  /**
+   * Creates a storage wrapper backed by IndexedDB.
+   *
+   * @param dbName - Database name to open in the browser.
+   */
   constructor(private readonly dbName: string) {}
 
+  /**
+   * Reads a serialized record from IndexedDB.
+   */
   async getRecord(namespace: string, key: string): Promise<string | undefined> {
     const db = await this.open()
     const row = await this.get<RecordRow>(db, RECORDS_STORE, [namespace, key])
     return row?.value
   }
 
+  /**
+   * Writes or updates a serialized record in IndexedDB.
+   */
   async putRecord(namespace: string, key: string, value: string, updatedAt: string): Promise<void> {
     const db = await this.open()
     await this.put<RecordRow>(db, RECORDS_STORE, { namespace, key, value, updatedAt })
   }
 
+  /**
+   * Deletes a serialized record from IndexedDB.
+   */
   async deleteRecord(namespace: string, key: string): Promise<void> {
     const db = await this.open()
     await this.delete(db, RECORDS_STORE, [namespace, key])
   }
 
+  /**
+   * Lists all records in a namespace ordered by update timestamp.
+   */
   async listRecords(namespace: string): Promise<StorageRecord[]> {
     const db = await this.open()
     const rows = await this.getAllByNamespace<RecordRow>(db, RECORDS_STORE, namespace)
@@ -52,22 +69,34 @@ export class IndexedDbStorage implements XmppStorage {
       .sort((a, b) => a.updatedAt.localeCompare(b.updatedAt) || a.key.localeCompare(b.key))
   }
 
+  /**
+   * Reads a binary blob from IndexedDB.
+   */
   async getBlob(namespace: string, key: string): Promise<Uint8Array | undefined> {
     const db = await this.open()
     const row = await this.get<BlobRow>(db, BLOBS_STORE, [namespace, key])
     return row?.data
   }
 
+  /**
+   * Writes or updates a binary blob in IndexedDB.
+   */
   async putBlob(namespace: string, key: string, data: Uint8Array): Promise<void> {
     const db = await this.open()
     await this.put<BlobRow>(db, BLOBS_STORE, { namespace, key, data })
   }
 
+  /**
+   * Deletes a binary blob from IndexedDB.
+   */
   async deleteBlob(namespace: string, key: string): Promise<void> {
     const db = await this.open()
     await this.delete(db, BLOBS_STORE, [namespace, key])
   }
 
+  /**
+   * Closes the cached database connection.
+   */
   async close(): Promise<void> {
     if (!this.dbPromise) {
       return
@@ -77,6 +106,9 @@ export class IndexedDbStorage implements XmppStorage {
     this.dbPromise = undefined
   }
 
+  /**
+   * Opens the database and creates stores on first use.
+   */
   private open(): Promise<IDBDatabase> {
     if (!this.dbPromise) {
       this.dbPromise = new Promise((resolve, reject) => {

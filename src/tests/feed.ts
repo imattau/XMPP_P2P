@@ -1,3 +1,9 @@
+/**
+ * @fileoverview End-to-end feed verification script covering Atom helpers,
+ * feed subscription delivery, deduplication, malformed payload handling, and
+ * persistence across restart.
+ */
+
 import assert from 'node:assert/strict'
 import { xml } from '@xmpp/xml'
 import { mkdtemp, rm } from 'fs/promises'
@@ -9,6 +15,9 @@ import { createP2PNode } from '../core/p2p.js'
 import { XmppNode } from '../core/xmpp-node.js'
 import { NodeSqliteStorage } from '../core/storage/node-sqlite-storage.js'
 
+/**
+ * Polls until the supplied condition becomes true or the timeout expires.
+ */
 async function waitFor(condition: () => boolean | Promise<boolean>, timeoutMs: number, message: string) {
   const startedAt = Date.now()
   while (Date.now() - startedAt < timeoutMs) {
@@ -20,6 +29,9 @@ async function waitFor(condition: () => boolean | Promise<boolean>, timeoutMs: n
   throw new Error(message)
 }
 
+/**
+ * Verifies the Atom helpers produce and parse the expected feed entry shape.
+ */
 function verifyAtomMicroblogHelpers() {
   const post = {
     id: 'post-1',
@@ -61,6 +73,9 @@ function verifyAtomMicroblogHelpers() {
   assert.equal(microblogParsed, undefined)
 }
 
+/**
+ * Executes the feed verification scenario.
+ */
 async function runFeedTest() {
   console.log('Starting XMPP feed verification test...\n')
   verifyAtomMicroblogHelpers()

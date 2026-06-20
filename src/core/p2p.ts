@@ -1,7 +1,6 @@
 /**
- * @fileoverview P2P networking utilities for configuring and constructing a libp2p node.
- * Integrates TCP, WebSockets, Noise encryption, Yamux stream multiplexing,
- * mDNS discovery, KadDHT (customized for XMPP protocols), and Gossipsub.
+ * @fileoverview P2P networking utilities for configuring and constructing a
+ * libp2p node with the transports and services used by the XMPP runtime.
  */
 
 import { createLibp2p } from 'libp2p'
@@ -17,7 +16,7 @@ import { ping } from '@libp2p/ping'
 import { multiaddr } from '@multiformats/multiaddr'
 
 /**
- * Options configuring the startup properties of a libp2p node.
+ * Startup options for the shared libp2p node factory.
  */
 export interface CreateP2PNodeOptions {
   enableMdns?: boolean
@@ -25,8 +24,8 @@ export interface CreateP2PNodeOptions {
   host?: string
 }
 
-// Polyfill Multiaddr.prototype.toOptions since older @multiformats/multiaddr versions used in libp2p
-// don't have it, but GossipSub expects it on remoteAddr.
+// Older multiaddr builds used by libp2p can omit `toOptions`, but GossipSub
+// expects it when scoring remote peers.
 const dummyMa = multiaddr('/ip4/127.0.0.1/tcp/0')
 const MultiaddrProto = Object.getPrototypeOf(dummyMa)
 if (!MultiaddrProto.toOptions) {
@@ -47,11 +46,10 @@ interface BaseLibp2pConfigOptions {
 }
 
 /**
- * Builds the shared libp2p `services` map (identify, gossipsub pubsub, and
- * optionally KadDHT + ping) used by both the Node and browser factories.
+ * Builds the shared libp2p services map.
  *
- * @param options - Configuration options for services like DHT.
- * @returns A map of libp2p service factories.
+ * @param options - Optional service toggles such as DHT enablement.
+ * @returns A plain object of libp2p service factories.
  */
 export function createBaseLibp2pServices(options: BaseLibp2pConfigOptions = {}): Record<string, any> {
   const services: Record<string, any> = {
@@ -91,12 +89,11 @@ export function createBaseLibp2pServices(options: BaseLibp2pConfigOptions = {}):
 }
 
 /**
- * Initializes and starts a new libp2p P2P node with standard transports, protocols,
- * security parameters, pubsub services, and optional mDNS / Kademlia DHT.
+ * Creates a libp2p node configured for the XMPP-over-P2P runtime.
  *
- * @param port - The TCP/WS listening port number.
- * @param options - Configuration options for services like DHT and MDNS.
- * @returns A promise resolving to the created libp2p node.
+ * @param port - Preferred TCP listen port for the node.
+ * @param options - Additional node configuration such as DHT and mDNS toggles.
+ * @returns A promise resolving to a started libp2p node.
  */
 export async function createP2PNode(port?: number, options: CreateP2PNodeOptions = {}): Promise<any> {
   const listenHost = options.host || '0.0.0.0'
@@ -149,4 +146,3 @@ export async function createP2PNode(port?: number, options: CreateP2PNodeOptions
 
   return node
 }
-

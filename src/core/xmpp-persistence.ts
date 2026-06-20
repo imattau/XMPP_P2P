@@ -1,3 +1,8 @@
+/**
+ * @fileoverview Storage loaders and persistors for XMPP roster, feed, MUC,
+ * attachment, and chat state.
+ */
+
 import type { XmppStorage } from './storage/types.js'
 import {
   type XmppAttachment,
@@ -25,6 +30,9 @@ import {
   type XmppChatHistoryFile
 } from './xmpp-records.js'
 
+/**
+ * State required when loading persisted XMPP data.
+ */
 export interface XmppPersistenceLoadContext {
   storage: XmppStorage
   roster: Map<string, XmppRosterEntry>
@@ -59,6 +67,9 @@ export interface XmppPersistenceLoadContext {
   onCollectionLoaded: (collection: XmppCollectionNode) => void
 }
 
+/**
+ * State required when saving persisted XMPP data.
+ */
 export interface XmppPersistenceSaveContext {
   storage: XmppStorage
   roster: Map<string, XmppRosterEntry>
@@ -87,6 +98,9 @@ async function writeState(storage: XmppStorage, namespace: string, value: unknow
   await storage.putRecord(namespace, 'state', JSON.stringify(value), new Date().toISOString())
 }
 
+/**
+ * Trims a map to the requested maximum size by deleting the oldest entries.
+ */
 function trimMap<K, V>(map: Map<K, V>, limit: number): void {
   while (map.size > limit) {
     const oldestKey = map.keys().next().value as K | undefined
