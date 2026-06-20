@@ -7,6 +7,8 @@ import {
   Flame, Globe, Filter, ChevronDown, Search, X,
 } from 'lucide-react'
 
+import { useFeedBridge } from '../bridge'
+
 interface TopicMeta {
   tag: string
   description: string
@@ -29,6 +31,17 @@ interface TopicPost {
   reposted?: boolean
   bookmarked?: boolean
   media?: { url: string; alt: string }
+}
+
+const JID_MAP: Record<string, string> = {
+  'yukitan': 'yukitan@infosec.exchange',
+  'maren': 'maren@social.coop',
+  'kvold': 'kvold@fosstodon.org',
+  'theo_n': 'theo_n@hachyderm.io',
+  'ingridl': 'ingridl@sigmoid.social',
+  'felixb': 'felixb@chaos.social',
+  'elif_dev': 'elif_dev@mastodon.social',
+  'amara_d': 'amara_d@blacktwitter.io'
 }
 
 const TOPIC_META: Record<string, TopicMeta> = {
@@ -80,6 +93,7 @@ function PostCard({
   color,
   tag,
   onLike,
+  onRepost,
   onBookmark,
   onOpen,
 }: {
@@ -87,6 +101,7 @@ function PostCard({
   color: string
   tag: string
   onLike: (id: string) => void
+  onRepost: (id: string) => void
   onBookmark: (id: string) => void
   onOpen: (id: string) => void
 }) {
@@ -126,7 +141,7 @@ function PostCard({
             <button
               onClick={(e) => {
                 e.stopPropagation()
-                setPosts((prev) => prev.map((p) => p.id === post.id && !p.reposted ? { ...p, reposted: true, reposts: p.reposts + 1 } : p))
+                onRepost(post.id)
               }}
               className={`flex items-center gap-1 px-1.5 py-1 rounded transition-all ${post.reposted ? 'text-emerald-400' : 'text-muted-foreground hover:text-emerald-400 hover:bg-emerald-400/10'}`}
             >
@@ -165,6 +180,7 @@ function PostCard({
 export default function TopicFeedPage() {
   const { tag } = useParams<{ tag: string }>()
   const navigate = useNavigate()
+  const { subscribeFeed, unsubscribeFeed } = useFeedBridge()
 
   const meta = TOPIC_META[tag ?? ''] ?? {
     tag: tag ?? 'Unknown',
@@ -183,8 +199,29 @@ export default function TopicFeedPage() {
   const handleLike = (id: string) =>
     setPosts((prev) => prev.map((p) => p.id === id ? { ...p, liked: !p.liked, likes: p.liked ? p.likes - 1 : p.likes + 1 } : p))
 
+  const handleRepost = (id: string) =>
+    setPosts((prev) => prev.map((p) => p.id === id && !p.reposted ? { ...p, reposted: true, reposts: p.reposts + 1 } : p))
+
   const handleBookmark = (id: string) =>
     setPosts((prev) => prev.map((p) => p.id === id ? { ...p, bookmarked: !p.bookmarked } : p))
+
+  const handleFollowToggle = () => {
+    const nextFollowing = !following
+    setFollowing(nextFollowing)
+
+    const latestPost = posts[0]
+    if (latestPost) {
+      const handle = latestPost.author.handle
+      const peerAddr = JID_MAP[handle] ?? `${handle}@${latestPost.author.server}`
+      if (peerAddr) {
+        if (nextFollowing) {
+          void subscribeFeed(peerAddr)
+        } else {
+          void unsubscribeFeed(peerAddr)
+        }
+      }
+    }
+  }
 
   const filtered = searchQuery
     ? posts.filter((p) => p.content.toLowerCase().includes(searchQuery.toLowerCase()) || p.author.name.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -212,7 +249,7 @@ export default function TopicFeedPage() {
               <Search size={16} />
             </button>
             <button
-              onClick={() => setFollowing((v) => !v)}
+              onClick={handleFollowToggle}
               className={`px-3 py-1.5 rounded text-[11px] font-mono font-medium transition-all flex-shrink-0 ${
                 following
                   ? 'bg-secondary text-foreground/70 hover:bg-destructive/10 hover:text-destructive'
@@ -311,6 +348,7 @@ export default function TopicFeedPage() {
                 color={meta.color}
                 tag={meta.tag}
                 onLike={handleLike}
+                onRepost={handleRepost}
                 onBookmark={handleBookmark}
                 onOpen={(id) => navigate(`/post/${id}`)}
               />

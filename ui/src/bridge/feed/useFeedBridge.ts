@@ -23,6 +23,8 @@ export function useFeedBridge() {
     likePost: (id: string) => controller.likePost(id),
     reactPost: (id: string, emoji?: string) => controller.reactPost(id, emoji),
     repostPost: (id: string) => controller.repostPost(id),
-    bookmarkPost: (id: string) => controller.bookmarkPost(id)
+    bookmarkPost: (id: string) => controller.bookmarkPost(id),
+    subscribeFeed: (peerAddr: string, options?: { visibility?: any }) => controller.subscribeFeed(peerAddr, options),
+    unsubscribeFeed: (peerAddr: string) => controller.unsubscribeFeed(peerAddr)
   }
 }

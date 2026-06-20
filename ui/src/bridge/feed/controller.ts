@@ -143,6 +143,28 @@ export class FeedBridgeController {
     this.emit()
   }
 
+  async subscribeFeed(peerAddr: string, options?: { visibility?: BridgeVisibility }) {
+    if (this.runtime) {
+      try {
+        await this.runtime.subscribeFeed(peerAddr, options)
+        await this.refresh()
+      } catch (err) {
+        console.error('Failed to subscribe to feed:', err)
+      }
+    }
+  }
+
+  async unsubscribeFeed(peerAddr: string) {
+    if (this.runtime) {
+      try {
+        await this.runtime.unsubscribeFeed(peerAddr)
+        await this.refresh()
+      } catch (err) {
+        console.error('Failed to unsubscribe from feed:', err)
+      }
+    }
+  }
+
   private emit() {
     for (const listener of this.listeners) {
       listener(this.state)

@@ -7,6 +7,8 @@ import {
   Globe,
 } from 'lucide-react'
 
+import { useFeedBridge } from '../bridge'
+
 type TopicFilter = 'trending' | 'following' | 'new'
 
 interface Topic {
@@ -19,6 +21,17 @@ interface Topic {
   following: boolean
   hot?: boolean
   recentPost?: { author: string; avatar: string; excerpt: string; likes: number; comments: number }
+}
+
+const JID_MAP: Record<string, string> = {
+  'Yuki Tanaka': 'yukitan@infosec.exchange',
+  'Maren Holdt': 'maren@social.coop',
+  'Kaspar Vold': 'kvold@fosstodon.org',
+  'Theo Nakashima': 'theo_n@hachyderm.io',
+  'Ingrid Larsen': 'ingridl@sigmoid.social',
+  'Felix Bergström': 'felixb@chaos.social',
+  'Elif Şahin': 'elif_dev@mastodon.social',
+  'Amara Diallo': 'amara_d@blacktwitter.io'
 }
 
 const TOPICS: Topic[] = [
@@ -158,9 +171,26 @@ export default function TopicsPage() {
   const [topics, setTopics] = useState<Topic[]>(TOPICS)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
+  const { subscribeFeed, unsubscribeFeed } = useFeedBridge()
 
-  const handleToggleFollow = (id: string) =>
-    setTopics((prev) => prev.map((t) => t.id === id ? { ...t, following: !t.following } : t))
+  const handleToggleFollow = (id: string) => {
+    const topic = topics.find((t) => t.id === id)
+    if (!topic) return
+
+    const nextFollowing = !topic.following
+    setTopics((prev) => prev.map((t) => t.id === id ? { ...t, following: nextFollowing } : t))
+
+    if (topic.recentPost?.author) {
+      const peerAddr = JID_MAP[topic.recentPost.author]
+      if (peerAddr) {
+        if (nextFollowing) {
+          void subscribeFeed(peerAddr)
+        } else {
+          void unsubscribeFeed(peerAddr)
+        }
+      }
+    }
+  }
 
   const filtered = topics.filter((t) => {
     const sortMatch = activeSort !== 'following' || t.following
