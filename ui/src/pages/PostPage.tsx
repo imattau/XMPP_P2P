@@ -174,8 +174,10 @@ function PrivacyIcon({ privacy }: { privacy?: string }) {
   return <Globe size={11} className="text-muted-foreground" />
 }
 
-function ReplyThread({ reply, onLike, onReply }: { reply: Reply; onLike: (id: string) => void; onReply: (reply: Reply) => void }) {
+function ReplyThread({ reply, onLike, onReplySubmit }: { reply: Reply; onLike: (id: string) => void; onReplySubmit: (id: string, text: string, depth: number) => void }) {
   const [collapsed, setCollapsed] = useState(false)
+  const [isReplying, setIsReplying] = useState(false)
+  const [localReplyText, setLocalReplyText] = useState('')
   const hasChildren = reply.replies && reply.replies.length > 0
   const isNested = (reply.depth ?? 0) > 0
 
@@ -206,7 +208,7 @@ function ReplyThread({ reply, onLike, onReply }: { reply: Reply; onLike: (id: st
           <p className="text-[13px] text-foreground/90 leading-relaxed mb-2">{reply.content}</p>
 
           <div className="flex items-center gap-4 -ml-1">
-            <button onClick={() => onReply(reply)} className="flex items-center gap-1 px-1 py-0.5 rounded text-muted-foreground hover:text-blue-400 hover:bg-blue-400/10 transition-all">
+            <button onClick={() => setIsReplying(!isReplying)} className="flex items-center gap-1 px-1 py-0.5 rounded text-muted-foreground hover:text-blue-400 hover:bg-blue-400/10 transition-all">
               <MessageCircle size={13} />
               {hasChildren && <span className="font-mono text-[10px]">{reply.replies!.length}</span>}
             </button>
@@ -225,10 +227,48 @@ function ReplyThread({ reply, onLike, onReply }: { reply: Reply; onLike: (id: st
         </div>
       </div>
 
+      {isReplying && (
+        <div className="ml-10 mr-4 my-2 p-3 bg-secondary/30 rounded-lg border border-border flex gap-3 items-start">
+          <div className="flex-1 min-w-0">
+            <textarea
+              autoFocus
+              value={localReplyText}
+              onChange={(e) => setLocalReplyText(e.target.value)}
+              placeholder={`Reply to @${reply.author.handle}…`}
+              rows={2}
+              className="w-full bg-transparent text-xs text-foreground placeholder:text-muted-foreground outline-none resize-none leading-relaxed"
+            />
+            <div className="flex items-center gap-2 mt-2">
+              <button 
+                onClick={() => {
+                  setIsReplying(false)
+                  setLocalReplyText('')
+                }}
+                className="px-2.5 py-1 text-[11px] font-semibold rounded text-muted-foreground hover:bg-white/5 transition-colors ml-auto"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => {
+                  if (localReplyText.trim()) {
+                    onReplySubmit(reply.id, localReplyText.trim(), reply.depth ?? 0)
+                    setIsReplying(false)
+                    setLocalReplyText('')
+                  }
+                }}
+                className="px-2.5 py-1 bg-primary text-white text-[11px] font-semibold rounded hover:bg-primary/90 transition-colors"
+              >
+                Reply
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {hasChildren && !collapsed && (
         <div>
           {reply.replies!.map((child) => (
-            <ReplyThread key={child.id} reply={{ ...child, depth: (reply.depth ?? 0) + 1 }} onLike={onLike} onReply={onReply} />
+            <ReplyThread key={child.id} reply={{ ...child, depth: (reply.depth ?? 0) + 1 }} onLike={onLike} onReplySubmit={onReplySubmit} />
           ))}
         </div>
       )}
@@ -256,7 +296,6 @@ export default function PostPage() {
   const [bookmarked, setBookmarked] = useState(post.bookmarked ?? false)
   const [replyText, setReplyText] = useState('')
   const [replies, setReplies] = useState<Reply[]>(REPLIES[id ?? ''] ?? REPLIES['1'] ?? [])
-  const [replyTarget, setReplyTarget] = useState<Reply | null>(null)
 
   const handleLikeReply = (replyId: string) => {
     const toggle = (list: Reply[]): Reply[] =>
@@ -268,41 +307,37 @@ export default function PostPage() {
     setReplies((prev) => toggle(prev))
   }
 
-  const handleReplyTarget = (target: Reply) => {
-    setReplyTarget(target)
-    setTimeout(() => {
-      const textarea = document.getElementById('reply-textarea')
-      if (textarea) {
-        (textarea as HTMLTextAreaElement).focus()
-      }
-    }, 50)
-  }
-
   const handleSubmitReply = () => {
     if (!replyText.trim()) return
     const newReply: Reply = {
-      id: `new-${Date.now()}`, depth: replyTarget ? (replyTarget.depth ?? 0) + 1 : 0,
+      id: `new-${Date.now()}`, depth: 0,
       author: { name: 'You', handle: 'you', avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=48&h=48&fit=crop&auto=format', verified: true, server: 'jabber.de' },
       content: replyText.trim(),
       timestamp: 'just now', likes: 0,
     }
-    if (replyTarget) {
-      const insertNested = (list: Reply[]): Reply[] =>
-        list.map((r) => {
-          if (r.id === replyTarget.id) {
-            return { ...r, replies: [newReply, ...(r.replies ?? [])] }
-          }
-          if (r.replies) {
-            return { ...r, replies: insertNested(r.replies) }
-          }
-          return r
-        })
-      setReplies((prev) => insertNested(prev))
-      setReplyTarget(null)
-    } else {
-      setReplies((prev) => [newReply, ...prev])
-    }
+    setReplies((prev) => [newReply, ...prev])
     setReplyText('')
+  }
+
+  const handleSubmitNestedReply = (targetId: string, text: string, targetDepth: number) => {
+    const newReply: Reply = {
+      id: `new-${Date.now()}`,
+      depth: targetDepth + 1,
+      author: { name: 'You', handle: 'you', avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=48&h=48&fit=crop&auto=format', verified: true, server: 'jabber.de' },
+      content: text,
+      timestamp: 'just now', likes: 0,
+    }
+    const insertNested = (list: Reply[]): Reply[] =>
+      list.map((r) => {
+        if (r.id === targetId) {
+          return { ...r, replies: [newReply, ...(r.replies ?? [])] }
+        }
+        if (r.replies) {
+          return { ...r, replies: insertNested(r.replies) }
+        }
+        return r
+      })
+    setReplies((prev) => insertNested(prev))
   }
 
   const handleRepost = () => {
@@ -413,15 +448,6 @@ export default function PostPage() {
           </div>
         </div>
 
-        {replyTarget && (
-          <div className="px-4 py-1.5 bg-primary/10 border-b border-border flex items-center justify-between text-xs text-primary font-mono">
-            <span>Replying to @{replyTarget.author.handle}</span>
-            <button onClick={() => setReplyTarget(null)} className="text-muted-foreground hover:text-foreground">
-              <X size={14} />
-            </button>
-          </div>
-        )}
-
         <div className="px-4 py-3 border-b border-border flex gap-3 items-start">
           <div className="w-8 h-8 rounded-full overflow-hidden bg-secondary border border-border flex-shrink-0 mt-0.5">
             <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=48&h=48&fit=crop&auto=format" alt="You" className="w-full h-full object-cover" />
@@ -431,11 +457,11 @@ export default function PostPage() {
               id="reply-textarea"
               value={replyText}
               onChange={(e) => setReplyText(e.target.value)}
-              placeholder={replyTarget ? `Reply to @${replyTarget.author.handle}…` : `Reply to @${post.author.handle}…`}
+              placeholder={`Reply to @${post.author.handle}…`}
               rows={replyText.length > 80 ? 3 : 1}
               className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none resize-none leading-relaxed"
             />
-            {(replyText.length > 0 || replyTarget) && (
+            {replyText.length > 0 && (
               <div className="flex items-center gap-2 mt-2">
                 <div className="flex items-center gap-0.5">
                   {[Image, AtSign, Smile].map((Icon, i) => (
@@ -467,7 +493,7 @@ export default function PostPage() {
         <div>
           {replies.map((reply) => (
             <div key={reply.id} className="border-b border-border last:border-0">
-              <ReplyThread reply={reply} onLike={handleLikeReply} onReply={handleReplyTarget} />
+              <ReplyThread reply={reply} onLike={handleLikeReply} onReplySubmit={handleSubmitNestedReply} />
             </div>
           ))}
         </div>
