@@ -20,7 +20,9 @@ import {
   type XmppRosterFile,
   type XmppSubscriptionFile,
   type XmppVCardFile,
-  type XmppVCardProfile
+  type XmppVCardProfile,
+  type XmppMessage,
+  type XmppChatHistoryFile
 } from './xmpp-records.js'
 
 export interface XmppPersistenceLoadContext {
@@ -34,6 +36,7 @@ export interface XmppPersistenceLoadContext {
   attachmentHistory: Map<string, XmppAttachment>
   mucRooms: Map<string, XmppMucRoomSettings>
   mucHistory: Map<string, XmppMucMessage>
+  chatHistory: Map<string, XmppMessage>
   vCard: XmppVCardProfile
   normalizeRosterEntry: (entry: Partial<XmppRosterEntry> & { jid: string }) => XmppRosterEntry
   normalizeFeedPost: (entry: Partial<XmppFeedPost> & { id: string; topic: string; from: string; body: string }) => XmppFeedPost
@@ -67,6 +70,7 @@ export interface XmppPersistenceSaveContext {
   attachmentHistory: Map<string, XmppAttachment>
   mucRooms: Map<string, XmppMucRoomSettings>
   mucHistory: Map<string, XmppMucMessage>
+  chatHistory: Map<string, XmppMessage>
   vCard: XmppVCardProfile
   openPgpState?: XmppOpenPgpStateFile
 }
@@ -215,6 +219,19 @@ export async function loadMucHistoryState(ctx: XmppPersistenceLoadContext, limit
   }
 }
 
+export async function loadChatHistoryState(ctx: XmppPersistenceLoadContext, limit: number): Promise<void> {
+  try {
+    const parsed = await readState<XmppChatHistoryFile | XmppMessage[]>(ctx.storage, 'chat_history')
+    const messages = Array.isArray(parsed) ? parsed : parsed?.messages
+    for (const msg of messages ?? []) {
+      ctx.chatHistory.set(msg.id || Math.random().toString(36).substring(2, 15), msg)
+    }
+    trimMap(ctx.chatHistory, limit)
+  } catch (err: any) {
+    console.error('[XMPP] Failed to load chat history from storage:', err)
+  }
+}
+
 export async function loadVCardState(ctx: XmppPersistenceLoadContext): Promise<void> {
   try {
     const parsed = await readState<XmppVCardFile | XmppVCardProfile>(ctx.storage, 'vcard')
@@ -307,6 +324,18 @@ export async function persistMucHistoryState(ctx: XmppPersistenceSaveContext): P
     messages: Array.from(ctx.mucHistory.values()).sort((a, b) => a.timestamp.localeCompare(b.timestamp))
   }
   await writeState(ctx.storage, 'muc_history', payload)
+}
+
+export async function persistChatHistoryState(ctx: XmppPersistenceSaveContext): Promise<void> {
+  const payload: XmppChatHistoryFile = {
+    version: 1,
+    messages: Array.from(ctx.chatHistory.values()).sort((a, b) => {
+      const aStamp = a.delay?.stamp || ''
+      const bStamp = b.delay?.stamp || ''
+      return aStamp.localeCompare(bStamp)
+    })
+  }
+  await writeState(ctx.storage, 'chat_history', payload)
 }
 
 export async function persistVCardState(ctx: XmppPersistenceSaveContext): Promise<void> {

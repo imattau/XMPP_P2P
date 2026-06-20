@@ -5,6 +5,7 @@ import { parseCapsPresence, getCapsCacheKey, buildDiscoInfoQuery, buildDiscoItem
 import { handlePubSubMessageElement as handlePubSubMessageElementFromModule } from './xmpp-pubsub.js'
 import { handleSecureMessageStanza as handleSecureMessageStanzaFromModule } from './xmpp-secure.js'
 import { buildVCard, parseVCard, VCARD_XMLNS } from './xmpp-vcard.js'
+import { parseXepMetadata } from './xmpp-xep-helpers.js'
 
 const ROSTER_XMLNS = 'jabber:iq:roster'
 const NICK_XMLNS = 'http://jabber.org/protocol/nick'
@@ -68,6 +69,8 @@ export interface XmppRouterContext {
   getPubSubContext(): any
   getSecureContext(): any
   emit(event: string, ...args: any[]): boolean
+  handleIncomingMamQuery(element: Element, peerId: string): Promise<void>
+  handleIncomingMamResult(element: Element, peerId: string): Promise<void>
   muc?: any
 }
 
@@ -280,6 +283,30 @@ export async function handleIqStanza(ctx: XmppRouterContext, peerId: string, ele
     return
   }
 
+  const enableEl = element.getChild('enable')
+  if (enableEl && enableEl.attrs.xmlns === 'urn:xmpp:carbons:2') {
+    if (type === 'set') {
+      const xmppStream = ctx.streams.get(peerId)
+      if (xmppStream) {
+        (xmppStream as any).carbonsEnabled = true
+      }
+      await sendIqResult(ctx, peerId, id)
+      return
+    }
+  }
+
+  const disableEl = element.getChild('disable')
+  if (disableEl && disableEl.attrs.xmlns === 'urn:xmpp:carbons:2') {
+    if (type === 'set') {
+      const xmppStream = ctx.streams.get(peerId)
+      if (xmppStream) {
+        (xmppStream as any).carbonsEnabled = false
+      }
+      await sendIqResult(ctx, peerId, id)
+      return
+    }
+  }
+
   if (!query) {
     const pubsub = element.getChild('pubsub')
     if (pubsub) {
@@ -310,7 +337,12 @@ export async function handleIqStanza(ctx: XmppRouterContext, peerId: string, ele
 
   if (query.attrs.xmlns === 'urn:xmpp:mam:2') {
     if (type === 'get') {
-      void (ctx as any).muc.handleIncomingMamQuery(element, peerId).catch(() => {})
+      const node = query.attrs.node
+      if (node) {
+        void (ctx as any).muc.handleIncomingMamQuery(element, peerId).catch(() => {})
+      } else {
+        void ctx.handleIncomingMamQuery(element, peerId).catch(() => {})
+      }
       return
     }
   }
@@ -498,19 +530,49 @@ export async function handleStanza(ctx: XmppRouterContext, peerId: string, eleme
   }
 
   if (element.name === 'message') {
-    const resultEl = element.getChild('result')
+    const metadata = parseXepMetadata(element)
+
+    let targetElement = element
+    let carbonInfo: { type: 'sent' | 'received' } | undefined = undefined
+
+    if (metadata.carbon) {
+      targetElement = metadata.carbon.forwardedMessage
+      carbonInfo = { type: metadata.carbon.type }
+    }
+
+    const resultEl = targetElement.getChild('result')
     if (resultEl && resultEl.attrs.xmlns === 'urn:xmpp:mam:2') {
-      void (ctx as any).muc.handleIncomingMamResult(element, peerId).catch(() => {})
+      const forwardedEl = resultEl.getChild('forwarded')
+      const innerMsg = forwardedEl?.getChild('message')
+      if (innerMsg && innerMsg.attrs.type === 'groupchat') {
+        void (ctx as any).muc.handleIncomingMamResult(targetElement, peerId).catch(() => {})
+      } else {
+        void ctx.handleIncomingMamResult(targetElement, peerId).catch(() => {})
+      }
       return
     }
 
-    const eventEl = element.getChild('event')
+    const eventEl = targetElement.getChild('event')
     if (eventEl && eventEl.attrs.xmlns === PUBSUB_EVENT_XMLNS) {
-      await handlePubSubMessageElementFromModule(peerId, element, ctx.getPubSubContext())
+      await handlePubSubMessageElementFromModule(peerId, targetElement, ctx.getPubSubContext())
       return
     }
 
-    if (await handleSecureMessageStanzaFromModule(element, fromJid, toJid, ctx.getSecureContext())) {
+    const innerFromJid = targetElement.attrs.from || fromJid
+    const innerToJid = targetElement.attrs.to || toJid
+
+    const secureCtx = ctx.getSecureContext()
+    const wrappedSecureCtx = carbonInfo ? {
+      ...secureCtx,
+      emitMessage: (msg: any) => {
+        secureCtx.emitMessage({
+          ...msg,
+          carbon: carbonInfo
+        })
+      }
+    } : secureCtx
+
+    if (await handleSecureMessageStanzaFromModule(targetElement, innerFromJid, innerToJid, wrappedSecureCtx)) {
       return
     }
     return

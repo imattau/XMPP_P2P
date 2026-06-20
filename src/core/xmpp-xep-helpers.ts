@@ -9,6 +9,9 @@ export const PING_XMLNS = 'urn:xmpp:ping'
 export const NICK_XMLNS = 'http://jabber.org/protocol/nick'
 export const SID_XMLNS = 'urn:xmpp:sid:0'
 
+export const CARBONS_XMLNS = 'urn:xmpp:carbons:2'
+export const FORWARD_XMLNS = 'urn:xmpp:forward:0'
+
 export interface XepMetadata {
   receipt?: { type: 'request' | 'received'; id: string }
   chatState?: 'active' | 'composing' | 'paused' | 'inactive' | 'gone'
@@ -19,6 +22,8 @@ export interface XepMetadata {
   nick?: string
   originId?: string
   stanzaId?: { id: string; by: string }
+  carbon?: { type: 'sent' | 'received'; forwardedMessage: Element }
+  private?: boolean
 }
 
 export function parseXepMetadata(element: Element): XepMetadata {
@@ -97,6 +102,34 @@ export function parseXepMetadata(element: Element): XepMetadata {
     }
   }
 
+  // Parse XEP-0280 Message Carbons
+  const privateEl = element.getChild('private')
+  if (privateEl && privateEl.attrs.xmlns === CARBONS_XMLNS) {
+    metadata.private = true
+  }
+
+  const receivedCarbonEl = element.getChild('received')
+  if (receivedCarbonEl && receivedCarbonEl.attrs.xmlns === CARBONS_XMLNS) {
+    const forwardedEl = receivedCarbonEl.getChild('forwarded')
+    if (forwardedEl && forwardedEl.attrs.xmlns === FORWARD_XMLNS) {
+      const forwardedMsg = forwardedEl.getChild('message')
+      if (forwardedMsg) {
+        metadata.carbon = { type: 'received', forwardedMessage: forwardedMsg }
+      }
+    }
+  }
+
+  const sentCarbonEl = element.getChild('sent')
+  if (sentCarbonEl && sentCarbonEl.attrs.xmlns === CARBONS_XMLNS) {
+    const forwardedEl = sentCarbonEl.getChild('forwarded')
+    if (forwardedEl && forwardedEl.attrs.xmlns === FORWARD_XMLNS) {
+      const forwardedMsg = forwardedEl.getChild('message')
+      if (forwardedMsg) {
+        metadata.carbon = { type: 'sent', forwardedMessage: forwardedMsg }
+      }
+    }
+  }
+
   return metadata
 }
 
@@ -110,8 +143,13 @@ export function buildXepElements(options: {
   nick?: string
   originId?: string
   stanzaId?: { id: string; by: string }
+  private?: boolean
 }): Element[] {
   const elements: Element[] = []
+
+  if (options.private) {
+    elements.push(xml('private', { xmlns: CARBONS_XMLNS }))
+  }
 
   if (options.requestReceipt) {
     elements.push(xml('request', { xmlns: RECEIPTS_XMLNS }))

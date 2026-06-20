@@ -28,6 +28,8 @@ export interface XmppMessage {
   thread?: string
   originId?: string
   stanzaId?: { id: string; by: string }
+  carbon?: { type: 'sent' | 'received' }
+  private?: boolean
 }
 
 export interface XmppPresence {
@@ -611,4 +613,9 @@ export function normalizeMucMessage(entry: Partial<XmppMucMessage> & { id: strin
       : undefined,
     thread: entry.thread
   }
+}
+
+export interface XmppChatHistoryFile {
+  version: number
+  messages: XmppMessage[]
 }

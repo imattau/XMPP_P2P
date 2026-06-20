@@ -154,9 +154,19 @@ export async function handleSecureMessageStanza(
   element: Element,
   fromJid: string,
   toJid: string,
-  ctx: XmppSecureContext
+  rawCtx: XmppSecureContext
 ): Promise<boolean> {
   const metadata = parseXepMetadata(element)
+
+  const ctx = {
+    ...rawCtx,
+    emitMessage: (message: any) => {
+      rawCtx.emitMessage({
+        ...message,
+        ...(metadata.private ? { private: true } : {})
+      })
+    }
+  }
 
   // Handle Receipt auto-reply if requested
   if (metadata.receipt?.type === 'request' && element.attrs.id) {
@@ -313,6 +323,7 @@ export async function sendEncryptedMessage(
     chatState?: 'active' | 'composing' | 'paused' | 'inactive' | 'gone'
     delay?: { stamp: string; from?: string }
     nick?: string
+    noCarbons?: boolean
   } = {}
 ): Promise<string> {
   await ctx.ready
@@ -366,7 +377,8 @@ export async function sendEncryptedMessage(
     reply: options.reply,
     thread: options.thread,
     originId: itemId,
-    stanzaId: { id: itemId, by: ctx.jid }
+    stanzaId: { id: itemId, by: ctx.jid },
+    private: options.noCarbons
   }))
 
   const stanza = xml(

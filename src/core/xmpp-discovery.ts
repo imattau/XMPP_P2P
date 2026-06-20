@@ -23,7 +23,8 @@ import {
   CORRECT_XMLNS,
   PING_XMLNS,
   SID_XMLNS,
-  REPLY_XMLNS
+  REPLY_XMLNS,
+  CARBONS_XMLNS
 } from './xmpp-xep-helpers.js'
 
 export {
@@ -33,7 +34,8 @@ export {
   CORRECT_XMLNS,
   PING_XMLNS,
   SID_XMLNS,
-  REPLY_XMLNS
+  REPLY_XMLNS,
+  CARBONS_XMLNS
 }
 
 export interface XmppDiscoIdentity {
@@ -145,7 +147,8 @@ export function getDiscoveryFeatures(
     CORRECT_XMLNS,
     PING_XMLNS,
     SID_XMLNS,
-    REPLY_XMLNS
+    REPLY_XMLNS,
+    CARBONS_XMLNS
   ])
 
   if (findCollection(collections, node)) {
