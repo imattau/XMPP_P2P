@@ -1,6 +1,4 @@
-import { promises as fs } from 'fs'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'http'
-import { join } from 'path'
 import { createHash } from 'crypto'
 import { xml, Element } from '@xmpp/xml'
 import { HTTP_UPLOAD_XMLNS } from './xmpp-discovery.js'
@@ -8,15 +6,14 @@ import {
   type XmppUploadManifest,
   type XmppUploadProvider
 } from './xmpp-records.js'
+import type { XmppStorage } from './storage/types.js'
 
 export const UPLOAD_ANNOUNCEMENTS_TOPIC = 'xmpp-upload:announcements'
 
 export interface XmppUploadContext {
   jid: string
   ready: Promise<void>
-  uploadPath: string
-  uploadObjectsPath: string
-  uploadAliasesPath: string
+  storage: XmppStorage
   uploadPort: number
   uploadHost: string
   getPubSubService(): any
@@ -36,23 +33,6 @@ export class XmppUploadManager {
     this.context = context
   }
 
-  private uploadObjectPath(cid: string): string {
-    return join(this.context.uploadObjectsPath, cid)
-  }
-
-  private uploadObjectMetaPath(cid: string): string {
-    return join(this.context.uploadObjectsPath, `${cid}.json`)
-  }
-
-  private uploadAliasPath(slotId: string): string {
-    return join(this.context.uploadAliasesPath, `${encodeURIComponent(slotId)}.json`)
-  }
-
-  private async ensureUploadStorage(): Promise<void> {
-    await fs.mkdir(this.context.uploadObjectsPath, { recursive: true })
-    await fs.mkdir(this.context.uploadAliasesPath, { recursive: true })
-  }
-
   public async ensureUploadServer(): Promise<void> {
     if (this.uploadServerReady) {
       await this.uploadServerReady
@@ -60,7 +40,6 @@ export class XmppUploadManager {
     }
 
     this.uploadServerReady = (async () => {
-      await this.ensureUploadStorage()
       this.uploadServer = createServer((req, res) => {
         void this.handleUploadHttpRequest(req, res).catch(err => {
           console.error('[XMPP] Upload server error:', err)
@@ -147,12 +126,7 @@ export class XmppUploadManager {
   }
 
   private async hasUploadObject(cid: string): Promise<boolean> {
-    try {
-      await fs.access(this.uploadObjectPath(cid))
-      return true
-    } catch {
-      return false
-    }
+    return (await this.context.storage.getBlob('uploads', cid)) !== undefined
   }
 
   public getUploadContentUrl(cid: string): string | undefined {
@@ -216,12 +190,9 @@ export class XmppUploadManager {
   }
 
   private async storeUploadObject(manifest: XmppUploadManifest, payload: Buffer): Promise<void> {
-    await this.ensureUploadStorage()
-    const objectPath = this.uploadObjectPath(manifest.cid)
-    const objectMetaPath = this.uploadObjectMetaPath(manifest.cid)
     const providers = this.buildUploadProviders(manifest)
-    await fs.writeFile(objectPath, payload)
-    await fs.writeFile(objectMetaPath, JSON.stringify({
+    await this.context.storage.putBlob('uploads', manifest.cid, new Uint8Array(payload))
+    await this.context.storage.putRecord('uploads_meta', manifest.cid, JSON.stringify({
       cid: manifest.cid,
       slotId: manifest.slotId,
       filename: manifest.filename,
@@ -232,7 +203,7 @@ export class XmppUploadManager {
       from: manifest.from,
       providers,
       cachedAt: new Date().toISOString()
-    }, null, 2))
+    }), new Date().toISOString())
   }
 
   private sortUploadProviders(manifest: XmppUploadManifest, providers: XmppUploadProvider[]): XmppUploadProvider[] {
@@ -363,27 +334,23 @@ export class XmppUploadManager {
   }
 
   private async readUploadAlias(slotId: string): Promise<{ cid: string } | undefined> {
-    try {
-      const raw = await fs.readFile(this.uploadAliasPath(slotId), 'utf8')
-      const parsed = JSON.parse(raw) as { cid?: string }
-      if (typeof parsed.cid === 'string' && parsed.cid.length > 0) {
-        return { cid: parsed.cid }
-      }
-    } catch {
+    const raw = await this.context.storage.getRecord('uploads_alias', slotId)
+    if (raw === undefined) {
       return undefined
     }
-
+    const parsed = JSON.parse(raw) as { cid?: string }
+    if (typeof parsed.cid === 'string' && parsed.cid.length > 0) {
+      return { cid: parsed.cid }
+    }
     return undefined
   }
 
   private async readUploadMeta(cid: string): Promise<{ filename?: string; contentType?: string; size?: number; slotId?: string } | undefined> {
-    try {
-      const raw = await fs.readFile(this.uploadObjectMetaPath(cid), 'utf8')
-      const parsed = JSON.parse(raw) as { filename?: string; contentType?: string; size?: number; slotId?: string }
-      return parsed
-    } catch {
+    const raw = await this.context.storage.getRecord('uploads_meta', cid)
+    if (raw === undefined) {
       return undefined
     }
+    return JSON.parse(raw) as { filename?: string; contentType?: string; size?: number; slotId?: string }
   }
 
   public async handleUploadHttpRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
@@ -439,24 +406,21 @@ export class XmppUploadManager {
 
       const payload = Buffer.concat(chunks)
       const cid = createHash('sha256').update(payload).digest('hex')
-      const objectPath = this.uploadObjectPath(cid)
-      const objectMetaPath = this.uploadObjectMetaPath(cid)
-      const aliasPath = this.uploadAliasPath(slotId)
 
-      await fs.writeFile(objectPath, payload)
-      await fs.writeFile(objectMetaPath, JSON.stringify({
+      await this.context.storage.putBlob('uploads', cid, new Uint8Array(payload))
+      await this.context.storage.putRecord('uploads_meta', cid, JSON.stringify({
         cid,
         slotId,
         filename: slot.filename,
         contentType: slot.contentType,
         size: slot.size,
         uploadedAt: new Date().toISOString()
-      }, null, 2))
-      await fs.writeFile(aliasPath, JSON.stringify({
+      }), new Date().toISOString())
+      await this.context.storage.putRecord('uploads_alias', slotId, JSON.stringify({
         cid,
         slotId,
         uploadedAt: new Date().toISOString()
-      }, null, 2))
+      }), new Date().toISOString())
       this.uploadSlots.delete(slotId)
 
       const manifest: XmppUploadManifest = {
@@ -489,35 +453,29 @@ export class XmppUploadManager {
       return
     }
 
-    const objectPath = this.uploadObjectPath(ipfsId)
     const objectMeta = await this.readUploadMeta(ipfsId)
-    try {
-      const data = await fs.readFile(objectPath)
-      res.statusCode = 200
-      res.setHeader('Content-Type', objectMeta?.contentType ?? 'application/octet-stream')
-      res.setHeader('Content-Length', String(data.length))
-      if (objectMeta?.filename) {
-        res.setHeader('Content-Disposition', `attachment; filename="${objectMeta.filename.replace(/\"/g, '\\"')}"`)
-      }
-      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
-      res.end(data)
-    } catch {
+    let data = await this.context.storage.getBlob('uploads', ipfsId)
+    if (!data) {
       const manifest = this.uploadManifests.get(ipfsId)
       if (manifest && await this.fetchAndCacheUpload(manifest)) {
-        const data = await fs.readFile(objectPath)
-        res.statusCode = 200
-        res.setHeader('Content-Type', objectMeta?.contentType ?? manifest.contentType ?? 'application/octet-stream')
-        res.setHeader('Content-Length', String(data.length))
-        if (manifest.filename) {
-          res.setHeader('Content-Disposition', `attachment; filename="${manifest.filename.replace(/\"/g, '\\"')}"`)
-        }
-        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
-        res.end(data)
-        return
+        data = await this.context.storage.getBlob('uploads', ipfsId)
       }
+    }
+
+    if (!data) {
       res.statusCode = 404
       res.end('not found')
+      return
     }
+
+    res.statusCode = 200
+    res.setHeader('Content-Type', objectMeta?.contentType ?? 'application/octet-stream')
+    res.setHeader('Content-Length', String(data.length))
+    if (objectMeta?.filename) {
+      res.setHeader('Content-Disposition', `attachment; filename="${objectMeta.filename.replace(/\"/g, '\\"')}"`)
+    }
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+    res.end(Buffer.from(data))
   }
 
   public async createUploadSlot(slotId: string, filename: string, contentType: string, size: number): Promise<Element> {
