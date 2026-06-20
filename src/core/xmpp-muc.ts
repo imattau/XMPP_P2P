@@ -2,9 +2,33 @@ import { xml, Element, Parser } from '@xmpp/xml'
 import { randomBytes, createCipheriv } from 'crypto'
 import { loadOmemoModule } from './omemo-runtime.js'
 import { decryptOmemoKey, decryptOmemoPayload, ensureOmemoSession } from './xmpp-secure.js'
+import { TopicValidatorResult } from '@libp2p/gossipsub'
+import { Multiaddr } from '@multiformats/multiaddr'
+import { XmppStream } from './xmpp-stream.js'
+import {
+  XmppMucRoomSettings,
+  XmppMucMessage,
+  normalizeMucRoomSettings,
+  normalizeMucMessage
+} from './xmpp-records.js'
+import { XmppStorage } from './storage/types.js'
+import {
+  loadMucStateFromDht,
+  persistMucStateToDht,
+  mucSettingsKey,
+  readDhtJson,
+  writeDhtJson
+} from './xmpp-dht.js'
+import {
+  loadMucState,
+  loadMucHistoryState,
+  persistMucState,
+  persistMucHistoryState
+} from './xmpp-persistence.js'
 
 export const MUC_XMLNS = 'http://jabber.org/protocol/muc'
 const MUC_USER_XMLNS = 'http://jabber.org/protocol/muc#user'
+const MUC_HISTORY_LIMIT = 500
 
 export interface MucOccupant {
   nick: string
@@ -35,18 +59,21 @@ export interface MucRoomSettings {
 
 export interface XmppMucContext {
   jid: string
+  libp2p: any
+  storage: XmppStorage
+  ready: Promise<void>
   getPubSubService(): any
-  persistMucState(): Promise<void>
-  ensureMucRoomSettings(roomName: string): Promise<MucRoomSettings | undefined>
-  getMucRoomSettings(roomName: string): MucRoomSettings | undefined
-  setMucRoomSettings(roomName: string, settings: MucRoomSettings): void
-  emit(event: string, ...args: any[]): boolean
-  recordMucMessage(msg: import('./xmpp-records.js').XmppMucMessage): Promise<boolean>
-  getMucHistory(room: string): import('./xmpp-records.js').XmppMucMessage[]
-  sendIqRequest(target: string, stanza: Element, timeoutMs?: number): Promise<Element>
+  getOrCreateStream(peerAddr: string | Multiaddr): Promise<XmppStream>
+  sendIqRequest(target: string | Multiaddr, stanza: Element, timeoutMs?: number): Promise<Element>
   sendIqResult(peerId: string, id: string, payload?: Element): Promise<void>
   sendIqError(peerId: string, element: Element, condition: string, type?: string, text?: string): Promise<void>
-  getOrCreateStream(target: string | any): Promise<any>
+  emit(event: string, ...args: any[]): boolean
+  handleStanza(peerId: string, element: Element): Promise<void>
+  getSelfNick(): string
+  getPeerOmemoDevices(jid: string): Promise<number[]>
+  getOmemoStore(): any
+  getSecureContext(): any
+  getOmemoDeviceIdOrThrow(): number
 }
 
 function validateRoomName(roomName: string) {
@@ -173,6 +200,11 @@ export class XmppMucManager {
   private rooms = new Map<string, MucRoomState>()
   private presenceInterval?: NodeJS.Timeout
 
+  public readonly mucRooms = new Map<string, XmppMucRoomSettings>()
+  public readonly mucHistory = new Map<string, XmppMucMessage>()
+  private mucSaveQueue: Promise<void> = Promise.resolve()
+  private mucHistorySaveQueue: Promise<void> = Promise.resolve()
+
   constructor(ctx: XmppMucContext) {
     this.ctx = ctx
     this.presenceInterval = setInterval(() => {
@@ -181,6 +213,189 @@ export class XmppMucManager {
       }
     }, 1500)
   }
+
+  public async initialize(): Promise<void> {
+    await this.loadMucState()
+    await this.loadMucHistory()
+  }
+
+  public async loadMucState(): Promise<void> {
+    const dhtCtx = {
+      libp2p: this.ctx.libp2p,
+      mucRooms: this.mucRooms,
+      ensureMucRoomSettings: this.ensureMucRoomSettings.bind(this),
+      handleStanza: this.ctx.handleStanza.bind(this.ctx),
+      emit: this.ctx.emit.bind(this)
+    }
+    await loadMucStateFromDht(dhtCtx).catch(err => {
+      console.error('[XMPP] Failed to load MUC state from DHT:', err)
+    })
+
+    if (this.mucRooms.size === 0) {
+      await loadMucState({
+        storage: this.ctx.storage,
+        mucRooms: this.mucRooms,
+        normalizeMucRoomSettings
+      } as any)
+    }
+
+    for (const settings of this.mucRooms.values()) {
+      if (settings.autoJoin) {
+        await this.joinRoom(settings.roomName, this.ctx.getSelfNick())
+      }
+    }
+  }
+
+  private async loadMucHistory(): Promise<void> {
+    await loadMucHistoryState({
+      storage: this.ctx.storage,
+      mucHistory: this.mucHistory,
+      normalizeMucMessage,
+      mucHistoryKey: (room: string, id: string) => `${room}:${id}`
+    } as any, MUC_HISTORY_LIMIT)
+  }
+
+  public async persistMucState(): Promise<void> {
+    const dhtCtx = {
+      libp2p: this.ctx.libp2p,
+      mucRooms: this.mucRooms,
+      ensureMucRoomSettings: this.ensureMucRoomSettings.bind(this),
+      handleStanza: this.ctx.handleStanza.bind(this.ctx),
+      emit: this.ctx.emit.bind(this)
+    }
+    await persistMucStateToDht(dhtCtx)
+    await persistMucState({
+      storage: this.ctx.storage,
+      mucRooms: this.mucRooms
+    } as any)
+  }
+
+  private async persistMucHistory(): Promise<void> {
+    await persistMucHistoryState({
+      storage: this.ctx.storage,
+      mucHistory: this.mucHistory
+    } as any)
+  }
+
+  public scheduleMucPersist(): Promise<void> {
+    this.mucSaveQueue = this.mucSaveQueue
+      .then(() => this.persistMucState())
+      .catch(err => {
+        console.error('[XMPP] Failed to persist MUC state:', err)
+      })
+    return this.mucSaveQueue
+  }
+
+  public scheduleMucHistoryPersist(): Promise<void> {
+    this.mucHistorySaveQueue = this.mucHistorySaveQueue
+      .then(() => this.persistMucHistory())
+      .catch(err => {
+        console.error('[XMPP] Failed to persist MUC history:', err)
+      })
+    return this.mucHistorySaveQueue
+  }
+
+  public async ensureMucRoomSettings(roomName: string): Promise<MucRoomSettings | undefined> {
+    const existing = this.mucRooms.get(roomName)
+    if (existing) {
+      return {
+        topic: existing.topic,
+        defaultSecure: existing.defaultMode === 'secure',
+        autoJoin: existing.autoJoin,
+        communityId: existing.communityId,
+        archived: existing.archived
+      }
+    }
+
+    const settings = await readDhtJson<XmppMucRoomSettings>(this.ctx.libp2p, mucSettingsKey(roomName))
+    if (!settings) {
+      return undefined
+    }
+
+    const normalized = normalizeMucRoomSettings(settings)
+    this.mucRooms.set(roomName, normalized)
+    return {
+      topic: normalized.topic,
+      defaultSecure: normalized.defaultMode === 'secure',
+      autoJoin: normalized.autoJoin,
+      communityId: normalized.communityId,
+      archived: normalized.archived
+    }
+  }
+
+  public getMucRoomSettings(roomName: string): MucRoomSettings | undefined {
+    const settings = this.mucRooms.get(roomName)
+    if (!settings) return undefined
+    return {
+      topic: settings.topic,
+      defaultSecure: settings.defaultMode === 'secure',
+      autoJoin: settings.autoJoin,
+      communityId: settings.communityId,
+      archived: settings.archived
+    }
+  }
+
+  public setMucRoomSettings(roomName: string, settings: MucRoomSettings): void {
+    this.mucRooms.set(roomName, {
+      roomName,
+      topic: settings.topic?.trim() || undefined,
+      communityId: settings.communityId?.trim() || undefined,
+      defaultMode: settings.defaultSecure ? 'secure' : 'open',
+      autoJoin: settings.autoJoin,
+      archived: settings.archived,
+      updatedAt: new Date().toISOString()
+    })
+  }
+
+  public async updateMucRoomSettings(roomName: string, settings: { topic?: string; defaultMode?: 'secure' | 'open'; autoJoin?: boolean; communityId?: string; archived?: boolean }): Promise<void> {
+    const normalized = normalizeMucRoomSettings({
+      roomName,
+      topic: settings.topic,
+      defaultMode: settings.defaultMode,
+      autoJoin: settings.autoJoin,
+      communityId: settings.communityId,
+      archived: settings.archived,
+      updatedAt: new Date().toISOString()
+    })
+
+     this.mucRooms.set(roomName, normalized)
+     this.setRoomSettings(roomName, {
+       topic: normalized.topic,
+       defaultSecure: normalized.defaultMode === 'secure',
+       autoJoin: normalized.autoJoin,
+       communityId: normalized.communityId,
+       archived: normalized.archived
+     })
+     await this.scheduleMucPersist()
+   }
+
+   public async recordMucMessage(msg: XmppMucMessage): Promise<boolean> {
+     await this.ctx.ready
+     const normalized = normalizeMucMessage(msg)
+     const key = `${normalized.room}:${normalized.id}`
+     if (this.mucHistory.has(key)) {
+       return false
+     }
+
+     this.mucHistory.set(key, normalized)
+
+     while (this.mucHistory.size > MUC_HISTORY_LIMIT) {
+       const oldestKey = this.mucHistory.keys().next().value as string | undefined
+       if (!oldestKey) {
+         break
+       }
+       this.mucHistory.delete(oldestKey)
+     }
+
+     await this.scheduleMucHistoryPersist()
+     return true
+   }
+
+   public getMucHistory(room: string): XmppMucMessage[] {
+     return Array.from(this.mucHistory.values())
+       .filter(msg => msg.room === room)
+       .sort((a, b) => a.timestamp.localeCompare(b.timestamp))
+   }
 
   close() {
     if (this.presenceInterval) {
@@ -206,7 +421,7 @@ export class XmppMucManager {
     validateNick(nick)
     const topic = this.getRoomTopic(roomName)
     const pubsub = this.ctx.getPubSubService()
-    const existingSettings = await this.ctx.ensureMucRoomSettings(roomName)
+    const existingSettings = await this.ensureMucRoomSettings(roomName)
 
     await pubsub.subscribe(topic)
     await pubsub.subscribe(`${topic}/messages`)
@@ -256,8 +471,8 @@ export class XmppMucManager {
       roomState.communityId = settings.communityId
       roomState.archived = settings.archived
     }
-    this.ctx.setMucRoomSettings(roomName, settings)
-    void this.ctx.persistMucState().catch(() => {})
+    this.setMucRoomSettings(roomName, settings)
+    void this.scheduleMucPersist().catch(() => {})
   }
 
   getRoomSettings(roomName: string): MucRoomSettings | undefined {
@@ -299,7 +514,7 @@ export class XmppMucManager {
     await this.ctx.getPubSubService().publish(`${roomState.topic}/messages`, bytes)
     await this.ctx.getPubSubService().publish(roomState.topic, bytes)
 
-    await this.ctx.recordMucMessage({
+    await this.recordMucMessage({
       id,
       room: roomName,
       from: roomState.localNick,
@@ -331,17 +546,17 @@ export class XmppMucManager {
     const keysMap = new Map<string, Element[]>()
 
     for (const occupant of roomState.occupants.values()) {
-      const devices = await (this.ctx as any).getPeerOmemoDevices(occupant.jid)
+      const devices = await this.ctx.getPeerOmemoDevices(occupant.jid)
       if (devices.length === 0) {
         continue
       }
 
       const keys: Element[] = []
       for (const deviceId of devices) {
-        await ensureOmemoSession(this.ctx as any, occupant.jid, deviceId)
+        await ensureOmemoSession(this.ctx.getSecureContext(), occupant.jid, deviceId)
         const omemo = await loadOmemoModule()
         const remoteAddress = new omemo.OMEMOAddress(occupant.jid, deviceId)
-        const sessionCipher = new omemo.SessionCipher((this.ctx as any).getOmemoStore(), remoteAddress)
+        const sessionCipher = new omemo.SessionCipher(this.ctx.getOmemoStore(), remoteAddress)
         const encryptedKey = await sessionCipher.encrypt(payloadKeyBytes)
         keys.push(xml('key', { rid: String(deviceId) }, Buffer.from(encryptedKey.body, 'binary').toString('base64')))
       }
@@ -365,7 +580,7 @@ export class XmppMucManager {
       { xmlns: 'urn:xmpp:omemo:2' },
       xml(
         'header',
-        { sid: String((this.ctx as any).getOmemoDeviceIdOrThrow()) },
+        { sid: String(this.ctx.getOmemoDeviceIdOrThrow()) },
         ...keysElements,
         xml('iv', {}, iv.toString('base64'))
       ),
@@ -393,7 +608,7 @@ export class XmppMucManager {
     await this.ctx.getPubSubService().publish(`${roomState.topic}/messages`, bytes)
     await this.ctx.getPubSubService().publish(roomState.topic, bytes)
 
-    await this.ctx.recordMucMessage({
+    await this.recordMucMessage({
       id,
       room: roomName,
       from: roomState.localNick,
@@ -458,7 +673,7 @@ export class XmppMucManager {
     const atIdx = roomJid.indexOf('@')
     const roomName = atIdx !== -1 ? roomJid.slice(0, atIdx) : roomJid
 
-    const history = this.ctx.getMucHistory(roomName)
+    const history = this.getMucHistory(roomName)
 
     for (const msg of history) {
       const msgEl = xml('message', {
@@ -540,7 +755,7 @@ export class XmppMucManager {
           reply,
           thread
         }
-        await this.ctx.recordMucMessage(mamMsg)
+        await this.recordMucMessage(mamMsg)
 
         this.ctx.emit('muc:message', {
           room: roomName,
@@ -723,7 +938,7 @@ export class XmppMucManager {
             const reply = parseReplyElement(element)
             const thread = parseThreadElement(element)
 
-            await this.ctx.recordMucMessage({
+            await this.recordMucMessage({
               id: msgId,
               room: roomName,
               from: senderNick,
@@ -765,7 +980,7 @@ export class XmppMucManager {
           const msgId = element.attrs.id || Math.random().toString(36).substring(2, 11)
           const reply = parseReplyElement(element)
           const thread = parseThreadElement(element)
-          await this.ctx.recordMucMessage({
+          await this.recordMucMessage({
             id: msgId,
             room: roomName,
             from: senderNick,

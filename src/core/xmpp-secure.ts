@@ -6,9 +6,10 @@ import { PUBSUB_EVENT_XMLNS } from './xmpp-discovery.js'
 import { loadOmemoModule, type OmemoAddress } from './omemo-runtime.js'
 import { parseXepMetadata, buildXepElements, RECEIPTS_XMLNS } from './xmpp-xep-helpers.js'
 import type { XmppStream } from './xmpp-stream.js'
-import type {
+import {
   XmppMessage,
-  XmppOpenPgpPublicKeyResponse
+  XmppOpenPgpPublicKeyResponse,
+  jidFromPeerId
 } from './xmpp-records.js'
 import type { XmppOmemoBundle } from './xmpp-omemo-state.js'
 
@@ -42,7 +43,6 @@ interface XmppOmemoStore {
 export interface XmppSecureContext {
   jid: string
   ready: Promise<void>
-  jidFromPeerId(peerId: string): string
   getOrCreateStream(peerAddr: string | Multiaddr): Promise<XmppStream>
   sendIqRequest(target: string | Multiaddr, stanza: Element, timeoutMs?: number): Promise<Element>
   emitMessage(message: XmppMessage): void
@@ -93,7 +93,7 @@ export function decryptOmemoPayload(payload: string, payloadKey: ArrayBuffer, iv
 
 export async function ensureOmemoSession(ctx: XmppSecureContext, peerAddr: string | Multiaddr, deviceId: number): Promise<void> {
   const xmppStream = await ctx.getOrCreateStream(peerAddr)
-  const peerJid = ctx.jidFromPeerId(xmppStream.remotePeer.toString())
+  const peerJid = jidFromPeerId(xmppStream.remotePeer.toString())
   const omemo = await loadOmemoModule()
   const remoteAddress = new omemo.OMEMOAddress(peerJid, deviceId)
   const store = ctx.getOmemoStore()
@@ -329,7 +329,7 @@ export async function sendEncryptedMessage(
   await ctx.ready
   const xmppStream = await ctx.getOrCreateStream(peerAddr)
   const peerId = xmppStream.remotePeer.toString()
-  const toJid = ctx.jidFromPeerId(peerId)
+  const toJid = jidFromPeerId(peerId)
   const itemId = Math.random().toString(36).substring(2, 15)
   const devices = await ctx.getPeerOmemoDevices(peerAddr)
   if (devices.length === 0) {
@@ -402,7 +402,7 @@ export async function fetchOpenPgpPublicKey(
 ): Promise<XmppOpenPgpPublicKeyResponse> {
   const xmppStream = await ctx.getOrCreateStream(peerAddr)
   const id = Math.random().toString(36).substring(2, 11)
-  const toJid = ctx.jidFromPeerId(xmppStream.remotePeer.toString())
+  const toJid = jidFromPeerId(xmppStream.remotePeer.toString())
 
   const iq = xml(
     'iq',
