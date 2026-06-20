@@ -1,5 +1,5 @@
 /**
- * @fileoverview vCard parsing and serialization helpers for local profile
+ * @packageDocumentation vCard parsing and serialization helpers for local profile
  * metadata and roster presentation.
  */
 

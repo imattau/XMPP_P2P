@@ -1,5 +1,5 @@
 /**
- * @fileoverview XMPP service discovery, entity capabilities, and feature
+ * @packageDocumentation XMPP service discovery, entity capabilities, and feature
  * advertisement helpers shared by peers and collections.
  */
 

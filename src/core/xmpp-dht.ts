@@ -1,5 +1,5 @@
 /**
- * @fileoverview DHT key helpers and mailbox persistence for XMPP state that
+ * @packageDocumentation DHT key helpers and mailbox persistence for XMPP state that
  * needs to survive reconnects or be shared across peers.
  */
 

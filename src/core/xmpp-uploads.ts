@@ -1,5 +1,5 @@
 /**
- * @fileoverview HTTP upload slot management, upload server lifecycle, and
+ * @packageDocumentation HTTP upload slot management, upload server lifecycle, and
  * pubsub announcements for uploaded content.
  */
 

@@ -1,5 +1,5 @@
 /**
- * @fileoverview Launches and manages the interactive CLI terminal session.
+ * @packageDocumentation Launches and manages the interactive CLI terminal session.
  * Subscribes to peer discovery events, handles stdin line-reading loops,
  * and routes user commands to the command runner.
  */

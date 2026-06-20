@@ -1,5 +1,5 @@
 /**
- * @fileoverview OpenPGP key generation, persistence, and lifecycle helpers
+ * @packageDocumentation OpenPGP key generation, persistence, and lifecycle helpers
  * for the XMPP secure messaging runtime.
  */
 

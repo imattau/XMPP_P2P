@@ -1,5 +1,5 @@
 /**
- * @fileoverview OMEMO and OpenPGP encryption helpers for XMPP messages,
+ * @packageDocumentation OMEMO and OpenPGP encryption helpers for XMPP messages,
  * bundles, and encrypted pubsub payloads.
  */
 
@@ -26,7 +26,7 @@ const OPENPGP_IQ_XMLNS = 'urn:xmpp:openpgp:0'
 /**
  * Minimal OMEMO store surface consumed by the runtime.
  */
-interface XmppOmemoStore {
+export interface XmppOmemoStore {
   store: Record<string, unknown>
   put: (key: string, value: unknown) => void
   get: <T = unknown>(key: string, defaultValue?: T) => T | undefined

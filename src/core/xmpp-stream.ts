@@ -1,5 +1,5 @@
 /**
- * @fileoverview Stream wrapper adapting raw P2P duplex streams to XMPP parser
+ * @packageDocumentation Stream wrapper adapting raw P2P duplex streams to XMPP parser
  * elements and XEP-0198 stream management acknowledgements.
  */
 

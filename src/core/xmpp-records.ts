@@ -1,5 +1,5 @@
 /**
- * @fileoverview Normalized XMPP record shapes and helper functions for
+ * @packageDocumentation Normalized XMPP record shapes and helper functions for
  * mapping protocol payloads into persisted application state.
  */
 

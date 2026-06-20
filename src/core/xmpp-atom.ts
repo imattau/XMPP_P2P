@@ -1,5 +1,5 @@
 /**
- * @fileoverview Atom entry building and parsing helpers for feed posts and
+ * @packageDocumentation Atom entry building and parsing helpers for feed posts and
  * microblog content.
  */
 

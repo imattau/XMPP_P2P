@@ -1,5 +1,5 @@
 /**
- * @fileoverview CLI event listeners that translate XmppNode events into
+ * @packageDocumentation CLI event listeners that translate XmppNode events into
  * terminal output and local discovered-peer bookkeeping.
  */
 

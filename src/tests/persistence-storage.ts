@@ -1,5 +1,5 @@
 /**
- * @fileoverview Persistence smoke test covering roster state round-tripping
+ * @packageDocumentation Persistence smoke test covering roster state round-tripping
  * through the storage abstraction.
  */
 

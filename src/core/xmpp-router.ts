@@ -1,5 +1,5 @@
 /**
- * @fileoverview Central stanza router for inbound XMPP IQ and presence
+ * @packageDocumentation Central stanza router for inbound XMPP IQ and presence
  * handling, including discovery, roster, pubsub, secure messaging, and MAM.
  */
 

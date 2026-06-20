@@ -1,5 +1,5 @@
 /**
- * @fileoverview Browser-targeted libomemo.js loader. The Node loader in
+ * @packageDocumentation Browser-targeted libomemo.js loader. The Node loader in
  * omemo-runtime.ts exists only to work around Node having no `document` global
  * (which libomemo.js's UMD bundle uses to resolve its own script/WASM location);
  * in a real browser that branch already works, so this is a plain dynamic import.

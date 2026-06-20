@@ -1,5 +1,5 @@
 /**
- * @fileoverview Node-side OMEMO runtime loader and libomemo.js compatibility
+ * @packageDocumentation Node-side OMEMO runtime loader and libomemo.js compatibility
  * shim used by the secure messaging layer.
  */
 

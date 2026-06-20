@@ -1,5 +1,5 @@
 /**
- * @fileoverview Main entry point for the XMPP P2P CLI application.
+ * @packageDocumentation Main entry point for the XMPP P2P CLI application.
  * Parses CLI configuration arguments, spins up the underlying libp2p network node,
  * instantiates the XMPP protocol shim, and launches the interactive CLI session.
  */

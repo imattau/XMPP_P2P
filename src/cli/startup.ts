@@ -1,5 +1,5 @@
 /**
- * @fileoverview CLI startup argument parsing and usage printing for the XMPP
+ * @packageDocumentation CLI startup argument parsing and usage printing for the XMPP
  * over libp2p terminal and MCP entrypoints.
  */
 

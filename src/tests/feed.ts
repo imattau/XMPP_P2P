@@ -1,5 +1,5 @@
 /**
- * @fileoverview End-to-end feed verification script covering Atom helpers,
+ * @packageDocumentation End-to-end feed verification script covering Atom helpers,
  * feed subscription delivery, deduplication, malformed payload handling, and
  * persistence across restart.
  */

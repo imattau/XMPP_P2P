@@ -1,5 +1,5 @@
 /**
- * @fileoverview MCP server entrypoint that exposes the XMPP node as a
+ * @packageDocumentation MCP server entrypoint that exposes the XMPP node as a
  * JSON-RPC tool surface over stdio.
  */
 

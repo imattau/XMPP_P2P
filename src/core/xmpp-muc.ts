@@ -1,5 +1,5 @@
 /**
- * @fileoverview Multi-User Chat room management, occupant tracking, and group
+ * @packageDocumentation Multi-User Chat room management, occupant tracking, and group
  * message handling, including secure room variants.
  */
 

@@ -1,5 +1,5 @@
 /**
- * @fileoverview CLI help and formatting helpers for command discovery and
+ * @packageDocumentation CLI help and formatting helpers for command discovery and
  * presence text rendering.
  */
 

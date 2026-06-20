@@ -1,5 +1,5 @@
 /**
- * @fileoverview Reliability manager for XMPP client state indication and
+ * @packageDocumentation Reliability manager for XMPP client state indication and
  * stream resumption bookkeeping.
  */
 

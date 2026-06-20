@@ -1,5 +1,5 @@
 /**
- * @fileoverview Type definitions for the CLI terminal layer,
+ * @packageDocumentation Type definitions for the CLI terminal layer,
  * describing libp2p nodes and the shared interactive CLI execution context.
  */
 
@@ -30,4 +30,3 @@ export type CliContext = {
   showPrompt: () => void
   resolvePeerTarget: (target: string) => string
 }
-

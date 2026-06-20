@@ -1,5 +1,5 @@
 /**
- * @fileoverview Roster and vCard state management, including presence sync
+ * @packageDocumentation Roster and vCard state management, including presence sync
  * and subscription handling.
  */
 

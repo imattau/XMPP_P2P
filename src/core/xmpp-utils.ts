@@ -1,5 +1,5 @@
 /**
- * @fileoverview Utility functions for binary serialization, base64 conversion,
+ * @packageDocumentation Utility functions for binary serialization, base64 conversion,
  * and keypair transformation inside XMPP P2P protocol layers.
  */
 

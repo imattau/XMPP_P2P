@@ -1,5 +1,5 @@
 /**
- * @fileoverview MCP tool descriptors and execution helpers for the XMPP node
+ * @packageDocumentation MCP tool descriptors and execution helpers for the XMPP node
  * management surface exposed to external clients.
  */
 

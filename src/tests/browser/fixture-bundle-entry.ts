@@ -1,5 +1,5 @@
 /**
- * @fileoverview Browser test fixture that exposes createBrowserXmppClient on
+ * @packageDocumentation Browser test fixture that exposes createBrowserXmppClient on
  * window and records outbound connections for the browser OMEMO/runtime tests.
  */
 

@@ -1,5 +1,5 @@
 /**
- * @fileoverview Storage loaders and persistors for XMPP roster, feed, MUC,
+ * @packageDocumentation Storage loaders and persistors for XMPP roster, feed, MUC,
  * attachment, and chat state.
  */
 

@@ -1,5 +1,5 @@
 /**
- * @fileoverview CLI profile command verification script covering profile show,
+ * @packageDocumentation CLI profile command verification script covering profile show,
  * update, photo clearing, and nickname alias behavior.
  */
 

@@ -1,5 +1,5 @@
 /**
- * @fileoverview PubSub event parsing and dispatch helpers for feed items,
+ * @packageDocumentation PubSub event parsing and dispatch helpers for feed items,
  * collection posts, attachments, encrypted payloads, and upload manifests.
  */
 

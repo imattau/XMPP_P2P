@@ -1,5 +1,5 @@
 /**
- * @fileoverview Storage migration verification for OpenPGP key state loading
+ * @packageDocumentation Storage migration verification for OpenPGP key state loading
  * and persistence behavior.
  */
 

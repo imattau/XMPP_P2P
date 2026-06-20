@@ -1,5 +1,5 @@
 /**
- * @fileoverview Main XMPP runtime node that wires libp2p transport, roster
+ * @packageDocumentation Main XMPP runtime node that wires libp2p transport, roster
  * state, feeds, collections, MUC, uploads, and secure messaging together.
  */
 

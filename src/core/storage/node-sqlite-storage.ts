@@ -1,5 +1,5 @@
 /**
- * @fileoverview sqlite-backed XmppStorage implementation for the Node build.
+ * @packageDocumentation sqlite-backed XmppStorage implementation for the Node build.
  * Reuses the namespace/key/updated_at/payload schema already proven by
  * XmppSqliteStore, extended with a blobs table for binary data (uploads).
  */

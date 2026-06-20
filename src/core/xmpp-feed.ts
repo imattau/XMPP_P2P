@@ -1,5 +1,5 @@
 /**
- * @fileoverview Feed subscription, follower tracking, and feed history
+ * @packageDocumentation Feed subscription, follower tracking, and feed history
  * persistence for XMPP microblog-style posts.
  */
 

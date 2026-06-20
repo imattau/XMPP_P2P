@@ -1,5 +1,5 @@
 /**
- * @fileoverview IndexedDB-backed XmppStorage implementation for the browser build.
+ * @packageDocumentation IndexedDB-backed XmppStorage implementation for the browser build.
  * One database with two object stores: "records" (keyed by [namespace, key]) and
  * "blobs" (keyed by [namespace, key]). Designed to also run under Node tests via
  * the fake-indexeddb polyfill.

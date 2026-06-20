@@ -1,5 +1,5 @@
 /**
- * @fileoverview Chat history management and DHT-backed archive helpers for
+ * @packageDocumentation Chat history management and DHT-backed archive helpers for
  * one-to-one XMPP messages.
  */
 

@@ -1,5 +1,5 @@
 /**
- * @fileoverview Storage interface that XmppNode and its managers will use for all
+ * @packageDocumentation Storage interface that XmppNode and its managers will use for all
  * persisted state (records) and binary data (blobs), so that Node and browser
  * builds can supply different backing implementations without protocol code
  * needing to know which one is in use.

@@ -1,5 +1,5 @@
 /**
- * @fileoverview Browser entry point: wires IndexedDbStorage + the browser libp2p
+ * @packageDocumentation Browser entry point: wires IndexedDbStorage + the browser libp2p
  * factory + XmppNode together. This is the browser counterpart to src/index.ts.
  */
 

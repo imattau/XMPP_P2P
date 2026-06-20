@@ -1,5 +1,5 @@
 /**
- * @fileoverview Helpers for parsing and building XMPP extension elements such
+ * @packageDocumentation Helpers for parsing and building XMPP extension elements such
  * as receipts, chat state, delays, replies, stanza ids, and carbons.
  */
 

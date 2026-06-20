@@ -1,5 +1,5 @@
 /**
- * @fileoverview Command dispatcher for the interactive CLI.
+ * @packageDocumentation Command dispatcher for the interactive CLI.
  * Parses user input, resolves peer references, and forwards each action to
  * the XmppNode runtime or local helper routines.
  */

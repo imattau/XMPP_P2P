@@ -58,9 +58,9 @@ npm run build
 
 ### Documentation
 
-Generated API documentation is checked into the repo at [`docs/`](docs/) and published on GitHub Pages:
+Generated API documentation is checked into the repo at `docs/` and published on GitHub Pages:
 
-- [Local docs](docs/index.html)
+- Local docs: `docs/index.html`
 - [GitHub Pages docs](https://imattau.github.io/XMPP_P2P/)
 
 ---
@@ -91,7 +91,7 @@ Once started, the CLI will output your local Peer ID, JID, and listen addresses,
 
 ### Starting the Frontend
 
-The Figma-based web frontend lives in [`ui/`](ui/). Run it with:
+The Figma-based web frontend lives in `ui/`. Run it with:
 
 ```bash
 npm run ui:dev

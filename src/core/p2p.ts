@@ -1,5 +1,5 @@
 /**
- * @fileoverview P2P networking utilities for configuring and constructing a
+ * @packageDocumentation P2P networking utilities for configuring and constructing a
  * libp2p node with the transports and services used by the XMPP runtime.
  */
 
@@ -41,7 +41,7 @@ if (!MultiaddrProto.toOptions) {
   }
 }
 
-interface BaseLibp2pConfigOptions {
+export interface BaseLibp2pConfigOptions {
   enableDht?: boolean
 }
 

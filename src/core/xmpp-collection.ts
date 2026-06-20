@@ -1,5 +1,5 @@
 /**
- * @fileoverview Collection management for aggregating member feeds, syncing
+ * @packageDocumentation Collection management for aggregating member feeds, syncing
  * subscriptions, and persisting collection history and attachments.
  */
 

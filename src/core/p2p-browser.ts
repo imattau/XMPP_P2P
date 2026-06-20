@@ -1,5 +1,5 @@
 /**
- * @fileoverview Browser-targeted libp2p node factory. Uses websockets and WebRTC
+ * @packageDocumentation Browser-targeted libp2p node factory. Uses websockets and WebRTC
  * for transport (no tcp, no mdns — neither is available in a browser sandbox) and
  * relies on KadDHT, bootstrapped from at least one known Node peer's /ws multiaddr,
  * for peer discovery.
