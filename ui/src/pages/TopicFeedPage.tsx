@@ -19,20 +19,6 @@ interface TopicMeta {
   hot?: boolean
 }
 
-interface TopicPost {
-  id: string
-  author: { name: string; handle: string; avatar: string; verified?: boolean; server: string }
-  content: string
-  timestamp: string
-  likes: number
-  comments: number
-  reposts: number
-  liked?: boolean
-  reposted?: boolean
-  bookmarked?: boolean
-  media?: { url: string; alt: string }
-}
-
 const JID_MAP: Record<string, string> = {
   'yukitan': 'yukitan@infosec.exchange',
   'maren': 'maren@social.coop',
@@ -55,7 +41,7 @@ const TOPIC_META: Record<string, TopicMeta> = {
   Infosec: { tag: 'Infosec', description: 'Information security, CVEs, and threat intel', postCount: '8.9k', memberCount: '29.1k', color: '#f97316', following: false },
 }
 
-const TOPIC_POSTS: Record<string, TopicPost[]> = {
+const TOPIC_POSTS: Record<string, any[]> = {
   Privacy: [
     { id: 'p1', author: { name: 'Yuki Tanaka', handle: 'yukitan', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=48&h=48&fit=crop&auto=format', server: 'infosec.exchange' }, content: "End-to-end encryption in XMPP with OMEMO is underrated. Signal-level security, open protocol, no phone number required. Why aren't more people talking about this?", timestamp: '4h', likes: 2103, comments: 147, reposts: 489, liked: true, bookmarked: true },
     { id: 'p2', author: { name: 'Kaspar Vold', handle: 'kvold', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=48&h=48&fit=crop&auto=format', verified: true, server: 'fosstodon.org' }, content: "The Double Ratchet algorithm that OMEMO uses provides forward secrecy and break-in recovery. Most people don't realize this is the same algorithm Signal uses. The security model is genuinely excellent.", timestamp: '6h', likes: 891, comments: 44, reposts: 201 },
@@ -77,7 +63,7 @@ const TOPIC_POSTS: Record<string, TopicPost[]> = {
   ],
 }
 
-const FALLBACK_POSTS: TopicPost[] = [
+const FALLBACK_POSTS: any[] = [
   { id: 'f1', author: { name: 'Theo Nakashima', handle: 'theo_n', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=48&h=48&fit=crop&auto=format', server: 'hachyderm.io' }, content: 'Great discussion happening in this topic. The community is really knowledgeable and helpful.', timestamp: '2h', likes: 234, comments: 18, reposts: 45 },
   { id: 'f2', author: { name: 'Maren Holdt', handle: 'maren', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=48&h=48&fit=crop&auto=format', verified: true, server: 'social.coop' }, content: 'Following this topic has genuinely improved how I think about these issues. Highly recommend to anyone in the space.', timestamp: '5h', likes: 567, comments: 33, reposts: 98, liked: true },
   { id: 'f3', author: { name: 'Elif Şahin', handle: 'elif_dev', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=48&h=48&fit=crop&auto=format', server: 'mastodon.social' }, content: 'The quality of posts in this topic is consistently high. The federated approach really does attract more thoughtful contributors.', timestamp: '1d', likes: 891, comments: 56, reposts: 201 },
@@ -97,7 +83,7 @@ function PostCard({
   onBookmark,
   onOpen,
 }: {
-  post: TopicPost
+  post: FeedPost
   color: string
   tag: string
   onLike: (id: string) => void
@@ -180,7 +166,14 @@ function PostCard({
 export default function TopicFeedPage() {
   const { tag } = useParams<{ tag: string }>()
   const navigate = useNavigate()
-  const { subscribeFeed, unsubscribeFeed } = useFeedBridge()
+  const {
+    posts: allPosts,
+    subscribeFeed,
+    unsubscribeFeed,
+    reactPost,
+    repostPost,
+    bookmarkPost
+  } = useFeedBridge()
 
   const meta = TOPIC_META[tag ?? ''] ?? {
     tag: tag ?? 'Unknown',
@@ -192,18 +185,16 @@ export default function TopicFeedPage() {
   }
 
   const [following, setFollowing] = useState(meta.following)
-  const [posts, setPosts] = useState<TopicPost[]>(TOPIC_POSTS[tag ?? ''] ?? FALLBACK_POSTS)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
-  const handleLike = (id: string) =>
-    setPosts((prev) => prev.map((p) => p.id === id ? { ...p, liked: !p.liked, likes: p.liked ? p.likes - 1 : p.likes + 1 } : p))
+  // Derive posts for this topic tag from the bridge. Fall back to hardcoded mock entries if empty.
+  const topicPosts = allPosts.filter((p) => p.topic?.toLowerCase() === tag?.toLowerCase())
+  const posts = topicPosts.length > 0 ? topicPosts : (TOPIC_POSTS[tag ?? ''] ?? FALLBACK_POSTS)
 
-  const handleRepost = (id: string) =>
-    setPosts((prev) => prev.map((p) => p.id === id && !p.reposted ? { ...p, reposted: true, reposts: p.reposts + 1 } : p))
-
-  const handleBookmark = (id: string) =>
-    setPosts((prev) => prev.map((p) => p.id === id ? { ...p, bookmarked: !p.bookmarked } : p))
+  const handleLike = (id: string) => reactPost(id)
+  const handleRepost = (id: string) => repostPost(id)
+  const handleBookmark = (id: string) => bookmarkPost(id)
 
   const handleFollowToggle = () => {
     const nextFollowing = !following
@@ -212,7 +203,7 @@ export default function TopicFeedPage() {
     const latestPost = posts[0]
     if (latestPost) {
       const handle = latestPost.author.handle
-      const peerAddr = JID_MAP[handle] ?? `${handle}@${latestPost.author.server}`
+      const peerAddr = JID_MAP[handle] ?? `${handle}@${latestPost.author.server ?? 'p2p'}`
       if (peerAddr) {
         if (nextFollowing) {
           void subscribeFeed(peerAddr)
