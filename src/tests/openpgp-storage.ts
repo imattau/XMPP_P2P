@@ -1,3 +1,8 @@
+/**
+ * @fileoverview Storage migration verification for OpenPGP key state loading
+ * and persistence behavior.
+ */
+
 import assert from 'node:assert/strict'
 import type { XmppStorage, StorageRecord } from '../core/storage/types.js'
 import { XmppOpenPgpStateManager } from '../core/xmpp-openpgp.js'
@@ -23,6 +28,9 @@ class FakeStorage implements XmppStorage {
   async close(): Promise<void> {}
 }
 
+/**
+ * Executes the OpenPGP storage migration verification script.
+ */
 async function main() {
   const storage = new FakeStorage()
   const manager = new XmppOpenPgpStateManager(storage, 'alice@example.com')

@@ -1,7 +1,13 @@
+/**
+ * @fileoverview XMPP service discovery, entity capabilities, and feature
+ * advertisement helpers shared by peers and collections.
+ */
+
 import { createHash } from 'crypto'
 import { xml, Element } from '@xmpp/xml'
 import { Multiaddr } from '@multiformats/multiaddr'
 import { XmppStream } from './xmpp-stream.js'
+import { jidFromPeerId, parsePeerReference } from './xmpp-records.js'
 
 export const ROSTER_XMLNS = 'jabber:iq:roster'
 export const DISCO_INFO_XMLNS = 'http://jabber.org/protocol/disco#info'
@@ -23,7 +29,8 @@ import {
   CORRECT_XMLNS,
   PING_XMLNS,
   SID_XMLNS,
-  REPLY_XMLNS
+  REPLY_XMLNS,
+  CARBONS_XMLNS
 } from './xmpp-xep-helpers.js'
 
 export {
@@ -33,9 +40,13 @@ export {
   CORRECT_XMLNS,
   PING_XMLNS,
   SID_XMLNS,
-  REPLY_XMLNS
+  REPLY_XMLNS,
+  CARBONS_XMLNS
 }
 
+/**
+ * Service identity published in disco#info responses.
+ */
 export interface XmppDiscoIdentity {
   category: string
   type?: string
@@ -43,6 +54,9 @@ export interface XmppDiscoIdentity {
   lang?: string
 }
 
+/**
+ * Cached disco#info payload with computed entity capability hash.
+ */
 export interface XmppDiscoInfo {
   node?: string
   identities: XmppDiscoIdentity[]
@@ -52,12 +66,18 @@ export interface XmppDiscoInfo {
   cachedAt: string
 }
 
+/**
+ * Entry in a disco#items response.
+ */
 export interface XmppDiscoItem {
   jid: string
   node?: string
   name?: string
 }
 
+/**
+ * Cached capabilities data for a discovered peer.
+ */
 export interface XmppEntityCapabilities {
   peerId: string
   jid: string
@@ -102,6 +122,9 @@ function findCollection(
   return collections.get(node) ?? Array.from(collections.values()).find(entry => entry.topic === node)
 }
 
+/**
+ * Returns the identities that should be advertised for a node or collection.
+ */
 export function getDiscoveryIdentities(
   discoveryIdentity: XmppDiscoIdentity,
   collections: ReadonlyMap<string, XmppDiscoveryCollection>,
@@ -145,7 +168,8 @@ export function getDiscoveryFeatures(
     CORRECT_XMLNS,
     PING_XMLNS,
     SID_XMLNS,
-    REPLY_XMLNS
+    REPLY_XMLNS,
+    CARBONS_XMLNS
   ])
 
   if (findCollection(collections, node)) {
@@ -157,6 +181,8 @@ export function getDiscoveryFeatures(
 
 export const OMEMO_FEATURE = 'urn:xmpp:omemo:2'
 export const OMEMO_PTE_FEATURE = 'urn:xmpp:pte:0'
+export const OMEMO_DEVICES_XMLNS = 'urn:xmpp:omemo:2:devices'
+export const OMEMO_BUNDLES_XMLNS = 'urn:xmpp:omemo:2:bundles'
 export const OPENPGP_FEATURE = 'urn:xmpp:openpgp:0'
 export const OPENPGP_PUBSUB_FEATURE = 'urn:xmpp:openpgp:pubsub:0'
 
@@ -310,111 +336,188 @@ export interface XmppDiscoveryContext {
   ready: Promise<void>
   jid: string
   discoveryNode: string
+  discoveryIdentity: XmppDiscoIdentity
+  libp2p: any
+  getCollections(): Map<string, any>
+  getCollectionSubscriptions(): Map<string, any>
   getOrCreateStream(peerAddr: string | Multiaddr): Promise<XmppStream>
   sendIqRequest(target: string | Multiaddr, stanza: Element, timeoutMs?: number): Promise<Element>
-  jidFromPeerId(peerId: string): string
-  discoInfoCache: Map<string, XmppDiscoInfo>
-  entityCapabilities: Map<string, XmppEntityCapabilities>
   emit(event: string, ...args: any[]): boolean
 }
 
-export async function queryDiscoInfo(ctx: XmppDiscoveryContext, peerAddr: string | Multiaddr, node?: string): Promise<XmppDiscoInfo> {
-  const xmppStream = await ctx.getOrCreateStream(peerAddr)
-  const id = Math.random().toString(36).substring(2, 11)
-  const toJid = xmppStream.remotePeer.toString() + '@p2p'
-  const queryNode = node ?? ctx.discoveryNode
+export class XmppDiscoveryManager {
+  private readonly ctx: XmppDiscoveryContext
+  public readonly discoInfoCache = new Map<string, XmppDiscoInfo>()
+  public readonly entityCapabilities = new Map<string, XmppEntityCapabilities>()
 
-  const iq = xml(
-    'iq',
-    {
-      to: toJid,
-      from: ctx.jid,
-      type: 'get',
-      id
-    },
-    xml('query', { xmlns: DISCO_INFO_XMLNS, node: queryNode })
-  )
-
-  const result = await ctx.sendIqRequest(peerAddr, iq)
-  const query = result.getChild('query')
-  if (!query) {
-    throw new Error('Disco info response missing query payload')
+  constructor(ctx: XmppDiscoveryContext) {
+    this.ctx = ctx
   }
 
-  const info = parseDiscoInfoQuery(query)
-  ctx.discoInfoCache.set(queryNode, info)
-  ctx.entityCapabilities.set(xmppStream.remotePeer.toString(), {
-    peerId: xmppStream.remotePeer.toString(),
-    jid: toJid,
-    node: queryNode,
-    ver: info.ver,
-    hash: 'sha-1',
-    info,
-    discoveredAt: new Date().toISOString()
-  })
-  ctx.emit('disco:info', { peerId: xmppStream.remotePeer.toString(), info })
-  return info
-}
-
-export async function queryDiscoItems(ctx: XmppDiscoveryContext, peerAddr: string | Multiaddr, node?: string): Promise<XmppDiscoItem[]> {
-  const xmppStream = await ctx.getOrCreateStream(peerAddr)
-  const id = Math.random().toString(36).substring(2, 11)
-  const toJid = xmppStream.remotePeer.toString() + '@p2p'
-  const queryNode = node ?? ctx.discoveryNode
-
-  const iq = xml(
-    'iq',
-    {
-      to: toJid,
-      from: ctx.jid,
-      type: 'get',
-      id
-    },
-    xml('query', { xmlns: DISCO_ITEMS_XMLNS, node: queryNode })
-  )
-
-  const result = await ctx.sendIqRequest(peerAddr, iq)
-  const query = result.getChild('query')
-  if (!query) {
-    return []
+  private peerIdFromJid(jid: string): string {
+    return jid.split('@')[0]
   }
 
-  const items = parseDiscoItemsQuery(query)
-  ctx.emit('disco:items', { peerId: xmppStream.remotePeer.toString(), items })
-  return items
-}
 
-export async function ensurePeerCapabilities(ctx: XmppDiscoveryContext, peerId: string, node: string, ver: string, hash: string = 'sha-1') {
-  const cacheKey = getCapsCacheKey(node, ver)
-  if (ctx.discoInfoCache.has(cacheKey)) {
-    ctx.entityCapabilities.set(peerId, {
-      peerId,
-      jid: ctx.jidFromPeerId(peerId),
-      node,
-      ver,
-      hash: hash === 'sha-1' ? 'sha-1' : hash,
-      info: ctx.discoInfoCache.get(cacheKey)!,
-      discoveredAt: new Date().toISOString()
-    })
-    return
-  }
+  public async queryDiscoInfo(peerAddr: string | Multiaddr, node?: string): Promise<XmppDiscoInfo> {
+    const xmppStream = await this.ctx.getOrCreateStream(peerAddr)
+    const id = Math.random().toString(36).substring(2, 11)
+    const toJid = xmppStream.remotePeer.toString() + '@p2p'
+    const queryNode = node ?? this.ctx.discoveryNode
 
-  try {
-    const info = await queryDiscoInfo(ctx, peerId, cacheKey)
-    if (hash !== 'sha-1') {
-      ctx.discoInfoCache.delete(cacheKey)
+    const iq = xml(
+      'iq',
+      {
+        to: toJid,
+        from: this.ctx.jid,
+        type: 'get',
+        id
+      },
+      xml('query', { xmlns: DISCO_INFO_XMLNS, node: queryNode })
+    )
+
+    const result = await this.ctx.sendIqRequest(peerAddr, iq)
+    const query = result.getChild('query')
+    if (!query) {
+      throw new Error('Disco info response missing query payload')
     }
-    ctx.entityCapabilities.set(peerId, {
-      peerId,
-      jid: ctx.jidFromPeerId(peerId),
-      node: cacheKey,
+
+    const info = parseDiscoInfoQuery(query)
+    this.discoInfoCache.set(queryNode, info)
+    this.entityCapabilities.set(xmppStream.remotePeer.toString(), {
+      peerId: xmppStream.remotePeer.toString(),
+      jid: toJid,
+      node: queryNode,
       ver: info.ver,
-      hash: hash === 'sha-1' ? info.hash : hash,
+      hash: 'sha-1',
       info,
       discoveredAt: new Date().toISOString()
     })
-    ctx.emit('caps:discovered', ctx.entityCapabilities.get(peerId))
-  } catch (err) {
-    ctx.emit('error', err)
+    this.ctx.emit('disco:info', { peerId: xmppStream.remotePeer.toString(), info })
+    return info
+  }
+
+  public async queryDiscoItems(peerAddr: string | Multiaddr, node?: string): Promise<XmppDiscoItem[]> {
+    const xmppStream = await this.ctx.getOrCreateStream(peerAddr)
+    const id = Math.random().toString(36).substring(2, 11)
+    const toJid = xmppStream.remotePeer.toString() + '@p2p'
+    const queryNode = node ?? this.ctx.discoveryNode
+
+    const iq = xml(
+      'iq',
+      {
+        to: toJid,
+        from: this.ctx.jid,
+        type: 'get',
+        id
+      },
+      xml('query', { xmlns: DISCO_ITEMS_XMLNS, node: queryNode })
+    )
+
+    const result = await this.ctx.sendIqRequest(peerAddr, iq)
+    const query = result.getChild('query')
+    if (!query) {
+      return []
+    }
+
+    const items = parseDiscoItemsQuery(query)
+    this.ctx.emit('disco:items', { peerId: xmppStream.remotePeer.toString(), items })
+    return items
+  }
+
+  public async ensurePeerCapabilities(peerId: string, node: string, ver: string, hash: string = 'sha-1') {
+    const cacheKey = getCapsCacheKey(node, ver)
+    if (this.discoInfoCache.has(cacheKey)) {
+      this.entityCapabilities.set(peerId, {
+        peerId,
+        jid: jidFromPeerId(peerId),
+        node,
+        ver,
+        hash: hash === 'sha-1' ? 'sha-1' : hash,
+        info: this.discoInfoCache.get(cacheKey)!,
+        discoveredAt: new Date().toISOString()
+      })
+      return
+    }
+
+    try {
+      const info = await this.queryDiscoInfo(peerId, cacheKey)
+      if (hash !== 'sha-1') {
+        this.discoInfoCache.delete(cacheKey)
+      }
+      this.entityCapabilities.set(peerId, {
+        peerId,
+        jid: jidFromPeerId(peerId),
+        node: cacheKey,
+        ver: info.ver,
+        hash: hash === 'sha-1' ? info.hash : hash,
+        info,
+        discoveredAt: new Date().toISOString()
+      })
+      this.ctx.emit('caps:discovered', this.entityCapabilities.get(peerId))
+    } catch (err) {
+      this.ctx.emit('error', err)
+    }
+  }
+
+  public async getDiscoInfo(peerAddr: string | Multiaddr, node?: string): Promise<XmppDiscoInfo> {
+    await this.ctx.ready
+    const parsed = parsePeerReference(peerAddr)
+    const peerId = parsed.peerId || this.peerIdFromJid(peerAddr.toString())
+    if (peerId === this.ctx.libp2p.peerId.toString()) {
+      return parseDiscoInfoQuery(buildDiscoInfoQuery(this.ctx.discoveryIdentity, this.ctx.getCollections(), node ?? this.ctx.discoveryNode))
+    }
+    return await this.queryDiscoInfo(peerAddr, node)
+  }
+
+  public async getDiscoItems(peerAddr: string | Multiaddr, node?: string): Promise<XmppDiscoItem[]> {
+    await this.ctx.ready
+    const parsed = parsePeerReference(peerAddr)
+    const peerId = parsed.peerId || this.peerIdFromJid(peerAddr.toString())
+    if (peerId === this.ctx.libp2p.peerId.toString()) {
+      return parseDiscoItemsQuery(buildDiscoItemsQuery(this.ctx.discoveryNode, this.ctx.getCollections(), this.ctx.getCollectionSubscriptions(), this.ctx.jid, node ?? this.ctx.discoveryNode))
+    }
+    return await this.queryDiscoItems(peerAddr, node)
+  }
+
+  public async getEntityCapabilities(peerAddr: string | Multiaddr): Promise<XmppEntityCapabilities | undefined> {
+    await this.ctx.ready
+    const parsed = parsePeerReference(peerAddr)
+    const peerId = parsed.peerId || this.peerIdFromJid(peerAddr.toString())
+    if (peerId === this.ctx.libp2p.peerId.toString()) {
+      const info = parseDiscoInfoQuery(buildDiscoInfoQuery(this.ctx.discoveryIdentity, this.ctx.getCollections()))
+      return {
+        peerId,
+        jid: this.ctx.jid,
+        node: this.ctx.discoveryNode,
+        ver: info.ver,
+        hash: info.hash,
+        info,
+        discoveredAt: new Date().toISOString()
+      }
+    }
+    const cached = this.entityCapabilities.get(peerId)
+    if (cached) {
+      return cached
+    }
+
+    try {
+      const info = await this.queryDiscoInfo(peerAddr)
+      const discoveredAt = new Date().toISOString()
+      const capabilities: XmppEntityCapabilities = {
+        peerId,
+        jid: jidFromPeerId(peerId),
+        node: info.node ?? this.ctx.discoveryNode,
+        ver: info.ver,
+        hash: info.hash,
+        info,
+        discoveredAt
+      }
+      this.entityCapabilities.set(peerId, capabilities)
+      return capabilities
+    } catch {
+      return undefined
+    }
   }
 }
+import { multiaddr } from '@multiformats/multiaddr'

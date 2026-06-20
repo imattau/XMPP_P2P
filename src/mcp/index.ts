@@ -1,3 +1,8 @@
+/**
+ * @fileoverview MCP server entrypoint that exposes the XMPP node as a
+ * JSON-RPC tool surface over stdio.
+ */
+
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import {
@@ -17,6 +22,11 @@ console.log = (...args: any[]) => {
   console.error(...args)
 }
 
+/**
+ * Starts the MCP server, initializes the XMPP runtime, and wires tool handlers.
+ *
+ * @returns A promise that resolves when the stdio transport is connected.
+ */
 async function runMcpServer() {
   const startupOptions = parseCliStartupArgs(process.argv.slice(2))
 

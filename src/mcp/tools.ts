@@ -1,7 +1,15 @@
+/**
+ * @fileoverview MCP tool descriptors and execution helpers for the XMPP node
+ * management surface exposed to external clients.
+ */
+
 import fs from 'fs'
 import path from 'path'
 import { type XmppNode } from '../core/xmpp-node.js'
 
+/**
+ * Arguments accepted by the feed publishing MCP tool.
+ */
 export type FeedPublishArgs = {
   body: string
   targetId?: string
@@ -14,12 +22,21 @@ export type FeedPublishArgs = {
   coverTarget?: string
 }
 
+/**
+ * Describes a single MCP tool and its JSON schema.
+ */
 export type McpToolDescriptor = {
   name: string
   description: string
   inputSchema: Record<string, unknown>
 }
 
+/**
+ * Returns a MIME type guess based on the provided filename.
+ *
+ * @param filename - Optional filename to inspect.
+ * @returns A best-effort content type string.
+ */
 const guessContentType = (filename?: string) => {
   switch (path.extname(filename ?? '').toLowerCase()) {
     case '.jpg':
@@ -38,6 +55,11 @@ const guessContentType = (filename?: string) => {
   }
 }
 
+/**
+ * Lists the MCP tools supported by this node.
+ *
+ * @returns Tool descriptors with names, descriptions, and input schemas.
+ */
 export const listMcpTools = (): McpToolDescriptor[] => [
   {
     name: 'get_info',

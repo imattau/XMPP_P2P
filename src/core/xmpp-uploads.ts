@@ -1,3 +1,8 @@
+/**
+ * @fileoverview HTTP upload slot management, upload server lifecycle, and
+ * pubsub announcements for uploaded content.
+ */
+
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'http'
 import { createHash } from 'crypto'
 import { xml, Element } from '@xmpp/xml'
@@ -8,8 +13,14 @@ import {
 } from './xmpp-records.js'
 import type { XmppStorage } from './storage/types.js'
 
+/**
+ * Pubsub topic used to broadcast upload manifests.
+ */
 export const UPLOAD_ANNOUNCEMENTS_TOPIC = 'xmpp-upload:announcements'
 
+/**
+ * Runtime dependencies for the upload manager.
+ */
 export interface XmppUploadContext {
   jid: string
   ready: Promise<void>
@@ -20,6 +31,9 @@ export interface XmppUploadContext {
   emit(event: string, ...args: any[]): boolean
 }
 
+/**
+ * Coordinates HTTP upload hosting and manifest publication.
+ */
 export class XmppUploadManager {
   private context: XmppUploadContext
   private uploadSlots = new Map<string, { slotId: string; filename: string; contentType: string; size: number; createdAt: string }>()

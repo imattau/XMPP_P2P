@@ -1,3 +1,8 @@
+/**
+ * @fileoverview Central stanza router for inbound XMPP IQ and presence
+ * handling, including discovery, roster, pubsub, secure messaging, and MAM.
+ */
+
 import { xml, Element } from '@xmpp/xml'
 import { Multiaddr } from '@multiformats/multiaddr'
 import { XmppStream } from './xmpp-stream.js'
@@ -5,6 +10,7 @@ import { parseCapsPresence, getCapsCacheKey, buildDiscoInfoQuery, buildDiscoItem
 import { handlePubSubMessageElement as handlePubSubMessageElementFromModule } from './xmpp-pubsub.js'
 import { handleSecureMessageStanza as handleSecureMessageStanzaFromModule } from './xmpp-secure.js'
 import { buildVCard, parseVCard, VCARD_XMLNS } from './xmpp-vcard.js'
+import { parseXepMetadata } from './xmpp-xep-helpers.js'
 
 const ROSTER_XMLNS = 'jabber:iq:roster'
 const NICK_XMLNS = 'http://jabber.org/protocol/nick'
@@ -28,12 +34,18 @@ const VALID_PRESENCE_TYPES = new Set([
 ])
 const VALID_PRESENCE_SHOW_VALUES = new Set(['away', 'chat', 'dnd', 'xa'])
 
+/**
+ * Tracks an outstanding IQ request and its completion handlers.
+ */
 export interface PendingIq {
   resolve: (element: Element) => void
   reject: (error: Error) => void
   timer: ReturnType<typeof setTimeout>
 }
 
+/**
+ * Execution context required by the stanza router.
+ */
 export interface XmppRouterContext {
   jid: string
   pendingIq: Map<string, PendingIq>
@@ -68,9 +80,22 @@ export interface XmppRouterContext {
   getPubSubContext(): any
   getSecureContext(): any
   emit(event: string, ...args: any[]): boolean
+  handleIncomingMamQuery(element: Element, peerId: string): Promise<void>
+  handleIncomingMamResult(element: Element, peerId: string): Promise<void>
   muc?: any
 }
 
+/**
+ * Builds an XMPP IQ error stanza from the incoming payload.
+ *
+ * @param element - The offending incoming IQ stanza.
+ * @param peerId - Remote peer identifier.
+ * @param ctx - Router context with local identity and helpers.
+ * @param condition - XMPP stanza error condition.
+ * @param type - Error type to emit.
+ * @param text - Optional human-readable error detail.
+ * @returns A serialized IQ error stanza.
+ */
 function buildIqError(
   element: Element,
   peerId: string,
@@ -97,6 +122,17 @@ function buildIqError(
     : xml('iq', attrs, xml('error', { type }, ...errorChildren))
 }
 
+/**
+ * Sends an IQ error response to the peer if a stream is still available.
+ *
+ * @param ctx - Router context.
+ * @param peerId - Remote peer identifier.
+ * @param element - Original incoming IQ stanza.
+ * @param condition - XMPP stanza error condition.
+ * @param type - Error type to emit.
+ * @param text - Optional human-readable error detail.
+ * @returns Nothing.
+ */
 export async function sendIqError(
   ctx: XmppRouterContext,
   peerId: string,
@@ -144,6 +180,15 @@ function sendPresenceError(
   )
 }
 
+/**
+ * Sends an IQ request and awaits the response or timeout.
+ *
+ * @param ctx - Router context.
+ * @param target - Target peer address or JID.
+ * @param stanza - IQ stanza to transmit.
+ * @param timeoutMs - Response timeout in milliseconds.
+ * @returns The matching IQ response stanza.
+ */
 export async function sendIqRequest(
   ctx: XmppRouterContext,
   target: string | Multiaddr,
@@ -178,6 +223,15 @@ export async function sendIqRequest(
   })
 }
 
+/**
+ * Sends an IQ result response back to the requester.
+ *
+ * @param ctx - Router context.
+ * @param peerId - Remote peer identifier.
+ * @param id - IQ stanza id to echo.
+ * @param payload - Optional payload element to include in the response.
+ * @returns Nothing.
+ */
 export async function sendIqResult(
   ctx: XmppRouterContext,
   peerId: string,
@@ -196,6 +250,14 @@ export async function sendIqResult(
   xmppStream.send(stanza)
 }
 
+/**
+ * Handles an inbound IQ stanza and dispatches it to the relevant subsystem.
+ *
+ * @param ctx - Router context.
+ * @param peerId - Remote peer identifier.
+ * @param element - Incoming IQ stanza.
+ * @returns Nothing.
+ */
 export async function handleIqStanza(ctx: XmppRouterContext, peerId: string, element: Element) {
   const id = element.attrs.id
   if (!id) {
@@ -280,6 +342,30 @@ export async function handleIqStanza(ctx: XmppRouterContext, peerId: string, ele
     return
   }
 
+  const enableEl = element.getChild('enable')
+  if (enableEl && enableEl.attrs.xmlns === 'urn:xmpp:carbons:2') {
+    if (type === 'set') {
+      const xmppStream = ctx.streams.get(peerId)
+      if (xmppStream) {
+        (xmppStream as any).carbonsEnabled = true
+      }
+      await sendIqResult(ctx, peerId, id)
+      return
+    }
+  }
+
+  const disableEl = element.getChild('disable')
+  if (disableEl && disableEl.attrs.xmlns === 'urn:xmpp:carbons:2') {
+    if (type === 'set') {
+      const xmppStream = ctx.streams.get(peerId)
+      if (xmppStream) {
+        (xmppStream as any).carbonsEnabled = false
+      }
+      await sendIqResult(ctx, peerId, id)
+      return
+    }
+  }
+
   if (!query) {
     const pubsub = element.getChild('pubsub')
     if (pubsub) {
@@ -310,7 +396,12 @@ export async function handleIqStanza(ctx: XmppRouterContext, peerId: string, ele
 
   if (query.attrs.xmlns === 'urn:xmpp:mam:2') {
     if (type === 'get') {
-      void (ctx as any).muc.handleIncomingMamQuery(element, peerId).catch(() => {})
+      const node = query.attrs.node
+      if (node) {
+        void (ctx as any).muc.handleIncomingMamQuery(element, peerId).catch(() => {})
+      } else {
+        void ctx.handleIncomingMamQuery(element, peerId).catch(() => {})
+      }
       return
     }
   }
@@ -498,19 +589,49 @@ export async function handleStanza(ctx: XmppRouterContext, peerId: string, eleme
   }
 
   if (element.name === 'message') {
-    const resultEl = element.getChild('result')
+    const metadata = parseXepMetadata(element)
+
+    let targetElement = element
+    let carbonInfo: { type: 'sent' | 'received' } | undefined = undefined
+
+    if (metadata.carbon) {
+      targetElement = metadata.carbon.forwardedMessage
+      carbonInfo = { type: metadata.carbon.type }
+    }
+
+    const resultEl = targetElement.getChild('result')
     if (resultEl && resultEl.attrs.xmlns === 'urn:xmpp:mam:2') {
-      void (ctx as any).muc.handleIncomingMamResult(element, peerId).catch(() => {})
+      const forwardedEl = resultEl.getChild('forwarded')
+      const innerMsg = forwardedEl?.getChild('message')
+      if (innerMsg && innerMsg.attrs.type === 'groupchat') {
+        void (ctx as any).muc.handleIncomingMamResult(targetElement, peerId).catch(() => {})
+      } else {
+        void ctx.handleIncomingMamResult(targetElement, peerId).catch(() => {})
+      }
       return
     }
 
-    const eventEl = element.getChild('event')
+    const eventEl = targetElement.getChild('event')
     if (eventEl && eventEl.attrs.xmlns === PUBSUB_EVENT_XMLNS) {
-      await handlePubSubMessageElementFromModule(peerId, element, ctx.getPubSubContext())
+      await handlePubSubMessageElementFromModule(peerId, targetElement, ctx.getPubSubContext())
       return
     }
 
-    if (await handleSecureMessageStanzaFromModule(element, fromJid, toJid, ctx.getSecureContext())) {
+    const innerFromJid = targetElement.attrs.from || fromJid
+    const innerToJid = targetElement.attrs.to || toJid
+
+    const secureCtx = ctx.getSecureContext()
+    const wrappedSecureCtx = carbonInfo ? {
+      ...secureCtx,
+      emitMessage: (msg: any) => {
+        secureCtx.emitMessage({
+          ...msg,
+          carbon: carbonInfo
+        })
+      }
+    } : secureCtx
+
+    if (await handleSecureMessageStanzaFromModule(targetElement, innerFromJid, innerToJid, wrappedSecureCtx)) {
       return
     }
     return

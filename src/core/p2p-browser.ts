@@ -18,6 +18,12 @@ export interface CreateBrowserP2PNodeOptions {
   bootstrapAddrs: string[]
 }
 
+/**
+ * Creates a browser-friendly libp2p node configured for bootstrap-based peer discovery.
+ *
+ * @param options - Bootstrap multiaddrs used to join the network.
+ * @returns A started libp2p node.
+ */
 export async function createBrowserP2PNode(options: CreateBrowserP2PNodeOptions): Promise<Libp2p> {
   const services = createBaseLibp2pServices({ enableDht: true })
 

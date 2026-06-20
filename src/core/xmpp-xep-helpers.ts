@@ -1,5 +1,13 @@
+/**
+ * @fileoverview Helpers for parsing and building XMPP extension elements such
+ * as receipts, chat state, delays, replies, stanza ids, and carbons.
+ */
+
 import { xml, Element } from '@xmpp/xml'
 
+/**
+ * XML namespace constants for the supported XMPP extension payloads.
+ */
 export const RECEIPTS_XMLNS = 'urn:xmpp:receipts'
 export const CHATSTATES_XMLNS = 'urn:xmpp:chatstates'
 export const DELAY_XMLNS = 'urn:xmpp:delay'
@@ -9,6 +17,12 @@ export const PING_XMLNS = 'urn:xmpp:ping'
 export const NICK_XMLNS = 'http://jabber.org/protocol/nick'
 export const SID_XMLNS = 'urn:xmpp:sid:0'
 
+export const CARBONS_XMLNS = 'urn:xmpp:carbons:2'
+export const FORWARD_XMLNS = 'urn:xmpp:forward:0'
+
+/**
+ * Normalized metadata extracted from XEP extension child elements.
+ */
 export interface XepMetadata {
   receipt?: { type: 'request' | 'received'; id: string }
   chatState?: 'active' | 'composing' | 'paused' | 'inactive' | 'gone'
@@ -19,8 +33,16 @@ export interface XepMetadata {
   nick?: string
   originId?: string
   stanzaId?: { id: string; by: string }
+  carbon?: { type: 'sent' | 'received'; forwardedMessage: Element }
+  private?: boolean
 }
 
+/**
+ * Extracts XEP extension metadata from a stanza.
+ *
+ * @param element - The incoming stanza element.
+ * @returns Normalized metadata for receipts, replies, chat state, and related extensions.
+ */
 export function parseXepMetadata(element: Element): XepMetadata {
   const metadata: XepMetadata = {}
 
@@ -97,9 +119,43 @@ export function parseXepMetadata(element: Element): XepMetadata {
     }
   }
 
+  // Parse XEP-0280 Message Carbons
+  const privateEl = element.getChild('private')
+  if (privateEl && privateEl.attrs.xmlns === CARBONS_XMLNS) {
+    metadata.private = true
+  }
+
+  const receivedCarbonEl = element.getChild('received')
+  if (receivedCarbonEl && receivedCarbonEl.attrs.xmlns === CARBONS_XMLNS) {
+    const forwardedEl = receivedCarbonEl.getChild('forwarded')
+    if (forwardedEl && forwardedEl.attrs.xmlns === FORWARD_XMLNS) {
+      const forwardedMsg = forwardedEl.getChild('message')
+      if (forwardedMsg) {
+        metadata.carbon = { type: 'received', forwardedMessage: forwardedMsg }
+      }
+    }
+  }
+
+  const sentCarbonEl = element.getChild('sent')
+  if (sentCarbonEl && sentCarbonEl.attrs.xmlns === CARBONS_XMLNS) {
+    const forwardedEl = sentCarbonEl.getChild('forwarded')
+    if (forwardedEl && forwardedEl.attrs.xmlns === FORWARD_XMLNS) {
+      const forwardedMsg = forwardedEl.getChild('message')
+      if (forwardedMsg) {
+        metadata.carbon = { type: 'sent', forwardedMessage: forwardedMsg }
+      }
+    }
+  }
+
   return metadata
 }
 
+/**
+ * Builds XEP extension child elements for an outgoing stanza.
+ *
+ * @param options - Optional protocol decorations to attach to the stanza.
+ * @returns A list of XML elements to append to a message stanza.
+ */
 export function buildXepElements(options: {
   replace?: string
   reply?: { id: string; to?: string }
@@ -110,8 +166,13 @@ export function buildXepElements(options: {
   nick?: string
   originId?: string
   stanzaId?: { id: string; by: string }
+  private?: boolean
 }): Element[] {
   const elements: Element[] = []
+
+  if (options.private) {
+    elements.push(xml('private', { xmlns: CARBONS_XMLNS }))
+  }
 
   if (options.requestReceipt) {
     elements.push(xml('request', { xmlns: RECEIPTS_XMLNS }))

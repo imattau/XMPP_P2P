@@ -1,3 +1,8 @@
+/**
+ * @fileoverview OMEMO and OpenPGP encryption helpers for XMPP messages,
+ * bundles, and encrypted pubsub payloads.
+ */
+
 import { createCipheriv, createDecipheriv, randomBytes } from 'crypto'
 import { xml, Element } from '@xmpp/xml'
 import * as openpgp from 'openpgp'
@@ -6,9 +11,10 @@ import { PUBSUB_EVENT_XMLNS } from './xmpp-discovery.js'
 import { loadOmemoModule, type OmemoAddress } from './omemo-runtime.js'
 import { parseXepMetadata, buildXepElements, RECEIPTS_XMLNS } from './xmpp-xep-helpers.js'
 import type { XmppStream } from './xmpp-stream.js'
-import type {
+import {
   XmppMessage,
-  XmppOpenPgpPublicKeyResponse
+  XmppOpenPgpPublicKeyResponse,
+  jidFromPeerId
 } from './xmpp-records.js'
 import type { XmppOmemoBundle } from './xmpp-omemo-state.js'
 
@@ -17,6 +23,9 @@ const OPENPGP_XMLNS = 'urn:xmpp:openpgp:0'
 const OPENPGP_PUBSUB_XMLNS = 'urn:xmpp:openpgp:pubsub:0'
 const OPENPGP_IQ_XMLNS = 'urn:xmpp:openpgp:0'
 
+/**
+ * Minimal OMEMO store surface consumed by the runtime.
+ */
 interface XmppOmemoStore {
   store: Record<string, unknown>
   put: (key: string, value: unknown) => void
@@ -39,10 +48,12 @@ interface XmppOmemoStore {
   getLocalRegistrationId: () => Promise<number | undefined>
 }
 
+/**
+ * Dependencies required by the secure messaging helpers.
+ */
 export interface XmppSecureContext {
   jid: string
   ready: Promise<void>
-  jidFromPeerId(peerId: string): string
   getOrCreateStream(peerAddr: string | Multiaddr): Promise<XmppStream>
   sendIqRequest(target: string | Multiaddr, stanza: Element, timeoutMs?: number): Promise<Element>
   emitMessage(message: XmppMessage): void
@@ -63,6 +74,14 @@ export interface XmppSecureContext {
   sendOrBufferStanza(peerId: string, stanza: Element, peerAddr?: string | Multiaddr): Promise<void>
 }
 
+/**
+ * Decrypts an OMEMO pre-key or session message for a remote address.
+ *
+ * @param ctx - Secure messaging execution context.
+ * @param remoteAddress - Target OMEMO identity.
+ * @param payload - Base64-encoded ciphertext payload.
+ * @returns The decrypted payload bytes.
+ */
 export async function decryptOmemoKey(ctx: XmppSecureContext, remoteAddress: OmemoAddress, payload: string): Promise<ArrayBuffer> {
   const omemo = await loadOmemoModule()
   const sessionCipher = new omemo.SessionCipher(ctx.getOmemoStore(), remoteAddress)
@@ -77,6 +96,14 @@ export async function decryptOmemoKey(ctx: XmppSecureContext, remoteAddress: Ome
   }
 }
 
+/**
+ * Decrypts an OMEMO payload body using the supplied key and IV.
+ *
+ * @param payload - Base64-encoded payload with the GCM tag appended.
+ * @param payloadKey - AES key bytes.
+ * @param ivB64 - Base64-encoded initialization vector.
+ * @returns The decrypted UTF-8 body.
+ */
 export function decryptOmemoPayload(payload: string, payloadKey: ArrayBuffer, ivB64: string): string {
   const bytes = Buffer.from(payload, 'base64')
   if (bytes.byteLength < 16) {
@@ -91,9 +118,17 @@ export function decryptOmemoPayload(payload: string, payloadKey: ArrayBuffer, iv
   return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8')
 }
 
+/**
+ * Ensures an OMEMO session exists with the remote device before sending.
+ *
+ * @param ctx - Secure messaging execution context.
+ * @param peerAddr - Target peer address or identifier.
+ * @param deviceId - Remote OMEMO device identifier.
+ * @returns Nothing.
+ */
 export async function ensureOmemoSession(ctx: XmppSecureContext, peerAddr: string | Multiaddr, deviceId: number): Promise<void> {
   const xmppStream = await ctx.getOrCreateStream(peerAddr)
-  const peerJid = ctx.jidFromPeerId(xmppStream.remotePeer.toString())
+  const peerJid = jidFromPeerId(xmppStream.remotePeer.toString())
   const omemo = await loadOmemoModule()
   const remoteAddress = new omemo.OMEMOAddress(peerJid, deviceId)
   const store = ctx.getOmemoStore()
@@ -127,6 +162,13 @@ function ctxToArrayBuffer(value: string): ArrayBuffer {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
 }
 
+/**
+ * Loads and parses a peer's cached or freshly fetched OpenPGP public key.
+ *
+ * @param peerAddr - Target peer address or identifier.
+ * @param ctx - Secure messaging execution context.
+ * @returns Parsed OpenPGP public key.
+ */
 export async function getPeerOpenPgpKey(peerAddr: string | Multiaddr, ctx: XmppSecureContext): Promise<openpgp.PublicKey> {
   const xmppStream = await ctx.getOrCreateStream(peerAddr)
   const peerId = xmppStream.remotePeer.toString()
@@ -150,13 +192,32 @@ async function decryptOpenPgpMessage(ctx: XmppSecureContext, payload: string): P
   return typeof decrypted.data === 'string' ? decrypted.data : new TextDecoder().decode(decrypted.data as Uint8Array)
 }
 
+/**
+ * Handles inbound encrypted chat stanzas and emits decrypted chat records.
+ *
+ * @param element - Incoming message stanza.
+ * @param fromJid - Sender JID.
+ * @param toJid - Local recipient JID.
+ * @param rawCtx - Secure messaging execution context.
+ * @returns `true` when the stanza was handled by this module.
+ */
 export async function handleSecureMessageStanza(
   element: Element,
   fromJid: string,
   toJid: string,
-  ctx: XmppSecureContext
+  rawCtx: XmppSecureContext
 ): Promise<boolean> {
   const metadata = parseXepMetadata(element)
+
+  const ctx = {
+    ...rawCtx,
+    emitMessage: (message: any) => {
+      rawCtx.emitMessage({
+        ...message,
+        ...(metadata.private ? { private: true } : {})
+      })
+    }
+  }
 
   // Handle Receipt auto-reply if requested
   if (metadata.receipt?.type === 'request' && element.attrs.id) {
@@ -313,12 +374,13 @@ export async function sendEncryptedMessage(
     chatState?: 'active' | 'composing' | 'paused' | 'inactive' | 'gone'
     delay?: { stamp: string; from?: string }
     nick?: string
+    noCarbons?: boolean
   } = {}
 ): Promise<string> {
   await ctx.ready
   const xmppStream = await ctx.getOrCreateStream(peerAddr)
   const peerId = xmppStream.remotePeer.toString()
-  const toJid = ctx.jidFromPeerId(peerId)
+  const toJid = jidFromPeerId(peerId)
   const itemId = Math.random().toString(36).substring(2, 15)
   const devices = await ctx.getPeerOmemoDevices(peerAddr)
   if (devices.length === 0) {
@@ -366,7 +428,8 @@ export async function sendEncryptedMessage(
     reply: options.reply,
     thread: options.thread,
     originId: itemId,
-    stanzaId: { id: itemId, by: ctx.jid }
+    stanzaId: { id: itemId, by: ctx.jid },
+    private: options.noCarbons
   }))
 
   const stanza = xml(
@@ -390,7 +453,7 @@ export async function fetchOpenPgpPublicKey(
 ): Promise<XmppOpenPgpPublicKeyResponse> {
   const xmppStream = await ctx.getOrCreateStream(peerAddr)
   const id = Math.random().toString(36).substring(2, 11)
-  const toJid = ctx.jidFromPeerId(xmppStream.remotePeer.toString())
+  const toJid = jidFromPeerId(xmppStream.remotePeer.toString())
 
   const iq = xml(
     'iq',

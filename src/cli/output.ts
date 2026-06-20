@@ -1,6 +1,17 @@
+/**
+ * @fileoverview CLI help and formatting helpers for command discovery and
+ * presence text rendering.
+ */
+
 import readline from 'readline'
 import { CliContext } from './types.js'
 
+/**
+ * Formats a presence record into the compact CLI display string.
+ *
+ * @param presence - Presence state and optional metadata.
+ * @returns A human-readable summary or an empty string when absent.
+ */
 export const formatPresence = (presence?: { type: string; show?: string; status?: string; nickname?: string }) => {
   if (!presence) {
     return ''
@@ -8,6 +19,9 @@ export const formatPresence = (presence?: { type: string; show?: string; status?
   return `${presence.type}${presence.show ? ` [${presence.show}]` : ''}${presence.status ? ` (${presence.status})` : ''}${presence.nickname ? ` <${presence.nickname}>` : ''}`
 }
 
+/**
+ * Help topic definition used by the `help <topic>` command.
+ */
 type HelpTopic = {
   title: string
   lines: string[]

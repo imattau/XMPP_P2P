@@ -1,6 +1,14 @@
+/**
+ * @fileoverview CLI startup argument parsing and usage printing for the XMPP
+ * over libp2p terminal and MCP entrypoints.
+ */
+
 import { readFile } from 'fs/promises'
 import { fileURLToPath } from 'url'
 
+/**
+ * Parsed startup configuration shared by the CLI and MCP server.
+ */
 export type CliStartupOptions = {
   port?: number
   host?: string
@@ -10,6 +18,12 @@ export type CliStartupOptions = {
   errors: string[]
 }
 
+/**
+ * Parses a non-negative integer CLI argument.
+ *
+ * @param value - Raw string value from the command line.
+ * @returns A safe integer when the input is valid, otherwise `undefined`.
+ */
 const parseInteger = (value: string) => {
   if (!/^\d+$/.test(value)) {
     return undefined
@@ -19,13 +33,29 @@ const parseInteger = (value: string) => {
   return Number.isSafeInteger(parsed) ? parsed : undefined
 }
 
+/**
+ * Resolves the repository package metadata path relative to this module.
+ *
+ * @returns A URL pointing at `package.json`.
+ */
 const resolvePackageJsonPath = () => new URL('../../package.json', import.meta.url)
 
+/**
+ * Reads the package version from `package.json`.
+ *
+ * @returns The semantic version string or `0.0.0` when it is missing.
+ */
 export const getPackageVersion = async () => {
   const packageJson = JSON.parse(await readFile(fileURLToPath(resolvePackageJsonPath()), 'utf8')) as { version?: string }
   return packageJson.version ?? '0.0.0'
 }
 
+/**
+ * Parses supported CLI flags from argv-style input.
+ *
+ * @param args - Command line arguments excluding the Node executable.
+ * @returns Normalized startup options and validation errors.
+ */
 export const parseCliStartupArgs = (args: string[]): CliStartupOptions => {
   const options: CliStartupOptions = {
     helpRequested: false,
@@ -100,6 +130,14 @@ export const parseCliStartupArgs = (args: string[]): CliStartupOptions => {
   return options
 }
 
+/**
+ * Prints a shared usage block for the CLI and MCP server.
+ *
+ * @param title - Heading to display above the usage text.
+ * @param launchCommand - Example command line invocation.
+ * @param footer - Closing help text shown after the options list.
+ * @returns Nothing.
+ */
 export const printStartupUsage = (title: string, launchCommand: string, footer: string) => {
   console.log(title)
   console.log('')
@@ -116,6 +154,11 @@ export const printStartupUsage = (title: string, launchCommand: string, footer: 
   console.log(footer)
 }
 
+/**
+ * Prints the interactive CLI usage summary.
+ *
+ * @returns Nothing.
+ */
 export const printCliUsage = () => {
   printStartupUsage(
     'XMPP over libp2p CLI',
@@ -124,6 +167,11 @@ export const printCliUsage = () => {
   )
 }
 
+/**
+ * Prints the MCP server usage summary.
+ *
+ * @returns Nothing.
+ */
 export const printMcpUsage = () => {
   printStartupUsage(
     'XMPP over libp2p MCP server',

@@ -1,3 +1,8 @@
+/**
+ * @fileoverview DHT key helpers and mailbox persistence for XMPP state that
+ * needs to survive reconnects or be shared across peers.
+ */
+
 import { Libp2p } from 'libp2p'
 import { Element, Parser } from '@xmpp/xml'
 import { XmppMucRoomSettings } from './xmpp-records.js'
@@ -5,18 +10,43 @@ import { XmppMucRoomSettings } from './xmpp-records.js'
 const MUC_SETTINGS_INDEX_PREFIX = '/xmpp/muc/index/'
 const MUC_SETTINGS_PREFIX = '/xmpp/muc/room/'
 
+/**
+ * Encodes the peer-specific DHT index key for MUC room settings.
+ *
+ * @param peerId - Local peer identifier.
+ * @returns A binary DHT key.
+ */
 export function mucSettingsIndexKey(peerId: string): Uint8Array {
   return new TextEncoder().encode(`${MUC_SETTINGS_INDEX_PREFIX}${peerId}`)
 }
 
+/**
+ * Encodes the DHT key for an individual MUC room record.
+ *
+ * @param roomName - The room identifier.
+ * @returns A binary DHT key.
+ */
 export function mucSettingsKey(roomName: string): Uint8Array {
   return new TextEncoder().encode(`${MUC_SETTINGS_PREFIX}${roomName}`)
 }
 
+/**
+ * Encodes the per-peer mailbox queue key used for buffered stanzas.
+ *
+ * @param peerId - Target peer identifier.
+ * @returns A binary DHT key.
+ */
 export function mailboxKey(peerId: string): Uint8Array {
   return new TextEncoder().encode(`/xmpp/mailbox/queue/${peerId}`)
 }
 
+/**
+ * Reads and parses JSON from the DHT if the content routing API is available.
+ *
+ * @param libp2p - Active libp2p node.
+ * @param key - DHT key to query.
+ * @returns Parsed JSON or `undefined` when no value exists.
+ */
 export async function readDhtJson<T>(libp2p: Libp2p, key: Uint8Array): Promise<T | undefined> {
   const contentRouting = (libp2p as any).contentRouting
   if (!contentRouting?.get) {
@@ -36,6 +66,14 @@ export async function readDhtJson<T>(libp2p: Libp2p, key: Uint8Array): Promise<T
   }
 }
 
+/**
+ * Writes JSON to the DHT if the content routing API is available.
+ *
+ * @param libp2p - Active libp2p node.
+ * @param key - DHT key to store.
+ * @param value - Serializable payload.
+ * @returns Nothing.
+ */
 export async function writeDhtJson(libp2p: Libp2p, key: Uint8Array, value: unknown): Promise<void> {
   const contentRouting = (libp2p as any).contentRouting
   if (!contentRouting?.put) {
@@ -53,6 +91,9 @@ export async function writeDhtJson(libp2p: Libp2p, key: Uint8Array, value: unkno
   }
 }
 
+/**
+ * Context required by the DHT helpers to load, persist, and flush mailbox state.
+ */
 export interface XmppDhtContext {
   libp2p: Libp2p
   mucRooms: Map<string, XmppMucRoomSettings>
@@ -61,6 +102,12 @@ export interface XmppDhtContext {
   emit(event: string, ...args: any[]): boolean
 }
 
+/**
+ * Restores the local MUC room index from the DHT.
+ *
+ * @param ctx - DHT execution context.
+ * @returns Nothing.
+ */
 export async function loadMucStateFromDht(ctx: XmppDhtContext): Promise<void> {
   const index = await readDhtJson<{ version: number; rooms: string[] }>(
     ctx.libp2p,
@@ -73,6 +120,12 @@ export async function loadMucStateFromDht(ctx: XmppDhtContext): Promise<void> {
   }
 }
 
+/**
+ * Persists MUC room state and the room index to the DHT.
+ *
+ * @param ctx - DHT execution context.
+ * @returns Nothing.
+ */
 export async function persistMucStateToDht(ctx: XmppDhtContext): Promise<void> {
   const rooms = Array.from(ctx.mucRooms.values())
   await Promise.all(rooms.map(async (room) => {
@@ -85,6 +138,14 @@ export async function persistMucStateToDht(ctx: XmppDhtContext): Promise<void> {
   })
 }
 
+/**
+ * Appends a stanza to the peer's buffered DHT mailbox.
+ *
+ * @param libp2p - Active libp2p node.
+ * @param peerId - Recipient peer identifier.
+ * @param stanza - Stanza to buffer.
+ * @returns Nothing.
+ */
 export async function bufferStanzaToDht(libp2p: Libp2p, peerId: string, stanza: Element): Promise<void> {
   const key = mailboxKey(peerId)
   let queue = await readDhtJson<string[]>(libp2p, key)
@@ -95,6 +156,12 @@ export async function bufferStanzaToDht(libp2p: Libp2p, peerId: string, stanza: 
   await writeDhtJson(libp2p, key, queue)
 }
 
+/**
+ * Flushes buffered stanzas for the local peer when the client becomes active.
+ *
+ * @param ctx - DHT execution context.
+ * @returns Nothing.
+ */
 export async function flushDhtMailbox(ctx: XmppDhtContext): Promise<void> {
   const key = mailboxKey(ctx.libp2p.peerId.toString())
   const queue = await readDhtJson<string[]>(ctx.libp2p, key)

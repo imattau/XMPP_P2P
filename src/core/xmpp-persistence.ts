@@ -1,3 +1,8 @@
+/**
+ * @fileoverview Storage loaders and persistors for XMPP roster, feed, MUC,
+ * attachment, and chat state.
+ */
+
 import type { XmppStorage } from './storage/types.js'
 import {
   type XmppAttachment,
@@ -20,9 +25,14 @@ import {
   type XmppRosterFile,
   type XmppSubscriptionFile,
   type XmppVCardFile,
-  type XmppVCardProfile
+  type XmppVCardProfile,
+  type XmppMessage,
+  type XmppChatHistoryFile
 } from './xmpp-records.js'
 
+/**
+ * State required when loading persisted XMPP data.
+ */
 export interface XmppPersistenceLoadContext {
   storage: XmppStorage
   roster: Map<string, XmppRosterEntry>
@@ -34,6 +44,7 @@ export interface XmppPersistenceLoadContext {
   attachmentHistory: Map<string, XmppAttachment>
   mucRooms: Map<string, XmppMucRoomSettings>
   mucHistory: Map<string, XmppMucMessage>
+  chatHistory: Map<string, XmppMessage>
   vCard: XmppVCardProfile
   normalizeRosterEntry: (entry: Partial<XmppRosterEntry> & { jid: string }) => XmppRosterEntry
   normalizeFeedPost: (entry: Partial<XmppFeedPost> & { id: string; topic: string; from: string; body: string }) => XmppFeedPost
@@ -56,6 +67,9 @@ export interface XmppPersistenceLoadContext {
   onCollectionLoaded: (collection: XmppCollectionNode) => void
 }
 
+/**
+ * State required when saving persisted XMPP data.
+ */
 export interface XmppPersistenceSaveContext {
   storage: XmppStorage
   roster: Map<string, XmppRosterEntry>
@@ -67,6 +81,7 @@ export interface XmppPersistenceSaveContext {
   attachmentHistory: Map<string, XmppAttachment>
   mucRooms: Map<string, XmppMucRoomSettings>
   mucHistory: Map<string, XmppMucMessage>
+  chatHistory: Map<string, XmppMessage>
   vCard: XmppVCardProfile
   openPgpState?: XmppOpenPgpStateFile
 }
@@ -83,6 +98,9 @@ async function writeState(storage: XmppStorage, namespace: string, value: unknow
   await storage.putRecord(namespace, 'state', JSON.stringify(value), new Date().toISOString())
 }
 
+/**
+ * Trims a map to the requested maximum size by deleting the oldest entries.
+ */
 function trimMap<K, V>(map: Map<K, V>, limit: number): void {
   while (map.size > limit) {
     const oldestKey = map.keys().next().value as K | undefined
@@ -215,6 +233,19 @@ export async function loadMucHistoryState(ctx: XmppPersistenceLoadContext, limit
   }
 }
 
+export async function loadChatHistoryState(ctx: XmppPersistenceLoadContext, limit: number): Promise<void> {
+  try {
+    const parsed = await readState<XmppChatHistoryFile | XmppMessage[]>(ctx.storage, 'chat_history')
+    const messages = Array.isArray(parsed) ? parsed : parsed?.messages
+    for (const msg of messages ?? []) {
+      ctx.chatHistory.set(msg.id || Math.random().toString(36).substring(2, 15), msg)
+    }
+    trimMap(ctx.chatHistory, limit)
+  } catch (err: any) {
+    console.error('[XMPP] Failed to load chat history from storage:', err)
+  }
+}
+
 export async function loadVCardState(ctx: XmppPersistenceLoadContext): Promise<void> {
   try {
     const parsed = await readState<XmppVCardFile | XmppVCardProfile>(ctx.storage, 'vcard')
@@ -307,6 +338,18 @@ export async function persistMucHistoryState(ctx: XmppPersistenceSaveContext): P
     messages: Array.from(ctx.mucHistory.values()).sort((a, b) => a.timestamp.localeCompare(b.timestamp))
   }
   await writeState(ctx.storage, 'muc_history', payload)
+}
+
+export async function persistChatHistoryState(ctx: XmppPersistenceSaveContext): Promise<void> {
+  const payload: XmppChatHistoryFile = {
+    version: 1,
+    messages: Array.from(ctx.chatHistory.values()).sort((a, b) => {
+      const aStamp = a.delay?.stamp || ''
+      const bStamp = b.delay?.stamp || ''
+      return aStamp.localeCompare(bStamp)
+    })
+  }
+  await writeState(ctx.storage, 'chat_history', payload)
 }
 
 export async function persistVCardState(ctx: XmppPersistenceSaveContext): Promise<void> {
