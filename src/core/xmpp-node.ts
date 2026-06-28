@@ -6,6 +6,7 @@
 import { Libp2p } from 'libp2p'
 import { xml, Element, Parser } from '@xmpp/xml'
 import { XmppChatManager } from './xmpp-chat.js'
+import { XmppServerBridge, type ServerConnectionInfo, type ServerMessageEvent, type ServerMucMessageEvent, type ServerPubsubEvent, type ServerDiscoInfoResult, type ServerDiscoItemsResult } from './xmpp-server-bridge.js'
 import { buildXepElements, parseXepMetadata } from './xmpp-xep-helpers.js'
 import { bufferToBase64 } from './xmpp-utils.js'
 import { EventEmitter } from 'events'
@@ -250,6 +251,9 @@ export class XmppNode extends EventEmitter {
   public get selfVCard() {
     return this.rosterManager.selfVCard
   }
+  private get peerLocalpart(): string {
+    return this.libp2p.peerId.toString()
+  }
   public readonly storage: XmppStorage
   public readonly uploadHost: string
   public readonly uploadPort: number
@@ -269,6 +273,7 @@ export class XmppNode extends EventEmitter {
   public readonly jid: string
   public readonly muc: XmppMucManager
   public readonly uploads: XmppUploadManager
+  public readonly serverBridge: XmppServerBridge
   public readonly ready: Promise<void>
 
   constructor(libp2p: Libp2p, storage: XmppStorage, options: XmppNodeOptions = {}) {
@@ -282,6 +287,8 @@ export class XmppNode extends EventEmitter {
     this.openPgpStateManager = new XmppOpenPgpStateManager(storage, this.jid)
     this.muc = new XmppMucManager(this.getMucContext())
     this.uploads = new XmppUploadManager(this)
+    this.serverBridge = new XmppServerBridge(storage)
+    this.forwardServerBridgeEvents()
     this.chat = new XmppChatManager({
       libp2p: this.libp2p,
       storage: this.storage,
@@ -324,6 +331,7 @@ export class XmppNode extends EventEmitter {
       .then(() => this.uploads.ensureUploadAnnouncementSubscription())
       .then(() => this.loadOmemoState())
       .then(() => this.openPgpStateManager.load())
+      .then(() => this.initFederationSettings())
 
     // Register protocol handler for inbound connections
     this.libp2p.handle('/xmpp/1.0.0', (stream: any, connection?: any) => {
@@ -1372,6 +1380,11 @@ export class XmppNode extends EventEmitter {
       noCarbons?: boolean
     } = {}
   ): Promise<string> {
+    const addrStr = peerAddr.toString()
+    if (this.serverBridge.isFederatedJid(addrStr)) {
+      return this.serverBridge.sendMessage(addrStr, body, { thread: options.thread }, this.peerLocalpart)
+    }
+
     const peerId = this.parsePeerReference(peerAddr).peerId
     const toJid = this.jidFromPeerId(peerId)
     const id = Math.random().toString(36).substring(2, 15)
@@ -1807,9 +1820,215 @@ export class XmppNode extends EventEmitter {
     return await this.collectionManager.getAttachmentSummaries(topic)
   }
 
-  // Close all streams
+  private forwardServerBridgeEvents() {
+    this.serverBridge.on('message', (event: ServerMessageEvent) => {
+      this.emit('message', {
+        from: event.from,
+        to: event.to,
+        body: event.body,
+        id: event.id,
+        type: event.type,
+        server: event.server,
+        thread: event.thread,
+        delay: event.delay ? { stamp: event.delay.stamp, from: event.delay.from } : undefined
+      } as any)
+    })
+
+    this.serverBridge.on('presence', (event: any) => {
+      this.emit('presence', {
+        from: event.from,
+        type: event.type,
+        server: event.server,
+        show: event.show,
+        status: event.status
+      })
+    })
+
+    this.serverBridge.on('muc:message', (event: ServerMucMessageEvent) => {
+      this.emit('muc:message', {
+        room: event.room,
+        from: event.from,
+        body: event.body,
+        id: event.id,
+        server: event.server
+      })
+    })
+
+    this.serverBridge.on('connection', (info: ServerConnectionInfo) => {
+      this.emit('server:connection', info)
+    })
+
+    // Phase 1: PubSub events from server
+    this.serverBridge.on('pubsub:event', (event: ServerPubsubEvent) => {
+      this.emit('pubsub:message', {
+        topic: event.node,
+        from: event.from,
+        body: event.payload?.body || '',
+        itemId: event.itemId,
+        server: event.server
+      })
+    })
+
+    // Phase 3: Feed bridge from server PubSub
+    this.serverBridge.on('feed:bridge', (event: any) => {
+      this.emit('feed:post', {
+        id: event.itemId,
+        topic: event.feedTopic,
+        from: event.from,
+        body: event.body,
+        title: event.title,
+        publishedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        receivedAt: new Date().toISOString()
+      })
+    })
+
+    // Phase 4: Service discovery results
+    this.serverBridge.on('disco:info', (event: any) => {
+      this.emit('disco:info', event)
+    })
+
+    this.serverBridge.on('disco:items', (event: any) => {
+      this.emit('disco:items', event)
+    })
+
+    // Phase 5: Cross-MUC bridge events
+    this.serverBridge.on('muc:bridge', (event: any) => {
+      this.emit('muc:message', {
+        room: event.p2pRoom,
+        from: event.from,
+        body: event.body,
+        id: event.id,
+        server: 'bridge:' + event.serverRoom
+      })
+    })
+
+    // Phase 3: Feed-to-PubSub cross-posting hook
+    this.on('feed:post', (post: any) => {
+      this.serverBridge.crossPostFeedToPubSub(post).catch(() => {})
+    })
+  }
+
+  isFederatedJid(target: string): boolean {
+    return this.serverBridge.isFederatedJid(target)
+  }
+
+  async connectComponent(host: string, port: number, secret: string, domain: string): Promise<void> {
+    return this.serverBridge.connectComponent(host, port, secret, domain)
+  }
+
+  async disconnectComponent(): Promise<void> {
+    return this.serverBridge.disconnectComponent()
+  }
+
+  isComponentConnected(): boolean {
+    return this.serverBridge.isComponentConnected()
+  }
+
+  setFederationEnabled(enabled: boolean): void {
+    this.serverBridge.setFederationEnabled(enabled)
+  }
+
+  isFederationEnabled(): boolean {
+    return this.serverBridge.isFederationEnabled()
+  }
+
+  async resolveComponentEndpoint(domain: string): Promise<{ host: string; port: number }> {
+    return this.serverBridge.resolveComponentEndpoint(domain)
+  }
+
+  async initFederationSettings(): Promise<void> {
+    await this.serverBridge.loadSettings()
+  }
+
+  setS2SDomain(domain: string): void {
+    this.serverBridge.setS2SDomain(domain)
+  }
+
+  getServerConnections(): ServerConnectionInfo[] {
+    return this.serverBridge.getConnectionInfo()
+  }
+
+  async joinServerMuc(roomJid: string, nick: string): Promise<void> {
+    return this.serverBridge.joinMuc(roomJid, nick, this.peerLocalpart)
+  }
+
+  async sendServerMucMessage(roomJid: string, body: string): Promise<string> {
+    return this.serverBridge.sendMucMessage(roomJid, body, this.peerLocalpart)
+  }
+
+  async leaveServerMuc(roomJid: string): Promise<void> {
+    return this.serverBridge.leaveMuc(roomJid, this.peerLocalpart)
+  }
+
+  // Phase 2: PubSub operations on federated servers
+  async pubsubSubscribe(nodeJid: string, node: string): Promise<void> {
+    return this.serverBridge.pubsubSubscribe(nodeJid, node, this.peerLocalpart)
+  }
+
+  async pubsubPublish(nodeJid: string, node: string, itemId: string, payload: Element): Promise<string> {
+    return this.serverBridge.pubsubPublish(nodeJid, node, itemId, payload, this.peerLocalpart)
+  }
+
+  async pubsubGetItems(nodeJid: string, node: string, maxItems?: number): Promise<Element[]> {
+    return this.serverBridge.pubsubGetItems(nodeJid, node, maxItems, this.peerLocalpart)
+  }
+
+  async pubsubUnsubscribe(nodeJid: string, node: string): Promise<void> {
+    return this.serverBridge.pubsubUnsubscribe(nodeJid, node, this.peerLocalpart)
+  }
+
+  async pubsubCreateNode(nodeJid: string, node: string): Promise<void> {
+    return this.serverBridge.pubsubCreateNode(nodeJid, node, this.peerLocalpart)
+  }
+
+  // Phase 4: Service Discovery on federated servers
+  async serverDiscoInfo(jid: string): Promise<ServerDiscoInfoResult> {
+    return this.serverBridge.discoInfo(jid, this.peerLocalpart)
+  }
+
+  async serverDiscoItems(jid: string): Promise<ServerDiscoItemsResult> {
+    return this.serverBridge.discoItems(jid, this.peerLocalpart)
+  }
+
+  // Phase 3: Feed bridge management
+  async setFeedBridge(feedTopic: string, pubsubNode: string): Promise<void> {
+    return this.serverBridge.setFeedBridge(feedTopic, pubsubNode)
+  }
+
+  async removeFeedBridge(feedTopic: string): Promise<void> {
+    return this.serverBridge.removeFeedBridge(feedTopic)
+  }
+
+  getFeedBridge(feedTopic: string): string | undefined {
+    return this.serverBridge.getFeedBridge(feedTopic)
+  }
+
+  getAllFeedBridges(): Array<{ feedTopic: string; pubsubNode: string }> {
+    return this.serverBridge.getAllFeedBridges()
+  }
+
+  // Phase 5: MUC bridge management
+  async setMucBridge(serverRoom: string, p2pRoom: string): Promise<void> {
+    return this.serverBridge.setMucBridge(serverRoom, p2pRoom)
+  }
+
+  async removeMucBridge(serverRoom: string): Promise<void> {
+    return this.serverBridge.removeMucBridge(serverRoom)
+  }
+
+  getMucBridge(serverRoom: string): string | undefined {
+    return this.serverBridge.getMucBridge(serverRoom)
+  }
+
+  getAllMucBridges(): Array<{ serverRoom: string; p2pRoom: string }> {
+    return this.serverBridge.getAllMucBridges()
+  }
+
   async close() {
     await this.ready
+
+    await this.serverBridge.disconnectAll().catch(() => {})
 
     for (const pending of this.pendingIq.values()) {
       clearTimeout(pending.timer)

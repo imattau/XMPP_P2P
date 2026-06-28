@@ -110,6 +110,17 @@ const helpSections: Record<string, string[]> = {
     '  omemo fetch <peer>         Fetch and cache a peer OMEMO bundle',
     '  openpgp key                Print local OpenPGP material',
     '  openpgp fetch <peer>       Fetch and cache a peer OpenPGP key'
+  ],
+  server: [
+    '  server component connect <host> <port> <secret> <domain> [--save] Connect as XEP-0114 component',
+    '  server component disconnect       Disconnect the component',
+    '  server s2s domain <domain>        Set local domain for direct S2S',
+    '  server list                       List active federation connections',
+    '  server join <room> [--nick]       Join a MUC room via federation',
+    '  server leave <room>               Leave a MUC room',
+    '  server save <domain> <sec> <host> <port> Save component config',
+    '  server forget <domain>            Remove saved component config',
+    '  server saved                      List saved component configs'
   ]
 }
 
@@ -446,6 +457,20 @@ const helpCommands: Record<string, HelpTopic> = {
       '  muc-roster <room>          List current room occupants'
     ]
   },
+  'server:server': {
+    title: 'help server',
+    lines: [
+      '  server component connect <host> <port> <secret> <domain> [--save] Connect as XEP-0114 component',
+      '  server component disconnect       Disconnect the component',
+      '  server s2s domain <domain>        Set local domain for direct S2S',
+      '  server list                       List active federation connections',
+      '  server join <room> [--nick]       Join a MUC room via federation',
+      '  server leave <room>               Leave a MUC room',
+      '  server save <domain> <sec> <host> <port> Save component config',
+      '  server forget <domain>            Remove saved component config',
+      '  server saved                      List saved component configs'
+    ]
+  },
   'omemo:omemo': {
     title: 'help omemo',
     lines: [
@@ -500,6 +525,7 @@ const helpTopicAliases: Record<string, string> = {
   omemo: 'crypto',
   openpgp: 'crypto',
   crypto: 'crypto',
+  server: 'server',
   system: 'system',
   core: 'system'
 }
@@ -556,6 +582,7 @@ export const printCliHelp = (...topicParts: string[]) => {
   printSection('  Feeds & Collections', [...helpSections.feed, ...helpSections.collection])
   printSection('  PubSub', helpSections.pubsub)
   printSection('  MUC', helpSections.muc)
+  printSection('  Server', helpSections.server)
   printSection('  Crypto', helpSections.crypto)
 }
 

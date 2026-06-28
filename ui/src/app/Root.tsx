@@ -1,7 +1,9 @@
-import { Outlet, NavLink } from 'react-router'
+import { useEffect } from 'react'
+import { Outlet, NavLink, useNavigate } from 'react-router'
 import { Home, Hash, PlusSquare, MessageCircle, User } from 'lucide-react'
 import NavigationSidebar from '../components/NavigationSidebar'
 import { useConnectionBridge } from '../bridge/useConnectionBridge'
+import { identityController } from '../bridge/identity/controller'
 
 const NAV = [
   { to: '/', icon: Home, label: 'Feed' },
@@ -13,6 +15,25 @@ const NAV = [
 
 export default function Root() {
   const { connected, connectedPeers } = useConnectionBridge()
+  const navigate = useNavigate()
+  const isOnboarding = window.location.pathname.startsWith('/onboarding')
+
+  useEffect(() => {
+    const path = window.location.pathname
+    if (!path.startsWith('/onboarding') && !identityController.isOnboardingComplete()) {
+      navigate('/onboarding')
+    }
+  }, [navigate])
+
+  if (isOnboarding) {
+    return (
+      <div className="h-screen overflow-hidden bg-background text-foreground"
+        style={{ fontFamily: "'Inter', system-ui, sans-serif" }}
+      >
+        <Outlet />
+      </div>
+    )
+  }
 
   return (
     <div className="h-screen overflow-hidden bg-background text-foreground flex flex-col"

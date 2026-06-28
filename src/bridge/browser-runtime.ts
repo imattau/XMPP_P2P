@@ -1,6 +1,7 @@
 import { XmppNode } from '../core/xmpp-node.js'
 import type { XmppMessage, XmppFeedPost, XmppPresence } from '../core/xmpp-records.js'
 import { jidFromPeerId } from '../core/xmpp-records.js'
+import type { ServerConnectionInfo, ServerDiscoInfoResult, ServerDiscoItemsResult } from '../core/xmpp-server-bridge.js'
 
 type Listener<Args extends unknown[]> = (...args: Args) => void
 
@@ -9,6 +10,7 @@ export class BrowserXmppRuntimeBridge {
   private presenceListeners = new Set<Listener<[XmppPresence]>>()
   private feedPostListeners = new Set<Listener<[XmppFeedPost]>>()
   private connectionListeners = new Set<Listener<[string, boolean]>>()
+  private serverConnectionListeners = new Set<Listener<[ServerConnectionInfo]>>()
 
   constructor(private readonly xmppNode: XmppNode) {
     this.hookEvents()
@@ -45,6 +47,12 @@ export class BrowserXmppRuntimeBridge {
     this.xmppNode.on('stream-closed', (peerId: string) => {
       for (const cb of this.connectionListeners) {
         try { cb(peerId, false) } catch { /* swallow */ }
+      }
+    })
+
+    this.xmppNode.on('server:connection', (info: ServerConnectionInfo) => {
+      for (const cb of this.serverConnectionListeners) {
+        try { cb(info) } catch { /* swallow */ }
       }
     })
   }
@@ -191,5 +199,119 @@ export class BrowserXmppRuntimeBridge {
       reply: options?.reply,
       thread: options?.thread
     })
+  }
+
+  async connectComponent(host: string, port: number, secret: string, domain: string): Promise<void> {
+    return this.xmppNode.connectComponent(host, port, secret, domain)
+  }
+
+  async disconnectComponent(): Promise<void> {
+    return this.xmppNode.disconnectComponent()
+  }
+
+  isComponentConnected(): boolean {
+    return this.xmppNode.isComponentConnected()
+  }
+
+  setS2SDomain(domain: string): void {
+    this.xmppNode.setS2SDomain(domain)
+  }
+
+  setFederationEnabled(enabled: boolean): void {
+    this.xmppNode.setFederationEnabled(enabled)
+  }
+
+  isFederationEnabled(): boolean {
+    return this.xmppNode.isFederationEnabled()
+  }
+
+  async resolveComponentEndpoint(domain: string): Promise<{ host: string; port: number }> {
+    return this.xmppNode.resolveComponentEndpoint(domain)
+  }
+
+  getServerConnections(): ServerConnectionInfo[] {
+    return this.xmppNode.getServerConnections()
+  }
+
+  async joinServerMuc(roomJid: string, nick: string): Promise<void> {
+    return this.xmppNode.joinServerMuc(roomJid, nick)
+  }
+
+  async sendServerMucMessage(roomJid: string, body: string): Promise<string> {
+    return this.xmppNode.sendServerMucMessage(roomJid, body)
+  }
+
+  async leaveServerMuc(roomJid: string): Promise<void> {
+    return this.xmppNode.leaveServerMuc(roomJid)
+  }
+
+  onServerConnection(cb: Listener<[ServerConnectionInfo]>): () => void {
+    this.serverConnectionListeners.add(cb)
+    return () => this.serverConnectionListeners.delete(cb)
+  }
+
+  async saveComponentConfig(domain: string, secret: string, host: string, port: number): Promise<void> {
+    return this.xmppNode.serverBridge.configStore.save(domain, secret, host, port)
+  }
+
+  async listSavedComponentConfigs(): Promise<any[]> {
+    return this.xmppNode.serverBridge.configStore.list()
+  }
+
+  async removeComponentConfig(domain: string): Promise<void> {
+    return this.xmppNode.serverBridge.configStore.remove(domain)
+  }
+
+  // Phase 2: PubSub operations
+  async pubsubSubscribe(nodeJid: string, node: string): Promise<void> {
+    return this.xmppNode.pubsubSubscribe(nodeJid, node)
+  }
+
+  async pubsubPublish(nodeJid: string, node: string, itemId: string, body: string): Promise<string> {
+    const { xml } = await import('@xmpp/xml')
+    const payload = xml('body', {}, body)
+    return this.xmppNode.pubsubPublish(nodeJid, node, itemId, payload)
+  }
+
+  async pubsubGetItems(nodeJid: string, node: string, maxItems?: number): Promise<any[]> {
+    return this.xmppNode.pubsubGetItems(nodeJid, node, maxItems)
+  }
+
+  async pubsubUnsubscribe(nodeJid: string, node: string): Promise<void> {
+    return this.xmppNode.pubsubUnsubscribe(nodeJid, node)
+  }
+
+  // Phase 4: Service Discovery
+  async serverDiscoInfo(jid: string): Promise<ServerDiscoInfoResult> {
+    return this.xmppNode.serverDiscoInfo(jid)
+  }
+
+  async serverDiscoItems(jid: string): Promise<ServerDiscoItemsResult> {
+    return this.xmppNode.serverDiscoItems(jid)
+  }
+
+  // Phase 3 & 5: Bridge management
+  async setFeedBridge(feedTopic: string, pubsubNode: string): Promise<void> {
+    return this.xmppNode.setFeedBridge(feedTopic, pubsubNode)
+  }
+
+  async removeFeedBridge(feedTopic: string): Promise<void> {
+    return this.xmppNode.removeFeedBridge(feedTopic)
+  }
+
+  getAllFeedBridges(): Array<{ feedTopic: string; pubsubNode: string }> {
+    return this.xmppNode.getAllFeedBridges()
+  }
+
+  async setMucBridge(serverRoom: string, p2pRoom: string): Promise<void> {
+    return this.xmppNode.setMucBridge(serverRoom, p2pRoom)
+  }
+
+  async removeMucBridge(serverRoom: string): Promise<void> {
+    return this.xmppNode.removeMucBridge(serverRoom)
+  }
+
+  getAllMucBridges(): Array<{ serverRoom: string; p2pRoom: string }> {
+    return this.xmppNode.getAllMucBridges()
   }
 }

@@ -10,6 +10,7 @@ import { XmppNode } from './core/xmpp-node.js'
 import { NodeSqliteStorage } from './core/storage/node-sqlite-storage.js'
 import { EncryptedStorage } from './core/storage/encrypted-storage.js'
 import { startCli } from './cli/session.js'
+import { startTui } from './tui/index.js'
 import { getPackageVersion, parseCliStartupArgs, printCliUsage } from './cli/startup.js'
 
 /**
@@ -84,7 +85,28 @@ async function main() {
   const xmppNode = new XmppNode(libp2p, storage, {})
   await xmppNode.ready
 
-  await startCli(libp2p, xmppNode)
+  // Auto-connect XMPP component (XEP-0114) for federation
+  if (startupOptions.componentHost && startupOptions.componentSecret && startupOptions.componentDomain) {
+    try {
+      const port = startupOptions.componentPort ?? 5347
+      console.log(`Auto-connecting XMPP component ${startupOptions.componentDomain} at ${startupOptions.componentHost}:${port}...`)
+      await xmppNode.connectComponent(startupOptions.componentHost, port, startupOptions.componentSecret, startupOptions.componentDomain)
+    } catch (err: any) {
+      console.error(`Failed to auto-connect XMPP component: ${err.message}`)
+    }
+  }
+
+  // Configure S2S domain for direct federation
+  if (startupOptions.s2sDomain) {
+    xmppNode.setS2SDomain(startupOptions.s2sDomain)
+    console.log(`S2S domain set to ${startupOptions.s2sDomain}`)
+  }
+
+  if (startupOptions.tuiRequested) {
+    await startTui(libp2p, xmppNode)
+  } else {
+    await startCli(libp2p, xmppNode)
+  }
 }
 
 main().catch(err => {

@@ -10,7 +10,7 @@ import { webRTC } from '@libp2p/webrtc'
 import { noise } from '@libp2p/noise'
 import { yamux } from '@libp2p/yamux'
 import { mdns } from '@libp2p/mdns'
-import { circuitRelayServer } from '@libp2p/circuit-relay-v2'
+import { circuitRelayServer, circuitRelayTransport } from '@libp2p/circuit-relay-v2'
 import { createBaseLibp2pServices } from './p2p-base.js'
 
 /**
@@ -75,7 +75,7 @@ export async function createP2PNode(port?: number, options: CreateP2PNodeOptions
   const transports: any[] = [tcp(), webSockets()]
 
   if (options.enableWebRTC) {
-    transports.push(webRTC())
+    transports.push(webRTC(), circuitRelayTransport())
   }
 
   const connectionManager: ConnectionManagerInit = {

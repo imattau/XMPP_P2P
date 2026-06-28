@@ -8,6 +8,7 @@ import {
   QrCode, Camera, Loader2,
 } from 'lucide-react'
 import { useProfileBridge, type EditableVCard } from '../bridge/useProfileBridge'
+import { useIdentityBridge } from '../bridge/identity/useIdentityBridge'
 import { InlineEdit } from '../components/InlineEdit'
 
 type ProfileTab = 'posts' | 'topics' | 'communities' | 'bookmarks'
@@ -67,6 +68,7 @@ export default function ProfilePage() {
   const [editForm, setEditForm] = useState<EditableVCard | null>(null)
   const [editError, setEditError] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const { identity } = useIdentityBridge()
   const { vCard, loading, saving, save } = useProfileBridge()
 
   const openEdit = () => {
@@ -184,7 +186,7 @@ export default function ProfilePage() {
                     <img src={`data:${vCard.photo.type};base64,${vCard.photo.binval}`} alt="" className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-2xl text-muted-foreground">
-                      {(vCard?.fn || '?')[0].toUpperCase()}
+                      {(vCard?.fn || identity?.displayName || '?')[0].toUpperCase()}
                     </div>
                   )}
                 </div>
@@ -197,12 +199,12 @@ export default function ProfilePage() {
 
             <div className="mb-3">
               <div className="flex items-center gap-1.5 mb-0.5">
-                <h1 className="text-base font-bold text-foreground leading-tight">{vCard?.fn || vCard?.nickname || 'You'}</h1>
+                <h1 className="text-base font-bold text-foreground leading-tight">{vCard?.fn || vCard?.nickname || identity?.displayName || 'You'}</h1>
                 <Shield size={13} className="text-primary" />
                 <span className="text-xs font-mono text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">OMEMO</span>
               </div>
               <div className="flex items-center gap-1 mb-2">
-                <span className="font-mono text-xs text-muted-foreground">{vCard?.nickname ? `@${vCard.nickname}` : '@you'}</span>
+                <span className="font-mono text-xs text-muted-foreground">{vCard?.nickname ? `@${vCard.nickname}` : identity?.handle ? `@${identity.handle}` : '@you'}</span>
                 <button onClick={handleCopy} className="p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors">
                   {copied ? <Check size={11} className="text-accent" /> : <Copy size={11} />}
                 </button>

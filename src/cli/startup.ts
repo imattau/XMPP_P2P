@@ -16,6 +16,12 @@ export type CliStartupOptions = {
   passphrase?: string
   enableRelay?: boolean
   enableWebRTC?: boolean
+  componentHost?: string
+  componentPort?: number
+  componentSecret?: string
+  componentDomain?: string
+  s2sDomain?: string
+  tuiRequested: boolean
   helpRequested: boolean
   versionRequested: boolean
   errors: string[]
@@ -63,6 +69,7 @@ export const parseCliStartupArgs = (args: string[]): CliStartupOptions => {
   const options: CliStartupOptions = {
     helpRequested: false,
     versionRequested: false,
+    tuiRequested: false,
     errors: []
   }
 
@@ -136,6 +143,38 @@ export const parseCliStartupArgs = (args: string[]): CliStartupOptions => {
         options.enableWebRTC = true
         break
       }
+      case '--component-host': {
+        const value = takeValue()
+        if (value) options.componentHost = value
+        break
+      }
+      case '--component-port': {
+        const value = takeValue()
+        if (value) {
+          const parsed = parseInteger(value)
+          if (parsed !== undefined && parsed > 0 && parsed < 65536) options.componentPort = parsed
+        }
+        break
+      }
+      case '--component-secret': {
+        const value = takeValue()
+        if (value) options.componentSecret = value
+        break
+      }
+      case '--component-domain': {
+        const value = takeValue()
+        if (value) options.componentDomain = value
+        break
+      }
+      case '--s2s-domain': {
+        const value = takeValue()
+        if (value) options.s2sDomain = value
+        break
+      }
+      case '--tui': {
+        options.tuiRequested = true
+        break
+      }
       default:
         if (arg.startsWith('--')) {
           options.errors.push(`Unknown option: ${arg}`)
@@ -169,6 +208,12 @@ export const printStartupUsage = (title: string, launchCommand: string, footer: 
   console.log('  --passphrase=<pass>   Passphrase to encrypt/decrypt local private key storage')
   console.log('  --relay               Enable circuit relay server for browser peers')
   console.log('  --webrtc              Enable WebRTC transport for Node <-> browser connections')
+  console.log('  --component-host=<h>  XMPP server hostname for component connection (XEP-0114)')
+  console.log('  --component-port=<p>  XMPP server component port (default 5347)')
+  console.log('  --component-secret=<s> Shared secret for component authentication')
+  console.log('  --component-domain=<d> Component subdomain (e.g. p2p.example.com)')
+  console.log('  --s2s-domain=<domain>  Local domain for direct S2S federation')
+  console.log('  --tui                 Launch the terminal UI (TUI) instead of the REPL')
   console.log('  --help, -h            Show this message and exit')
   console.log('  --version, -v         Print the CLI version and exit')
   console.log('')
@@ -183,8 +228,8 @@ export const printStartupUsage = (title: string, launchCommand: string, footer: 
 export const printCliUsage = () => {
   printStartupUsage(
     'XMPP over libp2p CLI',
-    'npm start -- [--port=<port>] [--host=<host>] [--sqlite-path=<path>] [--passphrase=<pass>] [--relay] [--webrtc]',
-    'Start the CLI, then type `help` for interactive commands.'
+    'npm start -- [--port=<port>] [--host=<host>] [--sqlite-path=<path>] [--passphrase=<pass>] [--relay] [--webrtc] [--tui]',
+    'Start the CLI, then type `help` for interactive commands. Use --tui for the terminal UI.'
   )
 }
 

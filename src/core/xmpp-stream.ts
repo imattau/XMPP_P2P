@@ -58,11 +58,10 @@ export class XmppStream extends EventEmitter {
       this.emit('error', err)
     })
 
-    // The stream API exposes data through a callback rather than a Node stream,
-    // so we bridge that callback into the XML parser here.
-    this.stream.onData = (data: any) => {
+    this.stream.addEventListener('message', (event: any) => {
       if (this.isClosed) return
       try {
+        const data = event.detail ?? event.data
         const array = data instanceof Uint8Array ? data : data.subarray()
         const text = new TextDecoder().decode(array)
         console.log(`[DEBUG] Stream received data (peer: ${this.remotePeer}): ${text}`)
@@ -70,7 +69,14 @@ export class XmppStream extends EventEmitter {
       } catch (err) {
         this.emit('error', err)
       }
-    }
+    })
+
+    this.stream.addEventListener('close', () => {
+      if (!this.isClosed) {
+        this.isClosed = true
+        this.emit('close')
+      }
+    })
 
     // Prime the parser with a synthetic root so stanza fragments parse cleanly.
     this.parser.write('<stream:stream>')
@@ -197,7 +203,6 @@ export class XmppStream extends EventEmitter {
     if (this.isClosed) return
     this.isClosed = true
     try {
-      this.stream.onData = undefined
       await this.stream.close()
     } catch (e) {
       // ignore

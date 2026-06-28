@@ -8,6 +8,7 @@ import { basename, extname } from 'path'
 import { readFile } from 'fs/promises'
 import { CliContext } from './types.js'
 import { printCliHelp } from './output.js'
+import { xml, Element } from '@xmpp/xml'
 
 /**
  * Tokenizes a command line string while preserving quoted segments.
@@ -1114,6 +1115,352 @@ export const handleCliCommand = async (input: string, ctx: CliContext) => {
         console.log(`Ping successful! RTT: ${rtt}ms`)
       } catch (err: any) {
         console.log(`Ping failed: ${err.message}`)
+      }
+      break
+    }
+    case 'server': {
+      const serverCmd = parts[1]?.toLowerCase()
+      switch (serverCmd) {
+        case 'component': {
+          const sub = parts[2]?.toLowerCase()
+          if (sub === 'connect') {
+            if (parts.length < 6) {
+              console.log('Usage: server component connect <host> <port> <secret> <domain> [--save]')
+              break
+            }
+            const host = parts[3]
+            const port = parseInt(parts[4], 10)
+            const secret = parts[5]
+            const domain = parts[6]
+            const { options: parsedOptions } = parseOptionTokens(parts.slice(7))
+            console.log(`Connecting XMPP component at ${host}:${port} as ${domain}...`)
+            try {
+              await xmppNode.connectComponent(host, port, secret, domain)
+              console.log(`Component connected as ${domain}!`)
+              if (parsedOptions.has('save')) {
+                await xmppNode.serverBridge.configStore.save(domain, secret, host, port)
+                console.log('Component config saved.')
+              }
+            } catch (err: any) {
+              console.log(`Component connection failed: ${err.message}`)
+            }
+          } else if (sub === 'disconnect') {
+            try {
+              await xmppNode.disconnectComponent()
+              console.log('Component disconnected.')
+            } catch (err: any) {
+              console.log(`Error: ${err.message}`)
+            }
+          } else {
+            console.log('Usage: server component connect <host> <port> <secret> <domain> [--save]')
+            console.log('       server component disconnect')
+          }
+          break
+        }
+        case 's2s': {
+          if (parts.length < 3) {
+            console.log('Usage: server s2s domain <domain>')
+            break
+          }
+          if (parts[2] === 'domain') {
+            const domain = parts[3]
+            if (!domain) {
+              console.log('Usage: server s2s domain <domain>')
+              break
+            }
+            xmppNode.setS2SDomain(domain)
+            console.log(`S2S domain set to ${domain}`)
+          } else {
+            console.log('Usage: server s2s domain <domain>')
+          }
+          break
+        }
+        case 'list': {
+          const connections = xmppNode.getServerConnections()
+          if (connections.length === 0) {
+            console.log('No federation connections.')
+            break
+          }
+          console.log(`Federation connections (${connections.length}):`)
+          for (const conn of connections) {
+            const via = conn.type === 'component' ? 'Component' : 'S2S'
+            console.log(`  - ${via}: ${conn.domain}`)
+            console.log(`      Status: ${conn.status}${conn.error ? ` - ${conn.error}` : ''}`)
+          }
+          break
+        }
+        case 'join': {
+          if (parts.length < 3) {
+            console.log('Usage: server join <room-jid> [--nick <nickname>]')
+            break
+          }
+          const roomJid = parts[2]
+          const joinOptions = parseOptionTokens(parts.slice(3))
+          const nick = optionValue(joinOptions.options, 'nick') || 'p2p-user'
+          console.log(`Joining MUC room ${roomJid} as ${nick}...`)
+          try {
+            await xmppNode.joinServerMuc(roomJid, nick)
+            console.log(`Joined ${roomJid}`)
+          } catch (err: any) {
+            console.log(`Failed to join room: ${err.message}`)
+          }
+          break
+        }
+        case 'leave': {
+          if (parts.length < 3) {
+            console.log('Usage: server leave <room-jid>')
+            break
+          }
+          await xmppNode.leaveServerMuc(parts[2])
+          console.log(`Left ${parts[2]}`)
+          break
+        }
+        case 'save': {
+          if (parts.length < 5) {
+            console.log('Usage: server save <domain> <secret> <host> <port>')
+            break
+          }
+          const domain = parts[2]
+          const secret = parts[3]
+          const host = parts[4]
+          const port = parseInt(parts[5], 10)
+          await xmppNode.serverBridge.configStore.save(domain, secret, host, port)
+          console.log(`Component config saved for ${domain}`)
+          break
+        }
+        case 'forget': {
+          if (parts.length < 3) {
+            console.log('Usage: server forget <domain>')
+            break
+          }
+          await xmppNode.serverBridge.configStore.remove(parts[2])
+          console.log(`Component config removed for ${parts[2]}`)
+          break
+        }
+        case 'saved': {
+          const saved = await xmppNode.serverBridge.configStore.list()
+          if (saved.length === 0) {
+            console.log('No saved component configs.')
+            break
+          }
+          console.log('Saved component configs:')
+          for (const conf of saved) {
+            console.log(`  - ${conf.domain}`)
+            console.log(`      Host: ${conf.host}:${conf.port}`)
+          }
+          break
+        }
+        // Phase 2: PubSub operations
+        case 'pubsub': {
+          const pubsubCmd = parts[2]?.toLowerCase()
+          switch (pubsubCmd) {
+            case 'subscribe': {
+              if (parts.length < 5) {
+                console.log('Usage: server pubsub subscribe <node-jid> <node>')
+                break
+              }
+              const nodeJid = parts[3]
+              const node = parts[4]
+              console.log(`Subscribing to pubsub node ${node} on ${nodeJid}...`)
+              try {
+                await xmppNode.pubsubSubscribe(nodeJid, node)
+                console.log('Subscribed!')
+              } catch (err: any) {
+                console.log(`Failed: ${err.message}`)
+              }
+              break
+            }
+            case 'publish': {
+              if (parts.length < 5) {
+                console.log('Usage: server pubsub publish <node-jid> <node> <body> [--item-id <id>]')
+                break
+              }
+              const pubNodeJid = parts[3]
+              const pubNode = parts[4]
+              const pubBody = parts.slice(5).join(' ')
+              const pubOptions = parseOptionTokens(parts.slice(5))
+              const bodyText = pubOptions.positional.join(' ') || pubBody
+              const itemId = optionValue(pubOptions.options, 'item-id') || Math.random().toString(36).substring(2, 15)
+              const payload = xml('body', {}, bodyText)
+              console.log(`Publishing to pubsub node ${pubNode} on ${pubNodeJid}...`)
+              try {
+                await xmppNode.pubsubPublish(pubNodeJid, pubNode, itemId, payload)
+                console.log(`Published item ${itemId}`)
+              } catch (err: any) {
+                console.log(`Failed: ${err.message}`)
+              }
+              break
+            }
+            case 'items': {
+              if (parts.length < 5) {
+                console.log('Usage: server pubsub items <node-jid> <node> [--max <n>]')
+                break
+              }
+              const itemsJid = parts[3]
+              const itemsNode = parts[4]
+              const itemsOptions = parseOptionTokens(parts.slice(5))
+              const max = optionValue(itemsOptions.options, 'max')
+              console.log(`Fetching items from ${itemsNode} on ${itemsJid}...`)
+              try {
+                const items = await xmppNode.pubsubGetItems(itemsJid, itemsNode, max ? parseInt(max, 10) : undefined)
+                console.log(`Items (${items.length}):`)
+                for (const item of items) {
+                  const body = item.getChild('body')?.text() || '(no body)'
+                  console.log(`  - ${item.attrs.id}: ${body}`)
+                }
+              } catch (err: any) {
+                console.log(`Failed: ${err.message}`)
+              }
+              break
+            }
+            case 'unsubscribe': {
+              if (parts.length < 5) {
+                console.log('Usage: server pubsub unsubscribe <node-jid> <node>')
+                break
+              }
+              const unsubJid = parts[3]
+              const unsubNode = parts[4]
+              console.log(`Unsubscribing from ${unsubNode} on ${unsubJid}...`)
+              try {
+                await xmppNode.pubsubUnsubscribe(unsubJid, unsubNode)
+                console.log('Unsubscribed!')
+              } catch (err: any) {
+                console.log(`Failed: ${err.message}`)
+              }
+              break
+            }
+            default:
+              console.log('Usage: server pubsub subscribe <node-jid> <node>')
+              console.log('       server pubsub publish <node-jid> <node> <body> [--item-id <id>]')
+              console.log('       server pubsub items <node-jid> <node> [--max <n>]')
+              console.log('       server pubsub unsubscribe <node-jid> <node>')
+          }
+          break
+        }
+
+        // Phase 4: Service Discovery
+        case 'disco': {
+          const discoCmd = parts[2]?.toLowerCase()
+          if (!discoCmd || discoCmd === 'info') {
+            if (parts.length < 4) {
+              console.log('Usage: server disco info <jid>')
+              break
+            }
+            const discoJid = parts[3]
+            console.log(`Querying disco#info for ${discoJid}...`)
+            try {
+              const info = await xmppNode.serverDiscoInfo(discoJid)
+              console.log(`Identities (${info.identities.length}):`)
+              for (const id of info.identities) {
+                console.log(`  - ${id.category}/${id.type}${id.name ? ` (${id.name})` : ''}`)
+              }
+              console.log(`Features (${info.features.length}):`)
+              for (const f of info.features) {
+                console.log(`  - ${f}`)
+              }
+            } catch (err: any) {
+              console.log(`Failed: ${err.message}`)
+            }
+          } else if (discoCmd === 'items') {
+            if (parts.length < 4) {
+              console.log('Usage: server disco items <jid>')
+              break
+            }
+            const itemsJid = parts[3]
+            console.log(`Querying disco#items for ${itemsJid}...`)
+            try {
+              const result = await xmppNode.serverDiscoItems(itemsJid)
+              console.log(`Items (${result.items.length}):`)
+              for (const item of result.items) {
+                console.log(`  - ${item.jid}${item.node ? ` [${item.node}]` : ''}${item.name ? ` (${item.name})` : ''}`)
+              }
+            } catch (err: any) {
+              console.log(`Failed: ${err.message}`)
+            }
+          } else {
+            console.log('Usage: server disco info <jid>')
+            console.log('       server disco items <jid>')
+          }
+          break
+        }
+
+        // Phase 3: Feed bridge
+        case 'bridge': {
+          const bridgeCmd = parts[2]?.toLowerCase()
+          switch (bridgeCmd) {
+            case 'feed': {
+              if (parts.length < 5) {
+                console.log('Usage: server bridge feed <feed-topic> <pubsub-node>')
+                break
+              }
+              const feedTopic = parts[3]
+              const psNode = parts[4]
+              await xmppNode.setFeedBridge(feedTopic, psNode)
+              console.log(`Feed bridge set: ${feedTopic} <-> ${psNode}`)
+              break
+            }
+            case 'muc': {
+              if (parts.length < 5) {
+                console.log('Usage: server bridge muc <server-room> <p2p-room>')
+                break
+              }
+              const serverRoom = parts[3]
+              const p2pRoom = parts[4]
+              await xmppNode.setMucBridge(serverRoom, p2pRoom)
+              console.log(`MUC bridge set: ${serverRoom} <-> ${p2pRoom}`)
+              break
+            }
+            case 'list': {
+              const feedBridges = xmppNode.getAllFeedBridges()
+              const mucBridges = xmppNode.getAllMucBridges()
+              console.log('Feed bridges:')
+              for (const fb of feedBridges) {
+                console.log(`  ${fb.feedTopic} <-> ${fb.pubsubNode}`)
+              }
+              if (feedBridges.length === 0) console.log('  (none)')
+              console.log('MUC bridges:')
+              for (const mb of mucBridges) {
+                console.log(`  ${mb.serverRoom} <-> ${mb.p2pRoom}`)
+              }
+              if (mucBridges.length === 0) console.log('  (none)')
+              break
+            }
+            case 'remove': {
+              const removeType = parts[3]?.toLowerCase()
+              if (removeType === 'feed' && parts[4]) {
+                await xmppNode.removeFeedBridge(parts[4])
+                console.log(`Feed bridge removed for ${parts[4]}`)
+              } else if (removeType === 'muc' && parts[4]) {
+                await xmppNode.removeMucBridge(parts[4])
+                console.log(`MUC bridge removed for ${parts[4]}`)
+              } else {
+                console.log('Usage: server bridge remove feed <feed-topic>')
+                console.log('       server bridge remove muc <server-room>')
+              }
+              break
+            }
+            default:
+              console.log('Usage: server bridge feed <feed-topic> <pubsub-node>')
+              console.log('       server bridge muc <server-room> <p2p-room>')
+              console.log('       server bridge list')
+              console.log('       server bridge remove feed|muc <id>')
+          }
+          break
+        }
+
+        default:
+          console.log('Usage: server component connect <host> <port> <secret> <domain> [--save]')
+          console.log('       server component disconnect')
+          console.log('       server s2s domain <domain>')
+          console.log('       server list')
+          console.log('       server join <room-jid> [--nick <nickname>]')
+          console.log('       server leave <room-jid>')
+          console.log('       server save <domain> <secret> <host> <port>')
+          console.log('       server forget <domain>')
+          console.log('       server saved')
+          console.log('       server pubsub subscribe|publish|items|unsubscribe')
+          console.log('       server disco info|items <jid>')
+          console.log('       server bridge feed|muc|list|remove')
       }
       break
     }

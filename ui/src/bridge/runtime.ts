@@ -51,6 +51,21 @@ export type BridgeCollectionPostRecord = BridgeFeedPostRecord & {
   sourceTopic: string
 }
 
+export type BridgeServerConnectionInfo = {
+  type: 'component' | 's2s'
+  domain: string
+  status: 'connecting' | 'connected' | 'disconnected' | 'error'
+  error?: string
+}
+
+export type BridgeStoredComponentConfig = {
+  domain: string
+  host: string
+  port: number
+  createdAt: string
+  updatedAt: string
+}
+
 export type BridgeVCard = {
   fn?: string
   nickname?: string
@@ -154,6 +169,19 @@ export interface XmppRuntimeBridge {
   onPresence(cb: (presence: { from: string; to: string; type?: string; show?: string; status?: string; nickname?: string }) => void): () => void
   onFeedPost(cb: (post: BridgeFeedPostRecord) => void): () => void
   onConnectionChange(cb: (peerId: string, connected: boolean) => void): () => void
+
+  connectComponent(host: string, port: number, secret: string, domain: string): Promise<void>
+  disconnectComponent(): Promise<void>
+  isComponentConnected(): boolean
+  setS2SDomain(domain: string): void
+  setFederationEnabled(enabled: boolean): void
+  isFederationEnabled(): boolean
+  resolveComponentEndpoint(domain: string): Promise<{ host: string; port: number }>
+  getServerConnections(): BridgeServerConnectionInfo[]
+  onServerConnection(cb: (info: BridgeServerConnectionInfo) => void): () => void
+  saveComponentConfig(domain: string, secret: string, host: string, port: number): Promise<void>
+  listSavedComponentConfigs(): Promise<BridgeStoredComponentConfig[]>
+  removeComponentConfig(domain: string): Promise<void>
 }
 
 declare global {

@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router'
 import { Home, Hash, PlusSquare, MessageCircle, User, Settings, Zap } from 'lucide-react'
 import { useConnectionBridge } from '../bridge/useConnectionBridge'
+import { useIdentityBridge } from '../bridge/identity/useIdentityBridge'
 
 const NAV = [
   { to: '/', icon: Home, label: 'Feed' },
@@ -13,6 +14,7 @@ const NAV = [
 
 export default function NavigationSidebar() {
   const { connected, connectedPeers } = useConnectionBridge()
+  const { identity } = useIdentityBridge()
 
   return (
     <div className="w-56 flex flex-col border-r border-border bg-card flex-shrink-0 h-full">
@@ -58,11 +60,11 @@ export default function NavigationSidebar() {
 
       <div className="px-5 py-3 border-t border-border flex items-center gap-3">
         <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-sm font-semibold text-foreground flex-shrink-0">
-          M
+          {identity?.displayName?.charAt(0)?.toUpperCase() ?? '?'}
         </div>
         <div className="min-w-0">
-          <div className="text-[13px] font-semibold text-foreground truncate">XMPP P2P</div>
-          <div className="text-[10px] font-mono text-muted-foreground truncate">you@jabber.de</div>
+          <div className="text-[13px] font-semibold text-foreground truncate">{identity?.displayName ?? 'XMPP P2P'}</div>
+          <div className="text-[10px] font-mono text-muted-foreground truncate">{identity?.jid ?? 'you@jabber.de'}</div>
         </div>
       </div>
     </div>
