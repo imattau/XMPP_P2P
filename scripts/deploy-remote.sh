@@ -453,6 +453,15 @@ port_is_listening() {
 	ss -H -ltn "sport = :${check_port}" | grep -q .
 }
 
+find_available_port() {
+	local base_port="$1"
+	local port="$base_port"
+	while port_is_listening "$port"; do
+		port=$((port + 1))
+	done
+	printf '%s' "$port"
+}
+
 service_is_active() {
 	local svc="$1"
 	sudo_run systemctl is-active --quiet "${svc}.service"
@@ -656,6 +665,10 @@ configure_caddy() {
 
 	log "configuring caddy for ${domain}"
 
+	# Clean up any old snippet files from previous deployments to avoid
+	# duplicate site definitions when the import strategy changes.
+	sudo_run rm -f /etc/caddy/conf.d/${SERVICE_NAME}.caddy /etc/caddy/Caddyfile.d/${SERVICE_NAME}.caddy
+
 	snippet_dir="$(detect_caddy_snippet_dir)" || true
 	if [[ -n "$snippet_dir" ]]; then
 		snippet_file="${snippet_dir}/${SERVICE_NAME}.caddy"
@@ -681,11 +694,15 @@ ${domain} {
 }"
 	write_managed_file "$snippet_file" "$content"
 
+	# Remove any old import lines from previous deployments so they don't
+	# conflict with the current import strategy.
+	if [[ -f "$main_file" ]]; then
+		sudo_run sed -i -E "/^import (\/etc\/caddy\/(conf\.d|Caddyfile\.d)\/\*\.caddy|\/etc\/caddy\/${SERVICE_NAME}\.caddy)$/d" "$main_file"
+	fi
+
 	if [[ ! -f "$main_file" ]]; then
 		write_managed_file "$main_file" "${managed_marker}
 ${import_line}"
-	elif grep -qF "$import_line" "$main_file" 2>/dev/null; then
-		log "Caddyfile already imports ${SERVICE_NAME}.caddy"
 	elif grep -qF "$managed_marker" "$main_file" 2>/dev/null; then
 		log "Caddyfile is managed by xmpp-p2p; adding import"
 		local current_content
@@ -878,12 +895,9 @@ log "stopping existing services"
 sudo_run systemctl stop "${SERVICE_NAME}.service" 2>/dev/null || true
 sudo_run systemctl stop "${SERVICE_NAME}-ui.service" 2>/dev/null || true
 
-if port_is_listening "$UI_PORT"; then
-	warn "port ${UI_PORT} is in use; deployment may fail"
-fi
-if port_is_listening "$P2P_PORT"; then
-	warn "port ${P2P_PORT} is in use; deployment may fail"
-fi
+UI_PORT="$(find_available_port "$UI_PORT")"
+P2P_PORT="$(find_available_port "$P2P_PORT")"
+WS_PORT=$((P2P_PORT + 1000))
 
 verify_build_artifacts
 
