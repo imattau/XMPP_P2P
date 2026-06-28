@@ -1,5 +1,5 @@
 import type { XmppRuntimeBridge, BridgeVisibility } from '../runtime'
-import type { FeedFilterType, FeedPost, FeedViewState, TrendingTopic } from './types'
+import type { FeedFilterType, FeedPost, FeedSortOrder, FeedViewState, TrendingTopic } from './types'
 import {
   cloneSeedPosts,
   cloneSeedTrendingTopics,
@@ -9,6 +9,7 @@ import {
   toggleBookmark,
   toggleLike
 } from './transform'
+import { emitToast } from '../../lib/toast-events'
 
 type Listener = (state: FeedViewState) => void
 
@@ -25,7 +26,10 @@ export class FeedBridgeController {
       trendingTopics: cloneSeedTrendingTopics(),
       activeFilter: 'all',
       searchOpen: false,
-      searchQuery: ''
+      searchQuery: '',
+      loading: true,
+      sortBy: 'recent',
+      hasMore: true
     }
 
     if (runtime?.onFeedPost) {
@@ -64,37 +68,88 @@ export class FeedBridgeController {
     this.emit()
   }
 
-  async refresh() {
-    if (this.loading) {
-      return
-    }
+  setSortBy(sortBy: FeedSortOrder) {
+    this.state = { ...this.state, sortBy }
+    this.emit()
+  }
 
+  async refresh() {
+    if (this.loading) return
     this.loading = true
+    this.state = { ...this.state, loading: true }
+    this.emit()
     try {
       if (!this.runtime) {
         this.state = {
           ...this.state,
           posts: cloneSeedPosts(),
-          trendingTopics: cloneSeedTrendingTopics()
+          trendingTopics: cloneSeedTrendingTopics(),
+          loading: false
         }
         this.emit()
         return
       }
-
       const [feedPosts, subscriptions, collections] = await Promise.all([
         this.runtime.getFeedPosts(),
         this.runtime.getPublicFeedSubscriptions().catch(() => []),
         this.runtime.getCollections().catch(() => [])
       ])
-
       const mappedPosts = feedPosts.map(mapRuntimePost)
       const topicCounts = buildTrendingTopics(mappedPosts, subscriptions.length, collections.length)
-
       this.state = {
         ...this.state,
-        posts: mappedPosts,
-        trendingTopics: topicCounts
+        posts: mappedPosts.length > 0 ? mappedPosts : cloneSeedPosts(),
+        trendingTopics: topicCounts.length > 0 ? topicCounts : cloneSeedTrendingTopics(),
+        loading: false
       }
+      this.emit()
+    } catch {
+      this.state = { ...this.state, loading: false }
+      this.emit()
+    } finally {
+      this.loading = false
+    }
+  }
+
+  async loadMore() {
+    if (this.loading || !this.state.hasMore) return
+    this.loading = true
+    this.state = { ...this.state, loading: true }
+    this.emit()
+    try {
+      if (this.runtime) {
+        const older = await this.runtime.getFeedPosts()
+        const mapped = older.slice(-10).map(mapRuntimePost)
+        const existingIds = new Set(this.state.posts.map((p) => p.id))
+        const newPosts = mapped.filter((p) => !existingIds.has(p.id))
+        if (newPosts.length === 0) {
+          this.state = { ...this.state, hasMore: false, loading: false }
+          this.emit()
+          return
+        }
+        this.state = {
+          ...this.state,
+          posts: [...this.state.posts, ...newPosts],
+          loading: false,
+          hasMore: newPosts.length >= 5
+        }
+        this.emit()
+      } else {
+        const morePosts = cloneSeedPosts().map((p) => ({
+          ...p,
+          id: `seed-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          timestamp: 'just now'
+        }))
+        this.state = {
+          ...this.state,
+          posts: [...this.state.posts, ...morePosts],
+          loading: false,
+          hasMore: false
+        }
+        this.emit()
+      }
+    } catch {
+      this.state = { ...this.state, loading: false }
       this.emit()
     } finally {
       this.loading = false
@@ -102,7 +157,20 @@ export class FeedBridgeController {
   }
 
   getFilteredPosts() {
-    return filterFeedPosts(this.state.posts, this.state.activeFilter, this.state.searchQuery)
+    let posts = filterFeedPosts(this.state.posts, this.state.activeFilter, this.state.searchQuery)
+    const sortBy = this.state.sortBy
+    if (sortBy === 'popular') {
+      posts = [...posts].sort((a, b) => b.likes - a.likes)
+    } else if (sortBy === 'trending') {
+      posts = [...posts].sort((a, b) => (b.likes + b.comments + b.reposts) - (a.likes + a.comments + a.reposts))
+    } else {
+      posts = [...posts].sort((a, b) => {
+        const tsA = parseTimestamp(a.timestamp)
+        const tsB = parseTimestamp(b.timestamp)
+        return tsB - tsA
+      })
+    }
+    return posts
   }
 
   async likePost(id: string) {
@@ -159,7 +227,7 @@ export class FeedBridgeController {
         await this.runtime.subscribeFeed(peerAddr, options)
         await this.refresh()
       } catch (err) {
-        console.error('Failed to subscribe to feed:', err)
+        emitToast('Failed to subscribe to feed', 'error')
       }
     }
   }
@@ -204,6 +272,19 @@ function buildTrendingTopics(posts: FeedPost[], publicSubscriptions: number, col
   )
 
   return topics.slice(0, 5)
+}
+
+function parseTimestamp(ts: string): number {
+  if (/^\d+[smhd]$/.test(ts)) {
+    const unit = ts.slice(-1)
+    const val = Number.parseInt(ts, 10)
+    const ms = { s: 1000, m: 60000, h: 3600000, d: 86400000 }[unit] ?? 60000
+    return Date.now() - val * ms
+  }
+  if (ts === 'now') return Date.now()
+  if (ts === 'yesterday') return Date.now() - 86400000
+  const d = new Date(ts).getTime()
+  return Number.isFinite(d) ? d : Date.now()
 }
 
 function formatCount(n: number) {

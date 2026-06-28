@@ -35,6 +35,7 @@ export interface FeedPost {
   media?: FeedMedia
   replyTo?: string
   pinned?: boolean
+  geoloc?: { lat?: string; lon?: string; country?: string; region?: string }
 }
 
 export interface TrendingTopic {
@@ -42,10 +43,15 @@ export interface TrendingTopic {
   count: string
 }
 
+export type FeedSortOrder = 'recent' | 'popular' | 'trending'
+
 export interface FeedViewState {
   posts: FeedPost[]
   trendingTopics: TrendingTopic[]
   activeFilter: FeedFilterType
   searchOpen: boolean
   searchQuery: string
+  loading: boolean
+  sortBy: FeedSortOrder
+  hasMore: boolean
 }

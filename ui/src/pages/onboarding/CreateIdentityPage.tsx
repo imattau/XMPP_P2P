@@ -1,6 +1,7 @@
 import * as React from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, AlertCircle } from 'lucide-react'
 import { useIdentityBridge } from '../../bridge/identity/useIdentityBridge'
 import ProgressDots from '../../components/onboarding/ProgressDots'
 import Toggle from '../../components/onboarding/Toggle'
@@ -8,13 +9,25 @@ import Toggle from '../../components/onboarding/Toggle'
 export default function CreateIdentityPage() {
   const navigate = useNavigate()
   const { identity, createIdentity } = useIdentityBridge()
-  const [displayName, setDisplayName] = React.useState(identity?.displayName ?? 'Maren Holdt')
-  const [handle, setHandle] = React.useState(identity?.handle ?? 'maren')
-  const [passcode, setPasscode] = React.useState('')
-  const [publicProfile, setPublicProfile] = React.useState(identity?.publicProfile ?? true)
+  const [displayName, setDisplayName] = useState(identity?.displayName ?? '')
+  const [handle, setHandle] = useState(identity?.handle ?? '')
+  const [passcode, setPasscode] = useState('')
+  const [publicProfile, setPublicProfile] = useState(identity?.publicProfile ?? true)
+  const [errors, setErrors] = useState<{ displayName?: string; handle?: string }>({})
+
+  const validate = (): boolean => {
+    const next: typeof errors = {}
+    if (!displayName.trim()) next.displayName = 'Display name is required'
+    else if (displayName.trim().length < 2) next.displayName = 'Display name must be at least 2 characters'
+    if (!handle.trim()) next.handle = 'Handle is required'
+    else if (!/^[a-zA-Z0-9_]+$/.test(handle.trim())) next.handle = 'Handle must be letters, numbers, and underscores only'
+    else if (handle.trim().length < 2) next.handle = 'Handle must be at least 2 characters'
+    setErrors(next)
+    return Object.keys(next).length === 0
+  }
 
   const handleCreate = () => {
-    if (!displayName.trim() || !handle.trim()) return
+    if (!validate()) return
     createIdentity(displayName.trim(), handle.trim(), passcode || undefined)
     navigate('/onboarding/recovery')
   }
@@ -39,18 +52,20 @@ export default function CreateIdentityPage() {
           <label className="text-[12px] font-medium text-muted-foreground block mb-1.5">Display name</label>
           <input
             value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            className="w-full bg-secondary rounded-xl h-[50px] px-4 text-foreground text-body outline-none focus:ring-2 focus:ring-primary/50"
+            onChange={(e) => { setDisplayName(e.target.value); if (errors.displayName) setErrors((prev) => ({ ...prev, displayName: undefined })) }}
+            className={`w-full bg-secondary rounded-xl h-[50px] px-4 text-foreground text-body outline-none focus:ring-2 ${errors.displayName ? 'focus:ring-destructive ring-2 ring-destructive/50' : 'focus:ring-primary/50'}`}
           />
+          {errors.displayName && <p className="flex items-center gap-1 mt-1 text-[11px] text-destructive"><AlertCircle size={11} />{errors.displayName}</p>}
         </div>
 
         <div>
           <label className="text-[12px] font-medium text-muted-foreground block mb-1.5">Handle</label>
           <input
             value={handle}
-            onChange={(e) => setHandle(e.target.value)}
-            className="w-full bg-secondary rounded-xl h-[50px] px-4 text-foreground text-body outline-none focus:ring-2 focus:ring-primary/50"
+            onChange={(e) => { setHandle(e.target.value); if (errors.handle) setErrors((prev) => ({ ...prev, handle: undefined })) }}
+            className={`w-full bg-secondary rounded-xl h-[50px] px-4 text-foreground text-body outline-none focus:ring-2 ${errors.handle ? 'focus:ring-destructive ring-2 ring-destructive/50' : 'focus:ring-primary/50'}`}
           />
+          {errors.handle && <p className="flex items-center gap-1 mt-1 text-[11px] text-destructive"><AlertCircle size={11} />{errors.handle}</p>}
         </div>
 
         <div>

@@ -1,24 +1,28 @@
+import { lazy } from 'react'
 import { createBrowserRouter } from 'react-router'
 import Root from './Root'
-import FeedPage from '../pages/FeedPage'
-import ChatsPage from '../pages/ChatsPage'
-import TopicsPage from '../pages/TopicsPage'
-import TopicFeedPage from '../pages/TopicFeedPage'
-import ComposePage from '../pages/ComposePage'
-import ProfilePage from '../pages/ProfilePage'
-import SettingsPage from '../pages/SettingsPage'
-import CreateCommunityPage from '../pages/CreateCommunityPage'
-import PostPage from '../pages/PostPage'
-import ChatThreadPage from '../pages/ChatThreadPage'
-import NewChatPage from '../pages/NewChatPage'
-import WelcomePage from '../pages/onboarding/WelcomePage'
-import CreateIdentityPage from '../pages/onboarding/CreateIdentityPage'
-import ImportIdentityPage from '../pages/onboarding/ImportIdentityPage'
-import RecoveryPage from '../pages/onboarding/RecoveryPage'
-import PermissionsPage from '../pages/onboarding/PermissionsPage'
-import FindNetworkPage from '../pages/onboarding/FindNetworkPage'
-import PreferencesPage from '../pages/onboarding/PreferencesPage'
-import ReadyPage from '../pages/onboarding/ReadyPage'
+
+const FeedPage = lazy(() => import('../pages/FeedPage'))
+const ChatsPage = lazy(() => import('../pages/ChatsPage'))
+const TopicsPage = lazy(() => import('../pages/TopicsPage'))
+const TopicFeedPage = lazy(() => import('../pages/TopicFeedPage'))
+const ComposePage = lazy(() => import('../pages/ComposePage'))
+const ProfilePage = lazy(() => import('../pages/ProfilePage'))
+const SettingsPage = lazy(() => import('../pages/SettingsPage'))
+const CreateCommunityPage = lazy(() => import('../pages/CreateCommunityPage'))
+const PostPage = lazy(() => import('../pages/PostPage'))
+const ChatThreadPage = lazy(() => import('../pages/ChatThreadPage'))
+const NewChatPage = lazy(() => import('../pages/NewChatPage'))
+const ContactsPage = lazy(() => import('../pages/ContactsPage'))
+const SearchPage = lazy(() => import('../pages/SearchPage'))
+const WelcomePage = lazy(() => import('../pages/onboarding/WelcomePage'))
+const CreateIdentityPage = lazy(() => import('../pages/onboarding/CreateIdentityPage'))
+const ImportIdentityPage = lazy(() => import('../pages/onboarding/ImportIdentityPage'))
+const RecoveryPage = lazy(() => import('../pages/onboarding/RecoveryPage'))
+const PermissionsPage = lazy(() => import('../pages/onboarding/PermissionsPage'))
+const FindNetworkPage = lazy(() => import('../pages/onboarding/FindNetworkPage'))
+const PreferencesPage = lazy(() => import('../pages/onboarding/PreferencesPage'))
+const ReadyPage = lazy(() => import('../pages/onboarding/ReadyPage'))
 
 export const router = createBrowserRouter([
   {
@@ -32,6 +36,8 @@ export const router = createBrowserRouter([
       { path: 'topics/:tag', Component: TopicFeedPage },
       { path: 'compose', Component: ComposePage },
       { path: 'communities/new', Component: CreateCommunityPage },
+      { path: 'search', Component: SearchPage },
+      { path: 'contacts', Component: ContactsPage },
       { path: 'chats', Component: ChatsPage },
       { path: 'chats/new', Component: NewChatPage },
       { path: 'chat/:id', Component: ChatThreadPage },

@@ -81,6 +81,7 @@ export interface ChatComposerState {
   input: string
   replyTo?: ChatMessageReply
   thread?: string
+  editingMessageId?: string
   showImagePicker: boolean
   showEmojiPicker: boolean
   showMentionPicker: boolean

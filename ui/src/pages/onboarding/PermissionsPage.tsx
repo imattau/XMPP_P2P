@@ -5,6 +5,7 @@ import { useIdentityBridge } from '../../bridge/identity/useIdentityBridge'
 import type { PermissionsState } from '../../bridge/identity/types'
 import ProgressDots from '../../components/onboarding/ProgressDots'
 import Toggle from '../../components/onboarding/Toggle'
+import { requestNotificationPermission } from '../../bridge/useNotifications'
 
 const PERMISSIONS: { key: keyof PermissionsState; label: string; desc: string }[] = [
   { key: 'notifications', label: 'Notifications', desc: 'Message, mention and security alerts' },
@@ -24,6 +25,9 @@ export default function PermissionsPage() {
 
   const handleContinue = () => {
     setPermissions(localPerms)
+    if (localPerms.notifications) {
+      void requestNotificationPermission()
+    }
     navigate('/onboarding/network')
   }
 

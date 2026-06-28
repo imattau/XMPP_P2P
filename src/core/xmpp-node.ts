@@ -1141,7 +1141,46 @@ export class XmppNode extends EventEmitter {
     return this.uploads.getUploadContentUrl(cid)
   }
 
+  public async storeFile(
+    data: Uint8Array,
+    filename: string,
+    contentType: string
+  ): Promise<{ cid: string; url: string }> {
+    const hashBuffer = await globalThis.crypto.subtle.digest('SHA-256', data as BufferSource)
+    const hashArray = Array.from(new Uint8Array(hashBuffer))
+    const cid = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')
 
+    await this.storage.putBlob('uploads', cid, data)
+    await this.storage.putRecord(
+      'uploads_meta',
+      cid,
+      JSON.stringify({
+        cid,
+        filename,
+        contentType,
+        size: data.length,
+        uploadedAt: new Date().toISOString()
+      }),
+      new Date().toISOString()
+    )
+
+    const manifest: XmppUploadManifest = {
+      cid,
+      slotId: cid,
+      filename,
+      contentType,
+      size: data.length,
+      getUrl: `upload://${cid}`,
+      providers: [],
+      uploadedAt: new Date().toISOString(),
+      from: this.jid,
+      topic: UPLOAD_ANNOUNCEMENTS_TOPIC
+    }
+    this.uploads['uploadManifests'].set(cid, manifest)
+    void this.uploads['announceUploadManifest'](manifest).catch(() => {})
+
+    return { cid, url: `upload://${cid}` }
+  }
 
 
 

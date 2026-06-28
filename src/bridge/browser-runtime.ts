@@ -11,6 +11,7 @@ export class BrowserXmppRuntimeBridge {
   private feedPostListeners = new Set<Listener<[XmppFeedPost]>>()
   private connectionListeners = new Set<Listener<[string, boolean]>>()
   private serverConnectionListeners = new Set<Listener<[ServerConnectionInfo]>>()
+  private chatStateListeners = new Set<Listener<[{ from: string; state: string }]>>()
 
   constructor(private readonly xmppNode: XmppNode) {
     this.hookEvents()
@@ -18,6 +19,12 @@ export class BrowserXmppRuntimeBridge {
 
   private hookEvents() {
     this.xmppNode.on('message', (msg: XmppMessage) => {
+      if (msg.chatState && !msg.body) {
+        for (const cb of this.chatStateListeners) {
+          try { cb({ from: msg.from, state: msg.chatState }) } catch { /* swallow */ }
+        }
+        return
+      }
       for (const cb of this.messageListeners) {
         try { cb(msg) } catch { /* swallow */ }
       }
@@ -89,6 +96,15 @@ export class BrowserXmppRuntimeBridge {
   onConnectionChange(cb: Listener<[string, boolean]>): () => void {
     this.connectionListeners.add(cb)
     return () => this.connectionListeners.delete(cb)
+  }
+
+  onChatState(cb: Listener<[{ from: string; state: string }]>): () => void {
+    this.chatStateListeners.add(cb)
+    return () => this.chatStateListeners.delete(cb)
+  }
+
+  async sendChatState(target: string, state: 'composing' | 'paused' | 'active'): Promise<void> {
+    await this.xmppNode.sendMessage(target, '', { chatState: state })
   }
 
   getFeedPosts(): Promise<XmppFeedPost[]> {
@@ -192,12 +208,26 @@ export class BrowserXmppRuntimeBridge {
       replyTo?: string
       reply?: { id: string; to?: string }
       thread?: string
+      replace?: string
     }
   ): Promise<string> {
     const peerAddr = target.handle || `${target.id}@p2p`
-    return this.xmppNode.sendMessage(peerAddr, body, {
+    let messageBody = body
+    if (options?.attachments && options.attachments.length > 0) {
+      const attachmentRefs = options.attachments
+        .map((a) => a.url.startsWith('upload://') ? a.url : `[${a.alt}](${a.url})`)
+        .join('\n')
+      if (messageBody) {
+        messageBody += '\n' + attachmentRefs
+      } else {
+        messageBody = attachmentRefs
+      }
+    }
+    return this.xmppNode.sendMessage(peerAddr, messageBody, {
       reply: options?.reply,
-      thread: options?.thread
+      thread: options?.thread,
+      replace: options?.replace,
+      requestReceipt: true
     })
   }
 
@@ -248,6 +278,43 @@ export class BrowserXmppRuntimeBridge {
   onServerConnection(cb: Listener<[ServerConnectionInfo]>): () => void {
     this.serverConnectionListeners.add(cb)
     return () => this.serverConnectionListeners.delete(cb)
+  }
+
+  async kickMucParticipant(roomJid: string, participantJid: string, reason?: string): Promise<void> {
+    const nick = participantJid.split('@')[0]
+    const stanza = (await import('@xmpp/xml')).xml(
+      'iq',
+      { to: roomJid, type: 'set' },
+      (await import('@xmpp/xml')).xml('query', { xmlns: 'http://jabber.org/protocol/muc#admin' },
+        (await import('@xmpp/xml')).xml('item', { nick, role: 'none' },
+          reason ? (await import('@xmpp/xml')).xml('reason', {}, reason) : undefined
+        )
+      )
+    )
+    await this.xmppNode.sendIqRequest(roomJid, stanza)
+  }
+
+  async banMucParticipant(roomJid: string, participantJid: string, reason?: string): Promise<void> {
+    const jid = participantJid.includes('@') ? participantJid : `${participantJid}@${roomJid.split('@')[1] || 'p2p'}`
+    const stanza = (await import('@xmpp/xml')).xml(
+      'iq',
+      { to: roomJid, type: 'set' },
+      (await import('@xmpp/xml')).xml('query', { xmlns: 'http://jabber.org/protocol/muc#admin' },
+        (await import('@xmpp/xml')).xml('item', { jid, affiliation: 'outcast' },
+          reason ? (await import('@xmpp/xml')).xml('reason', {}, reason) : undefined
+        )
+      )
+    )
+    await this.xmppNode.sendIqRequest(roomJid, stanza)
+  }
+
+  async disconnect(): Promise<void> {
+    this.messageListeners.clear()
+    this.presenceListeners.clear()
+    this.feedPostListeners.clear()
+    this.connectionListeners.clear()
+    this.serverConnectionListeners.clear()
+    await this.xmppNode.close()
   }
 
   async saveComponentConfig(domain: string, secret: string, host: string, port: number): Promise<void> {
@@ -313,5 +380,64 @@ export class BrowserXmppRuntimeBridge {
 
   getAllMucBridges(): Array<{ serverRoom: string; p2pRoom: string }> {
     return this.xmppNode.getAllMucBridges()
+  }
+
+  async uploadFile(file: File | Uint8Array, fileName?: string, mimeType?: string): Promise<{ url: string; alt: string; kind: 'image' | 'file' }> {
+    let data: Uint8Array
+    let name: string
+    let mime: string
+
+    if (file instanceof File) {
+      const buffer = await file.arrayBuffer()
+      data = new Uint8Array(buffer)
+      name = file.name
+      mime = file.type || 'application/octet-stream'
+    } else {
+      data = file
+      name = fileName || 'file'
+      mime = mimeType || 'application/octet-stream'
+    }
+
+    const result = await this.xmppNode.storeFile(data, name, mime)
+    const kind = mime.startsWith('image/') ? 'image' : 'file'
+
+    return { url: result.url, alt: name, kind }
+  }
+
+  async getOmemoFingerprint(): Promise<string | undefined> {
+    try {
+      const ik = await this.xmppNode.getOmemoIdentityKey()
+      const encoder = new TextEncoder()
+      const hash = await globalThis.crypto.subtle.digest('SHA-256', encoder.encode(ik))
+      const hex = Array.from(new Uint8Array(hash)).map((b) => b.toString(16).padStart(2, '0')).join('')
+      return hex.match(/.{1,8}/g)?.join(' ') ?? hex
+    } catch {
+      return undefined
+    }
+  }
+
+  async getPeerOmemoFingerprint(peerJid: string): Promise<string | undefined> {
+    try {
+      const devices = await this.xmppNode.getPeerOmemoDevices(peerJid)
+      if (devices.length === 0) return undefined
+      const bundle = await this.xmppNode.getPeerOmemoBundle(peerJid, devices[0])
+      if (!bundle?.identityKey) return undefined
+      const encoder = new TextEncoder()
+      const hash = await globalThis.crypto.subtle.digest('SHA-256', encoder.encode(bundle.identityKey))
+      const hex = Array.from(new Uint8Array(hash)).map((b) => b.toString(16).padStart(2, '0')).join('')
+      return hex.match(/.{1,8}/g)?.join(' ') ?? hex
+    } catch {
+      return undefined
+    }
+  }
+
+  async resolveUploadUrl(url: string): Promise<string | undefined> {
+    const match = url.match(/^upload:\/\/(.+)$/)
+    if (!match) return undefined
+    const cid = match[1]
+    const blob = await this.xmppNode.storage.getBlob('uploads', cid)
+    if (!blob) return undefined
+    const mimeType = 'application/octet-stream'
+    return URL.createObjectURL(new Blob([blob as BlobPart], { type: mimeType }))
   }
 }

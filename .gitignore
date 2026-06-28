@@ -8,3 +8,5 @@ node_modules/
 .codex/
 output/
 data/
+scripts/__pycache__/
+test-results/

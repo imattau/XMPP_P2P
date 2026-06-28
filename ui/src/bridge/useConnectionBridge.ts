@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { getBrowserXmppBridge } from './runtime'
 
 export interface ConnectionState {
@@ -8,16 +8,23 @@ export interface ConnectionState {
 
 export function useConnectionBridge(): ConnectionState {
   const [state, setState] = useState<ConnectionState>({ connected: false, connectedPeers: 0 })
+  const peerSetRef = useRef(new Set<string>())
 
   useEffect(() => {
     const runtime = getBrowserXmppBridge()
     if (!runtime?.onConnectionChange) return
 
-    const unsub = runtime.onConnectionChange((_peerId: string, connected: boolean) => {
-      setState((prev) => ({
-        connected: connected || prev.connected,
-        connectedPeers: prev.connectedPeers + (connected ? 1 : -1)
-      }))
+    const unsub = runtime.onConnectionChange((peerId: string, connected: boolean) => {
+      const peerSet = peerSetRef.current
+      if (connected) {
+        peerSet.add(peerId)
+      } else {
+        peerSet.delete(peerId)
+      }
+      setState({
+        connected: peerSet.size > 0,
+        connectedPeers: peerSet.size
+      })
     })
 
     return unsub

@@ -1,9 +1,9 @@
 import * as React from 'react'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router'
-import { listGroupChatSessions } from './chat-session'
 import { getBrowserXmppBridge } from '../bridge/runtime'
 import { useRosterBridge } from '../bridge/useRosterBridge'
+import { useChatListBridge } from '../bridge/useChatListBridge'
 import ConversationDetails from '../components/ConversationDetails'
 import {
   Search, Settings, Hash, Users, Shield, Zap, Lock,
@@ -33,7 +33,7 @@ interface Chat {
   participants?: ChatParticipant[]
   lastMessage: {
     text: string
-    kind?: 'text' | 'image' | 'audio' | 'file'
+    kind?: 'text' | 'image' | 'audio' | 'file' | 'system'
     sender?: string
     timestamp: string
     read?: boolean
@@ -50,80 +50,7 @@ interface Chat {
   verified?: boolean
 }
 
-const CHATS: Chat[] = [
-  {
-    id: '1', type: 'direct', name: 'Maren Holdt', handle: 'maren@social.coop',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=64&h=64&fit=crop&auto=format',
-    server: 'social.coop',
-    lastMessage: { text: 'The new RFC looks solid. Did you get a chance to review the push notification section?', timestamp: 'now', read: false },
-    unread: 3, pinned: true, encrypted: true, online: true, verified: true,
-  },
-  {
-    id: '2', type: 'group', name: 'Protocol Working Group',
-    participants: [
-      { name: 'Theo N', handle: 'theo_n', server: 'hachyderm.io', online: true },
-      { name: 'Kaspar V', handle: 'kvold', server: 'fosstodon.org', online: false },
-      { name: 'Elif Ş', handle: 'elif_dev', server: 'mastodon.social', online: true },
-    ],
-    memberCount: 7,
-    lastMessage: { text: 'theo_n: Benchmarks are looking great. 2x throughput at 10k connections.', timestamp: '4m', read: false },
-    unread: 12, pinned: true, encrypted: true, topic: 'XMPP MUC spec review - deadline 2026-07-01',
-  },
-  {
-    id: '3', type: 'muc', name: '#fedidev', handle: 'fedidev@conference.fosstodon.org',
-    server: 'conference.fosstodon.org', memberCount: 341,
-    lastMessage: { text: 'ingridl: Monthly call tomorrow 18:00 UTC - agenda in the topic', timestamp: '9m', read: true },
-    unread: 0, topic: 'Federated dev community · monthly call Thu 18:00 UTC', encrypted: false,
-  },
-  {
-    id: '4', type: 'direct', name: 'Felix Bergström', handle: 'felixb@chaos.social',
-    avatar: 'https://images.unsplash.com/photo-1463453091185-61582044d556?w=64&h=64&fit=crop&auto=format',
-    server: 'chaos.social',
-    lastMessage: { text: 'Setup took 4 hours but worth every minute honestly', timestamp: '31m', read: true, delivered: true },
-    unread: 0, encrypted: true, online: false,
-  },
-  {
-    id: '5', type: 'muc', name: '#opensourcedev', handle: 'opensourcedev@muc.hachyderm.io',
-    server: 'muc.hachyderm.io', memberCount: 1204,
-    lastMessage: { text: 'amara_d: Anyone tried the new Go library? Zero deps is a big deal', timestamp: '47m', read: true },
-    unread: 0, topic: 'Open source development · share your work', encrypted: false,
-  },
-  {
-    id: '6', type: 'group', name: 'Infra Team',
-    participants: [
-      { name: 'Yuki T', handle: 'yukitan', server: 'infosec.exchange', online: true },
-      { name: 'Amara D', handle: 'amara_d', server: 'blacktwitter.io', online: false },
-    ],
-    memberCount: 4,
-    lastMessage: { kind: 'image', text: 'Sent a photo', sender: 'You', timestamp: '1h', read: true, delivered: true },
-    unread: 0, encrypted: true, muted: true, topic: 'Self-hosted infra coordination',
-  },
-  {
-    id: '7', type: 'direct', name: 'Ingrid Larsen', handle: 'ingridl@sigmoid.social',
-    avatar: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=64&h=64&fit=crop&auto=format',
-    server: 'sigmoid.social',
-    lastMessage: { kind: 'audio', text: 'Voice message · 0:42', timestamp: '2h', read: true },
-    unread: 0, encrypted: true, online: true, typing: 'typing…',
-  },
-  {
-    id: '8', type: 'muc', name: '#privacy', handle: 'privacy@conference.infosec.exchange',
-    server: 'conference.infosec.exchange', memberCount: 892,
-    lastMessage: { text: 'yukitan: OMEMO is criminally underrated. Signal-level security, open protocol.', timestamp: '3h', read: true },
-    unread: 7, topic: 'Privacy, security & digital rights', encrypted: false,
-  },
-  {
-    id: '9', type: 'direct', name: 'Kaspar Vold', handle: 'kvold@fosstodon.org',
-    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=64&h=64&fit=crop&auto=format',
-    server: 'fosstodon.org',
-    lastMessage: { kind: 'file', text: 'RFC-draft-xmpp-push-v3.pdf', timestamp: '5h', read: true },
-    unread: 0, encrypted: true, online: false, verified: true,
-  },
-  {
-    id: '10', type: 'group', name: 'DecentralWeb Collab', memberCount: 12,
-    lastMessage: { text: 'maren: This could be the breakthrough we needed for mobile battery life', timestamp: 'yesterday', read: true },
-    unread: 0, encrypted: true, topic: 'Cross-platform decentralized web collaboration',
-  },
-]
+
 
 function OnlineRing({ online }: { online?: boolean }) {
   if (online === undefined) return null
@@ -249,47 +176,14 @@ const FILTERS: { id: FilterType; label: string; icon: React.ComponentType<{ size
   { id: 'channels', label: 'Channels', icon: Hash },
 ]
 
-function buildPrivateGroupChatRows() {
-  return listGroupChatSessions().map((session) => ({
-    id: session.chat.id,
-    type: 'group' as const,
-    name: session.chat.name,
-    handle: session.chat.handle,
-    server: session.chat.server,
-    avatar: undefined as string | undefined,
-    participants: session.chat.participants,
-    memberCount: session.chat.memberCount,
-    lastMessage: {
-      text: session.messages[session.messages.length - 1]?.content ?? 'Private group chat created',
-      timestamp: session.messages[session.messages.length - 1]?.timestamp ?? 'now',
-      read: true,
-    },
-    unread: 0,
-    pinned: false,
-    encrypted: session.chat.encrypted,
-    muted: session.chat.muted,
-    online: session.chat.online,
-    persistent: session.chat.persistent,
-    moderated: session.chat.moderated,
-    anonymous: session.chat.anonymous,
-    passwordProtected: session.chat.passwordProtected,
-    memberOnly: session.chat.memberOnly,
-    archived: session.chat.archived,
-    topic: session.chat.subject,
-    verified: false,
-    typing: undefined as string | undefined,
-  }))
-}
-
 export default function ChatsPage() {
   const navigate = useNavigate()
   const [activeFilter, setActiveFilter] = useState<FilterType>('all')
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null)
-  const privateGroupChats = buildPrivateGroupChatRows()
-  const chats = [...privateGroupChats, ...CHATS]
-  const { contacts, onlinePeers } = useRosterBridge()
+  const { chats, onlineContacts } = useChatListBridge()
+  const { contacts } = useRosterBridge()
 
   useEffect(() => {
     const runtime = getBrowserXmppBridge()
@@ -319,20 +213,6 @@ export default function ChatsPage() {
     })
     .sort((a, b) => (a.pinned === b.pinned ? 0 : a.pinned ? -1 : 1))
 
-  const mockOnlineContacts = chats.filter((c) => c.type === 'direct' && c.online)
-  const rosterOnlineContacts = contacts.filter((c) => c.online).map((c) => ({
-    id: c.jid,
-    type: 'direct' as const,
-    name: c.nickname || c.name || c.jid.split('@')[0],
-    handle: c.jid,
-    online: true,
-    avatar: undefined as string | undefined,
-    server: c.jid.split('@')[1] || '',
-    lastMessage: { text: '', timestamp: '' },
-    unread: 0
-  }))
-  const onlineContacts = rosterOnlineContacts.length > 0 ? rosterOnlineContacts : mockOnlineContacts
-
   const selectedChat = selectedChatId ? chats.find((c) => c.id === selectedChatId) ?? null : null
 
   const handleChatClick = (chatId: string) => {
@@ -350,14 +230,14 @@ export default function ChatsPage() {
             <div className="text-[11px] font-mono text-muted-foreground leading-tight">{unread.all} unread</div>
           </div>
           <div className="flex items-center gap-0.5">
-            <button onClick={() => setSearchOpen((v) => !v)}
-              className={`p-2 rounded-lg transition-colors ${searchOpen ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-white/5'}`}>
+            <button onClick={() => navigate('/search')} aria-label="Search messages"
+              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
               <Search size={17} />
             </button>
-            <button onClick={() => navigate('/chats/new')} className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
+            <button onClick={() => navigate('/chats/new')} aria-label="New conversation" className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
               <Edit3 size={17} />
             </button>
-            <button className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
+            <button onClick={() => navigate('/settings')} aria-label="Settings" className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
               <Settings size={17} />
             </button>
           </div>

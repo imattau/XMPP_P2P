@@ -15,11 +15,14 @@ export function useFeedBridge() {
 
   return {
     ...state,
+    loading: controller.getState().loading,
     filteredPosts: controller.getFilteredPosts(),
     setActiveFilter: (activeFilter: FeedViewState['activeFilter']) => controller.setActiveFilter(activeFilter),
     setSearchOpen: (searchOpen: boolean) => controller.setSearchOpen(searchOpen),
     setSearchQuery: (searchQuery: string) => controller.setSearchQuery(searchQuery),
+    setSortBy: (sortBy: FeedViewState['sortBy']) => controller.setSortBy(sortBy),
     refresh: () => controller.refresh(),
+    loadMore: () => controller.loadMore(),
     likePost: (id: string) => controller.likePost(id),
     reactPost: (id: string, emoji?: string) => controller.reactPost(id, emoji),
     repostPost: (id: string) => controller.repostPost(id),

@@ -7,7 +7,7 @@ import {
   Flame, Globe, Filter, ChevronDown, Search, X,
 } from 'lucide-react'
 
-import { useFeedBridge } from '../bridge'
+import { useFeedBridge, type FeedPost } from '../bridge'
 
 interface TopicMeta {
   tag: string

@@ -1,9 +1,11 @@
 import * as React from 'react'
 import { useState, useRef, useEffect, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router'
-import { getBrowserXmppBridge, useChatBridge, type ChatAttachment as BridgeChatAttachment, type ChatMessage as BridgeChatMessage, type ChatMessageReply as BridgeChatMessageReply, type ChatThread as BridgeChatThread } from '../bridge'
+import { getBrowserXmppBridge, useChatBridge, useChatThreadBridge, type ChatAttachment as BridgeChatAttachment, type ChatMessage as BridgeChatMessage, type ChatMessageReply as BridgeChatMessageReply, type ChatThread as BridgeChatThread } from '../bridge'
 import { useRosterBridge } from '../bridge/useRosterBridge'
-import { getGroupChatSession, removeGroupChatSession, updateGroupChatSession } from './chat-session'
+import { removeGroupChatSession, updateGroupChatSession } from './chat-session'
+import MediaViewer from '../components/MediaViewer'
+import { emitToast } from '../lib/toast-events'
 import {
   ArrowLeft, Phone, Video, Info, X, Send, Smile, Paperclip,
   Mic, Shield, Lock, BellOff, Bell, Trash2, LogOut, Users,
@@ -65,83 +67,6 @@ interface ChatData {
 }
 
 const ME = 'me'
-
-const CHATS: Record<string, ChatData> = {
-  '1': {
-    id: '1', type: 'direct', name: 'Maren Holdt', handle: 'maren@social.coop',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=64&h=64&fit=crop&auto=format',
-    server: 'social.coop', encrypted: true, online: true, verified: true,
-    participants: [
-      { id: 'maren', name: 'Maren Holdt', handle: 'maren@social.coop', server: 'social.coop', online: true, avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=64&h=64&fit=crop&auto=format' },
-      { id: ME, name: 'You', handle: 'you@jabber.de', server: 'jabber.de', online: true },
-    ],
-  },
-  '2': {
-    id: '2', type: 'group', name: 'Protocol Working Group',
-    subject: 'XMPP MUC spec review - deadline 2026-07-01',
-    server: 'jabber.de', encrypted: true, memberCount: 7,
-    participants: [
-      { id: 'theo', name: 'Theo N', handle: 'theo_n@hachyderm.io', server: 'hachyderm.io', online: true, role: 'owner', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=64&h=64&fit=crop&auto=format' },
-      { id: 'kaspar', name: 'Kaspar V', handle: 'kvold@fosstodon.org', server: 'fosstodon.org', online: false, role: 'admin', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=64&h=64&fit=crop&auto=format' },
-      { id: 'elif', name: 'Elif Ş', handle: 'elif_dev@mastodon.social', server: 'mastodon.social', online: true, role: 'member', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=64&h=64&fit=crop&auto=format' },
-      { id: 'maren', name: 'Maren H', handle: 'maren@social.coop', server: 'social.coop', online: true, role: 'member', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=64&h=64&fit=crop&auto=format' },
-      { id: ME, name: 'You', handle: 'you@jabber.de', server: 'jabber.de', online: true, role: 'member' },
-    ],
-  },
-  '3': {
-    id: '3', type: 'muc', name: '#fedidev', handle: 'fedidev@conference.fosstodon.org',
-    server: 'conference.fosstodon.org', memberCount: 341,
-    subject: 'Federated dev community · monthly call Thu 18:00 UTC',
-    encrypted: false, persistent: true, moderated: false, anonymous: false,
-    memberOnly: false, passwordProtected: false,
-    participants: [
-      { id: 'ingrid', name: 'Ingrid L', handle: 'ingridl@sigmoid.social', server: 'sigmoid.social', online: true, role: 'moderator', avatar: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=64&h=64&fit=crop&auto=format' },
-      { id: 'kaspar', name: 'Kaspar V', handle: 'kvold@fosstodon.org', server: 'fosstodon.org', online: false, role: 'owner', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=64&h=64&fit=crop&auto=format' },
-      { id: 'theo', name: 'Theo N', handle: 'theo_n@hachyderm.io', server: 'hachyderm.io', online: true, role: 'member', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=64&h=64&fit=crop&auto=format' },
-      { id: ME, name: 'you', handle: 'you@jabber.de', server: 'jabber.de', online: true, role: 'member' },
-    ],
-  },
-  '7': {
-    id: '7', type: 'direct', name: 'Ingrid Larsen', handle: 'ingridl@sigmoid.social',
-    avatar: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=64&h=64&fit=crop&auto=format',
-    server: 'sigmoid.social', encrypted: true, online: true,
-    participants: [
-      { id: 'ingrid', name: 'Ingrid Larsen', handle: 'ingridl@sigmoid.social', server: 'sigmoid.social', online: true, avatar: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=64&h=64&fit=crop&auto=format' },
-      { id: ME, name: 'You', handle: 'you@jabber.de', server: 'jabber.de', online: true },
-    ],
-  },
-}
-
-const MESSAGES: Record<string, Message[]> = {
-  '1': [
-    { id: 'm1', senderId: 'maren', senderName: 'Maren', senderAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=48&h=48&fit=crop&auto=format', content: 'Hey! Did you get a chance to look at the new RFC draft?', timestamp: '10:02', read: true },
-    { id: 'm2', senderId: ME, senderName: 'You', content: 'Just skimming it now. The push notification section is interesting.', timestamp: '10:04', delivered: true, read: true },
-    { id: 'm3', senderId: 'maren', senderName: 'Maren', senderAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=48&h=48&fit=crop&auto=format', content: 'Right? Finally addressing the battery drain properly. The proxy approach is clever.', timestamp: '10:06', reactions: [{ emoji: '👍', count: 1, mine: true }] },
-    { id: 'm4', senderId: ME, senderName: 'You', content: 'The mobile XMPP situation has always been the weakest link. If this lands, it removes the last major objection.', timestamp: '10:08', delivered: true, read: true },
-    { id: 'm5', senderId: 'maren', senderName: 'Maren', senderAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=48&h=48&fit=crop&auto=format', content: 'Exactly. And the spec is already further along than I expected. The authors clearly know what they\'re doing.', timestamp: '10:11' },
-    { id: 'm6', senderId: ME, senderName: 'You', content: 'The new RFC looks solid. Did you get a chance to review the push notification section?', timestamp: '10:14', delivered: true, read: false },
-  ],
-  '2': [
-    { id: 'm1', kind: 'system', senderId: 'system', senderName: '', content: 'Group created by Theo N · 7 members', timestamp: 'Mon' },
-    { id: 'm2', senderId: 'theo', senderName: 'Theo', senderAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=48&h=48&fit=crop&auto=format', content: 'Alright everyone, let\'s kick off the MUC spec review. I\'ve put the draft in the topic.', timestamp: 'Mon 14:00' },
-    { id: 'm3', senderId: 'kaspar', senderName: 'Kaspar', senderAvatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=48&h=48&fit=crop&auto=format', content: 'Read through sections 1-4 this morning. The history management changes are significant.', timestamp: 'Mon 14:22' },
-    { id: 'm4', senderId: 'elif', senderName: 'Elif', senderAvatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=48&h=48&fit=crop&auto=format', content: 'The subscription model looks cleaner than the current XEP-0045 approach. Less state to manage on the server.', timestamp: 'Mon 15:01' },
-    { id: 'm5', senderId: ME, senderName: 'You', content: 'Agreed. The old model was complex enough that most servers had subtle incompatibilities.', timestamp: 'Mon 15:04', delivered: true, read: true },
-    { id: 'm6', senderId: 'theo', senderName: 'Theo', senderAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=48&h=48&fit=crop&auto=format', content: 'Benchmarks are looking great. 2x throughput at 10k connections.', timestamp: '4m', reactions: [{ emoji: '🚀', count: 3 }, { emoji: '🔥', count: 2 }] },
-  ],
-  '3': [
-    { id: 'm1', kind: 'system', senderId: 'system', senderName: '', content: 'You joined #fedidev', timestamp: '2 weeks ago' },
-    { id: 'm2', senderId: 'kaspar', senderName: 'kvold', senderAvatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=48&h=48&fit=crop&auto=format', content: 'Welcome everyone to the monthly sync. Agenda in the topic.', timestamp: 'Thu 17:59' },
-    { id: 'm3', senderId: 'ingrid', senderName: 'ingridl', senderAvatar: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=48&h=48&fit=crop&auto=format', content: 'Monthly call tomorrow 18:00 UTC - agenda in the topic', timestamp: '9m' },
-    { id: 'm4', senderId: 'theo', senderName: 'theo_n', senderAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=48&h=48&fit=crop&auto=format', content: 'Will the call be recorded? Can\'t make it live.', timestamp: '7m' },
-    { id: 'm5', senderId: 'ingrid', senderName: 'ingridl', senderAvatar: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=48&h=48&fit=crop&auto=format', content: 'Yes, notes will be posted in the wiki within 24h.', timestamp: '5m' },
-  ],
-  '7': [
-    { id: 'm1', senderId: 'ingrid', senderName: 'Ingrid', senderAvatar: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=48&h=48&fit=crop&auto=format', content: 'Hey! Quick question - are you going to the FediDev call tomorrow?', timestamp: '09:15' },
-    { id: 'm2', senderId: ME, senderName: 'You', content: 'Planning to, yes. You presenting anything?', timestamp: '09:22', delivered: true, read: true },
-    { id: 'm3', senderId: 'ingrid', senderName: 'Ingrid', senderAvatar: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=48&h=48&fit=crop&auto=format', content: 'Just a short update on the ActivityPub C2S item. 10 minutes max.', timestamp: '09:24', kind: 'audio', fileName: 'Voice message · 0:42' },
-  ],
-}
 
 const MAX_IMAGES = 4
 
@@ -213,6 +138,8 @@ function Bubble({
   showAvatar,
   type,
   onReply,
+  onEdit,
+  onImageClick,
   replyPreview,
 }: {
   msg: Message
@@ -220,6 +147,8 @@ function Bubble({
   showAvatar: boolean
   type: ChatType
   onReply: (message: Message) => void
+  onEdit?: (messageId: string) => void
+  onImageClick?: (url: string, alt: string) => void
   replyPreview?: { senderName: string; content: string }
 }) {
   if (msg.kind === 'system') {
@@ -272,19 +201,17 @@ function Bubble({
             <div className="space-y-2">
               <div className={`grid gap-2 ${imageAttachments.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
                 {imageAttachments.map((attachment) => (
-                  <a
+                  <button
                     key={attachment.id}
-                    href={attachment.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="block overflow-hidden rounded-xl border border-border bg-black/10"
+                    onClick={() => onImageClick?.(attachment.url, attachment.alt)}
+                    className="block overflow-hidden rounded-xl border border-border bg-black/10 w-full text-left"
                   >
                     <img
                       src={attachment.url}
                       alt={attachment.alt}
                       className="block w-full h-full max-h-72 object-cover"
                     />
-                  </a>
+                  </button>
                 ))}
               </div>
               {parsedBody?.body ? <p className="whitespace-pre-wrap">{parsedBody.body}</p> : null}
@@ -338,13 +265,24 @@ function Bubble({
           <MessageStatus msg={msg} />
         </div>
 
-        <button
-          onClick={() => onReply(msg)}
-          className={`mt-1 inline-flex items-center gap-1 font-mono text-[10px] text-muted-foreground hover:text-primary transition-colors ${isMine ? 'flex-row-reverse' : ''}`}
-        >
-          <CornerUpLeft size={10} />
-          Reply
-        </button>
+        <div className={`flex items-center gap-2 mt-1 ${isMine ? 'flex-row-reverse' : ''}`}>
+          <button
+            onClick={() => onReply(msg)}
+            className="inline-flex items-center gap-1 font-mono text-[10px] text-muted-foreground hover:text-primary transition-colors"
+          >
+            <CornerUpLeft size={10} />
+            Reply
+          </button>
+          {isMine && onEdit && (
+            <button
+              onClick={() => onEdit(msg.id)}
+              className="inline-flex items-center gap-1 font-mono text-[10px] text-muted-foreground hover:text-primary transition-colors"
+            >
+              <Zap size={10} />
+              Edit
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -352,7 +290,17 @@ function Bubble({
 
 function DirectSettings({ chat }: { chat: ChatData }) {
   const [muted, setMuted] = useState(chat.muted ?? false)
+  const [fingerprint, setFingerprint] = useState<string | null>(null)
   const other = chat.participants.find((p) => p.id !== ME)!
+
+  useEffect(() => {
+    const bridge = getBrowserXmppBridge()
+    if (!bridge?.getPeerOmemoFingerprint || !other.handle) return
+    void bridge.getPeerOmemoFingerprint(other.handle).then((fp) => {
+      if (fp) setFingerprint(fp)
+    })
+  }, [other.handle])
+
   return (
     <div className="overflow-y-auto flex-1">
       <div className="px-4 py-5 flex flex-col items-center gap-2 border-b border-border">
@@ -381,6 +329,12 @@ function DirectSettings({ chat }: { chat: ChatData }) {
             {chat.encrypted ? 'Active' : 'Inactive'}
           </span>
         </div>
+        {fingerprint && (
+          <div className="mt-2">
+            <p className="font-mono text-[9px] text-muted-foreground mb-0.5">Fingerprint (SHA-256)</p>
+            <p className="font-mono text-[8px] text-foreground/50 leading-relaxed break-all select-all">{fingerprint}</p>
+          </div>
+        )}
       </div>
 
       <div className="border-b border-border">
@@ -487,8 +441,9 @@ function GroupSettings({
   )
 }
 
-function MucSettings({ chat }: { chat: ChatData }) {
+function MucSettings({ chat, onKick, onBan, onConfig }: { chat: ChatData; onKick?: (jid: string) => void; onBan?: (jid: string) => void; onConfig?: () => void }) {
   const [muted, setMuted] = useState(chat.muted ?? false)
+  const [showActionPicker, setShowActionPicker] = useState<{ type: 'kick' | 'ban' } | null>(null)
   const myRole = chat.participants.find((p) => p.id === ME)?.role
   const canModerate = myRole === 'owner' || myRole === 'admin' || myRole === 'moderator'
 
@@ -559,18 +514,50 @@ function MucSettings({ chat }: { chat: ChatData }) {
       {canModerate && (
         <div className="border-b border-border">
           <p className="px-4 py-2 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Moderation</p>
-          {[
-            { icon: Settings, label: 'Room configuration' },
-            { icon: UserMinus, label: 'Kick participant' },
-            { icon: AlertTriangle, label: 'Ban participant' },
-          ].map(({ icon: Icon, label }) => (
-            <button key={label} className="w-full flex items-center gap-3 px-4 py-3 border-b border-border last:border-0 hover:bg-secondary transition-colors text-left text-foreground/80">
-              <Icon size={15} /><span className="text-sm">{label}</span>
-              <ChevronRight size={13} className="ml-auto text-muted-foreground/40" />
-            </button>
-          ))}
+          <button onClick={onConfig} className="w-full flex items-center gap-3 px-4 py-3 border-b border-border hover:bg-secondary transition-colors text-left text-foreground/80">
+            <Settings size={15} /><span className="text-sm">Room configuration</span>
+            <ChevronRight size={13} className="ml-auto text-muted-foreground/40" />
+          </button>
+          <button onClick={() => setShowActionPicker({ type: 'kick' })} className="w-full flex items-center gap-3 px-4 py-3 border-b border-border hover:bg-secondary transition-colors text-left text-foreground/80">
+            <UserMinus size={15} /><span className="text-sm">Kick participant</span>
+            <ChevronRight size={13} className="ml-auto text-muted-foreground/40" />
+          </button>
+          <button onClick={() => setShowActionPicker({ type: 'ban' })} className="w-full flex items-center gap-3 px-4 py-3 border-b border-border hover:bg-secondary transition-colors text-left text-foreground/80">
+            <AlertTriangle size={15} /><span className="text-sm">Ban participant</span>
+            <ChevronRight size={13} className="ml-auto text-muted-foreground/40" />
+          </button>
         </div>
       )}
+
+      {showActionPicker && (
+        <div className="border-b border-border px-4 py-3">
+          <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-2">
+            {showActionPicker.type === 'kick' ? 'Select participant to kick' : 'Select participant to ban'}
+          </p>
+          {chat.participants.filter((p) => p.id !== ME).map((p) => (
+            <button
+              key={p.id}
+              onClick={() => {
+                if (showActionPicker.type === 'kick') onKick?.(p.handle || p.id)
+                else onBan?.(p.handle || p.id)
+                setShowActionPicker(null)
+              }}
+              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-secondary transition-colors rounded-lg text-left"
+            >
+              <div className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center text-[9px] font-semibold flex-shrink-0">
+                {p.name[0]}
+              </div>
+              <span className="text-[12px] text-foreground/80 flex-1 font-mono">{p.handle}</span>
+            </button>
+          ))}
+          <button onClick={() => setShowActionPicker(null)} className="mt-2 text-[11px] font-mono text-muted-foreground hover:text-foreground">
+            Cancel
+          </button>
+        </div>
+      )}
+      <button className="w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary transition-colors text-left text-destructive">
+        <LogOut size={15} /><span className="text-sm">Leave channel</span>
+      </button>
 
       <button className="w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary transition-colors text-left text-destructive">
         <LogOut size={15} /><span className="text-sm">Leave channel</span>
@@ -582,14 +569,10 @@ function MucSettings({ chat }: { chat: ChatData }) {
 export default function ChatThreadPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const groupSession = useMemo(() => getGroupChatSession(id), [id])
   const { onlinePeers } = useRosterBridge()
-  const mockChat = useMemo(
-    () => (groupSession?.chat ?? CHATS[id ?? ''] ?? CHATS['1']) as ChatData,
-    [groupSession, id]
-  )
+  const { chat: resolvedChat, messages: initialMessages } = useChatThreadBridge(id)
   const chat = useMemo(() => {
-    const c = { ...mockChat }
+    const c = { ...resolvedChat } as ChatData
     if (c.handle && onlinePeers.has(c.handle)) {
       c.online = true
     }
@@ -600,14 +583,12 @@ export default function ChatThreadPage() {
       }))
     }
     return c
-  }, [mockChat, onlinePeers])
-  const initialMessages = useMemo(
-    () => groupSession?.messages ?? MESSAGES[id ?? ''] ?? MESSAGES['1'] ?? [],
-    [groupSession, id]
-  )
+  }, [resolvedChat, onlinePeers])
   const [groupMuted, setGroupMuted] = useState(chat.muted ?? false)
   const [groupArchived, setGroupArchived] = useState(chat.archived ?? false)
   const [showInfo, setShowInfo] = useState(false)
+  const [mediaViewer, setMediaViewer] = useState<{ items: Array<{ url: string; alt: string }>; index: number } | null>(null)
+  const [modAction, setModAction] = useState<{ type: 'kick' | 'ban'; target: string } | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -637,6 +618,10 @@ export default function ChatThreadPage() {
     setEmojiSearch,
     setReplyTo,
     sendMessage,
+    editingMessageId,
+    startEdit,
+    cancelEdit,
+    typingPeer,
   } = useChatBridge(chat as BridgeChatThread, initialMessages as BridgeChatMessage[])
 
   useEffect(() => {
@@ -644,7 +629,7 @@ export default function ChatThreadPage() {
   }, [messages])
 
   useEffect(() => {
-    if (!groupSession) {
+    if (chat.type !== 'group') {
       return
     }
 
@@ -654,7 +639,7 @@ export default function ChatThreadPage() {
     }
 
     let cancelled = false
-    void bridge.getMucRoomSettings(groupSession.chat.id).then((settings) => {
+    void bridge.getMucRoomSettings(chat.id).then((settings) => {
       if (cancelled || !settings || typeof settings.archived !== 'boolean') {
         return
       }
@@ -664,21 +649,38 @@ export default function ChatThreadPage() {
           return currentArchived
         }
 
-        updateGroupChatSession(groupSession.chat.id, (session) => ({
+        updateGroupChatSession(chat.id, (session) => ({
           ...session,
           chat: {
             ...session.chat,
-            archived: settings.archived
+            archived: settings.archived ?? false
           }
         }))
-        return settings.archived
+        return settings.archived ?? false
       })
     }).catch(() => {})
 
     return () => {
       cancelled = true
     }
-  }, [mockChat.id])
+  }, [chat.id])
+
+  useEffect(() => {
+    if (!modAction || !chat.handle) return
+    const bridge = getBrowserXmppBridge()
+    const roomJid = chat.handle
+    const action = modAction.type === 'kick'
+      ? bridge?.kickMucParticipant(roomJid, modAction.target)
+      : bridge?.banMucParticipant(roomJid, modAction.target)
+    if (action) {
+      void action.then(() => {
+        emitToast(`Participant ${modAction.type === 'kick' ? 'kicked' : 'banned'}`, 'success')
+      }).catch(() => {
+        emitToast(`Failed to ${modAction.type} participant`, 'error')
+      })
+    }
+    setModAction(null)
+  }, [modAction, chat.handle])
 
   const isMine = (msg: Message) => msg.senderId === ME
   const showAvatar = (i: number) => {
@@ -708,7 +710,7 @@ export default function ChatThreadPage() {
     }
   }
 
-  const isPrivateGroupChat = !!groupSession
+  const isPrivateGroupChat = chat.type === 'group'
   const groupChatState = isPrivateGroupChat
     ? { ...chat, muted: groupMuted, archived: groupArchived }
     : chat
@@ -716,8 +718,8 @@ export default function ChatThreadPage() {
   const handleToggleGroupMute = () => {
     setGroupMuted((nextMuted) => {
       const updatedMuted = !nextMuted
-      if (groupSession) {
-        updateGroupChatSession(groupSession.chat.id, (session) => ({
+      if (chat.type === 'group') {
+        updateGroupChatSession(chat.id, (session) => ({
           ...session,
           chat: {
             ...session.chat,
@@ -732,8 +734,8 @@ export default function ChatThreadPage() {
   const handleArchiveGroup = () => {
     const nextArchived = !groupArchived
     setGroupArchived(nextArchived)
-    if (groupSession) {
-      updateGroupChatSession(groupSession.chat.id, (session) => ({
+    if (chat.type === 'group') {
+      updateGroupChatSession(chat.id, (session) => ({
         ...session,
         chat: {
           ...session.chat,
@@ -743,8 +745,8 @@ export default function ChatThreadPage() {
     }
 
     const bridge = getBrowserXmppBridge()
-    if (bridge?.updateMucRoomSettings && groupSession) {
-      void bridge.updateMucRoomSettings(groupSession.chat.id, {
+    if (bridge?.updateMucRoomSettings && chat.type === 'group') {
+      void bridge.updateMucRoomSettings(chat.id, {
         topic: groupChatState.subject,
         defaultSecure: true,
         autoJoin: true,
@@ -757,8 +759,8 @@ export default function ChatThreadPage() {
   }
 
   const handleLeaveGroup = () => {
-    if (groupSession) {
-      removeGroupChatSession(groupSession.chat.id)
+    if (chat.type === 'group') {
+      removeGroupChatSession(chat.id)
     }
     setShowInfo(false)
     navigate('/chats')
@@ -780,7 +782,18 @@ export default function ChatThreadPage() {
               {groupChatState.verified && <Shield size={11} className="text-primary flex-shrink-0" />}
               {groupChatState.encrypted && <Lock size={9} className="text-accent flex-shrink-0" />}
             </div>
-            <span className="font-mono text-[10px] text-muted-foreground">{groupChatState.online ? 'Online' : groupChatState.handle}</span>
+            <span className="font-mono text-[10px] text-muted-foreground">
+              {typingPeer ? (
+                <span className="flex items-center gap-1 text-accent">
+                  <span className="flex gap-0.5">
+                    <span className="w-1 h-1 rounded-full bg-accent animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-1 h-1 rounded-full bg-accent animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="w-1 h-1 rounded-full bg-accent animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </span>
+                  typing…
+                </span>
+              ) : groupChatState.online ? 'Online' : groupChatState.handle}
+            </span>
           </div>
         </div>
       )
@@ -872,6 +885,15 @@ export default function ChatThreadPage() {
                 })
                 setTimeout(() => textareaRef.current?.focus(), 0)
               }}
+              onEdit={(messageId) => {
+                startEdit(messageId)
+                setTimeout(() => textareaRef.current?.focus(), 0)
+              }}
+              onImageClick={(url, alt) => {
+                const allImages = messages.flatMap((m) => m.attachments?.filter((a) => a.kind === 'image') ?? [])
+                const index = allImages.findIndex((img) => img.url === url)
+                setMediaViewer({ items: allImages, index: index >= 0 ? index : 0 })
+              }}
               replyPreview={resolveReplyPreview(msg)}
             />
           ))}
@@ -894,13 +916,40 @@ export default function ChatThreadPage() {
                 onLeave={handleLeaveGroup}
               />
             )}
-            {groupChatState.type === 'muc' && <MucSettings chat={groupChatState} />}
+            {groupChatState.type === 'muc' && (
+              <MucSettings
+                chat={groupChatState}
+                onKick={(jid) => setModAction({ type: 'kick', target: jid })}
+                onBan={(jid) => setModAction({ type: 'ban', target: jid })}
+                onConfig={() => navigate('/settings')}
+              />
+            )}
           </div>
         )}
       </div>
 
       {!showInfo && (
         <>
+          {editingMessageId && (
+            <div className="border-t border-border bg-background px-3 py-2 flex items-start gap-2">
+              <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-lg border border-accent/20 bg-accent/10 text-accent flex-shrink-0">
+                <Zap size={13} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-[10px] uppercase tracking-widest text-accent">Editing message</span>
+                </div>
+                <p className="mt-0.5 text-[12px] text-accent/60">Press Enter to save changes</p>
+              </div>
+              <button
+                onClick={() => cancelEdit()}
+                className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors flex-shrink-0"
+                aria-label="Cancel editing"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          )}
           {replyTo && (
             <div className="border-t border-border bg-background px-3 py-2 flex items-start gap-2">
               <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary flex-shrink-0">
@@ -1063,16 +1112,37 @@ export default function ChatThreadPage() {
                 accept="image/*,.pdf,.txt,.doc,.docx"
                 multiple
                 className="hidden"
-                onChange={(e) => {
+                onChange={async (e) => {
                   const files = Array.from(e.target.files ?? [])
-                  files.slice(0, MAX_IMAGES - selectedAttachments.length).forEach((file, i) => {
-                    toggleAttachment({
-                      id: `upload-${Date.now()}-${i}`,
-                      url: URL.createObjectURL(file),
-                      alt: file.name,
-                      kind: file.type.startsWith('image/') ? 'image' : 'file',
-                    })
-                  })
+                  const bridge = getBrowserXmppBridge()
+                  for (let i = 0; i < Math.min(files.length, MAX_IMAGES - selectedAttachments.length); i++) {
+                    const file = files[i]
+                    if (bridge?.uploadFile) {
+                      try {
+                        const result = await bridge.uploadFile(file)
+                        toggleAttachment({
+                          id: result.url,
+                          url: result.url,
+                          alt: result.alt,
+                          kind: result.kind,
+                        })
+                      } catch {
+                        toggleAttachment({
+                          id: `upload-${Date.now()}-${i}`,
+                          url: URL.createObjectURL(file),
+                          alt: file.name,
+                          kind: file.type.startsWith('image/') ? 'image' : 'file',
+                        })
+                      }
+                    } else {
+                      toggleAttachment({
+                        id: `upload-${Date.now()}-${i}`,
+                        url: URL.createObjectURL(file),
+                        alt: file.name,
+                        kind: file.type.startsWith('image/') ? 'image' : 'file',
+                      })
+                    }
+                  }
                   e.target.value = ''
                 }}
               />
@@ -1172,6 +1242,14 @@ export default function ChatThreadPage() {
             </button>
           </div>
         </>
+      )}
+
+      {mediaViewer && (
+        <MediaViewer
+          items={mediaViewer.items}
+          initialIndex={mediaViewer.index}
+          onClose={() => setMediaViewer(null)}
+        />
       )}
     </div>
   )

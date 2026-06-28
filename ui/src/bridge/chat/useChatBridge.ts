@@ -12,7 +12,7 @@ export function useChatBridge(chat: ChatThread, initialMessages: ChatMessage[]) 
 
   useEffect(() => {
     const unsubscribe = controller.subscribe(setState)
-    return unsubscribe
+    return () => { unsubscribe() }
   }, [controller])
 
   const mentionableContacts = controller.getMentionableContacts()
@@ -22,6 +22,7 @@ export function useChatBridge(chat: ChatThread, initialMessages: ChatMessage[]) 
     ...state,
     mentionableContacts,
     filteredMentions,
+    typingPeer: controller.getTypingPeer(),
     handleInputChange: (value: string, cursorPos?: number) => controller.setInput(value, cursorPos),
     setInput: (value: string) => controller.setInput(value),
     insertMention: (participant: ChatParticipant, cursorPos?: number) => controller.insertMention(participant, cursorPos),
@@ -37,7 +38,9 @@ export function useChatBridge(chat: ChatThread, initialMessages: ChatMessage[]) 
     setEmojiCategory: (emojiCategory: string) => controller.setEmojiCategory(emojiCategory),
     setEmojiSearch: (emojiSearch: string) => controller.setEmojiSearch(emojiSearch),
     setReplyTo: (replyTo?: ChatMessageReply) => controller.setReplyTo(replyTo),
-    sendMessage: () => controller.sendMessage()
+    sendMessage: () => controller.sendMessage(),
+    startEdit: (messageId: string) => controller.startEdit(messageId),
+    cancelEdit: () => controller.cancelEdit(),
   }
 }
 

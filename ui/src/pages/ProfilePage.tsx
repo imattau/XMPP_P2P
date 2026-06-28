@@ -13,6 +13,7 @@ import { useFeedBridge } from '../bridge/feed/useFeedBridge'
 import { getBrowserXmppBridge } from '../bridge/runtime'
 import type { BridgeFeedSubscriptionRecord, BridgeCollectionNode } from '../bridge/runtime'
 import { InlineEdit } from '../components/InlineEdit'
+import QRCode from '../components/QRCode'
 
 type ProfileTab = 'posts' | 'topics' | 'communities' | 'bookmarks'
 
@@ -48,6 +49,7 @@ export default function ProfilePage() {
   const [editError, setEditError] = useState('')
   const [subscriptions, setSubscriptions] = useState<BridgeFeedSubscriptionRecord[]>([])
   const [collections, setCollections] = useState<BridgeCollectionNode[]>([])
+  const [showQR, setShowQR] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { identity } = useIdentityBridge()
   const { vCard, loading, saving, save } = useProfileBridge()
@@ -126,7 +128,7 @@ export default function ProfilePage() {
           <span className="font-semibold text-sm tracking-tight">Profile</span>
         </div>
         <div className="flex items-center gap-0.5">
-          <button className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
+          <button onClick={() => setShowQR(true)} className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
             <QrCode size={17} />
           </button>
           <button onClick={() => navigate('/settings')}
@@ -177,6 +179,24 @@ export default function ProfilePage() {
       )}
 
       <main className="flex-1 overflow-y-auto">
+        {loading ? (
+          <div className="animate-pulse">
+            <div className="h-28 bg-secondary border-b border-border" />
+            <div className="px-4 pb-4">
+              <div className="flex items-end justify-between -mt-6 mb-3">
+                <div className="w-16 h-16 rounded-full border-4 border-background bg-secondary" />
+                <div className="w-16 h-8 rounded-lg bg-secondary" />
+              </div>
+              <div className="space-y-3 mb-4">
+                <div className="h-5 bg-secondary rounded w-1/3" />
+                <div className="h-4 bg-secondary rounded w-1/4" />
+                <div className="h-4 bg-secondary rounded w-1/2" />
+              </div>
+              <div className="grid grid-cols-3 gap-0 rounded-lg border border-border overflow-hidden h-16 bg-secondary" />
+            </div>
+          </div>
+        ) : (
+        <>
         <div className="relative">
           <div className="h-28 bg-gradient-to-br from-primary/20 via-accent/10 to-purple-500/10 border-b border-border" />
           <div className="px-4 pb-4">
@@ -373,7 +393,25 @@ export default function ProfilePage() {
             )}
           </div>
         )}
+        </>
+        )}
       </main>
+
+      {showQR && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowQR(false)}>
+          <div className="bg-card border border-border rounded-xl p-6 flex flex-col items-center gap-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <p className="font-semibold text-sm text-foreground">Scan profile QR</p>
+            <QRCode value={identity?.jid ?? handle ?? 'xmpp-p2p:identity'} size={180} />
+            <p className="font-mono text-[10px] text-muted-foreground break-all text-center max-w-[200px]">{identity?.jid ?? handle}</p>
+            <button
+              onClick={() => setShowQR(false)}
+              className="px-4 py-2 rounded-lg bg-primary text-white text-xs font-mono hover:bg-primary/90 transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

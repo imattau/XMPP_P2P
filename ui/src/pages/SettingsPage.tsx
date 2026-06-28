@@ -6,7 +6,9 @@ import {
   Server, Plus, X, Check, Loader, Save, Trash2, Wifi, WifiOff,
   Search, ChevronDown,
 } from 'lucide-react'
+import { getBrowserXmppBridge } from '../bridge/runtime'
 import { useServerBridge } from '../bridge/useServerBridge'
+import { identityController } from '../bridge/identity/controller'
 
 const PRESET_SERVERS = [
   { domain: 'jabber.org', label: 'jabber.org' },
@@ -339,6 +341,14 @@ export default function SettingsPage() {
 
         <div className="mt-4 px-4">
           <button
+            onClick={() => {
+              const bridge = getBrowserXmppBridge()
+              if (bridge?.disconnect) {
+                void bridge.disconnect()
+              }
+              identityController.resetIdentity()
+              navigate('/onboarding')
+            }}
             className="w-full flex items-center gap-3 px-4 py-3.5 rounded-lg border border-border transition-colors hover:bg-destructive/10 text-destructive text-left"
           >
             <LogOut size={16} />

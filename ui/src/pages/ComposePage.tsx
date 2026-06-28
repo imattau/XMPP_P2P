@@ -39,20 +39,7 @@ const EMOJI_CATEGORIES: { id: string; label: string; icon: string; emojis: strin
   { id: 'symbols', label: 'Symbols', icon: '❤️', emojis: ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❤️‍🔥', '❤️‍🩹', '💯', '💢', '💥', '💫', '💦', '💨', '🕳', '💬', '💭', '💤', '♈', '♉', '♊', '♋', '♌', '♍', '♎', '♏', '♐', '♑', '♒', '♓', '✅', '❌', '⭕', '🔴', '🟠', '🟡', '🟢', '🔵', '🟣', '⚫', '⚪', '🟤', '🔺', '🔻', '🔷', '🔶', '🔹', '🔸', '▶️', '⏩', '⏪', '⏫', '⏬', '⏭', '⏮', '🔀', '🔁', '🔂', '▶️', '⏸', '⏹', '⏺', '🎦', '🔅', '🔆', '📶', '📳', '📴', '📵', '📳'] },
 ]
 
-const GALLERY_PHOTOS = [
-  { id: 'g1', url: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=200&h=200&fit=crop&auto=format', alt: 'Circuit board' },
-  { id: 'g2', url: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=200&h=200&fit=crop&auto=format', alt: 'Server rack' },
-  { id: 'g3', url: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=200&h=200&fit=crop&auto=format', alt: 'Office workspace' },
-  { id: 'g4', url: 'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=200&h=200&fit=crop&auto=format', alt: 'Code on monitor' },
-  { id: 'g5', url: 'https://images.unsplash.com/photo-1555949963-ff9fe0c870eb?w=200&h=200&fit=crop&auto=format', alt: 'Developer at laptop' },
-  { id: 'g6', url: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=200&h=200&fit=crop&auto=format', alt: 'Matrix digital rain' },
-  { id: 'g7', url: 'https://images.unsplash.com/photo-1531297484001-80022131f5a1?w=200&h=200&fit=crop&auto=format', alt: 'Laptop on desk' },
-  { id: 'g8', url: 'https://images.unsplash.com/photo-1509395176047-4a66953fd231?w=200&h=200&fit=crop&auto=format', alt: 'Network cables' },
-  { id: 'g9', url: 'https://images.unsplash.com/photo-1563986768494-4dee2763ff3f?w=200&h=200&fit=crop&auto=format', alt: 'Data center' },
-  { id: 'g10', url: 'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=200&h=200&fit=crop&auto=format', alt: 'Network switch' },
-  { id: 'g11', url: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=200&h=200&fit=crop&auto=format', alt: 'Microchip' },
-  { id: 'g12', url: 'https://images.unsplash.com/photo-1597852074816-d933c7d2b988?w=200&h=200&fit=crop&auto=format', alt: 'Code terminal' },
-]
+const GALLERY_PHOTOS: { id: string; url: string; alt: string }[] = []
 
 export default function ComposePage() {
   const navigate = useNavigate()

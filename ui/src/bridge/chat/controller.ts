@@ -1,5 +1,6 @@
 import type { XmppRuntimeBridge } from '../runtime'
 import type { ChatAttachment, ChatComposerState, ChatMessage, ChatMessageReply, ChatParticipant, ChatThread } from './types'
+import { emitToast } from '../../lib/toast-events'
 
 type Listener = (state: ChatComposerState) => void
 
@@ -9,6 +10,9 @@ const MAX_ATTACHMENTS = 4
 export class ChatBridgeController {
   private state: ChatComposerState
   private listeners = new Set<Listener>()
+  private chatStateTimeout?: ReturnType<typeof setTimeout>
+  private lastSentState?: string
+  private typingPeer: string | undefined
 
   constructor(
     private readonly chat: ChatThread,
@@ -20,6 +24,7 @@ export class ChatBridgeController {
       input: '',
       replyTo: undefined,
       thread: undefined,
+      editingMessageId: undefined,
       showImagePicker: false,
       showEmojiPicker: false,
       showMentionPicker: false,
@@ -29,10 +34,34 @@ export class ChatBridgeController {
       selectedAttachments: []
     }
 
+    if (runtime?.onChatState) {
+      runtime.onChatState(({ from, state: chatState }) => {
+        const peerJid = this.chat.handle || this.chat.id
+        if (from === peerJid || from === this.chat.id) {
+          this.typingPeer = chatState === 'composing' ? from : undefined
+          this.chat.online = chatState === 'composing' ? true : this.chat.online
+          this.emit()
+        }
+      })
+    }
+
     if (runtime?.onMessage) {
       runtime.onMessage((incoming) => {
         const peerJid = this.chat.handle || this.chat.id
         if (incoming.from === peerJid || incoming.to === peerJid) {
+          if (incoming.receipt?.type === 'received') {
+            this.state = {
+              ...this.state,
+              messages: this.state.messages.map((m) =>
+                m.id === incoming.receipt!.id
+                  ? { ...m, delivered: true, read: true }
+                  : m
+              )
+            }
+            this.emit()
+            return
+          }
+          if (!incoming.body) return
           const msg: ChatMessage = {
             id: incoming.id,
             senderId: incoming.from,
@@ -93,10 +122,52 @@ export class ChatBridgeController {
       showMentionPicker: !!atMatch
     }
     this.emit()
+
+    if (this.runtime?.sendChatState && this.chat.handle) {
+      if (value && this.lastSentState !== 'composing') {
+        this.lastSentState = 'composing'
+        void this.runtime.sendChatState(this.chat.handle, 'composing')
+      }
+      if (this.chatStateTimeout) clearTimeout(this.chatStateTimeout)
+      this.chatStateTimeout = setTimeout(() => {
+        if (this.lastSentState === 'composing' && this.runtime?.sendChatState && this.chat.handle) {
+          this.lastSentState = 'paused'
+          void this.runtime.sendChatState(this.chat.handle, 'paused')
+        }
+      }, 2000)
+    }
+  }
+
+  getTypingPeer(): string | undefined {
+    return this.typingPeer
   }
 
   setReplyTo(replyTo?: ChatMessageReply) {
     this.state = { ...this.state, replyTo }
+    this.emit()
+  }
+
+  startEdit(messageId: string) {
+    const msg = this.state.messages.find((m) => m.id === messageId)
+    if (!msg || msg.senderId !== 'me') return
+    this.state = {
+      ...this.state,
+      editingMessageId: messageId,
+      input: msg.content,
+      replyTo: undefined,
+      showImagePicker: false,
+      showEmojiPicker: false,
+      showMentionPicker: false,
+    }
+    this.emit()
+  }
+
+  cancelEdit() {
+    this.state = {
+      ...this.state,
+      editingMessageId: undefined,
+      input: '',
+    }
     this.emit()
   }
 
@@ -202,6 +273,7 @@ export class ChatBridgeController {
     const attachments = this.state.selectedAttachments
     const replyTo = this.state.replyTo
     const thread = this.state.thread ?? replyTo?.messageId
+    const editingMessageId = this.state.editingMessageId
     const quotedBody = replyTo ? buildQuotedBody(replyTo, body) : body
 
     if (!quotedBody && attachments.length === 0) {
@@ -209,6 +281,41 @@ export class ChatBridgeController {
     }
 
     const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+
+    if (editingMessageId) {
+      if (this.runtime?.sendChatMessage) {
+        try {
+          await this.runtime.sendChatMessage(this.chat, quotedBody, {
+            attachments,
+            thread,
+            replace: editingMessageId,
+          })
+          this.state = {
+            ...this.state,
+            messages: this.state.messages.map((m) =>
+              m.id === editingMessageId ? { ...m, content: quotedBody } : m
+            ),
+            input: '',
+            editingMessageId: undefined,
+          }
+          this.emit()
+          } catch {
+            emitToast('Failed to edit message', 'error')
+          }
+      } else {
+        this.state = {
+          ...this.state,
+          messages: this.state.messages.map((m) =>
+            m.id === editingMessageId ? { ...m, content: quotedBody } : m
+          ),
+          input: '',
+          editingMessageId: undefined,
+        }
+        this.emit()
+      }
+      return true
+    }
+
     const message = buildOutgoingMessage(quotedBody, attachments, timestamp, thread)
     const nextMessages = [...this.state.messages, message]
 
@@ -222,11 +329,9 @@ export class ChatBridgeController {
         nextMessages[nextMessages.length - 1] = { ...message, id: bridgeId, delivered: true }
       } catch {
         nextMessages[nextMessages.length - 1] = { ...message, delivered: false }
+        emitToast('Failed to send message', 'error')
       }
     }
-
-    // Group message persistence can be wired via the ChatBridgeController callback
-    // if needed. The old circular import from pages/chat-session has been removed.
 
     this.state = {
       ...this.state,
@@ -239,7 +344,8 @@ export class ChatBridgeController {
       emojiSearch: '',
       selectedAttachments: [],
       replyTo: undefined,
-      thread: undefined
+      thread: undefined,
+      editingMessageId: undefined,
     }
     this.emit()
     return true

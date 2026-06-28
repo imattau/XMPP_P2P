@@ -159,6 +159,7 @@ export interface XmppRuntimeBridge {
         to?: string
       }
       thread?: string
+      replace?: string
     }
   ): Promise<string>
   getVCard(): Promise<BridgeVCard>
@@ -166,10 +167,12 @@ export interface XmppRuntimeBridge {
   broadcastPresence(type?: BridgePresenceType, status?: string, show?: string, nickname?: string): Promise<void>
   getRosterEntries(): Promise<Array<{ jid: string; name?: string; nickname?: string; updatedAt: string }>>
 
-  onMessage(cb: (msg: { from: string; to: string; body: string; id: string; type?: string; encrypted?: boolean; delay?: { stamp: string; from?: string } }) => void): () => void
+  onMessage(cb: (msg: { from: string; to: string; body: string; id: string; type?: string; encrypted?: boolean; chatState?: string; receipt?: { type: string; id: string }; delay?: { stamp: string; from?: string } }) => void): () => void
   onPresence(cb: (presence: { from: string; to: string; type?: string; show?: string; status?: string; nickname?: string }) => void): () => void
   onFeedPost(cb: (post: BridgeFeedPostRecord) => void): () => void
   onConnectionChange(cb: (peerId: string, connected: boolean) => void): () => void
+  sendChatState(target: string, state: 'composing' | 'paused' | 'active'): Promise<void>
+  onChatState(cb: (state: { from: string; state: string }) => void): () => void
 
   connectComponent(host: string, port: number, secret: string, domain: string): Promise<void>
   disconnectComponent(): Promise<void>
@@ -183,6 +186,13 @@ export interface XmppRuntimeBridge {
   saveComponentConfig(domain: string, secret: string, host: string, port: number): Promise<void>
   listSavedComponentConfigs(): Promise<BridgeStoredComponentConfig[]>
   removeComponentConfig(domain: string): Promise<void>
+  disconnect(): Promise<void>
+  uploadFile(file: File): Promise<{ url: string; alt: string; kind: 'image' | 'file' }>
+  resolveUploadUrl(url: string): Promise<string | undefined>
+  getOmemoFingerprint(): Promise<string | undefined>
+  getPeerOmemoFingerprint(peerJid: string): Promise<string | undefined>
+  kickMucParticipant(roomJid: string, participantJid: string, reason?: string): Promise<void>
+  banMucParticipant(roomJid: string, participantJid: string, reason?: string): Promise<void>
 }
 
 declare global {

@@ -34,7 +34,8 @@ export function mapRuntimePost(record: BridgeFeedPostRecord): FeedPost {
     comments: 0,
     reposts: 0,
     reposted: false,
-    privacy: 'public'
+    privacy: 'public',
+    geoloc: record.geoloc
   }
 }
 

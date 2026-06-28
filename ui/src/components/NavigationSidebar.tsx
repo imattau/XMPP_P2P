@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router'
-import { Home, Hash, PlusSquare, MessageCircle, User, Settings, Zap } from 'lucide-react'
+import { Home, Hash, PlusSquare, MessageCircle, User, Users, Settings, Zap } from 'lucide-react'
 import { useConnectionBridge } from '../bridge/useConnectionBridge'
 import { useIdentityBridge } from '../bridge/identity/useIdentityBridge'
 
@@ -8,6 +8,7 @@ const NAV = [
   { to: '/topics', icon: Hash, label: 'Topics' },
   { to: '/compose', icon: PlusSquare, label: 'Compose' },
   { to: '/chats', icon: MessageCircle, label: 'Chats' },
+  { to: '/contacts', icon: Users, label: 'Contacts' },
   { to: '/profile', icon: User, label: 'Profile' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ]
@@ -29,6 +30,7 @@ export default function NavigationSidebar() {
             key={to}
             to={to}
             end={to === '/'}
+            aria-label={label}
             className={({ isActive }) =>
               `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
                 isActive

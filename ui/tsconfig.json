@@ -15,11 +15,11 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "types": ["node"],
+    "types": ["node", "vitest/globals"],
     "baseUrl": ".",
     "paths": {
       "react-router": ["./src/react-router"]
     }
   },
-  "include": ["src"]
+  "include": ["src", "src/__tests__"]
 }

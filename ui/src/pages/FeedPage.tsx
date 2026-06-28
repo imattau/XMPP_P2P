@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router'
 import {
   Heart, MessageCircle, Repeat2, Share2, Bookmark,
@@ -6,7 +7,7 @@ import {
   ChevronDown, MoreHorizontal, Shield, Zap, Globe,
   Lock, Filter, X, Home,
 } from 'lucide-react'
-import { type FeedFilterType, type FeedPost, useFeedBridge } from '../bridge'
+import { type FeedFilterType, type FeedPost, type FeedSortOrder, useFeedBridge, getBrowserXmppBridge } from '../bridge'
 import TrendingTopics from '../components/TrendingTopics'
 
 function formatCount(n: number) {
@@ -20,19 +21,75 @@ function PrivacyIcon({ privacy }: { privacy?: string }) {
   return <Globe size={10} className="text-muted-foreground" />
 }
 
+const REACTIONS = ['❤️', '👍', '🔥', '🎉', '😂', '💯', '👏', '😎']
+
+const SORT_OPTIONS: { id: FeedSortOrder; label: string }[] = [
+  { id: 'recent', label: 'Recent' },
+  { id: 'popular', label: 'Popular' },
+  { id: 'trending', label: 'Trending' },
+]
+
+function SortButton({ sortBy, setSortBy }: { sortBy: FeedSortOrder; setSortBy: (s: FeedSortOrder) => void }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    if (open) document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  return (
+    <div ref={ref} className="relative">
+      <button onClick={() => setOpen(!open)} className="flex items-center gap-1 font-mono text-[10px] text-muted-foreground hover:text-foreground transition-colors">
+        <Filter size={10} />Sort: {SORT_OPTIONS.find((o) => o.id === sortBy)?.label ?? 'Recent'}<ChevronDown size={10} />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 w-32 rounded-lg border border-border bg-card shadow-lg z-50">
+          {SORT_OPTIONS.map((option) => (
+            <button
+              key={option.id}
+              onClick={() => { setSortBy(option.id); setOpen(false) }}
+              className={`w-full text-left px-3 py-2 text-[12px] font-mono transition-colors hover:bg-secondary ${option.id === sortBy ? 'text-primary' : 'text-muted-foreground'}`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function PostCard({
   post,
-  onLike,
+  onReact,
   onRepost,
   onBookmark,
   onOpen,
 }: {
   post: FeedPost
-  onLike: (id: string) => void
+  onReact: (id: string, emoji?: string) => void
   onRepost: (id: string) => void
   onBookmark: (id: string) => void
   onOpen: (id: string) => void
 }) {
+  const [showReactions, setShowReactions] = useState(false)
+  const reactionRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (reactionRef.current && !reactionRef.current.contains(e.target as Node)) {
+        setShowReactions(false)
+      }
+    }
+    if (showReactions) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showReactions])
   const config = post.type === 'topic'
     ? { label: post.topic, color: post.topicColor || '#3b82f6' }
     : post.type === 'community'
@@ -94,13 +151,22 @@ function PostCard({
               <img src={post.media.url} alt={post.media.alt} className="w-full h-36 object-cover" />
             </div>
           )}
+          {post.geoloc?.country && (
+            <div className="flex items-center gap-1 mb-2">
+              <Globe size={10} className="text-muted-foreground" />
+              <span className="font-mono text-[10px] text-muted-foreground">
+                {[post.geoloc.region, post.geoloc.country].filter(Boolean).join(', ')}
+              </span>
+            </div>
+          )}
 
           <div className="flex items-center justify-between -ml-1">
-            <button className="flex items-center gap-1 px-1.5 py-1 rounded text-muted-foreground hover:text-blue-400 hover:bg-blue-400/10 transition-all group">
+            <button aria-label="Comments" className="flex items-center gap-1 px-1.5 py-1 rounded text-muted-foreground hover:text-blue-400 hover:bg-blue-400/10 transition-all group">
               <MessageCircle size={15} />
               <span className="font-mono text-[11px] tabular-nums">{formatCount(post.comments)}</span>
             </button>
             <button
+              aria-label={post.reposted ? 'Reposted' : 'Repost'}
               onClick={(e) => {
                 e.stopPropagation()
                 onRepost(post.id)
@@ -110,16 +176,36 @@ function PostCard({
               <Repeat2 size={15} />
               <span className="font-mono text-[11px] tabular-nums">{formatCount(post.reposts)}</span>
             </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                onLike(post.id)
-              }}
-              className={`flex items-center gap-1 px-1.5 py-1 rounded transition-all ${post.liked ? 'text-rose-400' : 'text-muted-foreground hover:text-rose-400 hover:bg-rose-400/10'}`}
-            >
-              <Heart size={15} fill={post.liked ? 'currentColor' : 'none'} />
-              <span className="font-mono text-[11px] tabular-nums">{formatCount(post.likes)}</span>
-            </button>
+            <div ref={reactionRef} className="relative">
+              <button
+                aria-label={post.liked ? 'Unlike' : 'Like or react'}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setShowReactions(!showReactions)
+                }}
+                className={`flex items-center gap-1 px-1.5 py-1 rounded transition-all ${post.liked ? 'text-rose-400' : 'text-muted-foreground hover:text-rose-400 hover:bg-rose-400/10'}`}
+              >
+                <Heart size={15} fill={post.liked ? 'currentColor' : 'none'} />
+                <span className="font-mono text-[11px] tabular-nums">{formatCount(post.likes)}</span>
+              </button>
+              {showReactions && (
+                <div className="absolute bottom-full left-0 mb-1 flex gap-0.5 p-1.5 rounded-xl border border-border bg-background shadow-lg z-50">
+                  {REACTIONS.map((emoji) => (
+                    <button
+                      key={emoji}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onReact(post.id, emoji)
+                        setShowReactions(false)
+                      }}
+                      className="text-lg w-8 h-8 flex items-center justify-center rounded-lg hover:bg-secondary transition-colors"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <button
               onClick={(e) => {
                 e.stopPropagation()
@@ -148,19 +234,34 @@ const FEED_FILTERS: { id: FeedFilterType; label: string; icon: React.ComponentTy
 
 export default function FeedPage() {
   const navigate = useNavigate()
+  const [unreadNotifications, setUnreadNotifications] = useState(0)
   const {
+    loading,
     filteredPosts,
     activeFilter,
     searchOpen,
     searchQuery,
+    sortBy,
+    hasMore,
     setActiveFilter,
     setSearchOpen,
     setSearchQuery,
+    setSortBy,
+    loadMore,
     reactPost,
     repostPost,
     bookmarkPost,
     trendingTopics,
   } = useFeedBridge()
+
+  useEffect(() => {
+    const bridge = getBrowserXmppBridge()
+    if (!bridge?.onMessage) return
+    const unsub = bridge.onMessage(() => {
+      setUnreadNotifications((prev) => prev + 1)
+    })
+    return unsub
+  }, [])
 
   return (
     <div className="flex flex-1 min-h-0">
@@ -174,15 +275,20 @@ export default function FeedPage() {
           <div className="flex items-center gap-0.5">
             <button
               onClick={() => setSearchOpen(!searchOpen)}
+              aria-label={searchOpen ? 'Close search' : 'Open search'}
               className={`p-2 rounded-lg transition-colors ${searchOpen ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-white/5'}`}
             >
               <Search size={17} />
             </button>
-            <button className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors relative">
+            <button onClick={() => navigate('/chats')} aria-label="Messages" className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors relative">
               <Bell size={17} />
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-accent rounded-full" />
+              {unreadNotifications > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-1 rounded-full bg-accent text-white text-[9px] font-mono flex items-center justify-center">
+                  {unreadNotifications > 9 ? '9+' : unreadNotifications}
+                </span>
+              )}
             </button>
-            <button className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
+            <button onClick={() => navigate('/settings')} aria-label="Settings" className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
               <Settings size={17} />
             </button>
           </div>
@@ -240,13 +346,24 @@ export default function FeedPage() {
               <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
               <span className="font-mono text-[10px] text-muted-foreground">Live · {filteredPosts.length} posts</span>
             </div>
-            <button className="flex items-center gap-1 font-mono text-[10px] text-muted-foreground hover:text-foreground transition-colors">
-              <Filter size={10} />Sort: Recent<ChevronDown size={10} />
-            </button>
+            <SortButton sortBy={sortBy} setSortBy={setSortBy} />
           </div>
         )}
 
-        {filteredPosts.length === 0 ? (
+        {loading && filteredPosts.length === 0 ? (
+          <div className="py-4">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex gap-3 px-4 py-3 border-b border-border animate-pulse">
+                <div className="w-10 h-10 rounded-full bg-secondary flex-shrink-0" />
+                <div className="flex-1 min-w-0 space-y-2">
+                  <div className="h-3 bg-secondary rounded w-1/3" />
+                  <div className="h-3 bg-secondary rounded w-3/4" />
+                  <div className="h-3 bg-secondary rounded w-1/2" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : filteredPosts.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
             <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
               <Search size={20} className="text-muted-foreground" />
@@ -259,22 +376,30 @@ export default function FeedPage() {
               <PostCard
                 key={post.id}
                 post={post}
-                onLike={(id) => reactPost(id, '❤️')}
+                onReact={(id, emoji) => reactPost(id, emoji ?? '❤️')}
                 onRepost={repostPost}
                 onBookmark={bookmarkPost}
                 onOpen={(id) => navigate(`/post/${id}`)}
               />
             ))}
             <div className="py-8 flex items-center justify-center">
-              <button className="font-mono text-xs text-muted-foreground hover:text-foreground border border-border hover:border-foreground/20 px-4 py-2 rounded transition-all">
-                Load earlier posts
-              </button>
+              {hasMore ? (
+                <button onClick={() => loadMore()} disabled={loading}
+                  className="font-mono text-xs text-muted-foreground hover:text-foreground border border-border hover:border-foreground/20 px-4 py-2 rounded transition-all disabled:opacity-50"
+                >
+                  {loading ? 'Loading...' : 'Load earlier posts'}
+                </button>
+              ) : (
+                <span className="font-mono text-[10px] text-muted-foreground">No more posts</span>
+              )}
             </div>
           </>
         )}
       </main>
     </div>
-      <TrendingTopics topics={trendingTopics} />
+      <div className="hidden lg:block">
+        <TrendingTopics topics={trendingTopics} />
+      </div>
     </div>
   )
 }
