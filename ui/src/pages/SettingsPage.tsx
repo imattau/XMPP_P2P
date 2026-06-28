@@ -8,6 +8,14 @@ import {
 } from 'lucide-react'
 import { useServerBridge } from '../bridge/useServerBridge'
 
+const PRESET_SERVERS = [
+  { domain: 'jabber.org', label: 'jabber.org' },
+  { domain: 'jabber.fr', label: 'jabber.fr' },
+  { domain: '404.city', label: '404.city' },
+  { domain: 'dismail.de', label: 'dismail.de' },
+  { domain: 'sure.im', label: 'sure.im' },
+]
+
 export default function SettingsPage() {
   const navigate = useNavigate()
   const {
@@ -152,6 +160,23 @@ export default function SettingsPage() {
               {/* Add form */}
               {showAddForm ? (
                 <form onSubmit={handleConnect} className="px-4 py-3 space-y-3 border-b border-border">
+                  {/* Quick select */}
+                  <select
+                    value=""
+                    onChange={e => {
+                      const val = e.target.value
+                      if (!val) return
+                      setServerDomain(val)
+                      setComponentDomain(`p2p.${val}`)
+                    }}
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  >
+                    <option value="">Quick select a server...</option>
+                    {PRESET_SERVERS.map(s => (
+                      <option key={s.domain} value={s.domain}>{s.label}</option>
+                    ))}
+                  </select>
+
                   {/* Domain with discover */}
                   <div className="flex gap-2">
                     <input
