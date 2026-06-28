@@ -4,8 +4,10 @@ import { useNavigate } from 'react-router'
 import {
   X, Zap, Hash, Users, Globe, Lock, Shield, Eye, EyeOff,
   ChevronDown, AlertCircle, Check, Info, Clock, UserCheck, UserX, Key,
-  MessageSquare, Archive,
+  MessageSquare, Archive, Loader,
 } from 'lucide-react'
+import { getBrowserXmppBridge } from '../bridge/runtime'
+import { emitToast } from '../lib/toast-events'
 
 type Privacy = 'public' | 'members-only'
 type Moderation = 'unmoderated' | 'moderated'
@@ -124,6 +126,31 @@ export default function CreateCommunityPage() {
 
   const jid = roomId ? `${roomId}@${server}` : ''
   const isValid = name.trim().length > 0 && roomId.length > 0
+  const [creating, setCreating] = useState(false)
+
+  const handleCreate = async () => {
+    if (!isValid) return
+    setCreating(true)
+    try {
+      const bridge = getBrowserXmppBridge()
+      if (!bridge?.createPrivateMucRoom) {
+        emitToast('Bridge not available — room creation will work once connected to a server', 'info')
+        navigate(`/chat/${jid}`)
+        return
+      }
+      const result = await bridge.createPrivateMucRoom(name, {
+        topic: subject || undefined,
+        nick: name,
+        communityId: jid,
+      })
+      emitToast(`Community "${name}" created`, 'success')
+      navigate(`/chat/${result.roomJid}`)
+    } catch (err) {
+      emitToast(err instanceof Error ? err.message : 'Failed to create community', 'error')
+    } finally {
+      setCreating(false)
+    }
+  }
 
   const EMOJI_OPTIONS = ['💬', '⚙️', '🌐', '🔧', '🛡️', '📡', '🔒', '🚀', '🌱', '📚', '🎯', '🔬']
 
@@ -139,9 +166,9 @@ export default function CreateCommunityPage() {
           </div>
           <span className="font-semibold text-sm">Create community</span>
         </div>
-        <button disabled={!isValid}
-          className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${isValid ? 'bg-primary text-white hover:bg-primary/90' : 'bg-primary/20 text-primary/40 cursor-not-allowed'}`}>
-          Create
+        <button disabled={!isValid || creating} onClick={handleCreate}
+          className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${isValid && !creating ? 'bg-primary text-white hover:bg-primary/90' : 'bg-primary/20 text-primary/40 cursor-not-allowed'}`}>
+          {creating ? <Loader size={14} className="animate-spin" /> : 'Create'}
         </button>
       </header>
 

@@ -8,7 +8,7 @@ type TopicFilter = 'for-you' | 'following' | 'latest'
 
 export default function TopicsPage() {
   const navigate = useNavigate()
-  const { getArticles, getLatestArticles, toggleBookmark, articles, getTopicArticles } = useArticleBridge()
+  const { toggleBookmark, articles } = useArticleBridge()
   const [activeFilter, setActiveFilter] = useState<TopicFilter>('for-you')
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -101,7 +101,7 @@ export default function TopicsPage() {
             </button>
           ))}
           <div className="flex-1" />
-          <button className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
+          <button onClick={() => setSearchOpen(!searchOpen)} className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
             <Filter size={16} />
           </button>
         </div>

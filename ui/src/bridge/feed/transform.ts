@@ -1,14 +1,5 @@
 import type { BridgeFeedPostRecord } from '../runtime'
-import type { FeedFilterType, FeedPost, TrendingTopic } from './types'
-import { SEED_POSTS, TRENDING_TOPICS } from './seed'
-
-export function cloneSeedPosts(): FeedPost[] {
-  return SEED_POSTS.map((post) => ({ ...post }))
-}
-
-export function cloneSeedTrendingTopics(): TrendingTopic[] {
-  return TRENDING_TOPICS.map((topic) => ({ ...topic }))
-}
+import type { FeedFilterType, FeedPost } from './types'
 
 export function mapRuntimePost(record: BridgeFeedPostRecord): FeedPost {
   const topic = record.categories?.[0]

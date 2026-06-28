@@ -1,7 +1,6 @@
 import type { XmppRuntimeBridge } from '../runtime'
 import type { Article, ArticleSettings, ArticleViewState } from './types'
 import { DEFAULT_ARTICLE_SETTINGS } from './types'
-import { SEED_ARTICLES } from './seed'
 import { emitToast } from '../../lib/toast-events'
 
 const DRAFTS_KEY = 'nexus_article_drafts'
@@ -98,13 +97,8 @@ export class ArticleBridgeController {
     const bookmarkedIds = loadBookmarks()
     const drafts = loadDrafts()
 
-    const articles = SEED_ARTICLES.map((a) => ({
-      ...a,
-      bookmarked: bookmarkedIds.includes(a.id),
-    }))
-
     this.state = {
-      articles,
+      articles: [],
       drafts,
       bookmarkedIds,
       loading: false,

@@ -109,6 +109,8 @@ export default function ProfilePage() {
   }
 
   const handleCopy = () => {
+    const text = identity?.handle || vCard?.nickname || handle.replace('@', '')
+    navigator.clipboard.writeText(text).catch(() => {})
     setCopied(true)
     setTimeout(() => setCopied(false), 1500)
   }

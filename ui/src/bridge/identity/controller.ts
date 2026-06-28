@@ -145,7 +145,7 @@ const WORD_LIST = [
   'play', 'player', 'pleasure', 'plenty', 'plot', 'pluck', 'plug', 'plunge', 'poem', 'poet',
   'point', 'polar', 'pole', 'police', 'pond', 'pony', 'pool', 'popular', 'portion', 'position',
   'possible', 'post', 'potato', 'pottery', 'poverty', 'powder', 'power', 'practice', 'praise', 'predict',
-  'prefer', 'prepare', 'present', 'pret', 'prevent', 'price', 'pride', 'primary', 'print', 'priority',
+  'prefer', 'prepare', 'present',   'pretend', 'prevent', 'price', 'pride', 'primary', 'print', 'priority',
   'prison', 'private', 'prize', 'problem', 'process', 'produce', 'profit', 'program', 'project', 'property',
   'proposal', 'protect', 'provide', 'public', 'pulse', 'pumpkin', 'punch', 'pupil', 'puppy', 'purchase',
   'purity', 'purpose', 'purse', 'push', 'put', 'puzzle', 'pyramid', 'quality', 'quantum', 'quarter',

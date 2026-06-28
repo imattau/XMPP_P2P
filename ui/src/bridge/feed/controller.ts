@@ -1,8 +1,6 @@
 import type { XmppRuntimeBridge, BridgeVisibility } from '../runtime'
 import type { FeedFilterType, FeedPost, FeedSortOrder, FeedViewState, TrendingTopic } from './types'
 import {
-  cloneSeedPosts,
-  cloneSeedTrendingTopics,
   filterFeedPosts,
   mapRuntimePost,
   markRepost,
@@ -22,8 +20,8 @@ export class FeedBridgeController {
   constructor(runtime?: XmppRuntimeBridge) {
     this.runtime = runtime
     this.state = {
-      posts: cloneSeedPosts(),
-      trendingTopics: cloneSeedTrendingTopics(),
+      posts: [],
+      trendingTopics: [],
       activeFilter: 'all',
       searchOpen: false,
       searchQuery: '',
@@ -80,12 +78,7 @@ export class FeedBridgeController {
     this.emit()
     try {
       if (!this.runtime) {
-        this.state = {
-          ...this.state,
-          posts: cloneSeedPosts(),
-          trendingTopics: cloneSeedTrendingTopics(),
-          loading: false
-        }
+        this.state = { ...this.state, loading: false }
         this.emit()
         return
       }
@@ -98,8 +91,8 @@ export class FeedBridgeController {
       const topicCounts = buildTrendingTopics(mappedPosts, subscriptions.length, collections.length)
       this.state = {
         ...this.state,
-        posts: mappedPosts.length > 0 ? mappedPosts : cloneSeedPosts(),
-        trendingTopics: topicCounts.length > 0 ? topicCounts : cloneSeedTrendingTopics(),
+        posts: mappedPosts,
+        trendingTopics: topicCounts,
         loading: false
       }
       this.emit()
@@ -135,17 +128,7 @@ export class FeedBridgeController {
         }
         this.emit()
       } else {
-        const morePosts = cloneSeedPosts().map((p) => ({
-          ...p,
-          id: `seed-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-          timestamp: 'just now'
-        }))
-        this.state = {
-          ...this.state,
-          posts: [...this.state.posts, ...morePosts],
-          loading: false,
-          hasMore: false
-        }
+        this.state = { ...this.state, loading: false, hasMore: false }
         this.emit()
       }
     } catch {

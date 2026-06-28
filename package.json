@@ -45,6 +45,7 @@
     "test-server-bridge-unit": "node dist/tests/server-bridge-unit.js",
     "test-server-bridge-mock": "node dist/tests/server-bridge-mock.js",
     "test-server-bridge-feed": "node dist/tests/server-bridge-feed.js",
+    "test-server-bridge-real": "node dist/tests/server-bridge-real.js",
     "test": "npm run build && npm run test-nodes && npm run test-pubsub && npm run test-dht && npm run test-dht-mailbox && npm run test-omemo && npm run test-roster && npm run test-feed && npm run test-attachments && npm run test-uploads && npm run test-subscriptions && npm run test-disco && npm run test-protocol && npm run test-collection && npm run test-muc && npm run test-muc-omemo && npm run test-reliability && npm run test-reconnect && npm run test-server-bridge-unit && npm run test-server-bridge-mock && npm run test-server-bridge-feed && npm run test-cli && npm run test-cli-profile && npm run test-storage-node-sqlite && npm run test-storage-indexeddb && npm run test-p2p-browser && npm run test-persistence-storage && npm run test-openpgp-storage && npm run test-omemo-state-storage && npm run test-uploads-storage && npm run test-omemo-runtime-browser",
     "pretest-browser-e2e": "esbuild src/tests/browser/fixture-bundle-entry.ts --bundle --outfile=src/tests/browser/fixture-bundle.js --format=iife",
     "test-browser-e2e": "npx playwright test",

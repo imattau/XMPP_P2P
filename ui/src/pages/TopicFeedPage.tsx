@@ -16,7 +16,7 @@ const TOPIC_DESCRIPTIONS: Record<string, string> = {
 export default function TopicFeedPage() {
   const { tag } = useParams<{ tag: string }>()
   const navigate = useNavigate()
-  const { getTopicArticles, toggleBookmark, articles } = useArticleBridge()
+  const { toggleBookmark, articles } = useArticleBridge()
   const [following, setFollowing] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
 

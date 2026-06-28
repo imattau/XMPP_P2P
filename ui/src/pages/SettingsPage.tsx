@@ -28,6 +28,7 @@ export default function SettingsPage() {
 
   const [collapsed, setCollapsed] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
+  const [settingsSection, setSettingsSection] = useState<string | null>(null)
   const [serverDomain, setServerDomain] = useState('')
   const [host, setHost] = useState('')
   const [port, setPort] = useState('5347')
@@ -323,21 +324,39 @@ export default function SettingsPage() {
           </div>
         )}
 
+        {/* Settings section content */}
+        {settingsSection && (
+          <div className="border-b border-border bg-card">
+            <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
+              <button onClick={() => setSettingsSection(null)} className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
+                <ArrowLeft size={16} />
+              </button>
+              <span className="text-sm font-medium">{settingsSection}</span>
+            </div>
+            <div className="px-4 py-8 flex flex-col items-center gap-2 text-center">
+              <p className="text-sm text-muted-foreground">Settings section coming soon</p>
+              <p className="font-mono text-[10px] text-muted-foreground/50">{settingsSection} preferences will be configurable here.</p>
+            </div>
+          </div>
+        )}
+
         {/* Existing settings rows */}
-        <div className="border-b border-border bg-card">
-          {[
-            { icon: Bell, label: 'Notifications' },
-            { icon: Lock, label: 'Privacy & security' },
-            { icon: Moon, label: 'Appearance' },
-          ].map(({ icon: Icon, label }) => (
-            <button key={label}
-              className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-border last:border-0 transition-colors hover:bg-secondary text-left text-foreground/80">
-              <Icon size={16} />
-              <span className="text-sm">{label}</span>
-              <ChevronRight size={14} className="ml-auto text-muted-foreground/40" />
-            </button>
-          ))}
-        </div>
+        {!settingsSection && (
+          <div className="border-b border-border bg-card">
+            {[
+              { icon: Bell, label: 'Notifications', section: 'Notifications' },
+              { icon: Lock, label: 'Privacy & security', section: 'Privacy & Security' },
+              { icon: Moon, label: 'Appearance', section: 'Appearance' },
+            ].map(({ icon: Icon, label, section }) => (
+              <button key={label} onClick={() => setSettingsSection(section)}
+                className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-border last:border-0 transition-colors hover:bg-secondary text-left text-foreground/80">
+                <Icon size={16} />
+                <span className="text-sm">{label}</span>
+                <ChevronRight size={14} className="ml-auto text-muted-foreground/40" />
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="mt-4 px-4">
           <button

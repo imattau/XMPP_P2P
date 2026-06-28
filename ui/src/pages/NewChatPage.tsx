@@ -93,7 +93,7 @@ function DirectFlow() {
       <div className="flex-1 overflow-y-auto">
         {isJid && (
           <div className="px-4 py-3 border-b border-border">
-            <button onClick={() => navigate('/chat/new')}
+            <button onClick={() => navigate(`/chat/${encodeURIComponent(query)}`)}
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary/5 border border-primary/30 hover:bg-primary/10 transition-colors text-left">
               <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center border border-primary/20 flex-shrink-0">
                 <User size={16} className="text-primary" />
@@ -249,7 +249,7 @@ function MucFlow() {
           </div>
           <button
             disabled={!isValidJid}
-            onClick={() => navigate('/chat/3')}
+            onClick={() => navigate(`/chat/${encodeURIComponent(jidInput)}`)}
             className={`px-3 py-2 rounded-lg text-sm font-semibold transition-all flex-shrink-0 ${isValidJid ? 'bg-primary text-white hover:bg-primary/90' : 'bg-secondary text-muted-foreground cursor-not-allowed'}`}>
             Join
           </button>
@@ -292,7 +292,7 @@ function MucFlow() {
         </div>
 
         {filtered.map((m) => (
-          <button key={m.jid} onClick={() => navigate('/chat/3')}
+          <button key={m.jid} onClick={() => navigate(`/chat/${encodeURIComponent(m.jid)}`)}
             className="w-full flex items-center gap-3 px-4 py-3 border-b border-border hover:bg-secondary transition-colors text-left">
             <div className="w-9 h-9 rounded-lg bg-primary/15 flex items-center justify-center border border-primary/20 flex-shrink-0">
               <Hash size={15} className="text-primary" />

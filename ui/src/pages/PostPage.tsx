@@ -1,11 +1,13 @@
 import * as React from 'react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import {
   ArrowLeft, Heart, MessageCircle, Repeat2, Share2,
   Bookmark, Hash, Users, Globe, Lock, Shield, MoreHorizontal,
   Zap, Image, Smile, AtSign, Send, ChevronDown, Check, X,
 } from 'lucide-react'
+import { useFeedBridge } from '../bridge/feed/useFeedBridge'
+import { emitToast } from '../lib/toast-events'
 
 interface Author {
   name: string
@@ -200,7 +202,8 @@ function ReplyThread({ reply, onLike, onReplySubmit }: { reply: Reply; onLike: (
             <span className="font-mono text-[11px] text-muted-foreground">@{reply.author.handle}</span>
             <span className="text-muted-foreground/40 text-xs">·</span>
             <span className="font-mono text-[11px] text-muted-foreground">{reply.timestamp}</span>
-            <button className="ml-auto text-muted-foreground hover:text-foreground transition-colors">
+            <button onClick={() => navigator.clipboard.writeText(window.location.origin + '/post/' + reply.id)}
+              className="ml-auto text-muted-foreground hover:text-foreground transition-colors" title="Copy link">
               <MoreHorizontal size={13} />
             </button>
           </div>
@@ -212,7 +215,7 @@ function ReplyThread({ reply, onLike, onReplySubmit }: { reply: Reply; onLike: (
               <MessageCircle size={13} />
               {hasChildren && <span className="font-mono text-[10px]">{reply.replies!.length}</span>}
             </button>
-            <button className="flex items-center gap-1 px-1 py-0.5 rounded text-muted-foreground hover:text-emerald-400 hover:bg-emerald-400/10 transition-all">
+            <button onClick={() => emitToast('Reply reposted', 'success')} className="flex items-center gap-1 px-1 py-0.5 rounded text-muted-foreground hover:text-emerald-400 hover:bg-emerald-400/10 transition-all">
               <Repeat2 size={13} />
             </button>
             <button onClick={() => onLike(reply.id)}
@@ -220,7 +223,8 @@ function ReplyThread({ reply, onLike, onReplySubmit }: { reply: Reply; onLike: (
               <Heart size={13} fill={reply.liked ? 'currentColor' : 'none'} />
               {reply.likes > 0 && <span className="font-mono text-[10px]">{formatNum(reply.likes)}</span>}
             </button>
-            <button className="flex items-center gap-1 px-1 py-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-white/5 transition-all">
+            <button onClick={() => navigator.clipboard.writeText(window.location.origin + '/post/' + reply.id)}
+              className="flex items-center gap-1 px-1 py-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-white/5 transition-all">
               <Share2 size={12} />
             </button>
           </div>
@@ -287,8 +291,37 @@ function ReplyThread({ reply, onLike, onReplySubmit }: { reply: Reply; onLike: (
 export default function PostPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { posts: feedPosts, likePost, bookmarkPost, repostPost } = useFeedBridge()
 
-  const post = POSTS[id ?? ''] ?? POSTS['1']
+  const [bridgePost, setBridgePost] = useState<Post | null>(null)
+
+  useEffect(() => {
+    if (!id) return
+    if (feedPosts.length > 0) {
+      const fp = feedPosts.find((p) => p.id === id)
+      if (fp) {
+        setBridgePost({
+          id: fp.id,
+          author: { name: fp.author.name, handle: fp.author.handle, avatar: fp.author.avatar, server: fp.author.server || '' },
+          content: fp.content,
+          timestamp: fp.timestamp,
+          fullDate: fp.timestamp,
+          likes: fp.likes,
+          comments: fp.comments,
+          reposts: fp.reposts,
+          views: 0,
+          liked: fp.liked,
+          bookmarked: fp.bookmarked,
+          reposted: fp.reposted,
+          topic: fp.topic,
+          topicColor: fp.topicColor || '#3b82f6',
+          privacy: fp.privacy,
+        })
+      }
+    }
+  }, [id, feedPosts])
+
+  const post = bridgePost ?? POSTS[id ?? ''] ?? POSTS['1']
   const [liked, setLiked] = useState(post.liked ?? false)
   const [likes, setLikes] = useState(post.likes)
   const [reposts, setReposts] = useState(post.reposts)
@@ -341,11 +374,23 @@ export default function PostPage() {
   }
 
   const handleRepost = () => {
-    if (reposted) {
-      return
+    setReposted((v) => !v)
+    setReposts((count) => reposted ? count - 1 : count + 1)
+  }
+
+  const handleShare = async () => {
+    const url = window.location.href
+    if (navigator.share) {
+      await navigator.share({ title: post.author.name, text: post.content, url }).catch(() => {})
+    } else {
+      await navigator.clipboard.writeText(url)
     }
-    setReposted(true)
-    setReposts((count) => count + 1)
+  }
+
+  const handleFocusReply = () => {
+    const el = document.getElementById('reply-textarea')
+    el?.focus()
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }
 
   return (
@@ -374,7 +419,8 @@ export default function PostPage() {
                 <span className="font-mono text-[11px] text-muted-foreground">{post.author.server}</span>
               </div>
             </div>
-            <button className="text-muted-foreground hover:text-foreground transition-colors">
+            <button onClick={() => navigator.clipboard.writeText(window.location.href)}
+              className="text-muted-foreground hover:text-foreground transition-colors" title="Copy link to post">
               <MoreHorizontal size={16} />
             </button>
           </div>
@@ -425,7 +471,7 @@ export default function PostPage() {
           </div>
 
           <div className="flex items-center justify-between pt-1">
-            <button className="flex items-center gap-1.5 p-2 rounded-lg text-muted-foreground hover:text-blue-400 hover:bg-blue-400/10 transition-all">
+            <button onClick={handleFocusReply} className="flex items-center gap-1.5 p-2 rounded-lg text-muted-foreground hover:text-blue-400 hover:bg-blue-400/10 transition-all">
               <MessageCircle size={19} />
             </button>
             <button
@@ -434,15 +480,15 @@ export default function PostPage() {
             >
               <Repeat2 size={19} />
             </button>
-            <button onClick={() => { setLiked((v) => !v); setLikes((n) => liked ? n - 1 : n + 1) }}
+            <button onClick={() => { const next = !liked; setLiked(next); setLikes((n) => next ? n + 1 : n - 1); if (bridgePost) likePost(post.id) }}
               className={`flex items-center gap-1.5 p-2 rounded-lg transition-all ${liked ? 'text-rose-400' : 'text-muted-foreground hover:text-rose-400 hover:bg-rose-400/10'}`}>
               <Heart size={19} fill={liked ? 'currentColor' : 'none'} />
             </button>
-            <button onClick={() => setBookmarked((v) => !v)}
+            <button onClick={() => { const next = !bookmarked; setBookmarked(next); if (bridgePost) bookmarkPost(post.id) }}
               className={`flex items-center gap-1.5 p-2 rounded-lg transition-all ${bookmarked ? 'text-primary' : 'text-muted-foreground hover:text-primary hover:bg-primary/10'}`}>
               <Bookmark size={19} fill={bookmarked ? 'currentColor' : 'none'} />
             </button>
-            <button className="flex items-center gap-1.5 p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-all">
+            <button onClick={handleShare} className="flex items-center gap-1.5 p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-all">
               <Share2 size={18} />
             </button>
           </div>
@@ -464,11 +510,15 @@ export default function PostPage() {
             {replyText.length > 0 && (
               <div className="flex items-center gap-2 mt-2">
                 <div className="flex items-center gap-0.5">
-                  {[Image, AtSign, Smile].map((Icon, i) => (
-                    <button key={i} className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
-                      <Icon size={15} />
-                    </button>
-                  ))}
+                  <button onClick={() => { const ta = document.getElementById('reply-textarea') as HTMLTextAreaElement | null; if (ta) { const start = ta.selectionStart; ta.value = ta.value.slice(0, start) + '![](https://)' + ta.value.slice(ta.selectionEnd); ta.focus(); } }} className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
+                    <Image size={15} />
+                  </button>
+                  <button onClick={() => { const ta = document.getElementById('reply-textarea') as HTMLTextAreaElement | null; if (ta) { const start = ta.selectionStart; ta.value = ta.value.slice(0, start) + '@' + ta.value.slice(ta.selectionEnd); ta.focus(); } }} className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
+                    <AtSign size={15} />
+                  </button>
+                  <button onClick={() => { const ta = document.getElementById('reply-textarea') as HTMLTextAreaElement | null; if (ta) { const start = ta.selectionStart; ta.value = ta.value.slice(0, start) + '😊' + ta.value.slice(ta.selectionEnd); ta.focus(); } }} className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
+                    <Smile size={15} />
+                  </button>
                 </div>
                 <span className={`font-mono text-[10px] ml-auto ${500 - replyText.length < 50 ? 'text-amber-400' : 'text-muted-foreground'}`}>
                   {500 - replyText.length}

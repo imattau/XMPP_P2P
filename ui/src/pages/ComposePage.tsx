@@ -71,6 +71,10 @@ export default function ComposePage() {
   }
   const handleRemoveCover = () => handleChange({ ...article, coverImage: undefined })
   const handleBlocksChange = (blocks: ArticleBlock[]) => handleChange({ ...article, blocks })
+  const handleAddBlock = () => handleBlocksChange([
+    ...article.blocks,
+    { id: generateBlockId(), type: 'paragraph', content: '' },
+  ])
   const handleTopicChange = (topic: string) => {
     if (article.topic === topic) {
       // deselect
@@ -232,7 +236,7 @@ export default function ComposePage() {
           />
 
           <div className="flex items-center gap-2 pt-2 pb-4">
-            <button className="w-10 h-10 rounded-xl bg-blue2 flex items-center justify-center text-primary hover:bg-blue2/80 transition-colors">
+            <button onClick={handleAddBlock} className="w-10 h-10 rounded-xl bg-blue2 flex items-center justify-center text-primary hover:bg-blue2/80 transition-colors">
               <Plus size={18} />
             </button>
             {article.topic ? (

@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { X, ChevronLeft, ChevronRight, Download } from 'lucide-react'
 
 interface MediaItem {
@@ -15,23 +15,24 @@ export default function MediaViewer({
   initialIndex?: number
   onClose: () => void
 }) {
-  const current = items[initialIndex]
+  const [currentIndex, setCurrentIndex] = useState(initialIndex)
+  const current = items[currentIndex]
+
+  const goNext = useCallback(() => {
+    if (currentIndex < items.length - 1) setCurrentIndex((i) => i + 1)
+  }, [currentIndex, items.length])
+
+  const goPrev = useCallback(() => {
+    if (currentIndex > 0) setCurrentIndex((i) => i - 1)
+  }, [currentIndex])
 
   const handleKey = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
-      if (e.key === 'ArrowLeft' && initialIndex > 0) {
-        const newIndex = initialIndex - 1
-        history.replaceState(null, '', `#media-${newIndex}`)
-        window.dispatchEvent(new HashChangeEvent('hashchange'))
-      }
-      if (e.key === 'ArrowRight' && initialIndex < items.length - 1) {
-        const newIndex = initialIndex + 1
-        history.replaceState(null, '', `#media-${newIndex}`)
-        window.dispatchEvent(new HashChangeEvent('hashchange'))
-      }
+      if (e.key === 'ArrowLeft') goPrev()
+      if (e.key === 'ArrowRight') goNext()
     },
-    [onClose, initialIndex, items.length]
+    [onClose, goPrev, goNext]
   )
 
   useEffect(() => {
@@ -58,16 +59,9 @@ export default function MediaViewer({
         <X size={20} />
       </button>
 
-      {initialIndex > 0 && (
+      {currentIndex > 0 && (
         <button
-          onClick={(e) => {
-            e.stopPropagation()
-            const img = document.querySelector('[data-media-index]')
-            if (img) {
-              img.setAttribute('data-media-index', String(initialIndex - 1))
-              img.setAttribute('src', items[initialIndex - 1].url)
-            }
-          }}
+          onClick={(e) => { e.stopPropagation(); goPrev() }}
           className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/40 text-white hover:bg-black/60 transition-colors z-10"
           aria-label="Previous image"
         >
@@ -75,16 +69,9 @@ export default function MediaViewer({
         </button>
       )}
 
-      {initialIndex < items.length - 1 && (
+      {currentIndex < items.length - 1 && (
         <button
-          onClick={(e) => {
-            e.stopPropagation()
-            const img = document.querySelector('[data-media-index]')
-            if (img) {
-              img.setAttribute('data-media-index', String(initialIndex + 1))
-              img.setAttribute('src', items[initialIndex + 1].url)
-            }
-          }}
+          onClick={(e) => { e.stopPropagation(); goNext() }}
           className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/40 text-white hover:bg-black/60 transition-colors z-10"
           aria-label="Next image"
         >
@@ -102,7 +89,7 @@ export default function MediaViewer({
         <div className="flex items-center gap-3">
           {items.length > 1 && (
             <span className="font-mono text-[11px] text-white/60">
-              {initialIndex + 1} / {items.length}
+              {currentIndex + 1} / {items.length}
             </span>
           )}
           <a

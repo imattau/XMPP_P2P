@@ -599,7 +599,8 @@ Type=simple
 WorkingDirectory=${INSTALL_DIR}
 User=${SERVICE_USER}
 Group=${SERVICE_GROUP}
-${env_lines}ExecStart=node ${INSTALL_DIR}/dist/index.js ${daemon_args}
+${env_lines}
+ExecStart=node ${INSTALL_DIR}/dist/index.js ${daemon_args}
 Restart=always
 RestartSec=5
 
@@ -636,27 +637,13 @@ UISERVICEEOF
 }
 
 detect_caddy_snippet_dir() {
-	local main_file="/etc/caddy/Caddyfile"
-	local dir
-	if [[ -n "${XMPP_P2P_CADDY_SNIPPET_DIR:-}" ]]; then
-		printf '%s' "$XMPP_P2P_CADDY_SNIPPET_DIR"
-		return 0
-	fi
-	if [[ -f "$main_file" ]]; then
-		for dir in /etc/caddy/conf.d /etc/caddy/Caddyfile.d; do
-			if grep -qE "^[[:space:]]*import[[:space:]].*${dir}/\\*\\.caddy" "$main_file" 2>/dev/null; then
-				printf '%s' "$dir"
-				return 0
-			fi
-		done
-	fi
 	for dir in /etc/caddy/conf.d /etc/caddy/Caddyfile.d; do
 		if [[ -d "$dir" ]]; then
 			printf '%s' "$dir"
 			return 0
 		fi
 	done
-	printf '%s' /etc/caddy/conf.d
+	return 1
 }
 
 configure_caddy() {
@@ -666,12 +653,19 @@ configure_caddy() {
 	local main_file="/etc/caddy/Caddyfile"
 	local snippet_dir snippet_file import_line content
 	remote_step_begin "configure caddy"
-	snippet_dir="$(detect_caddy_snippet_dir)"
-	snippet_file="${snippet_dir}/${SERVICE_NAME}.caddy"
-	import_line="import ${snippet_dir}/*.caddy"
 
 	log "configuring caddy for ${domain}"
-	sudo_run install -d -m 0755 "$snippet_dir"
+
+	snippet_dir="$(detect_caddy_snippet_dir)" || true
+	if [[ -n "$snippet_dir" ]]; then
+		snippet_file="${snippet_dir}/${SERVICE_NAME}.caddy"
+		import_line="import ${snippet_dir}/*.caddy"
+		sudo_run install -d -m 0755 "$snippet_dir"
+	else
+		snippet_file="/etc/caddy/${SERVICE_NAME}.caddy"
+		import_line="import /etc/caddy/${SERVICE_NAME}.caddy"
+	fi
+
 	content="${managed_marker}
 ${domain} {
 	${CADDY_EMAIL:+tls ${CADDY_EMAIL}}
@@ -690,20 +684,25 @@ ${domain} {
 	if [[ ! -f "$main_file" ]]; then
 		write_managed_file "$main_file" "${managed_marker}
 ${import_line}"
-	else
-		if grep -qE '^[[:space:]]*import[[:space:]].*(/etc/caddy/)?(conf\.d|Caddyfile\.d)/\*\.caddy' "$main_file"; then
-			log "existing Caddyfile already imports a snippet directory; leaving it unchanged"
-		elif grep -qF "$managed_marker" "$main_file"; then
-			log "existing Caddyfile is managed by xmpp-p2p; adding snippet import"
-			local current_content
-			current_content="$(cat "$main_file")"
-			write_managed_file "$main_file" "${current_content}
+	elif grep -qF "$import_line" "$main_file" 2>/dev/null; then
+		log "Caddyfile already imports ${SERVICE_NAME}.caddy"
+	elif grep -qF "$managed_marker" "$main_file" 2>/dev/null; then
+		log "Caddyfile is managed by xmpp-p2p; adding import"
+		local current_content
+		current_content="$(sudo_run cat "$main_file")"
+		write_managed_file "$main_file" "${current_content}
 
 ${import_line}"
-		else
-			warn "existing Caddyfile does not import ${snippet_dir}; not modifying it"
-			warn "add this line manually if needed: ${import_line}"
-		fi
+	else
+		log "appending import to existing Caddyfile"
+		local current_content
+		current_content="$(sudo_run cat "$main_file")"
+		sudo_run cp "$main_file" "${main_file}.bak.${SERVICE_NAME}"
+		local tmp
+		tmp="$(mktemp)"
+		printf '%s\n\n%s\n' "$current_content" "$import_line" >"$tmp"
+		sudo_run install -m 0644 "$tmp" "$main_file"
+		rm -f "$tmp"
 	fi
 
 	if command -v caddy >/dev/null 2>&1; then

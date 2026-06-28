@@ -7,8 +7,8 @@ import ProgressDots from '../../components/onboarding/ProgressDots'
 export default function ReadyPage() {
   const navigate = useNavigate()
   const { identity, completeOnboarding } = useIdentityBridge()
-  const displayName = identity?.displayName ?? 'Maren Holdt'
-  const handle = identity?.handle ?? 'maren'
+  const displayName = identity?.displayName ?? 'User'
+  const handle = identity?.handle ?? 'user'
 
   const handleOpen = () => {
     completeOnboarding()
@@ -52,7 +52,7 @@ export default function ReadyPage() {
               <span className="bg-green2 rounded-lg px-3 py-1.5 text-[11px] font-semibold text-accent">
                 Secure
               </span>
-              <span className="text-[11px] text-muted-foreground">8 peers discovered</span>
+              <span className="text-[11px] text-muted-foreground">Connected to network</span>
             </div>
           </div>
         </div>
