@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router'
 import {
   Settings, Shield, Lock, Globe, Hash, Users, Heart,
@@ -9,47 +9,27 @@ import {
 } from 'lucide-react'
 import { useProfileBridge, type EditableVCard } from '../bridge/useProfileBridge'
 import { useIdentityBridge } from '../bridge/identity/useIdentityBridge'
+import { useFeedBridge } from '../bridge/feed/useFeedBridge'
+import { getBrowserXmppBridge } from '../bridge/runtime'
+import type { BridgeFeedSubscriptionRecord, BridgeCollectionNode } from '../bridge/runtime'
 import { InlineEdit } from '../components/InlineEdit'
 
 type ProfileTab = 'posts' | 'topics' | 'communities' | 'bookmarks'
 
-interface ProfilePost {
-  id: string
-  content: string
-  timestamp: string
-  likes: number
-  comments: number
-  reposts: number
-  liked?: boolean
-  reposted?: boolean
-  topic?: string
-  topicColor?: string
-}
-
-const PROFILE_POSTS: ProfilePost[] = [
-  { id: '1', content: 'Finally got OMEMO working end-to-end across three different clients. The spec has some rough edges but the security model is genuinely excellent once it clicks.', timestamp: '2h', likes: 312, comments: 28, reposts: 64, liked: true },
-  { id: '2', content: 'Hot take: federation is solved at the protocol layer. The unsolved problem is identity. Who are you across servers? How do you migrate? These are the real questions.', timestamp: '1d', likes: 891, comments: 73, reposts: 201, topic: 'DecentralWeb', topicColor: '#3b82f6' },
-  { id: '3', content: 'Self-hosted XMPP + Prosody tip: enable mod_cloud_notify and set up a push proxy. Battery life difference on mobile is night and day.', timestamp: '2d', likes: 156, comments: 19, reposts: 44, topic: 'XMPPProtocol', topicColor: '#00d4aa' },
-  { id: '4', content: 'Reading through the new XMPP MIX spec. It\'s a proper redesign of MUC with better history management and subscription model. Worth watching if you care about group chats.', timestamp: '4d', likes: 203, comments: 31, reposts: 88, liked: true },
-]
-
-const FOLLOWED_TOPICS = [
-  { tag: 'Privacy', color: '#a855f7', posts: '12.4k' },
-  { tag: 'DecentralWeb', color: '#3b82f6', posts: '4.2k' },
-  { tag: 'XMPPProtocol', color: '#00d4aa', posts: '1.8k' },
-  { tag: 'FediDev', color: '#ef4444', posts: '891' },
-  { tag: 'OpenSource', color: '#f59e0b', posts: '6.7k' },
-]
-
-const COMMUNITIES = [
-  { name: 'OpenSourceDev', icon: '⚙️', role: 'Member', members: '12.4k' },
-  { name: 'FediDev', icon: '🌐', role: 'Moderator', members: '3.2k' },
-  { name: 'WeeklyDevChat', icon: '💬', role: 'Member', members: '891' },
-]
-
 function formatCount(n: number) {
   if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k'
   return String(n)
+}
+
+function formatJoinDate(iso?: string) {
+  if (!iso) return null
+  const date = new Date(iso)
+  return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+}
+
+function serverFromJid(jid?: string) {
+  if (!jid || !jid.includes('@')) return null
+  return jid.split('@')[1]
 }
 
 const TABS: { id: ProfileTab; label: string }[] = [
@@ -62,14 +42,35 @@ const TABS: { id: ProfileTab; label: string }[] = [
 export default function ProfilePage() {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<ProfileTab>('posts')
-  const [posts, setPosts] = useState<ProfilePost[]>(PROFILE_POSTS)
   const [copied, setCopied] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
   const [editForm, setEditForm] = useState<EditableVCard | null>(null)
   const [editError, setEditError] = useState('')
+  const [subscriptions, setSubscriptions] = useState<BridgeFeedSubscriptionRecord[]>([])
+  const [collections, setCollections] = useState<BridgeCollectionNode[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { identity } = useIdentityBridge()
   const { vCard, loading, saving, save } = useProfileBridge()
+  const feedBridge = useFeedBridge()
+
+  useEffect(() => {
+    const runtime = getBrowserXmppBridge()
+    if (!runtime) return
+    Promise.all([
+      runtime.getFeedSubscriptions().catch(() => [] as BridgeFeedSubscriptionRecord[]),
+      runtime.getCollections().catch(() => [] as BridgeCollectionNode[]),
+    ]).then(([subs, cols]) => {
+      setSubscriptions(subs)
+      setCollections(cols)
+    })
+  }, [])
+
+  const myHandle = identity?.handle || (vCard?.nickname ? vCard.nickname : '')
+  const myPosts = feedBridge.posts.filter(
+    (p) => p.author.handle === myHandle
+  )
+  const bookmarkedPosts = feedBridge.posts.filter((p) => p.bookmarked)
+  const uniqueTopics = new Set(subscriptions.map((s) => s.topic.split(':').pop() || s.topic))
 
   const openEdit = () => {
     setEditForm(vCard ? { ...vCard } : { fn: '', nickname: '' })
@@ -110,11 +111,10 @@ export default function ProfilePage() {
     setTimeout(() => setCopied(false), 1500)
   }
 
-  const handleLike = (id: string) =>
-    setPosts((prev) => prev.map((p) => p.id === id ? { ...p, liked: !p.liked, likes: p.liked ? p.likes - 1 : p.likes + 1 } : p))
-
-  const handleRepost = (id: string) =>
-    setPosts((prev) => prev.map((p) => p.id === id && !p.reposted ? { ...p, reposted: true, reposts: p.reposts + 1 } : p))
+  const displayName = vCard?.fn || vCard?.nickname || identity?.displayName || 'You'
+  const handle = vCard?.nickname ? `@${vCard.nickname}` : identity?.handle ? `@${identity.handle}` : '@you'
+  const joinDate = formatJoinDate(identity?.createdAt)
+  const server = serverFromJid(identity?.jid)
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
@@ -141,6 +141,7 @@ export default function ProfilePage() {
           {editError && <p className="text-destructive text-xs font-mono">{editError}</p>}
           <InlineEdit label="Display Name" value={editForm.fn} onChange={(e: any) => setEditForm((prev: any) => prev ? { ...prev, fn: e.target.value } : prev)} placeholder="Your display name" />
           <InlineEdit label="Nickname" value={editForm.nickname} onChange={(e: any) => setEditForm((prev: any) => prev ? { ...prev, nickname: e.target.value } : prev)} placeholder="Your nickname" />
+          <InlineEdit label="Bio" value={editForm.desc || ''} onChange={(e: any) => setEditForm((prev: any) => prev ? { ...prev, desc: e.target.value } : prev)} placeholder="Tell us about yourself" />
           <div className="flex flex-col gap-1">
             <label className="text-xs font-mono text-muted-foreground">Avatar</label>
             <div className="flex items-center gap-3">
@@ -199,43 +200,44 @@ export default function ProfilePage() {
 
             <div className="mb-3">
               <div className="flex items-center gap-1.5 mb-0.5">
-                <h1 className="text-base font-bold text-foreground leading-tight">{vCard?.fn || vCard?.nickname || identity?.displayName || 'You'}</h1>
+                <h1 className="text-base font-bold text-foreground leading-tight">{displayName}</h1>
                 <Shield size={13} className="text-primary" />
                 <span className="text-xs font-mono text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">OMEMO</span>
               </div>
               <div className="flex items-center gap-1 mb-2">
-                <span className="font-mono text-xs text-muted-foreground">{vCard?.nickname ? `@${vCard.nickname}` : identity?.handle ? `@${identity.handle}` : '@you'}</span>
+                <span className="font-mono text-xs text-muted-foreground">{handle}</span>
                 <button onClick={handleCopy} className="p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors">
                   {copied ? <Check size={11} className="text-accent" /> : <Copy size={11} />}
                 </button>
               </div>
-              <p className="text-sm text-foreground/80 leading-relaxed">
-                {loading ? 'Loading...' : 'Building the open web one protocol at a time.'}
-              </p>
+              {vCard?.desc && (
+                <p className="text-sm text-foreground/80 leading-relaxed">{vCard.desc}</p>
+              )}
             </div>
 
             <div className="flex flex-wrap gap-x-3 gap-y-1 mb-3">
-              <span className="flex items-center gap-1 font-mono text-[11px] text-muted-foreground">
-                <MapPin size={11} />Berlin, DE
-              </span>
-              <span className="flex items-center gap-1 font-mono text-[11px] text-muted-foreground">
-                <Link2 size={11} />
-                <span className="text-primary hover:underline cursor-pointer">jabber.de/~you</span>
-              </span>
-              <span className="flex items-center gap-1 font-mono text-[11px] text-muted-foreground">
-                <Calendar size={11} />Joined March 2022
-              </span>
-              <span className="flex items-center gap-1 font-mono text-[11px] text-muted-foreground">
-                <Globe size={11} />jabber.de
-              </span>
+              {joinDate && (
+                <span className="flex items-center gap-1 font-mono text-[11px] text-muted-foreground">
+                  <Calendar size={11} />Joined {joinDate}
+                </span>
+              )}
+              {server && (
+                <span className="flex items-center gap-1 font-mono text-[11px] text-muted-foreground">
+                  <Globe size={11} />{server}
+                </span>
+              )}
+              {identity?.jid && (
+                <span className="flex items-center gap-1 font-mono text-[11px] text-muted-foreground">
+                  <Globe size={11} />{identity.jid}
+                </span>
+              )}
             </div>
 
-            <div className="grid grid-cols-4 gap-0 rounded-lg border border-border overflow-hidden">
+            <div className="grid grid-cols-3 gap-0 rounded-lg border border-border overflow-hidden">
               {[
-                { label: 'Posts', value: '284' },
-                { label: 'Following', value: '312' },
-                { label: 'Followers', value: '1.4k' },
-                { label: 'Topics', value: '5' },
+                { label: 'Posts', value: formatCount(myPosts.length) },
+                { label: 'Following', value: formatCount(subscriptions.length) },
+                { label: 'Topics', value: String(uniqueTopics.size) },
               ].map(({ label, value }) => (
                 <div key={label} className="flex flex-col items-center py-2.5 border-r border-border last:border-0 hover:bg-secondary transition-colors cursor-pointer">
                   <span className="font-semibold text-sm text-foreground">{value}</span>
@@ -260,73 +262,92 @@ export default function ProfilePage() {
 
         {activeTab === 'posts' && (
           <div>
-            {posts.map((post) => (
-              <article key={post.id} className="border-b border-border px-4 py-3 hover:bg-white/[0.02] transition-colors cursor-pointer">
-                {post.topic && (
-                  <span className="inline-flex items-center gap-0.5 text-[11px] font-mono font-medium px-1.5 py-0.5 rounded mb-2"
-                    style={{ color: post.topicColor, backgroundColor: post.topicColor + '1a' }}>
-                    <Hash size={9} />{post.topic}
-                  </span>
-                )}
-                <p className="text-sm text-foreground/90 leading-relaxed mb-2">{post.content}</p>
-                <div className="flex items-center justify-between -ml-1">
-                  <button className="flex items-center gap-1 px-1.5 py-1 rounded text-muted-foreground hover:text-blue-400 hover:bg-blue-400/10 transition-all">
-                    <MessageCircle size={14} />
-                    <span className="font-mono text-[11px]">{formatCount(post.comments)}</span>
-                  </button>
-                  <button
-                    onClick={() => handleRepost(post.id)}
-                    className={`flex items-center gap-1 px-1.5 py-1 rounded transition-all ${post.reposted ? 'text-emerald-400' : 'text-muted-foreground hover:text-emerald-400 hover:bg-emerald-400/10'}`}
-                  >
-                    <Repeat2 size={14} />
-                    <span className="font-mono text-[11px]">{formatCount(post.reposts)}</span>
-                  </button>
-                  <button onClick={() => handleLike(post.id)}
-                    className={`flex items-center gap-1 px-1.5 py-1 rounded transition-all ${post.liked ? 'text-rose-400' : 'text-muted-foreground hover:text-rose-400 hover:bg-rose-400/10'}`}>
-                    <Heart size={14} fill={post.liked ? 'currentColor' : 'none'} />
-                    <span className="font-mono text-[11px]">{formatCount(post.likes)}</span>
-                  </button>
-                  <span className="font-mono text-[10px] text-muted-foreground ml-auto">{post.timestamp}</span>
-                </div>
-              </article>
-            ))}
+            {myPosts.length === 0 ? (
+              <div className="px-4 py-12 text-center">
+                <p className="text-sm text-muted-foreground">No posts yet</p>
+              </div>
+            ) : (
+              myPosts.map((post) => (
+                <article key={post.id} className="border-b border-border px-4 py-3 hover:bg-white/[0.02] transition-colors cursor-pointer">
+                  {post.topic && (
+                    <span className="inline-flex items-center gap-0.5 text-[11px] font-mono font-medium px-1.5 py-0.5 rounded mb-2"
+                      style={{ color: post.topicColor, backgroundColor: post.topicColor + '1a' }}>
+                      <Hash size={9} />{post.topic}
+                    </span>
+                  )}
+                  <p className="text-sm text-foreground/90 leading-relaxed mb-2">{post.content}</p>
+                  <div className="flex items-center justify-between -ml-1">
+                    <button className="flex items-center gap-1 px-1.5 py-1 rounded text-muted-foreground hover:text-blue-400 hover:bg-blue-400/10 transition-all">
+                      <MessageCircle size={14} />
+                      <span className="font-mono text-[11px]">{formatCount(post.comments)}</span>
+                    </button>
+                    <button
+                      onClick={() => feedBridge.repostPost(post.id)}
+                      className={`flex items-center gap-1 px-1.5 py-1 rounded transition-all ${post.reposted ? 'text-emerald-400' : 'text-muted-foreground hover:text-emerald-400 hover:bg-emerald-400/10'}`}
+                    >
+                      <Repeat2 size={14} />
+                      <span className="font-mono text-[11px]">{formatCount(post.reposts)}</span>
+                    </button>
+                    <button onClick={() => feedBridge.likePost(post.id)}
+                      className={`flex items-center gap-1 px-1.5 py-1 rounded transition-all ${post.liked ? 'text-rose-400' : 'text-muted-foreground hover:text-rose-400 hover:bg-rose-400/10'}`}>
+                      <Heart size={14} fill={post.liked ? 'currentColor' : 'none'} />
+                      <span className="font-mono text-[11px]">{formatCount(post.likes)}</span>
+                    </button>
+                    <span className="font-mono text-[10px] text-muted-foreground ml-auto">{post.timestamp}</span>
+                  </div>
+                </article>
+              ))
+            )}
           </div>
         )}
 
         {activeTab === 'topics' && (
           <div>
-            {FOLLOWED_TOPICS.map((t) => (
-              <div key={t.tag} className="flex items-center gap-3 px-4 py-3 border-b border-border hover:bg-white/[0.02] transition-colors cursor-pointer">
-                <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
-                  style={{ backgroundColor: t.color + '1a', border: `1px solid ${t.color}33` }}>
-                  <Hash size={15} style={{ color: t.color }} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground">#{t.tag}</p>
-                  <p className="font-mono text-[10px] text-muted-foreground">{t.posts} posts</p>
-                </div>
-                <ChevronRight size={14} className="text-muted-foreground/40" />
+            {subscriptions.length === 0 ? (
+              <div className="px-4 py-12 text-center">
+                <p className="text-sm text-muted-foreground">No topics subscribed yet</p>
               </div>
-            ))}
+            ) : (
+              subscriptions.map((s) => {
+                const topicName = s.topic.split(':').pop() || s.topic
+                return (
+                  <div key={s.topic} className="flex items-center gap-3 px-4 py-3 border-b border-border hover:bg-white/[0.02] transition-colors cursor-pointer">
+                    <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+                      style={{ backgroundColor: '#3b82f61a', border: '1px solid #3b82f633' }}>
+                      <Hash size={15} style={{ color: '#3b82f6' }} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground">#{topicName}</p>
+                      <p className="font-mono text-[10px] text-muted-foreground">Subscribed</p>
+                    </div>
+                    <ChevronRight size={14} className="text-muted-foreground/40" />
+                  </div>
+                )
+              })
+            )}
           </div>
         )}
 
         {activeTab === 'communities' && (
           <div>
-            {COMMUNITIES.map((c) => (
-              <div key={c.name} className="flex items-center gap-3 px-4 py-3 border-b border-border hover:bg-white/[0.02] transition-colors cursor-pointer">
-                <div className="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-lg flex-shrink-0">
-                  {c.icon}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground">{c.name}</p>
-                  <p className="font-mono text-[10px] text-muted-foreground">{c.members} members</p>
-                </div>
-                <span className={`font-mono text-[10px] px-2 py-0.5 rounded ${c.role === 'Moderator' ? 'bg-primary/10 text-primary' : 'bg-secondary text-muted-foreground'}`}>
-                  {c.role}
-                </span>
+            {collections.length === 0 ? (
+              <div className="px-4 py-12 text-center">
+                <p className="text-sm text-muted-foreground">No communities joined yet</p>
               </div>
-            ))}
+            ) : (
+              collections.map((c) => (
+                <div key={c.id} className="flex items-center gap-3 px-4 py-3 border-b border-border hover:bg-white/[0.02] transition-colors cursor-pointer">
+                  <div className="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-lg flex-shrink-0">
+                    ⚙️
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground">{c.name || c.topic}</p>
+                    <p className="font-mono text-[10px] text-muted-foreground">{c.members.length} members</p>
+                  </div>
+                  <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-secondary text-muted-foreground">Member</span>
+                </div>
+              ))
+            )}
           </div>
         )}
 
@@ -335,15 +356,21 @@ export default function ProfilePage() {
             <div className="px-4 py-2.5 border-b border-border">
               <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest">Saved posts</span>
             </div>
-            {posts.slice(0, 2).map((post) => (
-              <article key={post.id} className="border-b border-border px-4 py-3 hover:bg-white/[0.02] transition-colors cursor-pointer">
-                <p className="text-sm text-foreground/90 leading-relaxed mb-2">{post.content}</p>
-                <div className="flex items-center gap-2">
-                  <Bookmark size={12} className="text-primary" />
-                  <span className="font-mono text-[10px] text-muted-foreground">Saved {post.timestamp} ago</span>
-                </div>
-              </article>
-            ))}
+            {bookmarkedPosts.length === 0 ? (
+              <div className="px-4 py-12 text-center">
+                <p className="text-sm text-muted-foreground">No saved posts</p>
+              </div>
+            ) : (
+              bookmarkedPosts.map((post) => (
+                <article key={post.id} className="border-b border-border px-4 py-3 hover:bg-white/[0.02] transition-colors cursor-pointer">
+                  <p className="text-sm text-foreground/90 leading-relaxed mb-2">{post.content}</p>
+                  <div className="flex items-center gap-2">
+                    <Bookmark size={12} className="text-primary" />
+                    <span className="font-mono text-[10px] text-muted-foreground">Saved {post.timestamp} ago</span>
+                  </div>
+                </article>
+              ))
+            )}
           </div>
         )}
       </main>

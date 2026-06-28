@@ -255,6 +255,7 @@ export async function loadVCardState(ctx: XmppPersistenceLoadContext): Promise<v
     const normalized = {
       fn: profile?.fn?.trim() || undefined,
       nickname: profile?.nickname?.trim() || undefined,
+      desc: profile?.desc?.trim() || undefined,
       photo: photoType && photoBinval
         ? {
             type: photoType,
@@ -266,6 +267,9 @@ export async function loadVCardState(ctx: XmppPersistenceLoadContext): Promise<v
     ctx.vCard.fn = normalized.fn ?? ctx.vCard.fn
     if (!ctx.vCard.nickname && normalized.nickname) {
       ctx.vCard.nickname = normalized.nickname
+    }
+    if (normalized.desc) {
+      ctx.vCard.desc = normalized.desc
     }
     if (normalized.photo) {
       ctx.vCard.photo = normalized.photo
@@ -358,6 +362,7 @@ export async function persistVCardState(ctx: XmppPersistenceSaveContext): Promis
     profile: {
       fn: ctx.vCard.fn?.trim() || undefined,
       nickname: ctx.vCard.nickname?.trim() || undefined,
+      desc: ctx.vCard.desc?.trim() || undefined,
       photo: ctx.vCard.photo?.type && ctx.vCard.photo.binval
         ? {
             type: ctx.vCard.photo.type.trim() || undefined,

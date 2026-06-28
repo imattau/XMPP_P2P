@@ -287,7 +287,7 @@ export class IdentityController {
   subscribe(listener: Listener) {
     this.listeners.add(listener)
     listener(this.state)
-    return () => this.listeners.delete(listener)
+    return () => { this.listeners.delete(listener) }
   }
 
   createIdentity(displayName: string, handle: string, passcode?: string) {

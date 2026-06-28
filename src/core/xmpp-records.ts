@@ -294,6 +294,7 @@ export interface XmppOpenPgpPublicKeyResponse {
 export interface XmppVCardProfile {
   fn?: string
   nickname?: string
+  desc?: string
   photo?: XmppVCardPhoto | null
 }
 
@@ -313,12 +314,14 @@ export interface XmppVCardFile {
 export function normalizeVCardProfile(profile?: Partial<XmppVCardProfile>): XmppVCardProfile {
   const fn = profile?.fn?.trim()
   const nickname = profile?.nickname?.trim()
+  const desc = profile?.desc?.trim()
   const photoType = profile?.photo?.type?.trim()
   const photoBinval = profile?.photo?.binval?.trim()
 
   return {
     fn: fn || undefined,
     nickname: nickname || undefined,
+    desc: desc || undefined,
     photo: profile?.photo === null
       ? null
       : photoType && photoBinval

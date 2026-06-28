@@ -10,7 +10,7 @@ export function useFeedBridge() {
   useEffect(() => {
     const unsubscribe = controller.subscribe(setState)
     void controller.refresh()
-    return unsubscribe
+    return () => { unsubscribe() }
   }, [controller])
 
   return {

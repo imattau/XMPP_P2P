@@ -256,6 +256,7 @@ function buildPrivateGroupChatRows() {
     name: session.chat.name,
     handle: session.chat.handle,
     server: session.chat.server,
+    avatar: undefined as string | undefined,
     participants: session.chat.participants,
     memberCount: session.chat.memberCount,
     lastMessage: {
@@ -264,6 +265,7 @@ function buildPrivateGroupChatRows() {
       read: true,
     },
     unread: 0,
+    pinned: false,
     encrypted: session.chat.encrypted,
     muted: session.chat.muted,
     online: session.chat.online,
@@ -274,6 +276,8 @@ function buildPrivateGroupChatRows() {
     memberOnly: session.chat.memberOnly,
     archived: session.chat.archived,
     topic: session.chat.subject,
+    verified: false,
+    typing: undefined as string | undefined,
   }))
 }
 

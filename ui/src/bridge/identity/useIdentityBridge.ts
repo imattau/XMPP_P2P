@@ -6,7 +6,8 @@ export function useIdentityBridge() {
   const [state, setState] = useState<IdentityViewState>(identityController.getState())
 
   useEffect(() => {
-    return identityController.subscribe(setState)
+    const unsub = identityController.subscribe(setState)
+    return () => { unsub() }
   }, [])
 
   return {

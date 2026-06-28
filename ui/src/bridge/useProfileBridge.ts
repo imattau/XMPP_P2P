@@ -7,7 +7,8 @@ const VCARD_KEY = 'xmpp-p2p:vcard'
 export interface EditableVCard {
   fn: string
   nickname: string
-  photo?: { type: string; binval: string } | null
+  desc?: string
+  photo?: { type?: string; binval?: string } | null
 }
 
 function loadLocalVCard(): EditableVCard | null {
@@ -48,6 +49,7 @@ export function useProfileBridge() {
       const vcard: EditableVCard = {
         fn: profile.fn ?? '',
         nickname: profile.nickname ?? '',
+        desc: profile.desc ?? '',
         photo: profile.photo ?? null
       }
       setVCard(vcard)
@@ -79,11 +81,13 @@ export function useProfileBridge() {
       const result = await runtime.setVCard({
         fn: updated.fn || undefined,
         nickname: updated.nickname || undefined,
+        desc: updated.desc || undefined,
         photo: updated.photo ?? undefined
       })
       const vcard: EditableVCard = {
         fn: result.fn ?? '',
         nickname: result.nickname ?? '',
+        desc: result.desc ?? '',
         photo: result.photo ?? null
       }
       setVCard(vcard)

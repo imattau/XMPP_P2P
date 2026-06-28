@@ -20,6 +20,7 @@ export const VCARD_XMLNS = 'vcard-temp'
 export function parseVCard(element: Element): XmppVCardProfile {
   const fnEl = element.getChild('FN')
   const nicknameEl = element.getChild('NICKNAME')
+  const descEl = element.getChild('DESC')
   const photoEl = element.getChild('PHOTO')
   const photoTypeEl = photoEl?.getChild('TYPE')
   const photoBinvalEl = photoEl?.getChild('BINVAL')
@@ -27,6 +28,7 @@ export function parseVCard(element: Element): XmppVCardProfile {
   return normalizeVCardProfile({
     fn: fnEl?.text(),
     nickname: nicknameEl?.text(),
+    desc: descEl?.text(),
     photo: photoTypeEl && photoBinvalEl
       ? {
           type: photoTypeEl.text(),
@@ -54,6 +56,10 @@ export function buildVCard(profile: XmppVCardProfile, fallbackFn?: string): Elem
 
   if (normalized.nickname) {
     children.push(xml('NICKNAME', {}, normalized.nickname))
+  }
+
+  if (normalized.desc) {
+    children.push(xml('DESC', {}, normalized.desc))
   }
 
   if (normalized.photo?.type && normalized.photo.binval) {

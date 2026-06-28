@@ -1362,6 +1362,7 @@ export class XmppNode extends EventEmitter {
     return {
       fn: this.selfVCard.fn,
       nickname: this.selfPresence.nickname ?? this.selfVCard.nickname,
+      desc: this.selfVCard.desc,
       ...(this.selfVCard.photo ? { photo: this.selfVCard.photo } : {})
     }
   }

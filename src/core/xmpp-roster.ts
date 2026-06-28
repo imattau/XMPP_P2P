@@ -430,6 +430,7 @@ export class XmppRosterManager {
     return buildVCard({
       fn: this.selfVCard.fn,
       nickname: this.selfPresence.nickname ?? this.selfVCard.nickname,
+      desc: this.selfVCard.desc,
       photo: this.selfVCard.photo
     }, this.ctx.libp2p.peerId.toString())
   }
@@ -449,6 +450,10 @@ export class XmppRosterManager {
       this.selfPresence.nickname = normalized.nickname
     }
 
+    if (normalized.desc !== undefined) {
+      this.selfVCard.desc = normalized.desc
+    }
+
     if (photoCleared) {
       this.selfVCard.photo = undefined
     } else if (normalized.photo !== undefined) {
@@ -464,6 +469,7 @@ export class XmppRosterManager {
     return {
       fn: this.selfVCard.fn,
       nickname: this.selfPresence.nickname ?? this.selfVCard.nickname,
+      desc: this.selfVCard.desc,
       ...(this.selfVCard.photo ? { photo: this.selfVCard.photo } : {})
     }
   }

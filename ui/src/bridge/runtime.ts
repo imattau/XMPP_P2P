@@ -69,6 +69,7 @@ export type BridgeStoredComponentConfig = {
 export type BridgeVCard = {
   fn?: string
   nickname?: string
+  desc?: string
   photo?: { type?: string; binval?: string } | null
 }
 
