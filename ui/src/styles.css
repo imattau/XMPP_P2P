@@ -13,9 +13,16 @@
   --color-primary-foreground: #08101f;
   --color-accent: #3ed7ad;
   --color-destructive: #ff6b81;
+  --color-warn: #f59e0b;
   --color-muted-foreground: #8b94aa;
+  --color-blue2: #172849;
+  --color-green2: #10302b;
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
+  --text-display: 32px;
+  --text-heading: 20px;
+  --text-body: 14px;
+  --text-meta: 11px;
 }
 
 @layer base {

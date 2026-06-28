@@ -62,11 +62,8 @@ function PostCard({
           <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
             <span className="font-semibold text-sm text-foreground leading-tight">{post.author.name}</span>
             {post.author.verified && <Shield size={12} className="text-primary flex-shrink-0" />}
-            <span className="font-mono text-xs text-muted-foreground">@{post.author.handle}</span>
-            <span className="text-muted-foreground/40 text-xs">·</span>
+            <span className="font-mono text-[11px] text-muted-foreground">@{post.author.handle} · {post.author.server} · {post.timestamp}</span>
             <PrivacyIcon privacy={post.privacy} />
-            <span className="text-muted-foreground/40 text-xs">·</span>
-            <span className="font-mono text-xs text-muted-foreground">{post.timestamp}</span>
             <button className="ml-auto text-muted-foreground hover:text-foreground transition-colors">
               <MoreHorizontal size={14} />
             </button>
@@ -86,13 +83,8 @@ function PostCard({
                   {post.communityIcon} {config.label}
                 </span>
               )}
-              <span className="font-mono text-[10px] text-muted-foreground/60">via {post.author.server}</span>
             </div>
-          ) : (
-            <div className="mb-1.5">
-              <span className="font-mono text-[10px] text-muted-foreground/50">{post.author.server}</span>
-            </div>
-          )}
+          ) : null}
 
           <p className="text-sm text-foreground/90 leading-relaxed mb-2">{post.content}</p>
 
@@ -172,12 +164,9 @@ export default function FeedPage() {
     <div className="flex flex-col flex-1 overflow-hidden">
       <header className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border flex-shrink-0">
         <div className="flex items-center justify-between px-4 py-2.5">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded bg-primary flex items-center justify-center">
-              <Zap size={14} className="text-white" />
-            </div>
-            <span className="font-semibold text-sm tracking-tight">Nexus</span>
-            <span className="font-mono text-[10px] text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">XMPP</span>
+          <div>
+            <div className="text-[18px] font-semibold tracking-tight text-foreground leading-tight">Nexus</div>
+            <div className="text-[11px] font-mono text-muted-foreground leading-tight">XMPP P2P</div>
           </div>
           <div className="flex items-center gap-0.5">
             <button

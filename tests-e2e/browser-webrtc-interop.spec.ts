@@ -39,5 +39,30 @@ test('two browser tabs WebRTC-dial each other and exchange an XMPP message', asy
     throw new Error('Tab A never established a connection to Tab B\'s peer ID — check WebRTC/circuit-relay dial path in createBrowserP2PNode')
   })
 
+  // Tab A sends an XMPP message to Tab B
+  const messageBody = 'Hello from test!'
+  await pageA.evaluate(async ({ targetPeerId, body }) => {
+    const bridge = (window as any).__XMPP_P2P_BRIDGE__
+    await bridge.sendMessage(
+      { id: targetPeerId, type: 'direct', name: 'Test Peer', handle: `${targetPeerId}@p2p` },
+      body
+    )
+  }, { targetPeerId: clientB.peerId, body: messageBody })
+
+  // Wait for Tab B to receive the message
+  await pageB.waitForFunction(
+    (expectedBody: string) =>
+      (window as any).__receivedMessages?.some((m: any) => m.body === expectedBody),
+    messageBody,
+    { timeout: 10000 }
+  ).catch(() => {
+    throw new Error(`Tab B never received the message from Tab A (expected: "${messageBody}")`)
+  })
+
+  // Verify received message details
+  const received = await pageB.evaluate(() => (window as any).__receivedMessages?.[0])
+  expect(received).toBeTruthy()
+  expect(received.body).toBe(messageBody)
+
   await relay.stop()
 })

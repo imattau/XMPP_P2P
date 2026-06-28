@@ -1,7 +1,9 @@
 import * as React from 'react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router'
 import { listGroupChatSessions } from './chat-session'
+import { getBrowserXmppBridge } from '../bridge/runtime'
+import { useRosterBridge } from '../bridge/useRosterBridge'
 import {
   Search, Settings, Hash, Users, Shield, Zap, Lock,
   User, MessageCircle, CheckCheck, Check, Clock, Pin,
@@ -281,6 +283,14 @@ export default function ChatsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const privateGroupChats = buildPrivateGroupChatRows()
   const chats = [...privateGroupChats, ...CHATS]
+  const { contacts, onlinePeers } = useRosterBridge()
+
+  useEffect(() => {
+    const runtime = getBrowserXmppBridge()
+    if (!runtime?.broadcastPresence) return
+    void runtime.broadcastPresence('available')
+    return () => { void runtime.broadcastPresence('unavailable') }
+  }, [])
 
   const unread = {
     all: chats.reduce((a, c) => a + c.unread, 0),
@@ -303,18 +313,27 @@ export default function ChatsPage() {
     })
     .sort((a, b) => (a.pinned === b.pinned ? 0 : a.pinned ? -1 : 1))
 
-  const onlineContacts = chats.filter((c) => c.type === 'direct' && c.online)
+  const mockOnlineContacts = chats.filter((c) => c.type === 'direct' && c.online)
+  const rosterOnlineContacts = contacts.filter((c) => c.online).map((c) => ({
+    id: c.jid,
+    type: 'direct' as const,
+    name: c.nickname || c.name || c.jid.split('@')[0],
+    handle: c.jid,
+    online: true,
+    avatar: undefined as string | undefined,
+    server: c.jid.split('@')[1] || '',
+    lastMessage: { text: '', timestamp: '' },
+    unread: 0
+  }))
+  const onlineContacts = rosterOnlineContacts.length > 0 ? rosterOnlineContacts : mockOnlineContacts
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
       <header className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border flex-shrink-0">
         <div className="flex items-center justify-between px-4 py-2.5">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded bg-primary flex items-center justify-center">
-              <Zap size={14} className="text-white" />
-            </div>
-            <span className="font-semibold text-sm tracking-tight">Messages</span>
-            <span className="font-mono text-[10px] text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">XMPP</span>
+          <div>
+            <div className="text-[18px] font-semibold tracking-tight text-foreground leading-tight">Messages</div>
+            <div className="text-[11px] font-mono text-muted-foreground leading-tight">{unread.all} unread</div>
           </div>
           <div className="flex items-center gap-0.5">
             <button onClick={() => setSearchOpen((v) => !v)}
@@ -384,7 +403,10 @@ export default function ChatsPage() {
 
       {(activeFilter === 'all' || activeFilter === 'direct') && !searchQuery && onlineContacts.length > 0 && (
         <div className="border-b border-border flex-shrink-0">
-          <div className="flex gap-4 px-4 py-3 overflow-x-auto scrollbar-hidden">
+          <div className="px-4 pt-2">
+            <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Online</span>
+          </div>
+          <div className="flex gap-4 px-4 py-2 overflow-x-auto scrollbar-hidden">
             {onlineContacts.map((c) => (
               <button key={c.id} className="flex flex-col items-center gap-1.5 flex-shrink-0 group">
                 <div className="relative">
@@ -397,6 +419,27 @@ export default function ChatsPage() {
                   <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-accent border-[1.5px] border-background" />
                 </div>
                 <span className="text-[10px] font-mono text-muted-foreground truncate w-12 text-center">{c.name.split(' ')[0]}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {(activeFilter === 'all' || activeFilter === 'direct') && !searchQuery && contacts.length > 0 && (
+        <div className="border-b border-border flex-shrink-0">
+          <div className="px-4 pt-2">
+            <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Contacts</span>
+          </div>
+          <div className="flex gap-4 px-4 py-2 overflow-x-auto scrollbar-hidden">
+            {contacts.slice(0, 10).map((c) => (
+              <button key={c.jid} className="flex flex-col items-center gap-1.5 flex-shrink-0 group">
+                <div className="relative">
+                  <div className="w-11 h-11 rounded-full overflow-hidden border-2 border-transparent group-hover:border-border transition-colors bg-secondary flex items-center justify-center">
+                    <span className="text-sm font-semibold text-foreground">{(c.nickname || c.name || c.jid[0] || '?')[0].toUpperCase()}</span>
+                  </div>
+                  {c.online && <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-accent border-[1.5px] border-background" />}
+                </div>
+                <span className="text-[10px] font-mono text-muted-foreground truncate w-12 text-center">{c.nickname || c.name || c.jid.split('@')[0]}</span>
               </button>
             ))}
           </div>

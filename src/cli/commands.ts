@@ -1086,6 +1086,22 @@ export const handleCliCommand = async (input: string, ctx: CliContext) => {
       })
       break
     }
+    case 'muc-history': {
+      if (parts.length < 3) {
+        console.log('Usage: muc-history <room> <peer-id>')
+        break
+      }
+      const mucRoom = parts[1]
+      const mucTarget = parts[2]
+      console.log(`Requesting MUC history for room "${mucRoom}" from peer ${mucTarget}...`)
+      try {
+        await xmppNode.queryMucChatHistory(mucRoom, mucTarget)
+        console.log('MUC history request sent.')
+      } catch (err: any) {
+        console.error('MUC history request failed:', err.message)
+      }
+      break
+    }
     case 'ping': {
       if (parts.length < 2) {
         console.log('Usage: ping <peer-id/multiaddr>')

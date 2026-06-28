@@ -1,99 +1,127 @@
-/**
- * @packageDocumentation DHT key helpers and mailbox persistence for XMPP state that
- * needs to survive reconnects or be shared across peers.
- */
-
 import { Libp2p } from 'libp2p'
 import { Element, Parser } from '@xmpp/xml'
 import { XmppMucRoomSettings } from './xmpp-records.js'
 
 const MUC_SETTINGS_INDEX_PREFIX = '/xmpp/muc/index/'
 const MUC_SETTINGS_PREFIX = '/xmpp/muc/room/'
+const DEFAULT_DHT_TTL_MS = 24 * 60 * 60 * 1000
+const MAILBOX_TTL_MS = 7 * 24 * 60 * 60 * 1000
 
-/**
- * Encodes the peer-specific DHT index key for MUC room settings.
- *
- * @param peerId - Local peer identifier.
- * @returns A binary DHT key.
- */
+interface DhtEnvelope<T> {
+  data: T
+  expiresAt?: string
+}
+
+function isExpired(entry: DhtEnvelope<unknown>): boolean {
+  if (!entry.expiresAt) return false
+  return Date.now() > new Date(entry.expiresAt).getTime()
+}
+
 export function mucSettingsIndexKey(peerId: string): Uint8Array {
   return new TextEncoder().encode(`${MUC_SETTINGS_INDEX_PREFIX}${peerId}`)
 }
 
-/**
- * Encodes the DHT key for an individual MUC room record.
- *
- * @param roomName - The room identifier.
- * @returns A binary DHT key.
- */
 export function mucSettingsKey(roomName: string): Uint8Array {
   return new TextEncoder().encode(`${MUC_SETTINGS_PREFIX}${roomName}`)
 }
 
-/**
- * Encodes the per-peer mailbox queue key used for buffered stanzas.
- *
- * @param peerId - Target peer identifier.
- * @returns A binary DHT key.
- */
 export function mailboxKey(peerId: string): Uint8Array {
   return new TextEncoder().encode(`/xmpp/mailbox/queue/${peerId}`)
 }
 
-/**
- * Reads and parses JSON from the DHT if the content routing API is available.
- *
- * @param libp2p - Active libp2p node.
- * @param key - DHT key to query.
- * @returns Parsed JSON or `undefined` when no value exists.
- */
+function getContentRouting(libp2p: Libp2p): any {
+  const cr = (libp2p as any).contentRouting
+  if (!cr?.get || !cr?.put) {
+    console.warn('[DHT] contentRouting API not available — DHT operations will be skipped')
+    return null
+  }
+  return cr
+}
+
 export async function readDhtJson<T>(libp2p: Libp2p, key: Uint8Array): Promise<T | undefined> {
-  const contentRouting = (libp2p as any).contentRouting
-  if (!contentRouting?.get) {
-    console.log('[DEBUG DHT] readDhtJson: contentRouting.get not available')
-    return undefined
-  }
+  const contentRouting = getContentRouting(libp2p)
+  if (!contentRouting) return undefined
 
   try {
     const keyStr = new TextDecoder().decode(key)
-    console.log(`[DEBUG DHT] readDhtJson starting for key: ${keyStr}`)
-    const value = await contentRouting.get(key)
-    console.log(`[DEBUG DHT] readDhtJson success for key: ${keyStr}`)
-    return JSON.parse(new TextDecoder().decode(value)) as T
+    const raw = await contentRouting.get(key)
+    if (!raw) return undefined
+    const envelope = JSON.parse(new TextDecoder().decode(raw)) as DhtEnvelope<T>
+    if (isExpired(envelope as unknown as DhtEnvelope<unknown>)) {
+      console.log(`[DHT] Key ${keyStr} expired, treating as not found`)
+      return undefined
+    }
+    return envelope.data
   } catch (err: any) {
-    console.error(`[DEBUG DHT] readDhtJson failed:`, err?.message || err)
     return undefined
   }
 }
 
-/**
- * Writes JSON to the DHT if the content routing API is available.
- *
- * @param libp2p - Active libp2p node.
- * @param key - DHT key to store.
- * @param value - Serializable payload.
- * @returns Nothing.
- */
-export async function writeDhtJson(libp2p: Libp2p, key: Uint8Array, value: unknown): Promise<void> {
-  const contentRouting = (libp2p as any).contentRouting
-  if (!contentRouting?.put) {
-    console.log('[DEBUG DHT] writeDhtJson: contentRouting.put not available')
-    return
-  }
+export async function writeDhtJson(libp2p: Libp2p, key: Uint8Array, value: unknown, ttlMs?: number): Promise<void> {
+  const contentRouting = getContentRouting(libp2p)
+  if (!contentRouting) return
 
   try {
     const keyStr = new TextDecoder().decode(key)
-    console.log(`[DEBUG DHT] writeDhtJson starting for key: ${keyStr}`)
-    await contentRouting.put(key, new TextEncoder().encode(JSON.stringify(value)))
-    console.log(`[DEBUG DHT] writeDhtJson success for key: ${keyStr}`)
+    trackDhtKey(key)
+    const envelope: DhtEnvelope<unknown> = {
+      data: value,
+      ...(ttlMs ? { expiresAt: new Date(Date.now() + ttlMs).toISOString() } : {})
+    }
+    await contentRouting.put(key, new TextEncoder().encode(JSON.stringify(envelope)))
   } catch (err: any) {
-    console.error(`[DEBUG DHT] writeDhtJson failed:`, err?.message || err)
+    console.error(`[DHT] writeDhtJson failed for key ${new TextDecoder().decode(key)}:`, err?.message || err)
   }
 }
 
-/**
- * Context required by the DHT helpers to load, persist, and flush mailbox state.
- */
+export async function refreshDhtKey(libp2p: Libp2p, key: Uint8Array): Promise<void> {
+  const value = await readDhtJson(libp2p, key)
+  if (value !== undefined) {
+    await writeDhtJson(libp2p, key, value, DEFAULT_DHT_TTL_MS)
+  }
+}
+
+export async function removeDhtKey(libp2p: Libp2p, key: Uint8Array): Promise<void> {
+  const contentRouting = getContentRouting(libp2p)
+  if (!contentRouting) return
+  try {
+    await contentRouting.put(key, new TextEncoder().encode(JSON.stringify({ data: null, expiresAt: new Date(0).toISOString() })))
+  } catch { }
+}
+
+export function isDhtAvailable(libp2p: Libp2p): boolean {
+  return !!(libp2p as any).contentRouting?.get
+}
+
+const knownDhtKeys = new Set<string>()
+
+export function trackDhtKey(key: Uint8Array): void {
+  knownDhtKeys.add(new TextDecoder().decode(key))
+}
+
+export async function collectExpiredDhtEntries(libp2p: Libp2p): Promise<number> {
+  let removed = 0
+  for (const keyStr of knownDhtKeys) {
+    const key = new TextEncoder().encode(keyStr)
+    const value = await readDhtJson(libp2p, key)
+    if (value === undefined) {
+      await removeDhtKey(libp2p, key)
+      removed++
+    }
+  }
+  return removed
+}
+
+export function startDhtGarbageCollection(libp2p: Libp2p, intervalMs = 30 * 60 * 1000): () => void {
+  const timer = setInterval(async () => {
+    const removed = await collectExpiredDhtEntries(libp2p)
+    if (removed > 0) {
+      console.log(`[DHT GC] Removed ${removed} expired entries`)
+    }
+  }, intervalMs)
+  return () => clearInterval(timer)
+}
+
 export interface XmppDhtContext {
   libp2p: Libp2p
   mucRooms: Map<string, XmppMucRoomSettings>
@@ -102,12 +130,6 @@ export interface XmppDhtContext {
   emit(event: string, ...args: any[]): boolean
 }
 
-/**
- * Restores the local MUC room index from the DHT.
- *
- * @param ctx - DHT execution context.
- * @returns Nothing.
- */
 export async function loadMucStateFromDht(ctx: XmppDhtContext): Promise<void> {
   const index = await readDhtJson<{ version: number; rooms: string[] }>(
     ctx.libp2p,
@@ -120,32 +142,18 @@ export async function loadMucStateFromDht(ctx: XmppDhtContext): Promise<void> {
   }
 }
 
-/**
- * Persists MUC room state and the room index to the DHT.
- *
- * @param ctx - DHT execution context.
- * @returns Nothing.
- */
 export async function persistMucStateToDht(ctx: XmppDhtContext): Promise<void> {
   const rooms = Array.from(ctx.mucRooms.values())
   await Promise.all(rooms.map(async (room) => {
-    await writeDhtJson(ctx.libp2p, mucSettingsKey(room.roomName), room)
+    await writeDhtJson(ctx.libp2p, mucSettingsKey(room.roomName), room, DEFAULT_DHT_TTL_MS)
   }))
 
   await writeDhtJson(ctx.libp2p, mucSettingsIndexKey(ctx.libp2p.peerId.toString()), {
     version: 1,
     rooms: rooms.map(room => room.roomName)
-  })
+  }, DEFAULT_DHT_TTL_MS)
 }
 
-/**
- * Appends a stanza to the peer's buffered DHT mailbox.
- *
- * @param libp2p - Active libp2p node.
- * @param peerId - Recipient peer identifier.
- * @param stanza - Stanza to buffer.
- * @returns Nothing.
- */
 export async function bufferStanzaToDht(libp2p: Libp2p, peerId: string, stanza: Element): Promise<void> {
   const key = mailboxKey(peerId)
   let queue = await readDhtJson<string[]>(libp2p, key)
@@ -153,21 +161,15 @@ export async function bufferStanzaToDht(libp2p: Libp2p, peerId: string, stanza: 
     queue = []
   }
   queue.push(stanza.toString())
-  await writeDhtJson(libp2p, key, queue)
+  await writeDhtJson(libp2p, key, queue, MAILBOX_TTL_MS)
 }
 
-/**
- * Flushes buffered stanzas for the local peer when the client becomes active.
- *
- * @param ctx - DHT execution context.
- * @returns Nothing.
- */
 export async function flushDhtMailbox(ctx: XmppDhtContext): Promise<void> {
   const key = mailboxKey(ctx.libp2p.peerId.toString())
   const queue = await readDhtJson<string[]>(ctx.libp2p, key)
   if (Array.isArray(queue) && queue.length > 0) {
-    console.log(`[DEBUG] Transitioned to active. Flushing ${queue.length} stanzas from DHT mailbox...`)
-    await writeDhtJson(ctx.libp2p, key, [])
+    console.log(`[DHT] Transitioned to active. Flushing ${queue.length} stanzas from DHT mailbox...`)
+    await removeDhtKey(ctx.libp2p, key)
 
     for (const xmlStr of queue) {
       try {
@@ -179,7 +181,7 @@ export async function flushDhtMailbox(ctx: XmppDhtContext): Promise<void> {
         parser.write('<stream:stream>')
         parser.write(xmlStr)
       } catch (err) {
-        console.error('[DEBUG] Failed to parse buffered stanza from DHT mailbox:', err)
+        console.error('[DHT] Failed to parse buffered stanza from DHT mailbox:', err)
       }
     }
   }

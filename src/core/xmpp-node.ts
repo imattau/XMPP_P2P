@@ -225,6 +225,11 @@ export interface XmppNodeOptions {
 export class XmppNode extends EventEmitter {
   private libp2p: Libp2p
   private streams = new Map<string, XmppStream>()
+  private peerAddrs = new Map<string, string | Multiaddr>()
+  private reconnectTimers = new Map<string, ReturnType<typeof setTimeout>>()
+  private reconnectAttempts = new Map<string, number>()
+  private readonly maxReconnectDelay = 30000
+  private readonly minReconnectDelay = 1000
   private reliabilityManager = new XmppReliabilityManager()
   public readonly rosterManager: XmppRosterManager
   public get roster() {
@@ -1181,6 +1186,7 @@ export class XmppNode extends EventEmitter {
       throw new Error(`Peer ${peerIdStr} is not connected; provide a multiaddr or establish a stream first`)
     }
 
+    this.peerAddrs.set(peerIdStr, parsed.dialTarget)
     const stream = await this.libp2p.dialProtocol(parsed.dialTarget, ['/xmpp/1.0.0'])
     const xmppStream = new XmppStream(stream, peerIdStr)
     this.registerStream(peerIdStr, xmppStream)
@@ -1188,9 +1194,60 @@ export class XmppNode extends EventEmitter {
     return xmppStream
   }
 
+  private scheduleReconnect(peerId: string) {
+    const existingTimer = this.reconnectTimers.get(peerId)
+    if (existingTimer) {
+      clearTimeout(existingTimer)
+    }
+
+    const attempts = this.reconnectAttempts.get(peerId) ?? 0
+    this.reconnectAttempts.set(peerId, attempts + 1)
+    const delay = Math.min(this.minReconnectDelay * Math.pow(2, attempts), this.maxReconnectDelay)
+
+    const timer = setTimeout(async () => {
+      this.reconnectTimers.delete(peerId)
+      const addr = this.peerAddrs.get(peerId)
+      if (!addr) {
+        this.reconnectAttempts.delete(peerId)
+        return
+      }
+      try {
+        const parsed = this.parsePeerReference(addr)
+        const dialTarget = parsed.dialTarget
+        if (!dialTarget) {
+          console.warn(`[RECONNECT] No dial target for ${peerId}, skipping reconnection`)
+          this.reconnectAttempts.delete(peerId)
+          return
+        }
+        console.log(`[RECONNECT] Attempting reconnection to ${peerId} (attempt ${attempts + 1}, delay ${delay}ms)`)
+        const stream = await this.libp2p.dialProtocol(dialTarget, ['/xmpp/1.0.0'])
+        const xmppStream = new XmppStream(stream, peerId)
+        this.registerStream(peerId, xmppStream)
+        this.reconnectAttempts.delete(peerId)
+        this.emit('stream', { peerId, direction: 'reconnect', stream: xmppStream })
+        console.log(`[RECONNECT] Reconnection to ${peerId} succeeded`)
+      } catch (err) {
+        console.warn(`[RECONNECT] Reconnection to ${peerId} failed:`, err)
+        this.scheduleReconnect(peerId)
+      }
+    }, delay)
+
+    this.reconnectTimers.set(peerId, timer)
+  }
+
+  private cancelReconnect(peerId: string) {
+    const timer = this.reconnectTimers.get(peerId)
+    if (timer) {
+      clearTimeout(timer)
+      this.reconnectTimers.delete(peerId)
+    }
+    this.reconnectAttempts.delete(peerId)
+  }
+
   private registerStream(peerId: string, xmppStream: XmppStream) {
     const existing = this.streams.get(peerId)
     if (existing) {
+      this.cancelReconnect(peerId)
       existing.close()
     }
 
@@ -1217,6 +1274,7 @@ export class XmppNode extends EventEmitter {
         this.streams.delete(peerId)
       }
       this.emit('stream-closed', peerId)
+      this.scheduleReconnect(peerId)
     })
 
     // XEP-0198 negotiation or resumption
@@ -1396,6 +1454,11 @@ export class XmppNode extends EventEmitter {
   // Query 1-to-1 MAM message history from a peer
   async queryChatHistory(targetPeerJid: string, withJid?: string, queryId?: string): Promise<string> {
     return this.chat.queryChatHistory(targetPeerJid, withJid, queryId)
+  }
+
+  // Query MUC MAM message history from a peer
+  async queryMucChatHistory(roomName: string, targetPeerId: string, queryId?: string): Promise<void> {
+    return this.muc.queryHistory(roomName, targetPeerId, queryId)
   }
 
   public get clientState(): 'active' | 'inactive' {
@@ -1753,6 +1816,13 @@ export class XmppNode extends EventEmitter {
       pending.reject(new Error('XmppNode closed before IQ completed'))
     }
     this.pendingIq.clear()
+
+    for (const timer of this.reconnectTimers.values()) {
+      clearTimeout(timer)
+    }
+    this.reconnectTimers.clear()
+    this.reconnectAttempts.clear()
+    this.peerAddrs.clear()
 
     for (const stream of this.streams.values()) {
       await stream.close()

@@ -102,7 +102,8 @@ const helpSections: Record<string, string[]> = {
     '  muc-send <room> <msg>      Send a message to a MUC room',
     '  muc-send-secure <room> <msg> Send an encrypted message to a MUC room',
     '  muc-leave <room>           Leave a MUC room',
-    '  muc-roster <room>          List current room occupants'
+    '  muc-roster <room>          List current room occupants',
+    '  muc-history <room> <peer>  Request MAM message history from a peer'
   ],
   crypto: [
     '  omemo key                  Print local OMEMO key material',

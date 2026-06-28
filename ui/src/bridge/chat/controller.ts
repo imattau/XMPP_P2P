@@ -1,6 +1,5 @@
 import type { XmppRuntimeBridge } from '../runtime'
 import type { ChatAttachment, ChatComposerState, ChatMessage, ChatMessageReply, ChatParticipant, ChatThread } from './types'
-import { appendGroupChatMessage } from '../../pages/chat-session'
 
 type Listener = (state: ChatComposerState) => void
 
@@ -28,6 +27,44 @@ export class ChatBridgeController {
       emojiCategory: 'recent',
       emojiSearch: '',
       selectedAttachments: []
+    }
+
+    if (runtime?.onMessage) {
+      runtime.onMessage((incoming) => {
+        const peerJid = this.chat.handle || this.chat.id
+        if (incoming.from === peerJid || incoming.to === peerJid) {
+          const msg: ChatMessage = {
+            id: incoming.id,
+            senderId: incoming.from,
+            senderName: incoming.from.split('@')[0],
+            content: incoming.body,
+            timestamp: incoming.delay?.stamp
+              ? new Date(incoming.delay.stamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            kind: 'text',
+            delivered: true
+          }
+          this.state = {
+            ...this.state,
+            messages: [...this.state.messages, msg]
+          }
+          this.emit()
+        }
+      })
+    }
+
+    if (runtime?.onPresence) {
+      runtime.onPresence((presence) => {
+        const isAvailable = presence.type !== 'unavailable'
+        const updatedParticipants = this.chat.participants.map((p) => {
+          if (p.handle === presence.from || p.id === presence.from) {
+            return { ...p, online: isAvailable }
+          }
+          return p
+        })
+        this.chat.participants = updatedParticipants
+        this.emit()
+      })
     }
   }
 
@@ -188,23 +225,8 @@ export class ChatBridgeController {
       }
     }
 
-    if (this.chat.type === 'group') {
-      const persistedMessage = nextMessages[nextMessages.length - 1]
-      appendGroupChatMessage(this.chat.id, {
-        id: persistedMessage.id,
-        kind: persistedMessage.kind,
-        senderId: persistedMessage.senderId,
-        senderName: persistedMessage.senderName,
-        senderAvatar: persistedMessage.senderAvatar,
-        content: persistedMessage.content,
-        timestamp: persistedMessage.timestamp,
-        delivered: persistedMessage.delivered,
-        read: persistedMessage.read,
-        thread: persistedMessage.thread,
-        fileName: persistedMessage.fileName,
-        attachments: persistedMessage.attachments
-      })
-    }
+    // Group message persistence can be wired via the ChatBridgeController callback
+    // if needed. The old circular import from pages/chat-session has been removed.
 
     this.state = {
       ...this.state,

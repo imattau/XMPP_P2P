@@ -8,6 +8,7 @@ import { join } from 'path'
 import { createP2PNode } from './core/p2p.js'
 import { XmppNode } from './core/xmpp-node.js'
 import { NodeSqliteStorage } from './core/storage/node-sqlite-storage.js'
+import { EncryptedStorage } from './core/storage/encrypted-storage.js'
 import { startCli } from './cli/session.js'
 import { getPackageVersion, parseCliStartupArgs, printCliUsage } from './cli/startup.js'
 
@@ -40,12 +41,37 @@ async function main() {
     process.exit(0)
   }
 
-  const storage = new NodeSqliteStorage(
+  const innerStorage = new NodeSqliteStorage(
     startupOptions.sqlitePath ?? process.env.XMPP_SQLITE_PATH ?? join(process.cwd(), 'data', 'state.sqlite')
   )
 
+  const passphrase = startupOptions.passphrase ?? process.env.XMPP_PASSPHRASE
+  let storage = innerStorage as any
+
+  if (passphrase) {
+    const encrypted = new EncryptedStorage(innerStorage)
+    const isEncrypted = await encrypted.isStorageEncrypted()
+    if (!isEncrypted) {
+      await encrypted.initialize(passphrase)
+      console.log('Key storage encryption initialized (existing unencrypted records will migrate on next write)')
+    } else {
+      const valid = await encrypted.verifyPassphrase(passphrase)
+      if (!valid) {
+        console.error('Invalid passphrase — cannot decrypt local key storage')
+        process.exit(1)
+      }
+      await encrypted.initialize(passphrase)
+      console.log('Key storage unlocked')
+    }
+    storage = encrypted
+  }
+
   console.log('Initializing libp2p Node...')
-  const libp2p = await createP2PNode(startupOptions.port, { host: startupOptions.host })
+  const libp2p = await createP2PNode(startupOptions.port, {
+    host: startupOptions.host,
+    enableRelay: startupOptions.enableRelay,
+    enableWebRTC: startupOptions.enableWebRTC
+  })
 
   await libp2p.start()
   console.log('libp2p Node started!')

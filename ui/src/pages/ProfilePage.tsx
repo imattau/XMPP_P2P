@@ -1,11 +1,14 @@
 import * as React from 'react'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
+import { useNavigate } from 'react-router'
 import {
   Settings, Shield, Lock, Globe, Hash, Users, Heart,
   MessageCircle, Repeat2, Bookmark, Edit3, Link2,
   MapPin, Calendar, Zap, ChevronRight, Copy, Check,
-  QrCode, Bell, LogOut, Moon,
+  QrCode, Camera, Loader2,
 } from 'lucide-react'
+import { useProfileBridge, type EditableVCard } from '../bridge/useProfileBridge'
+import { InlineEdit } from '../components/InlineEdit'
 
 type ProfileTab = 'posts' | 'topics' | 'communities' | 'bookmarks'
 
@@ -56,10 +59,49 @@ const TABS: { id: ProfileTab; label: string }[] = [
 ]
 
 export default function ProfilePage() {
+  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<ProfileTab>('posts')
   const [posts, setPosts] = useState<ProfilePost[]>(PROFILE_POSTS)
   const [copied, setCopied] = useState(false)
-  const [showSettings, setShowSettings] = useState(false)
+  const [showEdit, setShowEdit] = useState(false)
+  const [editForm, setEditForm] = useState<EditableVCard | null>(null)
+  const [editError, setEditError] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const { vCard, loading, saving, save } = useProfileBridge()
+
+  const openEdit = () => {
+    setEditForm(vCard ? { ...vCard } : { fn: '', nickname: '' })
+    setShowEdit(true)
+    setEditError('')
+  }
+
+  const handleAvatarPick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      const binval = (reader.result as string).split(',')[1]
+      setEditForm((prev) => prev ? { ...prev, photo: { type: file.type, binval } } : prev)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleSave = async () => {
+    if (!editForm) return
+    setEditError('')
+    const ok = await save(editForm)
+    if (ok) {
+      setShowEdit(false)
+    } else {
+      setEditError('Failed to save profile. The bridge may be unavailable.')
+    }
+  }
+
+  const handleCancel = () => {
+    setShowEdit(false)
+    setEditForm(null)
+    setEditError('')
+  }
 
   const handleCopy = () => {
     setCopied(true)
@@ -85,28 +127,49 @@ export default function ProfilePage() {
           <button className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
             <QrCode size={17} />
           </button>
-          <button onClick={() => setShowSettings((v) => !v)}
-            className={`p-2 rounded-lg transition-colors ${showSettings ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-white/5'}`}>
+          <button onClick={() => navigate('/settings')}
+            className="p-2 rounded-lg transition-colors text-muted-foreground hover:text-foreground hover:bg-white/5">
             <Settings size={17} />
           </button>
         </div>
       </header>
 
-      {showSettings && (
-        <div className="border-b border-border bg-card flex-shrink-0">
-          {[
-            { icon: Edit3, label: 'Edit profile' },
-            { icon: Bell, label: 'Notifications' },
-            { icon: Lock, label: 'Privacy & security' },
-            { icon: Moon, label: 'Appearance' },
-            { icon: LogOut, label: 'Sign out', danger: true },
-          ].map(({ icon: Icon, label, danger }) => (
-            <button key={label} className={`w-full flex items-center gap-3 px-4 py-3 border-b border-border last:border-0 transition-colors hover:bg-secondary text-left ${danger ? 'text-destructive' : 'text-foreground/80'}`}>
-              <Icon size={15} />
-              <span className="text-sm">{label}</span>
-              <ChevronRight size={14} className="ml-auto text-muted-foreground/40" />
+      {showEdit && editForm && (
+        <div className="border-b border-border bg-card flex-shrink-0 px-4 py-3 space-y-3">
+          {editError && <p className="text-destructive text-xs font-mono">{editError}</p>}
+          <InlineEdit label="Display Name" value={editForm.fn} onChange={(e: any) => setEditForm((prev: any) => prev ? { ...prev, fn: e.target.value } : prev)} placeholder="Your display name" />
+          <InlineEdit label="Nickname" value={editForm.nickname} onChange={(e: any) => setEditForm((prev: any) => prev ? { ...prev, nickname: e.target.value } : prev)} placeholder="Your nickname" />
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-mono text-muted-foreground">Avatar</label>
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full overflow-hidden bg-secondary border border-border flex-shrink-0">
+                {editForm.photo ? (
+                  <img src={`data:${editForm.photo.type};base64,${editForm.photo.binval}`} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-muted-foreground"><Camera size={16} /></div>
+                )}
+              </div>
+              <button onClick={() => fileInputRef.current?.click()} className="text-xs font-mono text-primary hover:underline">
+                {editForm.photo ? 'Change' : 'Upload photo'}
+              </button>
+              {editForm.photo && (
+                <button onClick={() => setEditForm((prev: any) => prev ? { ...prev, photo: null } : prev)} className="text-xs font-mono text-destructive hover:underline">
+                  Remove
+                </button>
+              )}
+            </div>
+          </div>
+          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarPick} />
+          <div className="flex items-center gap-2 pt-1">
+            <button onClick={handleSave} disabled={saving}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-white text-xs font-mono hover:bg-primary/90 transition-colors disabled:opacity-50">
+              {saving && <Loader2 size={12} className="animate-spin" />}
+              {saving ? 'Saving...' : 'Save'}
             </button>
-          ))}
+            <button onClick={handleCancel} className="px-4 py-2 rounded-lg border border-border text-xs font-mono text-muted-foreground hover:text-foreground transition-colors">
+              Cancel
+            </button>
+          </div>
         </div>
       )}
 
@@ -117,29 +180,35 @@ export default function ProfilePage() {
             <div className="flex items-end justify-between -mt-6 mb-3">
               <div className="relative">
                 <div className="w-16 h-16 rounded-full border-4 border-background overflow-hidden bg-secondary">
-                  <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=96&h=96&fit=crop&auto=format" alt="Profile" className="w-full h-full object-cover" />
+                  {vCard?.photo ? (
+                    <img src={`data:${vCard.photo.type};base64,${vCard.photo.binval}`} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-2xl text-muted-foreground">
+                      {(vCard?.fn || '?')[0].toUpperCase()}
+                    </div>
+                  )}
                 </div>
                 <span className="absolute bottom-1 right-1 w-3 h-3 rounded-full bg-accent border-2 border-background" />
               </div>
-              <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-[12px] font-mono text-muted-foreground hover:text-foreground hover:border-foreground/20 transition-colors">
+              <button onClick={openEdit} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-[12px] font-mono text-muted-foreground hover:text-foreground hover:border-foreground/20 transition-colors">
                 <Edit3 size={12} />Edit
               </button>
             </div>
 
             <div className="mb-3">
               <div className="flex items-center gap-1.5 mb-0.5">
-                <h1 className="text-base font-bold text-foreground leading-tight">You</h1>
+                <h1 className="text-base font-bold text-foreground leading-tight">{vCard?.fn || vCard?.nickname || 'You'}</h1>
                 <Shield size={13} className="text-primary" />
                 <span className="text-xs font-mono text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">OMEMO</span>
               </div>
               <div className="flex items-center gap-1 mb-2">
-                <span className="font-mono text-xs text-muted-foreground">@you@jabber.de</span>
+                <span className="font-mono text-xs text-muted-foreground">{vCard?.nickname ? `@${vCard.nickname}` : '@you'}</span>
                 <button onClick={handleCopy} className="p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors">
                   {copied ? <Check size={11} className="text-accent" /> : <Copy size={11} />}
                 </button>
               </div>
               <p className="text-sm text-foreground/80 leading-relaxed">
-                Building the open web one protocol at a time. XMPP + ActivityPub enthusiast. Federated or bust.
+                {loading ? 'Loading...' : 'Building the open web one protocol at a time.'}
               </p>
             </div>
 

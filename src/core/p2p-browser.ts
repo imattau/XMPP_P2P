@@ -12,7 +12,7 @@ import { circuitRelayTransport } from '@libp2p/circuit-relay-v2'
 import { noise } from '@libp2p/noise'
 import { yamux } from '@libp2p/yamux'
 import { bootstrap } from '@libp2p/bootstrap'
-import { createBaseLibp2pServices } from './p2p.js'
+import { createBaseLibp2pServices } from './p2p-base.js'
 
 export interface CreateBrowserP2PNodeOptions {
   bootstrapAddrs: string[]

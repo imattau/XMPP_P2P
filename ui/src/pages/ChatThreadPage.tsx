@@ -2,6 +2,7 @@ import * as React from 'react'
 import { useState, useRef, useEffect, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { getBrowserXmppBridge, useChatBridge, type ChatAttachment as BridgeChatAttachment, type ChatMessage as BridgeChatMessage, type ChatMessageReply as BridgeChatMessageReply, type ChatThread as BridgeChatThread } from '../bridge'
+import { useRosterBridge } from '../bridge/useRosterBridge'
 import { getGroupChatSession, removeGroupChatSession, updateGroupChatSession } from './chat-session'
 import {
   ArrowLeft, Phone, Video, Info, X, Send, Smile, Paperclip,
@@ -582,10 +583,24 @@ export default function ChatThreadPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const groupSession = useMemo(() => getGroupChatSession(id), [id])
-  const chat = useMemo(
+  const { onlinePeers } = useRosterBridge()
+  const mockChat = useMemo(
     () => (groupSession?.chat ?? CHATS[id ?? ''] ?? CHATS['1']) as ChatData,
     [groupSession, id]
   )
+  const chat = useMemo(() => {
+    const c = { ...mockChat }
+    if (c.handle && onlinePeers.has(c.handle)) {
+      c.online = true
+    }
+    if (c.participants) {
+      c.participants = c.participants.map((p: any) => ({
+        ...p,
+        online: onlinePeers.has(p.handle) || onlinePeers.has(`${p.handle}@${p.server}`) || p.online
+      }))
+    }
+    return c
+  }, [mockChat, onlinePeers])
   const initialMessages = useMemo(
     () => groupSession?.messages ?? MESSAGES[id ?? ''] ?? MESSAGES['1'] ?? [],
     [groupSession, id]
@@ -663,7 +678,7 @@ export default function ChatThreadPage() {
     return () => {
       cancelled = true
     }
-  }, [groupSession?.chat.id])
+  }, [mockChat.id])
 
   const isMine = (msg: Message) => msg.senderId === ME
   const showAvatar = (i: number) => {

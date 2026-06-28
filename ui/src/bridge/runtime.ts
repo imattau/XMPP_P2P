@@ -120,7 +120,7 @@ export interface XmppRuntimeBridge {
   ): Promise<string>
   react(topic: string, targetId: string, reaction: string): Promise<string>
   notice(topic: string, targetId: string, value?: string): Promise<string>
-  createPrivateMucRoom?(
+  createPrivateMucRoom(
     roomName: string,
     options?: {
       topic?: string
@@ -130,9 +130,9 @@ export interface XmppRuntimeBridge {
       archived?: boolean
     }
   ): Promise<{ roomName: string; roomJid: string }>
-  getMucRoomSettings?(roomName: string): Promise<BridgeMucRoomSettings | undefined>
-  updateMucRoomSettings?(roomName: string, settings: BridgeMucRoomSettings): Promise<void>
-  sendChatMessage?(
+  getMucRoomSettings(roomName: string): Promise<BridgeMucRoomSettings | undefined>
+  updateMucRoomSettings(roomName: string, settings: BridgeMucRoomSettings): Promise<void>
+  sendChatMessage(
     target: BridgeChatTarget,
     body: string,
     options?: {
@@ -149,6 +149,11 @@ export interface XmppRuntimeBridge {
   setVCard(profile: BridgeVCard): Promise<BridgeVCard>
   broadcastPresence(type?: BridgePresenceType, status?: string, show?: string, nickname?: string): Promise<void>
   getRosterEntries(): Promise<Array<{ jid: string; name?: string; nickname?: string; updatedAt: string }>>
+
+  onMessage(cb: (msg: { from: string; to: string; body: string; id: string; type?: string; encrypted?: boolean; delay?: { stamp: string; from?: string } }) => void): () => void
+  onPresence(cb: (presence: { from: string; to: string; type?: string; show?: string; status?: string; nickname?: string }) => void): () => void
+  onFeedPost(cb: (post: BridgeFeedPostRecord) => void): () => void
+  onConnectionChange(cb: (peerId: string, connected: boolean) => void): () => void
 }
 
 declare global {

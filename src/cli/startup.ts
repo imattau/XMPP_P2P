@@ -13,6 +13,9 @@ export type CliStartupOptions = {
   port?: number
   host?: string
   sqlitePath?: string
+  passphrase?: string
+  enableRelay?: boolean
+  enableWebRTC?: boolean
   helpRequested: boolean
   versionRequested: boolean
   errors: string[]
@@ -118,6 +121,21 @@ export const parseCliStartupArgs = (args: string[]): CliStartupOptions => {
         }
         break
       }
+      case '--passphrase': {
+        const value = takeValue()
+        if (value) {
+          options.passphrase = value
+        }
+        break
+      }
+      case '--relay': {
+        options.enableRelay = true
+        break
+      }
+      case '--webrtc': {
+        options.enableWebRTC = true
+        break
+      }
       default:
         if (arg.startsWith('--')) {
           options.errors.push(`Unknown option: ${arg}`)
@@ -148,6 +166,9 @@ export const printStartupUsage = (title: string, launchCommand: string, footer: 
   console.log('  --port=<port>         Bind libp2p to a specific TCP port')
   console.log('  --host=<host>         Bind libp2p to a specific host')
   console.log('  --sqlite-path=<path>  Load and persist all XMPP state from a SQLite database file')
+  console.log('  --passphrase=<pass>   Passphrase to encrypt/decrypt local private key storage')
+  console.log('  --relay               Enable circuit relay server for browser peers')
+  console.log('  --webrtc              Enable WebRTC transport for Node <-> browser connections')
   console.log('  --help, -h            Show this message and exit')
   console.log('  --version, -v         Print the CLI version and exit')
   console.log('')
@@ -162,7 +183,7 @@ export const printStartupUsage = (title: string, launchCommand: string, footer: 
 export const printCliUsage = () => {
   printStartupUsage(
     'XMPP over libp2p CLI',
-    'npm start -- [--port=<port>] [--host=<host>] [--sqlite-path=<path>]',
+    'npm start -- [--port=<port>] [--host=<host>] [--sqlite-path=<path>] [--passphrase=<pass>] [--relay] [--webrtc]',
     'Start the CLI, then type `help` for interactive commands.'
   )
 }

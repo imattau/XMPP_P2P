@@ -1,4 +1,4 @@
-import type { XmppRuntimeBridge } from '../runtime'
+import type { XmppRuntimeBridge, BridgeVisibility } from '../runtime'
 import type { FeedFilterType, FeedPost, FeedViewState, TrendingTopic } from './types'
 import {
   cloneSeedPosts,
@@ -26,6 +26,16 @@ export class FeedBridgeController {
       activeFilter: 'all',
       searchOpen: false,
       searchQuery: ''
+    }
+
+    if (runtime?.onFeedPost) {
+      runtime.onFeedPost((post) => {
+        this.state = {
+          ...this.state,
+          posts: [mapRuntimePost(post as any), ...this.state.posts]
+        }
+        this.emit()
+      })
     }
   }
 

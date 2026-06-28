@@ -6,6 +6,7 @@ import TopicsPage from '../pages/TopicsPage'
 import TopicFeedPage from '../pages/TopicFeedPage'
 import ComposePage from '../pages/ComposePage'
 import ProfilePage from '../pages/ProfilePage'
+import SettingsPage from '../pages/SettingsPage'
 import CreateCommunityPage from '../pages/CreateCommunityPage'
 import PostPage from '../pages/PostPage'
 import ChatThreadPage from '../pages/ChatThreadPage'
@@ -27,7 +28,8 @@ export const router = createBrowserRouter([
       { path: 'chats/new', Component: NewChatPage },
       { path: 'chat/:id', Component: ChatThreadPage },
       { path: 'chat', Component: ChatThreadPage },
-      { path: 'profile', Component: ProfilePage }
+      { path: 'profile', Component: ProfilePage },
+      { path: 'settings', Component: SettingsPage }
     ]
   }
 ])
