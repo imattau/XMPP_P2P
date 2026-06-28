@@ -694,37 +694,46 @@ ${domain} {
 }"
 	write_managed_file "$snippet_file" "$content"
 
-	# Remove any old import lines from previous deployments so they don't
-	# conflict with the current import strategy.
-	if [[ -f "$main_file" ]]; then
-		sudo_run sed -i -E "/^import (\/etc\/caddy\/(conf\.d|Caddyfile\.d)\/\*\.caddy|\/etc\/caddy\/${SERVICE_NAME}\.caddy)$/d" "$main_file"
-	fi
-
 	if [[ ! -f "$main_file" ]]; then
 		write_managed_file "$main_file" "${managed_marker}
 ${import_line}"
-	elif grep -qF "$managed_marker" "$main_file" 2>/dev/null; then
+		return 0
+	fi
+
+	# If the Caddyfile already imports our file or snippet directory,
+	# there's nothing more to do.
+	if grep -qE '^[[:space:]]*import[[:space:]].*(/etc/caddy/)?(conf\.d|Caddyfile\.d)/\*\.caddy' "$main_file" \
+		|| grep -qF "import /etc/caddy/${SERVICE_NAME}.caddy" "$main_file"; then
+		log "Caddyfile already imports our snippet; leaving it unchanged"
+		if command -v caddy >/dev/null 2>&1; then
+			sudo_run caddy validate --config "$main_file"
+		fi
+		remote_step_done
+		return 0
+	fi
+
+	# If the Caddyfile was previously created by us, add the import line.
+	if grep -qF "$managed_marker" "$main_file" 2>/dev/null; then
 		log "Caddyfile is managed by xmpp-p2p; adding import"
 		local current_content
 		current_content="$(sudo_run cat "$main_file")"
 		write_managed_file "$main_file" "${current_content}
 
 ${import_line}"
-	else
-		log "appending import to existing Caddyfile"
-		local current_content
-		current_content="$(sudo_run cat "$main_file")"
-		sudo_run cp "$main_file" "${main_file}.bak.${SERVICE_NAME}"
-		local tmp
-		tmp="$(mktemp)"
-		printf '%s\n\n%s\n' "$current_content" "$import_line" >"$tmp"
-		sudo_run install -m 0644 "$tmp" "$main_file"
-		rm -f "$tmp"
+		if command -v caddy >/dev/null 2>&1; then
+			sudo_run caddy validate --config "$main_file"
+		fi
+		remote_step_done
+		return 0
 	fi
 
-	if command -v caddy >/dev/null 2>&1; then
-		sudo_run caddy validate --config "$main_file"
-	fi
+	# Unmanaged Caddyfile with no existing import — write our snippet file
+	# but do NOT modify the main Caddyfile. The config is live at the
+	# snippet path; the admin must add the import manually.
+	warn "existing Caddyfile is not managed by xmpp-p2p"
+	warn "snippet written to ${snippet_file}"
+	warn "add this line to ${main_file} if needed:"
+	warn "  ${import_line}"
 	remote_step_done
 }
 
