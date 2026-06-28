@@ -5,10 +5,19 @@ import {
   Heart, MessageCircle, Repeat2, Share2, Bookmark,
   Search, Bell, Settings, Hash, Users, Rss,
   ChevronDown, MoreHorizontal, Shield, Zap, Globe,
-  Lock, Filter, X, Home,
+  Lock, Filter, X, Home, Send, Plus,
 } from 'lucide-react'
 import { type FeedFilterType, type FeedPost, type FeedSortOrder, useFeedBridge, getBrowserXmppBridge } from '../bridge'
 import TrendingTopics from '../components/TrendingTopics'
+import { useArticleBridge } from '../bridge/article/useArticleBridge'
+import ArticleCard from '../components/article/ArticleCard'
+
+const COMMUNITIES = [
+  { name: 'OpenSourceDev', icon: '⚙️' },
+  { name: 'WeeklyDevChat', icon: '💬' },
+  { name: 'FediDev', icon: '🌐' },
+  { name: 'Infra Team', icon: '🔧' },
+]
 
 function formatCount(n: number) {
   if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k'
@@ -235,6 +244,35 @@ const FEED_FILTERS: { id: FeedFilterType; label: string; icon: React.ComponentTy
 export default function FeedPage() {
   const navigate = useNavigate()
   const [unreadNotifications, setUnreadNotifications] = useState(0)
+  const [quickPostText, setQuickPostText] = useState('')
+  const [quickPostType, setQuickPostType] = useState<'post' | 'community'>('post')
+  const [selectedCommunity, setSelectedCommunity] = useState('')
+  const [showCommunityPicker, setShowCommunityPicker] = useState(false)
+  const communityRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (communityRef.current && !communityRef.current.contains(e.target as Node)) {
+        setShowCommunityPicker(false)
+      }
+    }
+    if (showCommunityPicker) document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [showCommunityPicker])
+
+  const handleQuickPost = () => {
+    if (!quickPostText.trim()) return
+    const bridge = getBrowserXmppBridge()
+    if (!bridge) return
+
+    if (quickPostType === 'community' && selectedCommunity) {
+      bridge.publishCollection(selectedCommunity, quickPostText.trim()).catch(() => {})
+    } else {
+      bridge.publishFeed(quickPostText.trim()).catch(() => {})
+    }
+
+    setQuickPostText('')
+  }
   const {
     loading,
     filteredPosts,
@@ -253,6 +291,7 @@ export default function FeedPage() {
     bookmarkPost,
     trendingTopics,
   } = useFeedBridge()
+  const { articles, toggleBookmark } = useArticleBridge()
 
   useEffect(() => {
     const bridge = getBrowserXmppBridge()
@@ -314,6 +353,93 @@ export default function FeedPage() {
           </div>
         )}
 
+        <div className="border-b border-border">
+          <div className="flex items-center gap-3 px-4 py-3">
+            <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-sm font-semibold text-muted-foreground flex-shrink-0">
+              Y
+            </div>
+            <div className="flex-1 min-w-0">
+              <input
+                value={quickPostText}
+                onChange={(e) => setQuickPostText(e.target.value)}
+                placeholder={quickPostType === 'community' && selectedCommunity ? `Post to ${selectedCommunity}…` : "What's on your mind?"}
+                className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && quickPostText.trim()) {
+                    handleQuickPost()
+                  }
+                }}
+              />
+              <div className="flex items-center gap-2 mt-1">
+                <div className="flex items-center gap-0.5">
+                  <button
+                    onClick={() => setQuickPostType('post')}
+                    className={`text-[10px] font-mono px-1.5 py-0.5 rounded transition-colors ${
+                      quickPostType === 'post'
+                        ? 'text-primary bg-primary/10'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    Post
+                  </button>
+                  <button
+                    onClick={() => setQuickPostType('community')}
+                    className={`text-[10px] font-mono px-1.5 py-0.5 rounded transition-colors ${
+                      quickPostType === 'community'
+                        ? 'text-amber-400 bg-amber-400/10'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    Community
+                  </button>
+                </div>
+                {quickPostType === 'community' && (
+                  <div ref={communityRef} className="relative">
+                    <button
+                      onClick={() => setShowCommunityPicker(!showCommunityPicker)}
+                      className="flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {selectedCommunity || 'Select community'}
+                      <ChevronDown size={10} />
+                    </button>
+                    {showCommunityPicker && (
+                      <div className="absolute top-full left-0 mt-1 w-40 rounded-lg border border-border bg-card shadow-lg z-10 overflow-hidden">
+                        {COMMUNITIES.map((c) => (
+                          <button
+                            key={c.name}
+                            onClick={() => { setSelectedCommunity(c.name); setShowCommunityPicker(false) }}
+                            className={`w-full flex items-center gap-2 px-3 py-2 text-xs transition-colors hover:bg-secondary ${
+                              selectedCommunity === c.name ? 'text-amber-400' : 'text-foreground/80'
+                            }`}
+                          >
+                            <span>{c.icon}</span>
+                            {c.name}
+                          </button>
+                        ))}
+                        <button
+                          onClick={() => { setShowCommunityPicker(false); navigate('/communities/new') }}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-primary hover:bg-secondary transition-colors border-t border-border"
+                        >
+                          <Plus size={12} />
+                          New community
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={handleQuickPost}
+              disabled={!quickPostText.trim() || (quickPostType === 'community' && !selectedCommunity)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
+            >
+              <Send size={12} />
+              Post
+            </button>
+          </div>
+        </div>
+
         <div className="flex border-t border-border">
           {FEED_FILTERS.map((f) => {
             const Icon = f.icon
@@ -372,16 +498,36 @@ export default function FeedPage() {
           </div>
         ) : (
           <>
-            {filteredPosts.map((post) => (
-              <PostCard
-                key={post.id}
-                post={post}
-                onReact={(id, emoji) => reactPost(id, emoji ?? '❤️')}
-                onRepost={repostPost}
-                onBookmark={bookmarkPost}
-                onOpen={(id) => navigate(`/post/${id}`)}
-              />
-            ))}
+            {filteredPosts.reduce<React.ReactNode[]>((acc, post, index) => {
+              acc.push(
+                <PostCard
+                  key={post.id}
+                  post={post}
+                  onReact={(id, emoji) => reactPost(id, emoji ?? '❤️')}
+                  onRepost={repostPost}
+                  onBookmark={bookmarkPost}
+                  onOpen={(id) => navigate(`/post/${id}`)}
+                />
+              )
+
+              if (index > 0 && index % 5 === 0 && articles.length > 0) {
+                const articleIndex = Math.floor(index / 5) - 1
+                const article = articles.filter((a) => a.status === 'published')[articleIndex]
+                if (article) {
+                  acc.push(
+                    <ArticleCard
+                      key={`article-${article.id}`}
+                      article={article}
+                      variant="feed"
+                      onBookmark={(id) => toggleBookmark(id)}
+                      onClick={(id) => navigate(`/article/${id}`)}
+                    />
+                  )
+                }
+              }
+
+              return acc
+            }, [])}
             <div className="py-8 flex items-center justify-center">
               {hasMore ? (
                 <button onClick={() => loadMore()} disabled={loading}

@@ -1,12 +1,13 @@
 import { NavLink } from 'react-router'
-import { Home, Hash, PlusSquare, MessageCircle, User, Users, Settings, Zap } from 'lucide-react'
+import { Home, Hash, PlusSquare, MessageCircle, User, Users, Settings, Zap, FileText } from 'lucide-react'
 import { useConnectionBridge } from '../bridge/useConnectionBridge'
 import { useIdentityBridge } from '../bridge/identity/useIdentityBridge'
 
 const NAV = [
   { to: '/', icon: Home, label: 'Feed' },
   { to: '/topics', icon: Hash, label: 'Topics' },
-  { to: '/compose', icon: PlusSquare, label: 'Compose' },
+  { to: '/compose', icon: PlusSquare, label: 'Write' },
+  { to: '/drafts', icon: FileText, label: 'Drafts' },
   { to: '/chats', icon: MessageCircle, label: 'Chats' },
   { to: '/contacts', icon: Users, label: 'Contacts' },
   { to: '/profile', icon: User, label: 'Profile' },

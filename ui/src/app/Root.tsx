@@ -1,6 +1,6 @@
 import { Suspense, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router'
-import { Home, Hash, PlusSquare, MessageCircle, User, Zap } from 'lucide-react'
+import { Home, Hash, PlusSquare, MessageCircle, User, Zap, FileText } from 'lucide-react'
 import { getBrowserXmppBridge } from '../bridge/runtime'
 import NavigationSidebar from '../components/NavigationSidebar'
 import { useConnectionBridge } from '../bridge/useConnectionBridge'
@@ -22,7 +22,7 @@ function PageLoader() {
 const NAV = [
   { to: '/', icon: Home, label: 'Feed' },
   { to: '/topics', icon: Hash, label: 'Topics' },
-  { to: '/compose', icon: PlusSquare, label: 'Post' },
+  { to: '/compose', icon: PlusSquare, label: 'Write' },
   { to: '/chats', icon: MessageCircle, label: 'Chats' },
   { to: '/profile', icon: User, label: 'Profile' }
 ]
