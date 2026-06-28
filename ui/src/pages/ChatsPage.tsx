@@ -4,11 +4,12 @@ import { useNavigate } from 'react-router'
 import { listGroupChatSessions } from './chat-session'
 import { getBrowserXmppBridge } from '../bridge/runtime'
 import { useRosterBridge } from '../bridge/useRosterBridge'
+import ConversationDetails from '../components/ConversationDetails'
 import {
   Search, Settings, Hash, Users, Shield, Zap, Lock,
   User, MessageCircle, CheckCheck, Check, Clock, Pin,
   BellOff, ChevronDown, Edit3, Mic, Image, FileText, X,
-  Filter,
+  Filter, ArrowLeft, Maximize2, Smile, Send,
 } from 'lucide-react'
 
 type ChatType = 'direct' | 'group' | 'muc'
@@ -281,6 +282,7 @@ export default function ChatsPage() {
   const [activeFilter, setActiveFilter] = useState<FilterType>('all')
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [selectedChatId, setSelectedChatId] = useState<string | null>(null)
   const privateGroupChats = buildPrivateGroupChatRows()
   const chats = [...privateGroupChats, ...CHATS]
   const { contacts, onlinePeers } = useRosterBridge()
@@ -327,9 +329,17 @@ export default function ChatsPage() {
   }))
   const onlineContacts = rosterOnlineContacts.length > 0 ? rosterOnlineContacts : mockOnlineContacts
 
+  const selectedChat = selectedChatId ? chats.find((c) => c.id === selectedChatId) ?? null : null
+
+  const handleChatClick = (chatId: string) => {
+    setSelectedChatId(chatId)
+    navigate(`/chat/${chatId}`)
+  }
+
   return (
-    <div className="flex flex-col flex-1 overflow-hidden">
-      <header className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border flex-shrink-0">
+    <div className="flex flex-1 min-h-0">
+      <div className="flex flex-col flex-1 md:max-w-[420px] md:border-r md:border-border overflow-hidden">
+        <header className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border flex-shrink-0">
         <div className="flex items-center justify-between px-4 py-2.5">
           <div>
             <div className="text-[18px] font-semibold tracking-tight text-foreground leading-tight">Messages</div>
@@ -480,6 +490,76 @@ export default function ChatsPage() {
           </>
         )}
       </main>
+    </div>
+
+      <div className="hidden md:flex flex-col flex-1 min-w-0">
+        {selectedChat ? (
+          <DesktopChatThread chat={selectedChat} onBack={() => setSelectedChatId(null)} />
+        ) : (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center mx-auto mb-3">
+                <MessageCircle size={20} className="text-muted-foreground" />
+              </div>
+              <p className="text-sm text-muted-foreground">Select a conversation</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <ConversationDetails chat={selectedChat ? { type: selectedChat.type, name: selectedChat.name, handle: selectedChat.handle, avatar: (selectedChat as any).avatar, server: selectedChat.server, encrypted: selectedChat.encrypted, online: selectedChat.online, verified: (selectedChat as any).verified, muted: selectedChat.muted, memberCount: (selectedChat as any).memberCount, topic: (selectedChat as any).topic } : null} />
+    </div>
+  )
+}
+
+function DesktopChatThread({ chat, onBack }: { chat: Chat; onBack: () => void }) {
+  const navigate = useNavigate()
+  return (
+    <div className="flex flex-col flex-1 overflow-hidden">
+      <header className="flex items-center gap-3 px-4 py-2.5 border-b border-border bg-background/95 backdrop-blur flex-shrink-0">
+        <button onClick={onBack} className="md:hidden p-1 rounded-lg text-muted-foreground hover:text-foreground">
+          <ArrowLeft size={18} />
+        </button>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5">
+            <span className="text-sm font-semibold text-foreground truncate">{chat.name}</span>
+            {chat.verified && <Shield size={11} className="text-primary flex-shrink-0" />}
+            {chat.encrypted && <Lock size={9} className="text-accent flex-shrink-0" />}
+          </div>
+          <div className="flex items-center gap-2 text-[11px] font-mono text-muted-foreground">
+            <span className={`w-1.5 h-1.5 rounded-full ${chat.online ? 'bg-accent' : 'bg-muted-foreground/40'}`} />
+            <span>{chat.online ? 'Online' : 'Offline'}</span>
+            {chat.encrypted && <><span>·</span><span>Encrypted</span></>}
+          </div>
+        </div>
+        <button onClick={() => navigate(`/chat/${chat.id}`)} className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
+          <Maximize2 size={16} />
+        </button>
+      </header>
+
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+        <div className="flex justify-start">
+          <div className="max-w-[75%] rounded-2xl px-4 py-2.5 bg-secondary">
+            <p className="text-sm text-foreground/90">{chat.lastMessage.text}</p>
+          </div>
+        </div>
+        <div className="flex justify-end">
+          <div className="max-w-[75%] rounded-2xl px-4 py-2.5 bg-blue2">
+            <p className="text-sm text-foreground/90">Sounds good, I'll take a look.</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="px-4 py-3 border-t border-border">
+        <div className="flex items-center gap-2 bg-secondary rounded-xl px-4 py-2.5">
+          <input
+            placeholder="Write a message..."
+            className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
+          />
+          <button className="p-1 text-muted-foreground hover:text-foreground"><Smile size={18} /></button>
+          <button className="p-1 text-muted-foreground hover:text-foreground"><Send size={18} /></button>
+        </div>
+      </div>
     </div>
   )
 }

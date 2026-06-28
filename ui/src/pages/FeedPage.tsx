@@ -7,6 +7,7 @@ import {
   Lock, Filter, X, Home,
 } from 'lucide-react'
 import { type FeedFilterType, type FeedPost, useFeedBridge } from '../bridge'
+import TrendingTopics from '../components/TrendingTopics'
 
 function formatCount(n: number) {
   if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k'
@@ -158,10 +159,12 @@ export default function FeedPage() {
     reactPost,
     repostPost,
     bookmarkPost,
+    trendingTopics,
   } = useFeedBridge()
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden">
+    <div className="flex flex-1 min-h-0">
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
       <header className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border flex-shrink-0">
         <div className="flex items-center justify-between px-4 py-2.5">
           <div>
@@ -270,6 +273,8 @@ export default function FeedPage() {
           </>
         )}
       </main>
+    </div>
+      <TrendingTopics topics={trendingTopics} />
     </div>
   )
 }
