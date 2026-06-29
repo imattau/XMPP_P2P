@@ -300,6 +300,7 @@ export async function handlePubSubMessageElement(topic: string, element: Element
         body: bodyEl.text(),
         itemId: itemEl.attrs.id
       })
+      continue
     }
 
     const collectionPost = parseCollectionPost(topic, itemEl, element.attrs.from || 'unknown')
@@ -311,6 +312,7 @@ export async function handlePubSubMessageElement(topic: string, element: Element
     const feedPost = parseFeedPost(topic, itemEl, element.attrs.from || 'unknown', nodeName)
     if (feedPost) {
       void ctx.recordFeedPost(feedPost).catch(err => ctx.emitError(err))
+      continue
     }
   }
 }

@@ -78,6 +78,28 @@ export class XmppClientBridge extends EventEmitter {
     return this.status === 'connected'
   }
 
+  async discoverWebSocketUrl(domain: string): Promise<string | null> {
+    return this.discoverViaDNS(domain)
+  }
+
+  private async discoverViaDNS(domain: string): Promise<string | null> {
+    try {
+      const resp = await fetch(`https://dns.google/resolve?name=_xmppconnect.${domain}&type=TXT`, { signal: AbortSignal.timeout(4000) })
+      if (resp.ok) {
+        const data = await resp.json()
+        if (data.Answer) {
+          for (const ans of data.Answer) {
+            const val = ans.data.replace(/"/g, '')
+            if (val.startsWith('_xmpp-client-websocket=')) {
+              return val.split('=')[1]
+            }
+          }
+        }
+      }
+    } catch {}
+    return null
+  }
+
   async connect(credentials: XmppClientCredentials): Promise<void> {
     await this.disconnect().catch(() => {})
 
@@ -86,14 +108,28 @@ export class XmppClientBridge extends EventEmitter {
     this.status = 'connecting'
     this.emit('connection', this.connectionInfo)
 
-    const service = credentials.service || `wss://${this.domain}:5443/ws`
+    let service = credentials.service
+    if (service && /^wss?:\/\//.test(service)) {
+      // User provided WebSocket URL directly — use as-is
+    } else if (service && !/:\/\//.test(service)) {
+      // User provided a bare domain — resolve via XEP-0156 TXT record then fall back
+      service = await this.discoverWebSocketUrl(service) || this.defaultWsUrl(service)
+    } else {
+      // No service provided — try XEP-0156 DNS TXT discovery then fall back
+      service = await this.discoverWebSocketUrl(this.domain) || this.defaultWsUrl(this.domain)
+    }
 
-    this.client = xmppClient({
-      service,
+    const clientOptions: Record<string, any> = {
       domain: this.domain,
       username: jidObj.local,
       password: credentials.password,
-    })
+    }
+    if (service) {
+      clientOptions.service = service
+    }
+    // If service is a domain (no ://), @xmpp/resolve will discover via DNS SRV or host-meta
+
+    this.client = xmppClient(clientOptions)
 
     this.client.on('online', () => {
       this.status = 'connected'
@@ -117,18 +153,41 @@ export class XmppClientBridge extends EventEmitter {
       }
     })
 
+    // Bug #5 fix: errors emitted on the client object don't reject start(), so we must
+    // wire up the error event to also trigger rejection. Without this the caller hangs
+    // for the full 30-second timeout on immediate WS connection refusals.
     this.client.on('error', (err: Error) => {
       this.status = 'error'
       this.emit('connection', { ...this.connectionInfo, status: 'error', error: err.message })
+      if (disconnectReject) disconnectReject(err)
     })
 
+    let disconnectReject: ((err: Error) => void) | null = null
+    const onDisconnect = (status: string) => {
+      if ((status === 'disconnect' || status === 'offline') && disconnectReject) {
+        disconnectReject(new Error('Server disconnected before authentication completed'))
+      }
+    }
+    this.client.on('status', onDisconnect)
+
     try {
-      await this.client.start()
+      await Promise.race([
+        this.client.start(),
+        new Promise<void>((_, reject) => {
+          disconnectReject = reject
+          setTimeout(() => reject(new Error('Connection timed out after 30 seconds')), 30000)
+        }),
+      ])
     } catch (err: any) {
+      disconnectReject = null
+      ;(this.client as any)?.removeListener?.('status', onDisconnect)
       this.status = 'disconnected'
       this.emit('connection', { ...this.connectionInfo, status: 'disconnected' })
       throw new Error(`Failed to connect: ${err.message}`)
     }
+
+    disconnectReject = null
+    ;(this.client as any)?.removeListener?.('status', onDisconnect)
   }
 
   async disconnect(): Promise<void> {
@@ -146,30 +205,83 @@ export class XmppClientBridge extends EventEmitter {
     this.pendingIq.clear()
   }
 
-  async register(service: string, username: string, password: string): Promise<void> {
-    const domain = new URL(service).hostname
+  /**
+   * Returns a sensible WebSocket fallback URL for a domain per XEP-0156 conventions.
+   * Uses port 5443 for wss:// (most ejabberd/Prosody HTTPS listeners) with the
+   * standard /xmpp-websocket path, which Prosody defaults to. Ejabberd also accepts
+   * this path. Change this if your server uses a non-standard path.
+   */
+  private defaultWsUrl(domain: string): string {
+    return `wss://${domain}:5443/xmpp-websocket`
+  }
 
-    return new Promise<void>((resolve, reject) => {
-      const ws = new WebSocket(service)
+  async register(domainOrService: string, username: string, password: string): Promise<string> {
+    const isUrl = /^wss?:\/\//.test(domainOrService)
+    let service: string
+    let domain: string
+    if (isUrl) {
+      domain = domainOrService.split('/')[2]?.split(':')[0] || domainOrService
+      service = domainOrService
+    } else {
+      domain = domainOrService
+      const discovered = await this.discoverWebSocketUrl(domainOrService)
+      service = discovered || this.defaultWsUrl(domainOrService)
+    }
+
+    return new Promise<string>((resolve, reject) => {
+      const ws = new WebSocket(service, ['xmpp'])
       let buffer = ''
-      let step: 'features' | 'form' | 'submit' = 'features'
-      const timeout = setTimeout(() => {
+      let step: 'open' | 'features' | 'form' | 'submit' = 'open'
+      // Guard: once resolve() or reject() is called, prevent any further calls
+      // (the error-check at the bottom of onmessage must not fire after success).
+      let done = false
+      const finish = (fn: () => void) => {
+        if (done) return
+        done = true
+        clearTimeout(timeout)
         try { ws.close() } catch {}
-        reject(new Error('Registration timed out'))
+        fn()
+      }
+      const timeout = setTimeout(() => {
+        finish(() => reject(new Error('Registration timed out')))
       }, 15000)
 
       ws.onopen = () => {
-        ws.send(`<stream:stream to='${domain}' xmlns='jabber:client' xmlns:stream='http://etherx.jabber.org/streams' version='1.0'>`)
+        // RFC 7395 §4 requires the framed <open/> element, not a raw <stream:stream>.
+        // The xmlns:stream prefix does not exist in WebSocket framing — each message is a
+        // complete stanza and the stream open is a self-closing <open/> in the framing namespace.
+        ws.send(`<open xmlns='urn:ietf:params:xml:ns:xmpp-framing' to='${domain}' version='1.0'/>`)
       }
 
       ws.onmessage = (event: any) => {
-        buffer += event.data
+        if (done) return
+        buffer += typeof event.data === 'string' ? event.data : new TextDecoder().decode(event.data)
+
+        // Bug fix: do NOT return early after advancing from 'open' → 'features'.
+        // Some servers (Prosody, ejabberd) send the <open/> response and <stream:features>
+        // in the same WebSocket frame. The old code returned early after setting
+        // step='features', meaning features were never processed from that frame.
+        if (step === 'open') {
+          if (buffer.includes('<open ') || buffer.includes('<stream:stream')) {
+            step = 'features'
+            buffer = ''
+          } else {
+            // Haven't seen the open confirmation yet — nothing else to do
+            return
+          }
+          // Fall through: the rest of this frame may contain <stream:features>
+        }
 
         if (step === 'features' && buffer.includes('</stream:features>')) {
-          if (!buffer.includes('jabber:iq:register')) {
-            clearTimeout(timeout)
-            ws.close()
-            reject(new Error('Server does not support in-band registration'))
+          // Bug fix: XEP-0077 in-band registration is announced in <stream:features> as:
+          //   <register xmlns='http://jabber.org/features/iq-register'/>
+          // NOT 'jabber:iq:register' (that is the IQ query namespace used later).
+          // Old code used the wrong namespace and always rejected servers that support it.
+          const supportsRegistration =
+            buffer.includes('http://jabber.org/features/iq-register') ||
+            buffer.includes('jabber:iq:register')
+          if (!supportsRegistration) {
+            finish(() => reject(new Error('Server does not support in-band registration')))
             return
           }
           step = 'form'
@@ -179,7 +291,7 @@ export class XmppClientBridge extends EventEmitter {
         }
 
         if (step === 'form') {
-          const match = buffer.match(/id=['"](reg-1)['"]/)
+          const match = buffer.match(/id=['"](reg-1)['"]/ )
           if (match && (buffer.includes('type="result"') || buffer.includes("type='result'"))) {
             step = 'submit'
             buffer = ''
@@ -193,24 +305,23 @@ export class XmppClientBridge extends EventEmitter {
         if (step === 'submit') {
           const match = buffer.match(/id=['"](reg-2)['"]/)
           if (match && (buffer.includes('type="result"') || buffer.includes("type='result'"))) {
-            clearTimeout(timeout)
-            step = 'submit'
-            ws.close()
-            resolve()
+            finish(() => resolve(service))
             return
           }
         }
 
-        if (buffer.includes('type="error"') || buffer.includes("type='error'")) {
-          clearTimeout(timeout)
-          ws.close()
-          reject(new Error('Registration rejected by server'))
+        // Bug fix: guard with `done` and wrap in else-if so this cannot fire
+        // after resolve() has already been called (e.g. a trailing <close/> error frame).
+        if (!done && (buffer.includes('type="error"') || buffer.includes("type='error'"))) {
+          // Extract a more specific error message if available
+          const textMatch = buffer.match(/<text[^>]*>([^<]+)<\/text>/)
+          const errText = textMatch?.[1] || 'Registration rejected by server'
+          finish(() => reject(new Error(errText)))
         }
       }
 
       ws.onerror = () => {
-        clearTimeout(timeout)
-        reject(new Error('WebSocket connection failed'))
+        finish(() => reject(new Error('WebSocket connection failed')))
       }
     })
   }

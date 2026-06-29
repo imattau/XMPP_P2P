@@ -5,16 +5,26 @@
 
 import { Parser, Element, xml } from '@xmpp/xml'
 import { EventEmitter } from 'events'
+import { pushable, type Pushable } from 'it-pushable'
 
 /**
  * Wraps an active libp2p network stream, parsing raw XML data buffers
  * into XML Elements (stanzas) and managing reliability/resumption state.
  * Emits 'element' events when stanzas are successfully parsed.
+ *
+ * libp2p streams implement the async-iterable duplex interface:
+ *   - `stream.source` is an AsyncIterable<Uint8Array> for inbound data
+ *   - `stream.sink`   is an async function(AsyncIterable<Uint8Array>) for outbound data
+ *
+ * We bridge these to an EventEmitter so the rest of the codebase can use
+ * simple event-based stanza handling.
  */
 export class XmppStream extends EventEmitter {
   private stream: any
   private parser: Parser
   private isClosed = false
+  /** Pushable source that feeds outbound bytes into stream.sink */
+  private readonly outbound: Pushable<Uint8Array>
   public readonly remotePeer: string
 
   // XEP-0198 Stream Management properties
@@ -28,7 +38,7 @@ export class XmppStream extends EventEmitter {
   /**
    * Creates an XMPP parser wrapper around a libp2p stream.
    *
-   * @param stream - The underlying duplex stream from libp2p.
+   * @param stream - The underlying duplex stream from libp2p (source/sink interface).
    * @param remotePeer - String form of the remote peer ID.
    */
   constructor(stream: any, remotePeer: string) {
@@ -58,28 +68,50 @@ export class XmppStream extends EventEmitter {
       this.emit('error', err)
     })
 
-    this.stream.addEventListener('message', (event: any) => {
-      if (this.isClosed) return
-      try {
-        const data = event.detail ?? event.data
-        const array = data instanceof Uint8Array ? data : data.subarray()
-        const text = new TextDecoder().decode(array)
-        console.log(`[DEBUG] Stream received data (peer: ${this.remotePeer}): ${text}`)
-        this.parser.write(text)
-      } catch (err) {
+    // Create the pushable source for outbound data and wire it into stream.sink.
+    this.outbound = pushable<Uint8Array>({ objectMode: false })
+    this.stream.sink(this.outbound).catch((err: Error) => {
+      if (!this.isClosed) {
         this.emit('error', err)
       }
     })
 
-    this.stream.addEventListener('close', () => {
+    // Consume the async-iterable source for inbound data.
+    this.readInbound().catch((err: Error) => {
       if (!this.isClosed) {
-        this.isClosed = true
-        this.emit('close')
+        this.emit('error', err)
       }
     })
 
     // Prime the parser with a synthetic root so stanza fragments parse cleanly.
     this.parser.write('<stream:stream>')
+  }
+
+  /**
+   * Reads inbound bytes from the libp2p stream source as an async iterable
+   * and feeds them into the XML parser.
+   */
+  private async readInbound(): Promise<void> {
+    try {
+      for await (const chunk of this.stream.source) {
+        if (this.isClosed) break
+        try {
+          const array: Uint8Array = chunk instanceof Uint8Array ? chunk : chunk.subarray()
+          const text = new TextDecoder().decode(array)
+          console.log(`[DEBUG] Stream received data (peer: ${this.remotePeer}): ${text}`)
+          this.parser.write(text)
+        } catch (err) {
+          this.emit('error', err)
+        }
+      }
+    } finally {
+      // The source iterator is exhausted — the remote side closed the stream.
+      if (!this.isClosed) {
+        this.isClosed = true
+        this.outbound.end()
+        this.emit('close')
+      }
+    }
   }
 
   /**
@@ -120,45 +152,51 @@ export class XmppStream extends EventEmitter {
         }
       }
     } else if (name === 'resume') {
-      const prevId = element.attrs.previd
       const h = Number(element.attrs.h ?? 0)
       this.send(xml('resumed', {
         xmlns: 'urn:xmpp:sm:3',
         previd: this.sessionId,
         h: String(this.inboundStanzaCount)
       }))
-      const sentBeforeQueue = this.outboundStanzaCount - this.unackedQueue.length
-      const resendStartIndex = h - sentBeforeQueue
-      if (resendStartIndex >= 0 && resendStartIndex < this.unackedQueue.length) {
-        const toResend = this.unackedQueue.slice(resendStartIndex)
-        for (const msg of toResend) {
-          this.sendRaw(msg.toString())
-        }
+      const toResend = this.computeStanzasToResend(h)
+      for (const msg of toResend) {
+        this.sendRaw(msg.toString())
       }
     } else if (name === 'resumed') {
       const h = Number(element.attrs.h ?? 0)
-      const sentBeforeQueue = this.outboundStanzaCount - this.unackedQueue.length
-      const resendStartIndex = h - sentBeforeQueue
-      if (resendStartIndex >= 0 && resendStartIndex < this.unackedQueue.length) {
-        const toResend = this.unackedQueue.slice(resendStartIndex)
-        for (const msg of toResend) {
-          this.sendRaw(msg.toString())
-        }
+      const toResend = this.computeStanzasToResend(h)
+      for (const msg of toResend) {
+        this.sendRaw(msg.toString())
       }
     }
   }
 
   /**
-   * Sends raw XML text bytes to the remote peer.
+   * Encodes and pushes raw XML text bytes into the outbound pushable sink.
    *
    * @param text - The XML payload to transmit.
    * @returns Nothing.
    */
+  /**
+   * Computes which stanzas from the unacked queue need resending
+   * based on the remote peer's last acknowledged stanza count (h).
+   * Clamps the index to safe bounds to prevent off-by-one errors.
+   */
+  private computeStanzasToResend(remoteH: number): Element[] {
+    if (this.unackedQueue.length === 0) return []
+    const sentBeforeQueue = this.outboundStanzaCount - this.unackedQueue.length
+    const resendStartIndex = Math.max(0, Math.min(
+      remoteH - sentBeforeQueue,
+      this.unackedQueue.length - 1
+    ))
+    return this.unackedQueue.slice(resendStartIndex)
+  }
+
   sendRaw(text: string) {
     if (this.isClosed) return
     try {
       const bytes = new TextEncoder().encode(text)
-      this.stream.send(bytes)
+      this.outbound.push(bytes)
     } catch (err) {
       this.emit('error', err)
     }
@@ -203,8 +241,13 @@ export class XmppStream extends EventEmitter {
     if (this.isClosed) return
     this.isClosed = true
     try {
+      this.outbound.end()
+    } catch {
+      // ignore
+    }
+    try {
       await this.stream.close()
-    } catch (e) {
+    } catch {
       // ignore
     }
     this.emit('close')

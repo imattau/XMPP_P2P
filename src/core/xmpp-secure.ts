@@ -140,6 +140,9 @@ export async function ensureOmemoSession(ctx: XmppSecureContext, peerAddr: strin
 
   const bundle = await ctx.getPeerOmemoBundle(peerAddr, deviceId)
   const sessionBuilder = new omemo.SessionBuilder(store, remoteAddress)
+  const preKey = bundle.preKeys.length > 0
+    ? bundle.preKeys[Math.floor(Math.random() * bundle.preKeys.length)]
+    : undefined
   await sessionBuilder.processPreKey({
     registrationId: bundle.registrationId,
     identityKey: ctxToArrayBuffer(bundle.identityKey),
@@ -148,10 +151,10 @@ export async function ensureOmemoSession(ctx: XmppSecureContext, peerAddr: strin
       publicKey: ctxToArrayBuffer(bundle.signedPreKey),
       signature: ctxToArrayBuffer(bundle.signedPreKeySignature)
     },
-    preKey: bundle.preKeys[0]
+    preKey: preKey
       ? {
-          keyId: bundle.preKeys[0].keyId,
-          publicKey: ctxToArrayBuffer(bundle.preKeys[0].publicKey)
+          keyId: preKey.keyId,
+          publicKey: ctxToArrayBuffer(preKey.publicKey)
         }
       : undefined
   })
@@ -219,8 +222,13 @@ export async function handleSecureMessageStanza(
     }
   }
 
-  // Handle Receipt auto-reply if requested
-  if (metadata.receipt?.type === 'request' && element.attrs.id) {
+  // Handle Receipt auto-reply if requested.
+  // Bug fix: only attempt P2P stream reply for P2P peers (JIDs ending in @p2p).
+  // Calling getOrCreateStream() with a standard server JID like 'user@jabber.org'
+  // causes parsePeerReference to treat the full JID as a peer ID, which then tries
+  // to dial it as a multiaddr and throws — surfacing as a confusing emitError call.
+  const isP2pSender = fromJid.endsWith('@p2p') || !fromJid.includes('@')
+  if (metadata.receipt?.type === 'request' && element.attrs.id && isP2pSender) {
     void ctx.getOrCreateStream(fromJid).then(stream => {
       stream.send(
         xml('message', { to: fromJid, from: ctx.jid, id: Math.random().toString(36).substring(2, 11) },

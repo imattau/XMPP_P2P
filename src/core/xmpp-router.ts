@@ -398,9 +398,22 @@ export async function handleIqStanza(ctx: XmppRouterContext, peerId: string, ele
     if (type === 'get') {
       const node = query.attrs.node
       if (node) {
-        void (ctx as any).muc.handleIncomingMamQuery(element, peerId).catch(() => {})
+        // Guard: ctx.muc may be absent in certain runtime configurations.
+        if (!(ctx as any).muc) {
+          await sendIqError(ctx, peerId, element, 'service-unavailable')
+          return
+        }
+        ;(ctx as any).muc.handleIncomingMamQuery(element, peerId).catch((err: unknown) => {
+          // Bug fix: swallowed errors meant the peer would hang until IQ timeout.
+          // Now send an IQ error back so the peer gets a timely response.
+          void sendIqError(ctx, peerId, element, 'internal-server-error', 'wait',
+            err instanceof Error ? err.message : 'MAM query failed').catch(() => {})
+        })
       } else {
-        void ctx.handleIncomingMamQuery(element, peerId).catch(() => {})
+        ctx.handleIncomingMamQuery(element, peerId).catch((err: unknown) => {
+          void sendIqError(ctx, peerId, element, 'internal-server-error', 'wait',
+            err instanceof Error ? err.message : 'MAM query failed').catch(() => {})
+        })
       }
       return
     }
@@ -441,7 +454,10 @@ export async function handleIqStanza(ctx: XmppRouterContext, peerId: string, ele
         return
       }
 
-      await sendIqResult(ctx, peerId, id, ctx.buildRosterQuery())
+      // Bug fix: RFC 6121 §2.1.5 says the result for a roster <set> MUST be an empty IQ,
+      // not the full roster. Sending the full roster here is a spec violation and wastes
+      // bandwidth — roster pushes to update other resources happen separately.
+      await sendIqResult(ctx, peerId, id)
       return
     }
   }

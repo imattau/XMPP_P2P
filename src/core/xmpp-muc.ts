@@ -418,7 +418,9 @@ export class XmppMucManager {
        .sort((a, b) => a.timestamp.localeCompare(b.timestamp))
    }
 
-  close() {
+  async close(): Promise<void> {
+    await this.mucSaveQueue
+    await this.mucHistorySaveQueue
     if (this.presenceInterval) {
       clearInterval(this.presenceInterval)
       this.presenceInterval = undefined
@@ -566,26 +568,33 @@ export class XmppMucManager {
 
     const keysMap = new Map<string, Element[]>()
 
-    for (const occupant of roomState.occupants.values()) {
-      const devices = await this.ctx.getPeerOmemoDevices(occupant.jid)
+    const addOmemoKey = async (targetJid: string) => {
+      const devices = await this.ctx.getPeerOmemoDevices(targetJid)
       if (devices.length === 0) {
-        continue
+        return
       }
 
       const keys: Element[] = []
       for (const deviceId of devices) {
-        await ensureOmemoSession(this.ctx.getSecureContext(), occupant.jid, deviceId)
+        await ensureOmemoSession(this.ctx.getSecureContext(), targetJid, deviceId)
         const omemo = await loadOmemoModule()
-        const remoteAddress = new omemo.OMEMOAddress(occupant.jid, deviceId)
+        const remoteAddress = new omemo.OMEMOAddress(targetJid, deviceId)
         const sessionCipher = new omemo.SessionCipher(this.ctx.getOmemoStore(), remoteAddress)
         const encryptedKey = await sessionCipher.encrypt(payloadKeyBytes)
         keys.push(xml('key', { rid: String(deviceId) }, Buffer.from(encryptedKey.body, 'binary').toString('base64')))
       }
 
       if (keys.length > 0) {
-        keysMap.set(occupant.jid, keys)
+        keysMap.set(targetJid, keys)
       }
     }
+
+    // Encrypt for all occupants (including self for MAM history decryption)
+    for (const occupant of roomState.occupants.values()) {
+      await addOmemoKey(occupant.jid)
+    }
+    // Add self key so sender can decrypt own messages from MAM history
+    await addOmemoKey(this.ctx.jid)
 
     if (keysMap.size === 0 && roomState.occupants.size > 0) {
       throw new Error('No occupants have available OMEMO devices')

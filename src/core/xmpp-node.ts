@@ -281,8 +281,8 @@ export class XmppNode extends EventEmitter {
     this.libp2p = libp2p
     this.jid = `${this.libp2p.peerId.toString()}@p2p`
     this.storage = storage
-    this.uploadHost = process.env.XMPP_UPLOAD_HOST ?? '127.0.0.1'
-    this.uploadPort = Number.parseInt(process.env.XMPP_UPLOAD_PORT ?? '0', 10) || 0
+    this.uploadHost = (typeof process !== 'undefined' ? process.env?.XMPP_UPLOAD_HOST : undefined) ?? '127.0.0.1'
+    this.uploadPort = Number.parseInt((typeof process !== 'undefined' ? process.env?.XMPP_UPLOAD_PORT : undefined) ?? '0', 10) || 0
     this.omemoStateManager = new XmppOmemoStateManager(storage, options.omemoModuleLoader)
     this.openPgpStateManager = new XmppOpenPgpStateManager(storage, this.jid)
     this.muc = new XmppMucManager(this.getMucContext())
@@ -302,12 +302,12 @@ export class XmppNode extends EventEmitter {
     })
     this.collectionManager = new XmppCollectionManager(this.getCollectionContext())
     this.discoveryManager = new XmppDiscoveryManager(this.getDiscoveryContext())
-    const self = this
+    const rosterThis = this
     this.rosterManager = new XmppRosterManager({
       jid: this.jid,
       libp2p: this.libp2p,
       storage: this.storage,
-      get ready() { return self.ready },
+      get ready() { return rosterThis.ready as Promise<void> },
       getOrCreateStream: this.getOrCreateStream.bind(this),
       getStreamByJid: this.getStreamByJid.bind(this),
       getStreams: () => this.streams,
@@ -332,10 +332,12 @@ export class XmppNode extends EventEmitter {
       .then(() => this.loadOmemoState())
       .then(() => this.openPgpStateManager.load())
 
-    // Register protocol handler for inbound connections
-    this.libp2p.handle('/xmpp/1.0.0', (stream: any, connection?: any) => {
-      const conn = connection || stream.connection
-      const peerId = conn?.remotePeer?.toString() || 'unknown'
+    // Register protocol handler for inbound connections.
+    // libp2p StreamHandler signature: (stream: Stream, connection: Connection)
+    // The old code tried 'stream.connection' (always undefined) before falling
+    // back to the 'connection' second argument, which was also shadowed incorrectly.
+    this.libp2p.handle('/xmpp/1.0.0', (stream: any, connection: any) => {
+      const peerId = connection?.remotePeer?.toString() || 'unknown'
       console.log(`[DEBUG] Inbound connection handler triggered from peer: ${peerId}`)
       const xmppStream = new XmppStream(stream, peerId)
       this.registerStream(peerId, xmppStream)
@@ -1320,24 +1322,36 @@ export class XmppNode extends EventEmitter {
         this.streams.delete(peerId)
       }
       this.emit('stream-closed', peerId)
-      this.scheduleReconnect(peerId)
+      // Bug fix: only schedule reconnect for peers we originally dialled (outbound).
+      // For inbound-only connections, peerAddrs has no entry and reconnect is a no-op
+      // that still schedules and immediately cleans up a timer — wasted work.
+      if (this.peerAddrs.has(peerId)) {
+        this.scheduleReconnect(peerId)
+      }
     })
 
-    // XEP-0198 negotiation or resumption
-    const savedSession = this.reliabilityManager.getAndClearSession(peerId)
-    if (savedSession) {
-      xmppStream.sessionId = savedSession.sessionId
-      xmppStream.outboundStanzaCount = savedSession.outboundStanzaCount
-      xmppStream.inboundStanzaCount = savedSession.inboundStanzaCount
-      xmppStream.unackedQueue = savedSession.unackedQueue
+    // XEP-0198 negotiation or resumption.
+    // Bug fix: SM <enable>/<resume> must only be sent by the stream initiator (the dialler).
+    // For inbound connections the remote peer is the initiator; they may send <enable> to us
+    // and we'll respond in XmppStream.handleSmElement. Sending <enable> unsolicited to an
+    // inbound peer that hasn't advertised SM support risks a protocol error.
+    const isOutbound = this.peerAddrs.has(peerId)
+    if (isOutbound) {
+      const savedSession = this.reliabilityManager.getAndClearSession(peerId)
+      if (savedSession) {
+        xmppStream.sessionId = savedSession.sessionId
+        xmppStream.outboundStanzaCount = savedSession.outboundStanzaCount
+        xmppStream.inboundStanzaCount = savedSession.inboundStanzaCount
+        xmppStream.unackedQueue = savedSession.unackedQueue
 
-      xmppStream.send(xml('resume', {
-        xmlns: 'urn:xmpp:sm:3',
-        previd: savedSession.sessionId,
-        h: String(savedSession.inboundStanzaCount)
-      }))
-    } else {
-      xmppStream.send(xml('enable', { xmlns: 'urn:xmpp:sm:3', resume: 'true' }))
+        xmppStream.send(xml('resume', {
+          xmlns: 'urn:xmpp:sm:3',
+          previd: savedSession.sessionId,
+          h: String(savedSession.inboundStanzaCount)
+        }))
+      } else {
+        xmppStream.send(xml('enable', { xmlns: 'urn:xmpp:sm:3', resume: 'true' }))
+      }
     }
 
     void this.rosterManager.flushRosterPresenceForPeer(peerId).catch(err => this.emit('error', err))
@@ -1420,7 +1434,14 @@ export class XmppNode extends EventEmitter {
     } = {}
   ): Promise<string> {
     const addrStr = peerAddr.toString()
-    if (!addrStr.endsWith('@p2p') && addrStr.includes('@') && this.clientBridge.isConnected) {
+    // Route to the server bridge only when:
+    //   1. The target is a standard XMPP JID (contains '@' but not the '@p2p' sentinel)
+    //   2. The bridge is connected
+    //   3. The target domain matches the bridge's connected domain (prevents routing
+    //      e.g. user@other-server messages through a bridge connected to jabber.org)
+    const targetDomain = addrStr.includes('@') ? addrStr.split('@')[1] : ''
+    if (!addrStr.endsWith('@p2p') && addrStr.includes('@') && this.clientBridge.isConnected
+        && targetDomain === this.clientBridge.connectionInfo.domain) {
       return this.clientBridge.sendMessage(addrStr, body, { type: 'chat', thread: options.thread })
     }
 
@@ -1913,8 +1934,8 @@ export class XmppNode extends EventEmitter {
   }
 
   async registerServer(jid: string, password: string, service: string): Promise<void> {
-    await this.clientBridge.register(service, jid.split('@')[0], password)
-    await this.clientBridge.connect({ jid, password, service })
+    const resolvedService = await this.clientBridge.register(service, jid.split('@')[0], password)
+    await this.clientBridge.connect({ jid, password, service: resolvedService })
   }
 
   async disconnectServer(): Promise<void> {

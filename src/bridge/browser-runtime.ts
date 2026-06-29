@@ -272,6 +272,63 @@ export class BrowserXmppRuntimeBridge {
     return () => this.serverConnectionListeners.delete(cb)
   }
 
+  // ── Component/Federation methods ─────────────────────────────────────────
+  // XEP-0114 TCP components are not available in the browser. These are
+  // stubs that keep the bridge conformant with XmppRuntimeBridge.
+
+  async connectComponent(_host: string, _port: number, _secret: string, _domain: string): Promise<void> {
+    throw new Error('XEP-0114 TCP component connections are not supported in the browser runtime')
+  }
+
+  async disconnectComponent(): Promise<void> {
+    // no-op — no component connection in browser
+  }
+
+  isComponentConnected(): boolean {
+    return false
+  }
+
+  private _federationEnabled = true
+
+  setFederationEnabled(enabled: boolean): void {
+    this._federationEnabled = enabled
+  }
+
+  isFederationEnabled(): boolean {
+    return this._federationEnabled
+  }
+
+  // ── Saved component configs ───────────────────────────────────────────────
+  // Persisted in XmppNode's storage under a well-known namespace so configs
+  // survive page reloads.
+
+  async saveComponentConfig(domain: string, secret: string, host: string, port: number): Promise<void> {
+    const key = `component-config:${domain}`
+    const value = JSON.stringify({ domain, host, port, secret, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() })
+    await this.xmppNode.storage.putRecord('component-configs', key, value, new Date().toISOString())
+  }
+
+  async listSavedComponentConfigs(): Promise<Array<{ domain: string; host: string; port: number; createdAt: string; updatedAt: string }>> {
+    try {
+      const records = await this.xmppNode.storage.listRecords('component-configs')
+      const configs: Array<{ domain: string; host: string; port: number; createdAt: string; updatedAt: string }> = []
+      for (const record of records) {
+        try {
+          const obj = JSON.parse(record.value)
+          configs.push({ domain: obj.domain, host: obj.host, port: obj.port, createdAt: obj.createdAt, updatedAt: obj.updatedAt })
+        } catch { /* skip malformed */ }
+      }
+      return configs
+    } catch {
+      return []
+    }
+  }
+
+  async removeComponentConfig(domain: string): Promise<void> {
+    const key = `component-config:${domain}`
+    await this.xmppNode.storage.deleteRecord('component-configs', key)
+  }
+
   async kickMucParticipant(roomJid: string, participantJid: string, reason?: string): Promise<void> {
     const nick = participantJid.split('@')[0]
     const stanza = (await import('@xmpp/xml')).xml(

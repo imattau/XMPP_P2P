@@ -160,13 +160,17 @@ export class XmppChatManager {
       this.chatHistory.delete(oldestKey)
     }
 
-    this.chatHistorySaveQueue = this.chatHistorySaveQueue.then(async () => {
-      await persistChatHistoryState({
-        storage: this.ctx.storage,
-        chatHistory: this.chatHistory
-      } as any)
-      await this.persistChatHistoryToDht()
-    })
+    this.chatHistorySaveQueue = this.chatHistorySaveQueue
+      .then(async () => {
+        await persistChatHistoryState({
+          storage: this.ctx.storage,
+          chatHistory: this.chatHistory
+        } as any)
+        await this.persistChatHistoryToDht()
+      })
+      .catch(err => {
+        console.warn('[XMPP] Failed to persist chat history:', err)
+      })
   }
 
   private async persistChatHistoryToDht(): Promise<void> {
@@ -205,7 +209,8 @@ export class XmppChatManager {
       }
     }
 
-    let history = Array.from(this.chatHistory.values())
+    const peerJid = `${peerId}@p2p`
+    let history = Array.from(this.chatHistory.values()).filter(msg => msg.from !== peerJid)
     if (filterWith) {
       const bareFilterWith = filterWith.split('/')[0]
       history = history.filter(msg => {

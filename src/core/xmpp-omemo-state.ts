@@ -335,6 +335,7 @@ export class XmppOmemoStateManager {
       removeSignedPreKey: (keyId: number) => {
         if (this.signedPreKey?.keyId === Number(keyId)) {
           this.signedPreKey = undefined
+          void this.schedulePersist()
         }
       },
       loadSession: (address: string) => {

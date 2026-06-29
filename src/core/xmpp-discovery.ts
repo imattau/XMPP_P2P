@@ -32,7 +32,6 @@ import {
   REPLY_XMLNS,
   CARBONS_XMLNS
 } from './xmpp-xep-helpers.js'
-
 export {
   RECEIPTS_XMLNS,
   CHATSTATES_XMLNS,
@@ -520,4 +519,3 @@ export class XmppDiscoveryManager {
     }
   }
 }
-import { multiaddr } from '@multiformats/multiaddr'

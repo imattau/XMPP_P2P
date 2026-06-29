@@ -108,10 +108,12 @@ export function useServerBridge() {
     setState(prev => ({ ...prev, connecting: true }))
     try {
       await runtime.connectServer(jid, password, service)
+      refreshConnections()
+      await refreshGatewayStatus()
     } finally {
       setState(prev => ({ ...prev, connecting: false }))
     }
-  }, [])
+  }, [refreshConnections, refreshGatewayStatus])
 
   const disconnectServer = useCallback(async (): Promise<void> => {
     const runtime = getBrowserXmppBridge()

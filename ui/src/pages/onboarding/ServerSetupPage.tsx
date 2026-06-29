@@ -5,7 +5,7 @@ import { ArrowLeft, Check, Loader, ExternalLink } from 'lucide-react'
 import ProgressDots from '../../components/onboarding/ProgressDots'
 import { useIdentityBridge } from '../../bridge/identity/useIdentityBridge'
 import { getBrowserXmppBridge } from '../../bridge/runtime'
-import { PUBLIC_SERVERS } from '../../constants'
+import { fetchPublicServers, PublicServer } from '../../constants'
 
 type Tab = 'login' | 'register' | 'skip'
 
@@ -27,7 +27,9 @@ export default function ServerSetupPage() {
   const [serviceUrl, setServiceUrl] = useState('')
 
   // Register form
-  const [selectedServer, setSelectedServer] = useState(PUBLIC_SERVERS[0]?.domain || '')
+  const [servers, setServers] = useState<PublicServer[]>([])
+  const [serversLoading, setServersLoading] = useState(true)
+  const [selectedServer, setSelectedServer] = useState('')
   const [regUsername, setRegUsername] = useState('')
   const [regPassword, setRegPassword] = useState('')
   const [regConfirm, setRegConfirm] = useState('')
@@ -52,6 +54,11 @@ export default function ServerSetupPage() {
       setInitError('XMPP client not available')
       setInitializing(false)
     }
+    fetchPublicServers().then(list => {
+      setServers(list)
+      setServersLoading(false)
+      if (list.length > 0 && !selectedServer) setSelectedServer(list[0].domain)
+    })
   }, [displayName])
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -85,16 +92,16 @@ export default function ServerSetupPage() {
     setError('')
     setRegistering(true)
     try {
-      const server = PUBLIC_SERVERS.find(s => s.domain === selectedServer)
+      const server = servers.find(s => s.domain === selectedServer)
       if (!server) throw new Error('Please select a server')
       const fullJid = `${regUsername}@${server.domain}`
       const bridge = getBrowserXmppBridge()
       if (!bridge?.registerServer) throw new Error('Bridge not available')
-      await bridge.registerServer(fullJid, regPassword, server.websocket)
+      await bridge.registerServer(fullJid, regPassword, server.domain)
       setConnectedDomain(server.domain)
       setConnected(true)
     } catch (err) {
-      const server = PUBLIC_SERVERS.find(s => s.domain === selectedServer)
+      const server = servers.find(s => s.domain === selectedServer)
       const regUrl = server?.registerUrl
       if (regUrl) {
         setError(`${err instanceof Error ? err.message : 'Registration failed'}. You can register on the web: `)
@@ -110,7 +117,7 @@ export default function ServerSetupPage() {
     navigate('/onboarding/preferences')
   }
 
-  const selectedServerInfo = PUBLIC_SERVERS.find(s => s.domain === selectedServer)
+  const selectedServerInfo = servers.find(s => s.domain === selectedServer)
 
   const tabClass = (t: Tab) =>
     `flex-1 py-2 text-sm font-medium text-center border-b-2 transition-colors cursor-pointer ${
@@ -231,11 +238,18 @@ export default function ServerSetupPage() {
                   <select
                     value={selectedServer}
                     onChange={e => { setSelectedServer(e.target.value); setError('') }}
-                    className="w-full px-3 py-3 text-sm rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    disabled={serversLoading}
+                    className="w-full px-3 py-3 text-sm rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50"
                   >
-                    {PUBLIC_SERVERS.map(s => (
-                      <option key={s.domain} value={s.domain}>{s.label}</option>
-                    ))}
+                    {serversLoading ? (
+                      <option value="">Loading servers…</option>
+                    ) : servers.length === 0 ? (
+                      <option value="">No servers available</option>
+                    ) : (
+                      servers.map(s => (
+                        <option key={s.domain} value={s.domain}>{s.label}{s.category ? ` (Cat ${s.category})` : ''}</option>
+                      ))
+                    )}
                   </select>
 
                   <div className="flex gap-2">

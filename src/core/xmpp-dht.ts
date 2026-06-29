@@ -7,6 +7,8 @@ const MUC_SETTINGS_PREFIX = '/xmpp/muc/room/'
 const DEFAULT_DHT_TTL_MS = 24 * 60 * 60 * 1000
 const MAILBOX_TTL_MS = 7 * 24 * 60 * 60 * 1000
 
+const mailboxLocks = new Map<string, Promise<void>>()
+
 interface DhtEnvelope<T> {
   data: T
   expiresAt?: string
@@ -53,6 +55,7 @@ export async function readDhtJson<T>(libp2p: Libp2p, key: Uint8Array): Promise<T
     }
     return envelope.data
   } catch (err: any) {
+    console.debug(`[DHT] Failed to read key ${new TextDecoder().decode(key)}:`, err?.message)
     return undefined
   }
 }
@@ -156,12 +159,17 @@ export async function persistMucStateToDht(ctx: XmppDhtContext): Promise<void> {
 
 export async function bufferStanzaToDht(libp2p: Libp2p, peerId: string, stanza: Element): Promise<void> {
   const key = mailboxKey(peerId)
-  let queue = await readDhtJson<string[]>(libp2p, key)
-  if (!Array.isArray(queue)) {
-    queue = []
-  }
-  queue.push(stanza.toString())
-  await writeDhtJson(libp2p, key, queue, MAILBOX_TTL_MS)
+  const prev = mailboxLocks.get(peerId) ?? Promise.resolve()
+  const next = prev.then(async () => {
+    let queue = await readDhtJson<string[]>(libp2p, key)
+    if (!Array.isArray(queue)) {
+      queue = []
+    }
+    queue.push(stanza.toString())
+    await writeDhtJson(libp2p, key, queue, MAILBOX_TTL_MS)
+  })
+  mailboxLocks.set(peerId, next.catch(() => {}))
+  return next
 }
 
 export async function flushDhtMailbox(ctx: XmppDhtContext): Promise<void> {

@@ -70,11 +70,10 @@ export class EncryptedStorage implements XmppStorage {
     const salt = Buffer.from(saltRaw, 'base64')
     const key = deriveKey(passphrase, salt)
     const hash = hashKey(key)
-    try {
-      return timingSafeEqual(Buffer.from(hash), Buffer.from(verificationRaw))
-    } catch {
-      return hash === verificationRaw
-    }
+    const hashBuf = Buffer.from(hash)
+    const verBuf = Buffer.from(verificationRaw)
+    if (hashBuf.length !== verBuf.length) return false
+    return timingSafeEqual(hashBuf, verBuf)
   }
 
   async initialize(passphrase: string): Promise<void> {
@@ -100,7 +99,7 @@ export class EncryptedStorage implements XmppStorage {
     this._unlocked = false
   }
 
-  async migrateFromPlaintext(passphrase: string, records: StorageRecord[]): Promise<number> {
+  async migrateFromPlaintext(passphrase: string, namespace: string, records: StorageRecord[]): Promise<number> {
     await this.initialize(passphrase)
     if (!this.key) return 0
     let count = 0
@@ -108,9 +107,11 @@ export class EncryptedStorage implements XmppStorage {
       if (record.key.startsWith(CRYPTO_NS)) continue
       try {
         const encrypted = encrypt(record.value, this.key)
-        await this.inner.putRecord(record.key, record.value, encrypted, record.updatedAt)
+        await this.inner.putRecord(namespace, record.key, encrypted, record.updatedAt)
         count++
-      } catch {}
+      } catch {
+        // skip individual record migration failures
+      }
     }
     return count
   }
