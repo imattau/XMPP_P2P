@@ -196,7 +196,7 @@ export class XmppStream extends EventEmitter {
   }
 
   sendRaw(text: string) {
-    if (this.isClosed) return
+    if (this.isClosed) throw new Error('Stream is closed')
     try {
       const bytes = new TextEncoder().encode(text)
       this.outbound.push(bytes)
@@ -212,7 +212,7 @@ export class XmppStream extends EventEmitter {
    * @returns Nothing.
    */
   send(element: Element | string) {
-    if (this.isClosed) return
+    if (this.isClosed) throw new Error('Stream is closed')
     try {
       let xmlStr: string
       if (element instanceof Element) {

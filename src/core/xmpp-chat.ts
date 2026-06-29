@@ -109,6 +109,10 @@ export class XmppChatManager {
     return Buffer.from(raw, 'base64')
   }
 
+  private chatKey(msg: XmppMessage): string {
+    return msg.id || `${msg.from}:${msg.to}:${msg.body}:${msg.delay?.stamp || ''}`
+  }
+
   private async loadChatHistory(): Promise<void> {
     await loadChatHistoryState({
       storage: this.ctx.storage,
@@ -135,8 +139,9 @@ export class XmppChatManager {
 
         if (chatData && Array.isArray(chatData.messages)) {
           for (const msg of chatData.messages) {
-            if (!this.chatHistory.has(msg.id || '')) {
-              this.chatHistory.set(msg.id || Math.random().toString(36).substring(2, 15), msg)
+            const ck = this.chatKey(msg)
+            if (!this.chatHistory.has(ck)) {
+              this.chatHistory.set(ck, msg)
             }
           }
           while (this.chatHistory.size > CHAT_HISTORY_LIMIT) {
@@ -152,7 +157,7 @@ export class XmppChatManager {
   }
 
   public async recordChatMessage(msg: XmppMessage): Promise<void> {
-    const key = msg.id || Math.random().toString(36).substring(2, 15)
+    const key = this.chatKey(msg)
     this.chatHistory.set(key, msg)
     while (this.chatHistory.size > CHAT_HISTORY_LIMIT) {
       const oldestKey = this.chatHistory.keys().next().value
@@ -160,17 +165,28 @@ export class XmppChatManager {
       this.chatHistory.delete(oldestKey)
     }
 
-    this.chatHistorySaveQueue = this.chatHistorySaveQueue
-      .then(async () => {
-        await persistChatHistoryState({
-          storage: this.ctx.storage,
-          chatHistory: this.chatHistory
-        } as any)
-        await this.persistChatHistoryToDht()
-      })
-      .catch(err => {
-        console.warn('[XMPP] Failed to persist chat history:', err)
-      })
+    this.scheduleChatPersist()
+  }
+
+  private persistScheduled = false
+
+  private scheduleChatPersist(): void {
+    if (this.persistScheduled) return
+    this.persistScheduled = true
+    queueMicrotask(() => {
+      this.persistScheduled = false
+      this.chatHistorySaveQueue = this.chatHistorySaveQueue
+        .then(async () => {
+          await persistChatHistoryState({
+            storage: this.ctx.storage,
+            chatHistory: this.chatHistory
+          } as any)
+          await this.persistChatHistoryToDht()
+        })
+        .catch(err => {
+          console.warn('[XMPP] Failed to persist chat history:', err)
+        })
+    })
   }
 
   private async persistChatHistoryToDht(): Promise<void> {
@@ -209,8 +225,7 @@ export class XmppChatManager {
       }
     }
 
-    const peerJid = `${peerId}@p2p`
-    let history = Array.from(this.chatHistory.values()).filter(msg => msg.from !== peerJid)
+    let history = Array.from(this.chatHistory.values())
     if (filterWith) {
       const bareFilterWith = filterWith.split('/')[0]
       history = history.filter(msg => {

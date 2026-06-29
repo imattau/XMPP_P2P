@@ -275,9 +275,15 @@ export class XmppNode extends EventEmitter {
   public readonly uploads: XmppUploadManager
   public readonly clientBridge: XmppClientBridge
   public readonly ready: Promise<void>
+  private resolveReady!: () => void
+  private rejectReady!: (err: any) => void
 
   constructor(libp2p: Libp2p, storage: XmppStorage, options: XmppNodeOptions = {}) {
     super()
+    this.ready = new Promise<void>((resolve, reject) => {
+      this.resolveReady = resolve
+      this.rejectReady = reject
+    })
     this.libp2p = libp2p
     this.jid = `${this.libp2p.peerId.toString()}@p2p`
     this.storage = storage
@@ -322,7 +328,7 @@ export class XmppNode extends EventEmitter {
       this.rosterManager.selfPresence.nickname = options.nickname
       this.rosterManager.selfVCard.nickname = options.nickname
     }
-    this.ready = this.rosterManager.initialize()
+    this.rosterManager.initialize()
       .then(() => this.feedManager.initialize())
       .then(() => this.collectionManager.initialize())
       .then(() => this.muc.initialize())
@@ -331,6 +337,8 @@ export class XmppNode extends EventEmitter {
       .then(() => this.uploads.ensureUploadAnnouncementSubscription())
       .then(() => this.loadOmemoState())
       .then(() => this.openPgpStateManager.load())
+      .then(() => this.resolveReady())
+      .catch(err => this.rejectReady(err))
 
     // Register protocol handler for inbound connections.
     // libp2p StreamHandler signature: (stream: Stream, connection: Connection)
@@ -353,7 +361,7 @@ export class XmppNode extends EventEmitter {
         const xmlStr = new TextDecoder().decode(data)
         if (topic.startsWith('xmpp/muc/')) {
           const fromPeerId = evt.detail.from?.toString() || 'unknown'
-          void this.muc.handleIncomingPayload(topic, fromPeerId, xmlStr).catch(() => {})
+          void this.ready.then(() => this.muc.handleIncomingPayload(topic, fromPeerId, xmlStr)).catch(() => {})
         } else if (topic === UPLOAD_ANNOUNCEMENTS_TOPIC) {
           void this.handlePubSubPayload(topic, xmlStr).catch(() => {})
         } else {
@@ -1434,15 +1442,24 @@ export class XmppNode extends EventEmitter {
     } = {}
   ): Promise<string> {
     const addrStr = peerAddr.toString()
+    if (!addrStr) {
+      throw new Error('Cannot send message: peer address is empty')
+    }
+
     // Route to the server bridge only when:
     //   1. The target is a standard XMPP JID (contains '@' but not the '@p2p' sentinel)
     //   2. The bridge is connected
     //   3. The target domain matches the bridge's connected domain (prevents routing
     //      e.g. user@other-server messages through a bridge connected to jabber.org)
     const targetDomain = addrStr.includes('@') ? addrStr.split('@')[1] : ''
-    if (!addrStr.endsWith('@p2p') && addrStr.includes('@') && this.clientBridge.isConnected
-        && targetDomain === this.clientBridge.connectionInfo.domain) {
-      return this.clientBridge.sendMessage(addrStr, body, { type: 'chat', thread: options.thread })
+    if (!addrStr.endsWith('@p2p') && addrStr.includes('@')) {
+      if (this.clientBridge.isConnected && targetDomain === this.clientBridge.connectionInfo.domain) {
+        return this.clientBridge.sendMessage(addrStr, body, { type: 'chat', thread: options.thread })
+      }
+      if (!this.clientBridge.isConnected) {
+        throw new Error(`Server bridge is not connected — cannot send to ${addrStr}`)
+      }
+      throw new Error(`Cannot route to ${targetDomain}: bridge is connected to ${this.clientBridge.connectionInfo.domain}`)
     }
 
     const peerId = this.parsePeerReference(peerAddr).peerId
@@ -1882,16 +1899,21 @@ export class XmppNode extends EventEmitter {
 
   private forwardClientBridgeEvents() {
     this.clientBridge.on('message', (event: any) => {
-      this.emit('message', {
+      const msg = {
         from: event.from,
         to: event.to,
-        body: event.body,
-        id: event.id,
-        type: event.type,
-        server: event.server,
+        body: event.body || '',
+        id: event.id || Math.random().toString(36).substring(2, 15),
+        type: event.type || 'chat',
         thread: event.thread,
         delay: event.delay ? { stamp: event.delay.stamp, from: event.delay.from } : undefined
-      })
+      }
+      if (this.chat) {
+        this.chat.recordChatMessage(msg).catch(err => this.emit('error', err))
+      } else {
+        console.warn('[XMPP] Chat manager not available — server message not recorded to history:', msg.id)
+      }
+      this.emit('message', { ...msg, server: event.server })
     })
 
     this.clientBridge.on('presence', (event: any) => {
@@ -1951,7 +1973,8 @@ export class XmppNode extends EventEmitter {
   }
 
   getServerConnections(): ServerConnectionInfo[] {
-    return this.clientBridge.isConnected ? [this.clientBridge.connectionInfo] : []
+    const info = this.clientBridge.connectionInfo
+    return info.domain ? [info] : []
   }
 
   async close() {

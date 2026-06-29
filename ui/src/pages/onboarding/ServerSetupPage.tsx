@@ -20,6 +20,7 @@ export default function ServerSetupPage() {
   const [connected, setConnected] = useState(false)
   const [connectedDomain, setConnectedDomain] = useState('')
   const [error, setError] = useState('')
+  const [registrationAttempted, setRegistrationAttempted] = useState(false)
 
   // Login form
   const [jid, setJid] = useState('')
@@ -33,26 +34,27 @@ export default function ServerSetupPage() {
   const [regUsername, setRegUsername] = useState('')
   const [regPassword, setRegPassword] = useState('')
   const [regConfirm, setRegConfirm] = useState('')
+  const [regServiceUrl, setRegServiceUrl] = useState('')
 
   const displayName = identity?.displayName ?? 'User'
 
   useEffect(() => {
     if (getBrowserXmppBridge()) {
       setInitializing(false)
-      return
-    }
-    const bootstrapAddrs = window.__XMPP_P2P_CONFIG__?.bootstrapAddrs ?? []
-    const client = window.XmppP2P?.createBrowserXmppClient
-    if (client) {
-      client({ bootstrapAddrs, dbName: 'xmpp-p2p', nickname: displayName })
-        .then(() => setInitializing(false))
-        .catch((err: unknown) => {
-          setInitError(err instanceof Error ? err.message : 'Failed to start P2P node')
-          setInitializing(false)
-        })
     } else {
-      setInitError('XMPP client not available')
-      setInitializing(false)
+      const bootstrapAddrs = window.__XMPP_P2P_CONFIG__?.bootstrapAddrs ?? []
+      const client = window.XmppP2P?.createBrowserXmppClient
+      if (client) {
+        client({ bootstrapAddrs, dbName: 'xmpp-p2p', nickname: displayName })
+          .then(() => setInitializing(false))
+          .catch((err: unknown) => {
+            setInitError(err instanceof Error ? err.message : 'Failed to start P2P node')
+            setInitializing(false)
+          })
+      } else {
+        setInitError('XMPP client not available')
+        setInitializing(false)
+      }
     }
     fetchPublicServers().then(list => {
       setServers(list)
@@ -81,6 +83,7 @@ export default function ServerSetupPage() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
+    setRegistrationAttempted(false)
     if (regPassword !== regConfirm) {
       setError('Passwords do not match')
       return
@@ -97,7 +100,9 @@ export default function ServerSetupPage() {
       const fullJid = `${regUsername}@${server.domain}`
       const bridge = getBrowserXmppBridge()
       if (!bridge?.registerServer) throw new Error('Bridge not available')
-      await bridge.registerServer(fullJid, regPassword, server.wsUrl || server.domain)
+      setRegistrationAttempted(true)
+      const service = regServiceUrl || server.wsUrl || server.domain
+      await bridge.registerServer(fullJid, regPassword, service)
       setConnectedDomain(server.domain)
       setConnected(true)
     } catch (err) {
@@ -131,7 +136,7 @@ export default function ServerSetupPage() {
           <p className="text-[12px] text-muted-foreground">Optional — connect to an XMPP server or skip and use P2P only</p>
         </div>
         <div className="mt-3">
-          <ProgressDots current={5} />
+          <ProgressDots current={4} />
         </div>
       </header>
 
@@ -281,9 +286,17 @@ export default function ServerSetupPage() {
                     className="w-full px-3 py-3 text-sm rounded-xl border border-border bg-background text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/50"
                   />
 
+                  <input
+                    type="text"
+                    placeholder="Server URL (optional, e.g. wss://example.com:5443/ws)"
+                    value={regServiceUrl}
+                    onChange={e => { setRegServiceUrl(e.target.value); setError('') }}
+                    className="w-full px-3 py-3 text-sm rounded-xl border border-border bg-background text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  />
+
                   {error && (
                     <p className="text-xs text-destructive">
-                      {selectedServerInfo?.registerUrl ? (
+                      {registrationAttempted && selectedServerInfo?.registerUrl ? (
                         <>{error}. You can register on the web:{' '}
                           <a href={selectedServerInfo.registerUrl} target="_blank" rel="noopener noreferrer"
                             className="inline-flex items-center gap-1 text-primary underline ml-1">

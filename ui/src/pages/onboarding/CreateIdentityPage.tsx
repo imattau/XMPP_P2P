@@ -28,7 +28,7 @@ export default function CreateIdentityPage() {
 
   const handleCreate = () => {
     if (!validate()) return
-    createIdentity(displayName.trim(), handle.trim(), passcode || undefined)
+    createIdentity(displayName.trim(), handle.trim(), passcode || undefined, publicProfile)
     navigate('/onboarding/recovery')
   }
 

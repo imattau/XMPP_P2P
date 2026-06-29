@@ -102,6 +102,19 @@ export function useServerBridge() {
     return runtime?.isComponentConnected?.() ?? false
   }, [])
 
+  const registerServer = useCallback(async (jid: string, password: string, service: string): Promise<void> => {
+    const runtime = getBrowserXmppBridge()
+    if (!runtime?.registerServer) throw new Error('Bridge not available')
+    setState(prev => ({ ...prev, connecting: true }))
+    try {
+      await runtime.registerServer(jid, password, service)
+      refreshConnections()
+      await refreshGatewayStatus()
+    } finally {
+      setState(prev => ({ ...prev, connecting: false }))
+    }
+  }, [refreshConnections, refreshGatewayStatus])
+
   const connectServer = useCallback(async (jid: string, password: string, service?: string): Promise<void> => {
     const runtime = getBrowserXmppBridge()
     if (!runtime?.connectServer) throw new Error('Bridge not available')
@@ -152,6 +165,7 @@ export function useServerBridge() {
     connectComponent,
     disconnectComponent,
     isComponentConnected,
+    registerServer,
     connectServer,
     disconnectServer,
     isServerConnected,

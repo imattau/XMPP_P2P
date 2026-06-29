@@ -12,9 +12,9 @@ export function useIdentityBridge() {
 
   return {
     ...state,
-    createIdentity: (displayName: string, handle: string, passcode?: string) =>
-      identityController.createIdentity(displayName, handle, passcode),
-    importIdentity: (method: 'qr' | 'phrase' | 'backup' | 'paste', data: { displayName: string; handle: string; jid?: string; phrase?: string[] }) =>
+    createIdentity: (displayName: string, handle: string, passcode?: string, publicProfile?: boolean) =>
+      identityController.createIdentity(displayName, handle, passcode, publicProfile),
+    importIdentity: (method: 'qr' | 'phrase' | 'backup' | 'paste', data: { displayName: string; handle: string; jid?: string; phrase?: string[]; publicProfile?: boolean }) =>
       identityController.importIdentity(method, data),
     setPhraseSaved: () => identityController.setPhraseSaved(),
     completeOnboarding: () => identityController.completeOnboarding(),

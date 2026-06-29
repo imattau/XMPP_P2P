@@ -174,6 +174,11 @@ export interface XmppRuntimeBridge {
   getConnectedPeers(): string[]
   sendChatState(target: string, state: 'composing' | 'paused' | 'active'): Promise<void>
   onChatState(cb: (state: { from: string; state: string }) => void): () => void
+  onMucMessage(cb: (event: any) => void): () => void
+  onMucJoin(cb: (event: any) => void): () => void
+  onMucLeave(cb: (event: any) => void): () => void
+  onMucChatState(cb: (event: any) => void): () => void
+  onMucMarker(cb: (event: any) => void): () => void
 
   connectComponent(host: string, port: number, secret: string, domain: string): Promise<void>
   disconnectComponent(): Promise<void>

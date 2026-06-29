@@ -12,7 +12,11 @@ export class BrowserXmppRuntimeBridge {
   private connectionListeners = new Set<Listener<[string, boolean]>>()
   private serverConnectionListeners = new Set<Listener<[ServerConnectionInfo]>>()
   private chatStateListeners = new Set<Listener<[{ from: string; state: string }]>>()
-  private gatewayMessageListeners = new Set<Listener<[{ from: string; body: string; server: string }]>>()
+  private mucMessageListeners = new Set<Listener<[any]>>()
+  private mucJoinListeners = new Set<Listener<[any]>>()
+  private mucLeaveListeners = new Set<Listener<[any]>>()
+  private mucChatStateListeners = new Set<Listener<[any]>>()
+  private mucMarkerListeners = new Set<Listener<[any]>>()
 
   private activeConnections = new Set<string>()
 
@@ -73,15 +77,37 @@ export class BrowserXmppRuntimeBridge {
       }
     })
 
-    this.xmppNode.on('gateway:message', (msg: { from: string; body: string; server: string }) => {
-      for (const cb of this.gatewayMessageListeners) {
-        try { cb(msg) } catch { /* swallow */ }
-      }
-      // Also forward to regular message listeners
-      for (const cb of this.messageListeners) {
-        try { cb(msg as any) } catch { /* swallow */ }
+    this.xmppNode.on('muc:message', (event: any) => {
+      for (const cb of this.mucMessageListeners) {
+        try { cb(event) } catch { /* swallow */ }
       }
     })
+
+    this.xmppNode.on('muc:join', (event: any) => {
+      for (const cb of this.mucJoinListeners) {
+        try { cb(event) } catch { /* swallow */ }
+      }
+    })
+
+    this.xmppNode.on('muc:leave', (event: any) => {
+      for (const cb of this.mucLeaveListeners) {
+        try { cb(event) } catch { /* swallow */ }
+      }
+    })
+
+    this.xmppNode.on('muc:chatstate', (event: any) => {
+      for (const cb of this.mucChatStateListeners) {
+        try { cb(event) } catch { /* swallow */ }
+      }
+    })
+
+    this.xmppNode.on('muc:marker', (event: any) => {
+      for (const cb of this.mucMarkerListeners) {
+        try { cb(event) } catch { /* swallow */ }
+      }
+    })
+
+
   }
 
   private toFeedPostRecord(msg: { topic: string; body: string; from: string; itemId?: string }): XmppFeedPost | null {
@@ -121,6 +147,31 @@ export class BrowserXmppRuntimeBridge {
   onChatState(cb: Listener<[{ from: string; state: string }]>): () => void {
     this.chatStateListeners.add(cb)
     return () => this.chatStateListeners.delete(cb)
+  }
+
+  onMucMessage(cb: Listener<[any]>): () => void {
+    this.mucMessageListeners.add(cb)
+    return () => this.mucMessageListeners.delete(cb)
+  }
+
+  onMucJoin(cb: Listener<[any]>): () => void {
+    this.mucJoinListeners.add(cb)
+    return () => this.mucJoinListeners.delete(cb)
+  }
+
+  onMucLeave(cb: Listener<[any]>): () => void {
+    this.mucLeaveListeners.add(cb)
+    return () => this.mucLeaveListeners.delete(cb)
+  }
+
+  onMucChatState(cb: Listener<[any]>): () => void {
+    this.mucChatStateListeners.add(cb)
+    return () => this.mucChatStateListeners.delete(cb)
+  }
+
+  onMucMarker(cb: Listener<[any]>): () => void {
+    this.mucMarkerListeners.add(cb)
+    return () => this.mucMarkerListeners.delete(cb)
   }
 
   async sendChatState(target: string, state: 'composing' | 'paused' | 'active'): Promise<void> {
@@ -269,7 +320,7 @@ export class BrowserXmppRuntimeBridge {
 
   getServerStatus(): { online: boolean; connections: ServerConnectionInfo[] } {
     const info = this.xmppNode.getServerStatus()
-    return { online: info.status === 'connected', connections: info.status === 'connected' ? [info] : [] }
+    return { online: info.status === 'connected', connections: info.domain ? [info] : [] }
   }
 
   getServerConnections(): ServerConnectionInfo[] {
@@ -376,6 +427,11 @@ export class BrowserXmppRuntimeBridge {
     this.feedPostListeners.clear()
     this.connectionListeners.clear()
     this.serverConnectionListeners.clear()
+    this.mucMessageListeners.clear()
+    this.mucJoinListeners.clear()
+    this.mucLeaveListeners.clear()
+    this.mucChatStateListeners.clear()
+    this.mucMarkerListeners.clear()
     this.activeConnections.clear()
     await this.xmppNode.close()
   }

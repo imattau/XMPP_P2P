@@ -62,7 +62,7 @@ export default function ReadyPage() {
           <p className="text-[12px] text-muted-foreground">Your identity is active</p>
         </div>
         <div className="mt-3">
-          <ProgressDots current={7} />
+          <ProgressDots current={6} />
         </div>
       </header>
 

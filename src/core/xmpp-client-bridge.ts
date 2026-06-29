@@ -83,20 +83,28 @@ export class XmppClientBridge extends EventEmitter {
   }
 
   private async discoverViaDNS(domain: string): Promise<string | null> {
-    try {
-      const resp = await fetch(`https://dns.google/resolve?name=_xmppconnect.${domain}&type=TXT`, { signal: AbortSignal.timeout(4000) })
-      if (resp.ok) {
-        const data = await resp.json()
-        if (data.Answer) {
-          for (const ans of data.Answer) {
-            const val = ans.data.replace(/"/g, '')
-            if (val.startsWith('_xmpp-client-websocket=')) {
-              return val.split('=')[1]
+    const providers = [
+      { url: `https://dns.google/resolve?name=_xmppconnect.${domain}&type=TXT`, json: true },
+      { url: `https://cloudflare-dns.com/dns-query?name=_xmppconnect.${domain}&type=TXT`, json: true, accept: 'application/dns-json' },
+    ]
+    for (const provider of providers) {
+      try {
+        const headers: Record<string, string> = {}
+        if (provider.accept) headers.Accept = provider.accept
+        const resp = await fetch(provider.url, { signal: AbortSignal.timeout(4000), headers })
+        if (resp.ok) {
+          const data = await resp.json()
+          if (data.Answer) {
+            for (const ans of data.Answer) {
+              const val = ans.data.replace(/"/g, '')
+              if (val.startsWith('_xmpp-client-websocket=')) {
+                return val.split('=')[1]
+              }
             }
           }
         }
-      }
-    } catch {}
+      } catch {}
+    }
     return null
   }
 
@@ -130,10 +138,11 @@ export class XmppClientBridge extends EventEmitter {
     // If service is a domain (no ://), @xmpp/resolve will discover via DNS SRV or host-meta
 
     this.client = xmppClient(clientOptions)
+    const client = this.client
 
-    this.client.on('online', () => {
+    client.on('online', () => {
       this.status = 'connected'
-      this.domain = this.client?.jid?.domain || this.domain
+      this.domain = client?.jid?.domain || this.domain
       this.emit('connection', this.connectionInfo)
     })
 
@@ -192,9 +201,15 @@ export class XmppClientBridge extends EventEmitter {
 
   async disconnect(): Promise<void> {
     if (!this.client) return
+    const oldClient: any = this.client
     try {
-      await this.client.stop()
+      oldClient.reconnect?.stop?.()
+      await oldClient.stop()
     } catch {}
+    oldClient.removeAllListeners?.('online')
+    oldClient.removeAllListeners?.('stanza')
+    oldClient.removeAllListeners?.('status')
+    oldClient.removeAllListeners?.('error')
     this.client = null
     this.status = 'disconnected'
     this.emit('connection', { ...this.connectionInfo, status: 'disconnected' })
@@ -264,7 +279,6 @@ export class XmppClientBridge extends EventEmitter {
         if (step === 'open') {
           if (buffer.includes('<open ') || buffer.includes('<stream:stream')) {
             step = 'features'
-            buffer = ''
           } else {
             // Haven't seen the open confirmation yet — nothing else to do
             return
@@ -493,12 +507,17 @@ export class XmppClientBridge extends EventEmitter {
     const delayEl = stanza.getChild('delay')
     const delay = delayEl ? { stamp: delayEl.attrs.stamp || '', from: delayEl.attrs.from } : undefined
 
+    const chatState = ['active', 'composing', 'paused', 'inactive', 'gone']
+      .map(s => stanza.getChild(s))
+      .find(child => child?.attrs?.xmlns === 'http://jabber.org/protocol/chatstates')
+    const chatStateName = chatState?.name as 'active' | 'composing' | 'paused' | 'inactive' | 'gone' | undefined
+
     if (type === 'groupchat') {
       const roomJid = from.includes('/') ? from.split('/')[0] : from
       const nick = from.includes('/') ? from.split('/')[1] : undefined
-      this.emit('muc:message', { room: roomJid, roomJid, from, body, id, type: 'groupchat', server: this.domain, nick, delay })
+      this.emit('muc:message', { room: roomJid, roomJid, from, body, id, type: 'groupchat', server: this.domain, nick, delay, chatState: chatStateName })
       if (body) {
-        this.emit('message', { from, to, body, id, type: 'groupchat', server: this.domain, thread, delay })
+        this.emit('message', { from, to, body, id, type: 'groupchat', server: this.domain, thread, delay, chatState: chatStateName })
       }
       return
     }
@@ -509,7 +528,7 @@ export class XmppClientBridge extends EventEmitter {
       return
     }
 
-    this.emit('message', { from, to, body, id, type, server: this.domain, thread, delay })
+    this.emit('message', { from, to, body, id, type, server: this.domain, thread, delay, chatState: chatStateName })
   }
 
   private handlePubsubEvent(stanza: Element): void {

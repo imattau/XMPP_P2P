@@ -249,6 +249,12 @@ function saveToStorage<T>(key: string, value: T): void {
   }
 }
 
+function isValidRecoveryPhrase(words: string[]): boolean {
+  if (words.length !== 12) return false
+  const wordSet = new Set(WORD_LIST)
+  return words.every(w => wordSet.has(w))
+}
+
 function generateRecoveryPhrase(): string[] {
   const words: string[] = []
   const pool = WORD_LIST
@@ -298,14 +304,14 @@ export class IdentityController {
     return () => { this.listeners.delete(listener) }
   }
 
-  createIdentity(displayName: string, handle: string, passcode?: string) {
+  createIdentity(displayName: string, handle: string, passcode?: string, publicProfile: boolean = true) {
     const phrase = generateRecoveryPhrase()
     const identity: IdentityState = {
       displayName,
       handle,
       jid: `${handle}@peer`,
       recoveryPasscode: passcode,
-      publicProfile: true,
+      publicProfile,
       recoveryPhrase: phrase,
       recoveryPhraseSaved: false,
       createdAt: new Date().toISOString(),
@@ -315,12 +321,12 @@ export class IdentityController {
     this.emit()
   }
 
-  importIdentity(method: 'qr' | 'phrase' | 'backup' | 'paste', data: { displayName: string; handle: string; jid?: string; phrase?: string[] }) {
+  importIdentity(method: 'qr' | 'phrase' | 'backup' | 'paste', data: { displayName: string; handle: string; jid?: string; phrase?: string[]; publicProfile?: boolean }) {
     const identity: IdentityState = {
       displayName: data.displayName,
       handle: data.handle,
       jid: data.jid ?? `${data.handle}@peer`,
-      publicProfile: true,
+      publicProfile: data.publicProfile ?? true,
       recoveryPhrase: data.phrase ?? generateRecoveryPhrase(),
       recoveryPhraseSaved: false,
       createdAt: new Date().toISOString(),
@@ -389,3 +395,4 @@ export class IdentityController {
 }
 
 export const identityController = new IdentityController()
+export { isValidRecoveryPhrase, WORD_LIST }
