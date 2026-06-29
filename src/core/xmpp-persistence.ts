@@ -238,7 +238,8 @@ export async function loadChatHistoryState(ctx: XmppPersistenceLoadContext, limi
     const parsed = await readState<XmppChatHistoryFile | XmppMessage[]>(ctx.storage, 'chat_history')
     const messages = Array.isArray(parsed) ? parsed : parsed?.messages
     for (const msg of messages ?? []) {
-      ctx.chatHistory.set(msg.id || Math.random().toString(36).substring(2, 15), msg)
+      const key = msg.id || `${msg.from}:${msg.to}:${msg.body}:${msg.delay?.stamp || ''}`
+      ctx.chatHistory.set(key, msg)
     }
     trimMap(ctx.chatHistory, limit)
   } catch (err: any) {

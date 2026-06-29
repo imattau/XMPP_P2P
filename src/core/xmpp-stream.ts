@@ -25,6 +25,7 @@ export class XmppStream extends EventEmitter {
   private isClosed = false
   /** Pushable source that feeds outbound bytes into stream.sink */
   private readonly outbound: Pushable<Uint8Array>
+  private sinkPromise: Promise<void> | undefined
   public readonly remotePeer: string
 
   // XEP-0198 Stream Management properties
@@ -70,7 +71,7 @@ export class XmppStream extends EventEmitter {
 
     // Create the pushable source for outbound data and wire it into stream.sink.
     this.outbound = pushable<Uint8Array>({ objectMode: false })
-    this.stream.sink(this.outbound).catch((err: Error) => {
+    this.sinkPromise = this.stream.sink(this.outbound).catch((err: Error) => {
       if (!this.isClosed) {
         this.emit('error', err)
       }
@@ -184,11 +185,13 @@ export class XmppStream extends EventEmitter {
    */
   private computeStanzasToResend(remoteH: number): Element[] {
     if (this.unackedQueue.length === 0) return []
+    if (remoteH >= this.outboundStanzaCount) return []
     const sentBeforeQueue = this.outboundStanzaCount - this.unackedQueue.length
     const resendStartIndex = Math.max(0, Math.min(
       remoteH - sentBeforeQueue,
-      this.unackedQueue.length - 1
+      this.unackedQueue.length
     ))
+    if (resendStartIndex >= this.unackedQueue.length) return []
     return this.unackedQueue.slice(resendStartIndex)
   }
 
@@ -242,6 +245,11 @@ export class XmppStream extends EventEmitter {
     this.isClosed = true
     try {
       this.outbound.end()
+    } catch {
+      // ignore
+    }
+    try {
+      await this.sinkPromise
     } catch {
       // ignore
     }

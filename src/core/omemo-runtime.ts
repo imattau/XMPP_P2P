@@ -84,18 +84,24 @@ async function loadOmemoModule(): Promise<OmemoModule> {
     // Assign synchronously before any await so concurrent callers
     // see the pending promise and don't race on file patching.
     omemoModulePromise = (async (): Promise<OmemoModule> => {
-      const sourcePath = join(distDir, 'libomemo.umd.js')
-      const source = await fs.readFile(sourcePath, 'utf8')
-      installOmemoFetchShim(distDir)
-      const patchedExists = await fs.stat(patchedPath).then(() => true).catch(() => false)
-      if (!patchedExists) {
-        const patchedSource = source.replace(
-          "var _scriptDir = (typeof document === 'undefined' && typeof location === 'undefined' ? require('u' + 'rl').pathToFileURL(__filename).href : typeof document === 'undefined' ? location.href : (_documentCurrentScript && _documentCurrentScript.tagName.toUpperCase() === 'SCRIPT' && _documentCurrentScript.src || new URL('libomemo.umd.js', document.baseURI).href));",
-          "var _scriptDir = require('path').dirname(__filename) + '/';"
-        )
-        await fs.writeFile(patchedPath, patchedSource, 'utf8')
+      try {
+        const sourcePath = join(distDir, 'libomemo.umd.js')
+        const source = await fs.readFile(sourcePath, 'utf8')
+        installOmemoFetchShim(distDir)
+        const patchedExists = await fs.stat(patchedPath).then(() => true).catch(() => false)
+        if (!patchedExists) {
+          const patchedSource = source.replace(
+            "var _scriptDir = (typeof document === 'undefined' && typeof location === 'undefined' ? require('u' + 'rl').pathToFileURL(__filename).href : typeof document === 'undefined' ? location.href : (_documentCurrentScript && _documentCurrentScript.tagName.toUpperCase() === 'SCRIPT' && _documentCurrentScript.src || new URL('libomemo.umd.js', document.baseURI).href));",
+            "var _scriptDir = require('path').dirname(__filename) + '/';"
+          )
+          await fs.writeFile(patchedPath, patchedSource, 'utf8')
+        }
+        return requireShim(patchedPath) as OmemoModule
+      } catch (err) {
+        omemoModulePromise = undefined
+        console.error('[OMEMO] Failed to load OMEMO module, will retry on next call:', err)
+        throw err
       }
-      return requireShim(patchedPath) as OmemoModule
     })()
   }
 

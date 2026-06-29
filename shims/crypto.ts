@@ -41,20 +41,12 @@ export function randomBytes(size) {
   return Buffer.from(buf)
 }
 
-export function createCipheriv(_algorithm, _key, _iv) {
-  return {
-    update: (data) => Buffer.from(data),
-    final: () => Buffer.from(''),
-    getAuthTag: () => Buffer.from('')
-  }
+export function createCipheriv() {
+  throw new Error('crypto.createCipheriv is not available in the browser — AES-GCM encryption is disabled')
 }
 
-export function createDecipheriv(_algorithm, _key, _iv) {
-  return {
-    update: (data) => Buffer.from(data),
-    final: () => Buffer.from(''),
-    setAuthTag: (_tag) => {}
-  }
+export function createDecipheriv() {
+  throw new Error('crypto.createDecipheriv is not available in the browser — AES-GCM decryption is disabled')
 }
 
 export function pbkdf2Sync(password, salt, iterations, keylen, _digest) {

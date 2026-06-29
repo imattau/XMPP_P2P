@@ -67,8 +67,8 @@ export class XmppUploadManager {
           console.error('[XMPP] Upload server error:', err)
           if (!res.headersSent) {
             res.statusCode = 500
+            res.end('upload error')
           }
-          res.end('upload error')
         })
       })
 
@@ -98,6 +98,7 @@ export class XmppUploadManager {
 
       resolveReady?.()
     } catch (err) {
+      this.uploadServerReady = undefined
       rejectReady?.(err as Error)
       throw err
     }

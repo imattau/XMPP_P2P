@@ -1296,7 +1296,7 @@ export class XmppNode extends EventEmitter {
     const existing = this.streams.get(peerId)
     if (existing) {
       this.cancelReconnect(peerId)
-      existing.close()
+      void existing.close().catch(() => {})
     }
 
     this.streams.set(peerId, xmppStream)

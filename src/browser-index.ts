@@ -42,6 +42,8 @@ export async function createBrowserXmppClient(
       }
       await encrypted.initialize(options.passphrase)
     }
+    // initialize() is idempotent — it derives the key if salt exists,
+    // or creates a new salt+key if not.
     storage = encrypted
   }
 
