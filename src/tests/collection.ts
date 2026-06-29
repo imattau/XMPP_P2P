@@ -154,7 +154,7 @@ async function runCollectionTest() {
     console.log('  - Collection Membership Persisted: SUCCESS')
     console.log('  - Collection History Persisted: SUCCESS')
     console.log('\n>>> COLLECTION VERIFICATION SUCCESSFUL! <<<')
-    process.exit(0)
+    return
   } finally {
     await xmppNode1?.close().catch(() => {})
     await xmppNode2?.close().catch(() => {})

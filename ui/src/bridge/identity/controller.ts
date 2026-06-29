@@ -252,16 +252,24 @@ function saveToStorage<T>(key: string, value: T): void {
 function generateRecoveryPhrase(): string[] {
   const words: string[] = []
   const pool = WORD_LIST
+  const poolSize = pool.length
+  const maxValid = 65536 - (65536 % poolSize)
 
   const array = new Uint16Array(12)
   if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
-    crypto.getRandomValues(array)
-    for (let i = 0; i < 12; i++) {
-      words.push(pool[array[i] % pool.length])
+    let generated = 0
+    while (generated < 12) {
+      crypto.getRandomValues(array)
+      for (let i = 0; i < array.length && generated < 12; i++) {
+        if (array[i] < maxValid) {
+          words.push(pool[array[i] % poolSize])
+          generated++
+        }
+      }
     }
   } else {
     for (let i = 0; i < 12; i++) {
-      words.push(pool[Math.floor(Math.random() * pool.length)])
+      words.push(pool[Math.floor(Math.random() * poolSize)])
     }
   }
   return words

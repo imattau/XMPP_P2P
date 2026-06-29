@@ -6,7 +6,7 @@ import { createNewArticle } from '../bridge/article/controller'
 
 export default function DraftsPage() {
   const navigate = useNavigate()
-  const { drafts, deleteDraft, saveDraft, articles } = useArticleBridge()
+  const { drafts, deleteDraft, saveDraft } = useArticleBridge()
   const [menuOpen, setMenuOpen] = useState<string | null>(null)
 
   const handleNewArticle = () => {

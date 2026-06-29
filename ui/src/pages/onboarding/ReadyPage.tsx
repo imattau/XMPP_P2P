@@ -35,7 +35,9 @@ export default function ReadyPage() {
     try {
       const bridge = getBrowserXmppBridge()
       if (!bridge) {
-        const bootstrapAddrs = window.__XMPP_P2P_CONFIG__?.bootstrapAddrs ?? []
+        const bootstrapAddrs = window.__XMPP_P2P_CONFIG__?.bootstrapAddrs
+          ?? (window as any).__XMPP_P2P_CONFIG__?.bootstrapAddrs
+          ?? []
         if (window.XmppP2P?.createBrowserXmppClient) {
           await window.XmppP2P.createBrowserXmppClient({
             bootstrapAddrs,

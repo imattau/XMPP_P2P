@@ -52,11 +52,11 @@ async function runOpenPgpTest() {
 
     const node1FingerprintBefore = await node1.getOpenPgpFingerprint()
 
-    const node2Key = await node2.fetchOpenPgpPublicKey(node1Address)
-    await node2.registerPeerOpenPgpPublicKey(node1Address, node2Key.publicKey)
+    const node1KeyViaNode2 = await node2.fetchOpenPgpPublicKey(node1Address)
+    await node2.registerPeerOpenPgpPublicKey(node1Address, node1KeyViaNode2.publicKey)
 
-    const node1Key = await node1.fetchOpenPgpPublicKey(node2Address)
-    await node1.registerPeerOpenPgpPublicKey(node2Address, node1Key.publicKey)
+    const node2KeyViaNode1 = await node1.fetchOpenPgpPublicKey(node2Address)
+    await node1.registerPeerOpenPgpPublicKey(node2Address, node2KeyViaNode1.publicKey)
 
     let encryptedChatReceived = false
     node2.on('message', (msg) => {
@@ -132,7 +132,7 @@ async function runOpenPgpTest() {
     console.log('  - Encrypted PubSub Delivered: SUCCESS')
     console.log('  - OpenPGP Key Persistence Across Restart: SUCCESS')
     console.log('\n>>> OPENPGP VERIFICATION SUCCESSFUL! <<<')
-    process.exit(0)
+    return
   } finally {
     await xmppNode1?.close().catch(() => {})
     await xmppNode2?.close().catch(() => {})

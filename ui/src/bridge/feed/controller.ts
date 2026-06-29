@@ -111,7 +111,13 @@ export class FeedBridgeController {
     this.emit()
     try {
       if (this.runtime) {
-        const older = await this.runtime.getFeedPosts()
+        const allPosts = await this.runtime.getFeedPosts()
+        const oldestTimestamp = this.state.posts.length > 0
+          ? this.state.posts[this.state.posts.length - 1].timestamp
+          : undefined
+        const older = oldestTimestamp
+          ? allPosts.filter(p => p.publishedAt < oldestTimestamp)
+          : allPosts
         const mapped = older.slice(-10).map(mapRuntimePost)
         const existingIds = new Set(this.state.posts.map((p) => p.id))
         const newPosts = mapped.filter((p) => !existingIds.has(p.id))

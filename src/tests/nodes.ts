@@ -95,10 +95,10 @@ async function runTest() {
 
   if (msg1Received && msg2Received) {
     console.log('\n>>> VERIFICATION SUCCESSFUL! <<<')
-    process.exit(0)
+    return
   } else {
     console.log('\n>>> VERIFICATION FAILED! <<<')
-    process.exit(1)
+    throw new Error('Verification FAILED')
   }
 }
 

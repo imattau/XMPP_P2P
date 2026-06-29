@@ -198,7 +198,7 @@ async function runFeedTest() {
     console.log('  - Malformed Feed Payload Ignored: SUCCESS')
     console.log('  - Feed Persistence Across Restart: SUCCESS')
     console.log('\n>>> FEED VERIFICATION SUCCESSFUL! <<<')
-    process.exit(0)
+    return
   } finally {
     await xmppNode1?.close().catch(() => {})
     await xmppNode2?.close().catch(() => {})

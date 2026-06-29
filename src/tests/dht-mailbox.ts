@@ -66,7 +66,7 @@ async function runDhtMailboxTest() {
     console.log('  PASS')
 
     console.log('\n>>> DHT MAILBOX VERIFICATION SUCCESSFUL! <<<')
-    process.exit(0)
+    return
   } finally {
     await libp2p1?.stop().catch(() => {})
     await libp2p2?.stop().catch(() => {})

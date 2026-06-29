@@ -159,7 +159,7 @@ async function runUploadTest() {
     console.log('  - Provider Lookup Survived Origin Shutdown: SUCCESS')
     console.log('  - Cached Payload Survived Origin Shutdown: SUCCESS')
     console.log('\n>>> UPLOAD VERIFICATION SUCCESSFUL! <<<')
-    process.exit(0)
+    return
   } finally {
     await xmppNode1?.close().catch(() => {})
     await xmppNode2?.close().catch(() => {})

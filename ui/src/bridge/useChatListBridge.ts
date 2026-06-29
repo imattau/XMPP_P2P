@@ -69,7 +69,7 @@ export function useChatListBridge() {
     if (!runtime?.onMessage) return
 
     const unsub = runtime.onMessage((msg) => {
-      const peerKey = msg.from
+      const peerKey = msg.from.endsWith('@p2p') ? msg.from : `${msg.from}@p2p`
       setMessages((prev) => {
         const next = new Map(prev)
         next.set(peerKey, msg)

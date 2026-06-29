@@ -252,7 +252,7 @@ async function runProtocolTest() {
     console.log('  - vCard Get Returned Profile Data: SUCCESS')
     console.log('  - vCard Set Updated Profile Data: SUCCESS')
     console.log('\n>>> RELAY-COMPATIBILITY PROTOCOL VERIFICATION SUCCESSFUL! <<<')
-    process.exit(0)
+    return
   } finally {
     await xmppNode1?.close().catch(() => {})
     await xmppNode2?.close().catch(() => {})

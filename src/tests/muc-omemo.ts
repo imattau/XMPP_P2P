@@ -101,7 +101,7 @@ async function runMucOmemoTest() {
     console.log('  - Group End-to-End OMEMO Encryption: SUCCESS')
     console.log('  - Secure Roster Key Exchange: SUCCESS')
     console.log('\n>>> OMEMO MUC VERIFICATION SUCCESSFUL! <<<')
-    process.exit(0)
+    return
   } finally {
     await xmppNode1?.close().catch(() => {})
     await xmppNode2?.close().catch(() => {})

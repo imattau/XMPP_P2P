@@ -15,7 +15,7 @@ export class ChatBridgeController {
   private typingPeer: string | undefined
 
   constructor(
-    private readonly chat: ChatThread,
+    private chat: ChatThread,
     initialMessages: ChatMessage[],
     private readonly runtime?: XmppRuntimeBridge
   ) {
@@ -39,7 +39,10 @@ export class ChatBridgeController {
         const peerJid = this.chat.handle || this.chat.id
         if (from === peerJid || from === this.chat.id) {
           this.typingPeer = chatState === 'composing' ? from : undefined
-          this.chat.online = chatState === 'composing' ? true : this.chat.online
+          this.chat = {
+            ...this.chat,
+            online: chatState === 'composing' ? true : this.chat.online
+          }
           this.emit()
         }
       })
@@ -62,6 +65,7 @@ export class ChatBridgeController {
             return
           }
           if (!incoming.body) return
+          if (this.state.messages.some((m) => m.id === incoming.id)) return
           const msg: ChatMessage = {
             id: incoming.id,
             senderId: incoming.from,
@@ -91,7 +95,7 @@ export class ChatBridgeController {
           }
           return p
         })
-        this.chat.participants = updatedParticipants
+        this.chat = { ...this.chat, participants: updatedParticipants }
         this.emit()
       })
     }

@@ -39,9 +39,10 @@ export function useRosterBridge() {
 
     const unsubPresence = runtime.onPresence?.((presence: any) => {
       const isAvailable = presence.type !== 'unavailable'
+      const presenceJid = presence.from.includes('@') ? presence.from : `${presence.from}@p2p`
       setContacts((prev) =>
         prev.map((c) =>
-          c.jid === presence.from || c.jid === `${presence.from}@p2p`
+          c.jid === presenceJid
             ? { ...c, online: isAvailable }
             : c
         )

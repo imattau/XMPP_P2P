@@ -139,7 +139,7 @@ async function runSubscriptionTest() {
     console.log('  - Public Subscription Persisted: SUCCESS')
     console.log('  - Public Follower Reappeared After Restart: SUCCESS')
     console.log('\n>>> PUBLIC SUBSCRIPTION VERIFICATION SUCCESSFUL! <<<')
-    process.exit(0)
+    return
   } finally {
     await xmppNode1?.close().catch(() => {})
     await xmppNode2?.close().catch(() => {})

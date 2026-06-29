@@ -162,10 +162,10 @@ async function runMucTest() {
 
   if (aliceReceivedJoin && bobReceivedMessage && aliceReceivedLeave) {
     console.log('\n>>> MUC VERIFICATION SUCCESSFUL! <<<')
-    process.exit(0)
+    return
   } else {
     console.log('\n>>> MUC VERIFICATION FAILED! <<<')
-    process.exit(1)
+    throw new Error('MUC verification FAILED')
   }
 }
 

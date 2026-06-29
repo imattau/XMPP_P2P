@@ -123,7 +123,7 @@ async function runDhtTest() {
     console.log('  - DHT-Discovered Address Dialed: SUCCESS')
     console.log('  - PubSub Delivery Over Routed Topology: SUCCESS')
     console.log('\n>>> DHT VERIFICATION SUCCESSFUL! <<<')
-    process.exit(0)
+    return
   } finally {
     await xmppNode1?.close().catch(() => {})
     await xmppNode2?.close().catch(() => {})

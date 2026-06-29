@@ -13,11 +13,16 @@ import { useArticleBridge } from '../bridge/article/useArticleBridge'
 import ArticleCard from '../components/article/ArticleCard'
 
 const COMMUNITIES = [
-  { name: 'OpenSourceDev', icon: '⚙️' },
-  { name: 'WeeklyDevChat', icon: '💬' },
-  { name: 'FediDev', icon: '🌐' },
-  { name: 'Infra Team', icon: '🔧' },
+  { name: 'OpenSourceDev', id: 'opensourcedev', icon: '⚙️' },
+  { name: 'WeeklyDevChat', id: 'weeklydevchat', icon: '💬' },
+  { name: 'FediDev', id: 'fedidev', icon: '🌐' },
+  { name: 'Infra Team', id: 'infra-team', icon: '🔧' },
 ]
+
+function communityId(name: string): string {
+  const found = COMMUNITIES.find(c => c.name === name)
+  return found?.id ?? name.toLowerCase().replace(/\s+/g, '-')
+}
 
 function formatCount(n: number) {
   if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k'
@@ -266,7 +271,7 @@ export default function FeedPage() {
     if (!bridge) return
 
     if (quickPostType === 'community' && selectedCommunity) {
-      bridge.publishCollection(selectedCommunity, quickPostText.trim()).catch(() => {})
+      bridge.publishCollection(communityId(selectedCommunity), quickPostText.trim()).catch(() => {})
     } else {
       bridge.publishFeed(quickPostText.trim()).catch(() => {})
     }

@@ -53,9 +53,23 @@ export function parseXepMetadata(element: Element): XepMetadata {
   }
 
   // Parse XEP-0184 Receipts: Received confirmation
-  const receivedEl = element.getChild('received')
-  if (receivedEl && receivedEl.attrs.xmlns === RECEIPTS_XMLNS) {
-    metadata.receipt = { type: 'received', id: receivedEl.attrs.id }
+  // Parse XEP-0280 Message Carbons (received + sent)
+  // Both XEP-0184 receipts and XEP-0280 carbons use child elements
+  // named 'received' with different xmlns values. We iterate ALL children
+  // once so a carbon <received> is not shadowed by a receipt <received>.
+  const receivedChildren = (element.children as any[]).filter((child: any) => child?.name === 'received')
+  for (const child of receivedChildren) {
+    if (child.attrs.xmlns === RECEIPTS_XMLNS) {
+      metadata.receipt = { type: 'received', id: child.attrs.id }
+    } else if (child.attrs.xmlns === CARBONS_XMLNS) {
+      const forwardedEl = child.getChild('forwarded')
+      if (forwardedEl && forwardedEl.attrs.xmlns === FORWARD_XMLNS) {
+        const forwardedMsg = forwardedEl.getChild('message')
+        if (forwardedMsg) {
+          metadata.carbon = { type: 'received', forwardedMessage: forwardedMsg }
+        }
+      }
+    }
   }
 
   // Parse XEP-0085 Chat States
@@ -119,23 +133,13 @@ export function parseXepMetadata(element: Element): XepMetadata {
     }
   }
 
-  // Parse XEP-0280 Message Carbons
+  // Parse XEP-0280 Message Carbons: private marker
   const privateEl = element.getChild('private')
   if (privateEl && privateEl.attrs.xmlns === CARBONS_XMLNS) {
     metadata.private = true
   }
 
-  const receivedCarbonEl = element.getChild('received')
-  if (receivedCarbonEl && receivedCarbonEl.attrs.xmlns === CARBONS_XMLNS) {
-    const forwardedEl = receivedCarbonEl.getChild('forwarded')
-    if (forwardedEl && forwardedEl.attrs.xmlns === FORWARD_XMLNS) {
-      const forwardedMsg = forwardedEl.getChild('message')
-      if (forwardedMsg) {
-        metadata.carbon = { type: 'received', forwardedMessage: forwardedMsg }
-      }
-    }
-  }
-
+  // Parse XEP-0280 Message Carbons: sent carbon (no xmlns conflict — only carbons use <sent>)
   const sentCarbonEl = element.getChild('sent')
   if (sentCarbonEl && sentCarbonEl.attrs.xmlns === CARBONS_XMLNS) {
     const forwardedEl = sentCarbonEl.getChild('forwarded')

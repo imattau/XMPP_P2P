@@ -32,8 +32,13 @@ export class BrowserXmppRuntimeBridge {
     })
 
     this.xmppNode.on('presence', (presence: XmppPresence) => {
+      const normalized: XmppPresence = {
+        ...presence,
+        from: presence.from?.includes('@') ? presence.from : `${presence.from}@p2p`,
+        to: presence.to?.includes('@') ? presence.to : `${presence.to}@p2p`,
+      }
       for (const cb of this.presenceListeners) {
-        try { cb(presence) } catch { /* swallow */ }
+        try { cb(normalized) } catch { /* swallow */ }
       }
     })
 

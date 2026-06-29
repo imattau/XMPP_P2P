@@ -216,7 +216,7 @@ export class ArticleBridgeController {
           title: published.title,
           summary: published.summary ?? published.subtitle,
           categories: published.topic ? [published.topic] : undefined,
-          itemId: published.id,
+          itemId: Math.random().toString(36).substring(2, 15),
         })
       } catch {
         emitToast('Published locally (bridge unavailable)', 'info')

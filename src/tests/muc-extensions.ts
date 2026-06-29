@@ -205,10 +205,10 @@ async function runMucExtensionsTest() {
     aliceReceivedMamHistory.length >= 2
   ) {
     console.log('\n>>> MUC EXTENSIONS VERIFICATION SUCCESSFUL! <<<')
-    process.exit(0)
+    return
   } else {
     console.log('\n>>> MUC EXTENSIONS VERIFICATION FAILED! <<<')
-    process.exit(1)
+    throw new Error('MUC extensions verification FAILED')
   }
 }
 

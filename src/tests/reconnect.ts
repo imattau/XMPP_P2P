@@ -5,13 +5,14 @@ import { createP2PNode } from '../core/p2p.js'
 import { XmppNode } from '../core/xmpp-node.js'
 import { NodeSqliteStorage } from '../core/storage/node-sqlite-storage.js'
 
-async function waitFor(condition: () => boolean | Promise<boolean>, timeoutMs: number, message: string) {
+async function waitFor(condition: () => boolean | Promise<boolean>, timeoutMs: number, message: string): Promise<boolean> {
   const startedAt = Date.now()
   while (Date.now() - startedAt < timeoutMs) {
-    if (await condition()) return
+    if (await condition()) return true
     await new Promise(resolve => setTimeout(resolve, 200))
   }
-  throw new Error(message)
+  console.warn(`[RECONNECT] ${message}`)
+  return false
 }
 
 async function runReconnectTest() {
@@ -51,9 +52,10 @@ async function runReconnectTest() {
     console.log('  PASS')
 
     console.log('Test 3: Message delivery works over reconnected stream')
+    let reconnectedMessageReceived = false
     xmpp1.on('message', (msg: any) => {
       if (msg.body === 'reconnect-test-message') {
-        console.log('  PASS')
+        reconnectedMessageReceived = true
       }
     })
     const xmppStream2 = xmpp2['streams'].get(libp2p1.peerId.toString())
@@ -67,10 +69,13 @@ async function runReconnectTest() {
     }, (await import('@xmpp/xml')).xml('body', {}, 'reconnect-test-message'))
     if (xmppStream2) xmppStream2.send(msgEl)
 
-    await waitFor(async () => false, 2000, '(message delivery check is async)')
+    const delivered = await waitFor(() => reconnectedMessageReceived, 5000, 'Message not delivered after reconnect')
+    if (!delivered) {
+      throw new Error('Message not delivered after reconnect')
+    }
+    console.log('  PASS')
 
     console.log('\n>>> RECONNECT VERIFICATION SUCCESSFUL! <<<')
-    process.exit(0)
   } finally {
     await libp2p1?.stop().catch(() => {})
     await libp2p2?.stop().catch(() => {})

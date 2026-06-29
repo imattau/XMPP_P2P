@@ -558,10 +558,6 @@ function MucSettings({ chat, onKick, onBan, onConfig }: { chat: ChatData; onKick
       <button className="w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary transition-colors text-left text-destructive">
         <LogOut size={15} /><span className="text-sm">Leave channel</span>
       </button>
-
-      <button className="w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary transition-colors text-left text-destructive">
-        <LogOut size={15} /><span className="text-sm">Leave channel</span>
-      </button>
     </div>
   )
 }

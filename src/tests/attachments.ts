@@ -146,7 +146,7 @@ async function runAttachmentTest() {
     console.log('  - Malformed Attachment Payload Ignored: SUCCESS')
     console.log('  - Attachment Persistence Across Restart: SUCCESS')
     console.log('\n>>> ATTACHMENT VERIFICATION SUCCESSFUL! <<<')
-    process.exit(0)
+    return
   } finally {
     await xmppNode1?.close().catch(() => {})
     await xmppNode2?.close().catch(() => {})

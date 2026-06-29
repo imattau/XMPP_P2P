@@ -122,7 +122,7 @@ async function runXepsReliabilityTest() {
   await rm(workDir, { recursive: true, force: true })
 
   console.log('>>> ALL RELIABILITY TESTS PASSED SUCCESSFULY! <<<')
-  process.exit(0)
+  return
 }
 
 runXepsReliabilityTest().catch(err => {

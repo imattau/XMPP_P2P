@@ -140,7 +140,6 @@ export default function CreateCommunityPage() {
       }
       const result = await bridge.createPrivateMucRoom(name, {
         topic: subject || undefined,
-        nick: name,
         communityId: jid,
       })
       emitToast(`Community "${name}" created`, 'success')

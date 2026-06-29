@@ -126,7 +126,7 @@ async function runDiscoTest() {
     console.log('  - Collection Disco Items Exposed Feed Members: SUCCESS')
     console.log('  - Entity Capabilities Cached From Presence: SUCCESS')
     console.log('\n>>> SERVICE DISCOVERY VERIFICATION SUCCESSFUL! <<<')
-    process.exit(0)
+    return
   } finally {
     await xmppNode1?.close().catch(() => {})
     await xmppNode2?.close().catch(() => {})

@@ -124,10 +124,10 @@ async function runPubSubTest() {
 
   if (node2Received) {
     console.log('\n>>> PUBSUB VERIFICATION SUCCESSFUL! <<<')
-    process.exit(0)
+    return
   } else {
     console.log('\n>>> PUBSUB VERIFICATION FAILED! <<<')
-    process.exit(1)
+    throw new Error('PubSub verification FAILED')
   }
 }
 
