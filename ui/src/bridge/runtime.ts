@@ -171,6 +171,7 @@ export interface XmppRuntimeBridge {
   onPresence(cb: (presence: { from: string; to: string; type?: string; show?: string; status?: string; nickname?: string }) => void): () => void
   onFeedPost(cb: (post: BridgeFeedPostRecord) => void): () => void
   onConnectionChange(cb: (peerId: string, connected: boolean) => void): () => void
+  getConnectedPeers(): string[]
   sendChatState(target: string, state: 'composing' | 'paused' | 'active'): Promise<void>
   onChatState(cb: (state: { from: string; state: string }) => void): () => void
 

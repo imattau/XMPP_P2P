@@ -44,6 +44,11 @@ export async function readDhtJson<T>(libp2p: Libp2p, key: Uint8Array): Promise<T
   const contentRouting = getContentRouting(libp2p)
   if (!contentRouting) return undefined
 
+  const dhtService = (libp2p as any).services?.dht
+  if (dhtService?.routingTable?.size === 0) {
+    return undefined
+  }
+
   try {
     const keyStr = new TextDecoder().decode(key)
     const raw = await contentRouting.get(key)

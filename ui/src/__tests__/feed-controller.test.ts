@@ -6,10 +6,10 @@ describe('FeedBridgeController', () => {
     const controller = new FeedBridgeController()
     const state = controller.getState()
     expect(state.posts.length).toBeGreaterThan(0)
-    expect(state.loading).toBe(true)
+    expect(state.loading).toBe(false)
     expect(state.activeFilter).toBe('all')
     expect(state.sortBy).toBe('recent')
-    expect(state.hasMore).toBe(true)
+    expect(state.hasMore).toBe(false)
   })
 
   it('sets active filter', () => {

@@ -14,6 +14,8 @@ export class BrowserXmppRuntimeBridge {
   private chatStateListeners = new Set<Listener<[{ from: string; state: string }]>>()
   private gatewayMessageListeners = new Set<Listener<[{ from: string; body: string; server: string }]>>()
 
+  private activeConnections = new Set<string>()
+
   constructor(private readonly xmppNode: XmppNode) {
     this.hookEvents()
   }
@@ -52,12 +54,14 @@ export class BrowserXmppRuntimeBridge {
     })
 
     this.xmppNode.on('stream', ({ peerId, direction }: { peerId: string; direction: string }) => {
+      this.activeConnections.add(peerId)
       for (const cb of this.connectionListeners) {
         try { cb(peerId, true) } catch { /* swallow */ }
       }
     })
 
     this.xmppNode.on('stream-closed', (peerId: string) => {
+      this.activeConnections.delete(peerId)
       for (const cb of this.connectionListeners) {
         try { cb(peerId, false) } catch { /* swallow */ }
       }
@@ -362,12 +366,17 @@ export class BrowserXmppRuntimeBridge {
     await this.xmppNode.sendIqRequest(roomJid, stanza)
   }
 
+  getConnectedPeers(): string[] {
+    return Array.from(this.activeConnections)
+  }
+
   async disconnect(): Promise<void> {
     this.messageListeners.clear()
     this.presenceListeners.clear()
     this.feedPostListeners.clear()
     this.connectionListeners.clear()
     this.serverConnectionListeners.clear()
+    this.activeConnections.clear()
     await this.xmppNode.close()
   }
 

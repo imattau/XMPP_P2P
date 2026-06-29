@@ -8,6 +8,7 @@ import {
   toggleLike
 } from './transform'
 import { emitToast } from '../../lib/toast-events'
+import { SEED_POSTS, TRENDING_TOPICS } from './seed'
 
 type Listener = (state: FeedViewState) => void
 
@@ -20,14 +21,14 @@ export class FeedBridgeController {
   constructor(runtime?: XmppRuntimeBridge) {
     this.runtime = runtime
     this.state = {
-      posts: [],
-      trendingTopics: [],
+      posts: runtime ? [] : SEED_POSTS,
+      trendingTopics: runtime ? [] : TRENDING_TOPICS,
       activeFilter: 'all',
       searchOpen: false,
       searchQuery: '',
-      loading: true,
+      loading: false,
       sortBy: 'recent',
-      hasMore: true
+      hasMore: !!runtime,
     }
 
     if (runtime?.onFeedPost) {

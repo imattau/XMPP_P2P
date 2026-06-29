@@ -3,6 +3,7 @@ export interface PublicServer {
   label: string
   category?: string
   registerUrl?: string
+  wsUrl?: string
 }
 
 let cachedServers: PublicServer[] | null = null

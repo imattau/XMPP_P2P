@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { getBrowserXmppBridge } from './runtime'
 import { useChatListBridge } from './useChatListBridge'
 import { getGroupChatSession } from '../pages/chat-session'
+import { loadDirectChatHistory } from './direct-chat-history'
 import type { ChatMessage, ChatThread } from './chat/types'
 import type { ChatListEntry } from './useChatListBridge'
 
@@ -40,7 +41,9 @@ export function useChatThreadBridge(id?: string): ChatThreadData {
       return { chat: null, messages: [] }
     }
 
-    const groupSession = getGroupChatSession(id)
+    // Group sessions may use unprefixed id (legacy) or group: prefix.
+    const groupId = id.startsWith('group:') ? id.slice(6) : id
+    const groupSession = getGroupChatSession(groupId)
     if (groupSession) {
       return {
         chat: groupSession.chat as unknown as ChatThread,
@@ -52,7 +55,7 @@ export function useChatThreadBridge(id?: string): ChatThreadData {
     if (listEntry) {
       return {
         chat: chatFromListEntry(listEntry),
-        messages: [],
+        messages: listEntry.type === 'direct' ? loadDirectChatHistory(id) : [],
       }
     }
 

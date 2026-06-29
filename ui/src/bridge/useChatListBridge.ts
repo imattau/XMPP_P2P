@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getBrowserXmppBridge, type BridgeChatTarget, type BridgeCollectionNode } from './runtime'
 import { useRosterBridge } from './useRosterBridge'
 import { listGroupChatSessions } from '../pages/chat-session'
+import { saveDirectChatMessage } from './direct-chat-history'
 
 export type ChatListEntryType = 'direct' | 'group' | 'muc'
 
@@ -75,6 +76,18 @@ export function useChatListBridge() {
         next.set(peerKey, msg)
         return next
       })
+      const chatId = msg.from.endsWith('@p2p') ? msg.from : `${msg.from}@p2p`
+      saveDirectChatMessage(chatId, {
+        id: msg.id,
+        senderId: msg.from,
+        senderName: msg.from.split('@')[0],
+        content: msg.body,
+        timestamp: msg.delay?.stamp
+          ? new Date(msg.delay.stamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        kind: 'text',
+        delivered: true,
+      })
     })
 
     return unsub
@@ -108,7 +121,7 @@ export function useChatListBridge() {
     listGroupChatSessions().map((session) => {
       const last = session.messages[session.messages.length - 1]
       return {
-        id: session.chat.id,
+        id: `group:${session.chat.id}`,
         type: 'group' as const,
         name: session.chat.name,
         handle: session.chat.handle,

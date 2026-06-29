@@ -97,17 +97,11 @@ export default function ServerSetupPage() {
       const fullJid = `${regUsername}@${server.domain}`
       const bridge = getBrowserXmppBridge()
       if (!bridge?.registerServer) throw new Error('Bridge not available')
-      await bridge.registerServer(fullJid, regPassword, server.domain)
+      await bridge.registerServer(fullJid, regPassword, server.wsUrl || server.domain)
       setConnectedDomain(server.domain)
       setConnected(true)
     } catch (err) {
-      const server = servers.find(s => s.domain === selectedServer)
-      const regUrl = server?.registerUrl
-      if (regUrl) {
-        setError(`${err instanceof Error ? err.message : 'Registration failed'}. You can register on the web: `)
-      } else {
-        setError(err instanceof Error ? err.message : 'Registration failed')
-      }
+      setError(err instanceof Error ? err.message : 'Registration failed')
     } finally {
       setRegistering(false)
     }
@@ -289,12 +283,15 @@ export default function ServerSetupPage() {
 
                   {error && (
                     <p className="text-xs text-destructive">
-                      {error}
-                      {selectedServerInfo?.registerUrl && error.includes('Registration failed') && (
-                        <a href={selectedServerInfo.registerUrl} target="_blank" rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-primary underline ml-1">
-                          Register on web <ExternalLink size={10} />
-                        </a>
+                      {selectedServerInfo?.registerUrl ? (
+                        <>{error}. You can register on the web:{' '}
+                          <a href={selectedServerInfo.registerUrl} target="_blank" rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-primary underline ml-1">
+                            Register on web <ExternalLink size={10} />
+                          </a>
+                        </>
+                      ) : (
+                        error
                       )}
                     </p>
                   )}

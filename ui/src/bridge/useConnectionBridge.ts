@@ -12,6 +12,18 @@ export function useConnectionBridge(): ConnectionState {
 
   useEffect(() => {
     const runtime = getBrowserXmppBridge()
+
+    // Initial scan: pick up any pre-existing connections before the hook mounted.
+    if (runtime?.getConnectedPeers) {
+      const existing = runtime.getConnectedPeers()
+      for (const peerId of existing) {
+        peerSetRef.current.add(peerId)
+      }
+      if (existing.length > 0) {
+        setState({ connected: true, connectedPeers: existing.length })
+      }
+    }
+
     if (!runtime?.onConnectionChange) return
 
     const unsub = runtime.onConnectionChange((peerId: string, connected: boolean) => {

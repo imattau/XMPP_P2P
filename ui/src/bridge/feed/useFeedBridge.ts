@@ -15,7 +15,7 @@ export function useFeedBridge() {
 
   return {
     ...state,
-    loading: controller.getState().loading,
+    loading: state.loading,
     filteredPosts: controller.getFilteredPosts(),
     setActiveFilter: (activeFilter: FeedViewState['activeFilter']) => controller.setActiveFilter(activeFilter),
     setSearchOpen: (searchOpen: boolean) => controller.setSearchOpen(searchOpen),
