@@ -27,6 +27,10 @@ export interface CreateBrowserP2PNodeOptions {
 export async function createBrowserP2PNode(options: CreateBrowserP2PNodeOptions): Promise<Libp2p> {
   const services = createBaseLibp2pServices({ enableDht: true })
 
+  const peerDiscovery = options.bootstrapAddrs.length > 0
+    ? [bootstrap({ list: options.bootstrapAddrs })]
+    : []
+
   const node = await createLibp2p({
     transports: [
       webSockets(),
@@ -35,11 +39,7 @@ export async function createBrowserP2PNode(options: CreateBrowserP2PNodeOptions)
     ],
     connectionEncrypters: [noise()],
     streamMuxers: [yamux()],
-    peerDiscovery: [
-      bootstrap({
-        list: options.bootstrapAddrs
-      })
-    ],
+    peerDiscovery,
     services
   })
 

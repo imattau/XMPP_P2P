@@ -112,11 +112,18 @@ export class IndexedDbStorage implements XmppStorage {
   private open(): Promise<IDBDatabase> {
     if (!this.dbPromise) {
       this.dbPromise = new Promise((resolve, reject) => {
-        const request = indexedDB.open(this.dbName, 1)
-        request.onupgradeneeded = () => {
+        const request = indexedDB.open(this.dbName, 2)
+        request.onupgradeneeded = (evt) => {
           const db = request.result
           if (!db.objectStoreNames.contains(RECORDS_STORE)) {
-            db.createObjectStore(RECORDS_STORE, { keyPath: ['namespace', 'key'] })
+            const store = db.createObjectStore(RECORDS_STORE, { keyPath: ['namespace', 'key'] })
+            store.createIndex('namespace_idx', 'namespace', { unique: false })
+          } else if (evt.oldVersion < 2) {
+            const tx = request.transaction!
+            const store = tx.objectStore(RECORDS_STORE)
+            if (!store.indexNames.contains('namespace_idx')) {
+              store.createIndex('namespace_idx', 'namespace', { unique: false })
+            }
           }
           if (!db.objectStoreNames.contains(BLOBS_STORE)) {
             db.createObjectStore(BLOBS_STORE, { keyPath: ['namespace', 'key'] })
@@ -157,17 +164,16 @@ export class IndexedDbStorage implements XmppStorage {
   private getAllByNamespace<T extends { namespace: string }>(db: IDBDatabase, storeName: string, namespace: string): Promise<T[]> {
     return new Promise((resolve, reject) => {
       const results: T[] = []
-      const request = db.transaction(storeName, 'readonly').objectStore(storeName).openCursor()
+      const store = db.transaction(storeName, 'readonly').objectStore(storeName)
+      const index = store.index('namespace_idx')
+      const request = index.openCursor(IDBKeyRange.only(namespace))
       request.onsuccess = () => {
         const cursor = request.result
         if (!cursor) {
           resolve(results)
           return
         }
-        const value = cursor.value as T
-        if (value.namespace === namespace) {
-          results.push(value)
-        }
+        results.push(cursor.value as T)
         cursor.continue()
       }
       request.onerror = () => reject(request.error)

@@ -22,7 +22,7 @@ const CreateIdentityPage = lazy(() => import('../pages/onboarding/CreateIdentity
 const ImportIdentityPage = lazy(() => import('../pages/onboarding/ImportIdentityPage'))
 const RecoveryPage = lazy(() => import('../pages/onboarding/RecoveryPage'))
 const PermissionsPage = lazy(() => import('../pages/onboarding/PermissionsPage'))
-const FindNetworkPage = lazy(() => import('../pages/onboarding/FindNetworkPage'))
+const ServerSetupPage = lazy(() => import('../pages/onboarding/ServerSetupPage'))
 const PreferencesPage = lazy(() => import('../pages/onboarding/PreferencesPage'))
 const ReadyPage = lazy(() => import('../pages/onboarding/ReadyPage'))
 
@@ -54,7 +54,7 @@ export const router = createBrowserRouter([
       { path: 'onboarding/import', Component: ImportIdentityPage },
       { path: 'onboarding/recovery', Component: RecoveryPage },
       { path: 'onboarding/permissions', Component: PermissionsPage },
-      { path: 'onboarding/network', Component: FindNetworkPage },
+      { path: 'onboarding/network', Component: ServerSetupPage },
       { path: 'onboarding/preferences', Component: PreferencesPage },
       { path: 'onboarding/ready', Component: ReadyPage }
     ]

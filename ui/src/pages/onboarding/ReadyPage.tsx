@@ -1,18 +1,55 @@
 import * as React from 'react'
 import { useNavigate } from 'react-router'
-import { Check } from 'lucide-react'
+import { Check, Loader } from 'lucide-react'
 import { useIdentityBridge } from '../../bridge/identity/useIdentityBridge'
+import { getBrowserXmppBridge } from '../../bridge/runtime'
 import ProgressDots from '../../components/onboarding/ProgressDots'
+
+declare global {
+  interface Window {
+    XmppP2P?: {
+      createBrowserXmppClient: (opts: {
+        bootstrapAddrs: string[]
+        dbName?: string
+        nickname?: string
+        passphrase?: string
+      }) => Promise<unknown>
+    }
+    __XMPP_P2P_CONFIG__?: {
+      bootstrapAddrs: string[]
+    }
+  }
+}
 
 export default function ReadyPage() {
   const navigate = useNavigate()
   const { identity, completeOnboarding } = useIdentityBridge()
+  const [starting, setStarting] = React.useState(false)
+  const [error, setError] = React.useState('')
   const displayName = identity?.displayName ?? 'User'
   const handle = identity?.handle ?? 'user'
 
-  const handleOpen = () => {
-    completeOnboarding()
-    navigate('/')
+  const handleOpen = async () => {
+    setStarting(true)
+    setError('')
+    try {
+      const bridge = getBrowserXmppBridge()
+      if (!bridge) {
+        const bootstrapAddrs = window.__XMPP_P2P_CONFIG__?.bootstrapAddrs ?? []
+        if (window.XmppP2P?.createBrowserXmppClient) {
+          await window.XmppP2P.createBrowserXmppClient({
+            bootstrapAddrs,
+            dbName: 'xmpp-p2p',
+            nickname: displayName,
+          })
+        }
+      }
+      completeOnboarding()
+      navigate('/')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to start P2P node')
+      setStarting(false)
+    }
   }
 
   return (
@@ -56,14 +93,23 @@ export default function ReadyPage() {
             </div>
           </div>
         </div>
+
+        {error && (
+          <p className="text-[11px] text-destructive mt-3 text-center">{error}</p>
+        )}
       </main>
 
       <div className="flex-shrink-0 px-4 pb-4">
         <button
           onClick={handleOpen}
-          className="w-full bg-primary text-white rounded-xl h-[50px] font-semibold text-sm transition-opacity hover:opacity-90"
+          disabled={starting}
+          className="w-full bg-primary text-white rounded-xl h-[50px] font-semibold text-sm transition-opacity hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
         >
-          Open Nexus
+          {starting ? (
+            <><Loader size={16} className="animate-spin" /> Starting…</>
+          ) : (
+            'Open Nexus'
+          )}
         </button>
       </div>
     </div>

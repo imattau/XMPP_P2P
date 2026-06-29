@@ -3,86 +3,46 @@ import { useState, useCallback } from 'react'
 import { useNavigate } from 'react-router'
 import {
   Bell, Lock, Moon, LogOut, ChevronRight, ArrowLeft, Zap,
-  Server, Plus, X, Check, Loader, Save, Trash2, Wifi, WifiOff,
-  Search, ChevronDown,
+  Server, Plus, Check, Loader, Wifi, WifiOff,
+  ChevronDown,
 } from 'lucide-react'
 import { getBrowserXmppBridge } from '../bridge/runtime'
 import { useServerBridge } from '../bridge/useServerBridge'
+import { useConnectionBridge } from '../bridge/useConnectionBridge'
 import { identityController } from '../bridge/identity/controller'
-
-const PRESET_SERVERS = [
-  { domain: 'jabber.org', label: 'jabber.org' },
-  { domain: 'jabber.fr', label: 'jabber.fr' },
-  { domain: '404.city', label: '404.city' },
-  { domain: 'dismail.de', label: 'dismail.de' },
-  { domain: 'sure.im', label: 'sure.im' },
-]
 
 export default function SettingsPage() {
   const navigate = useNavigate()
   const {
-    connections, savedConfigs, connecting, federationEnabled,
-    connectComponent, disconnectComponent, setS2SDomain, setFederationEnabled,
-    resolveComponentEndpoint, saveComponentConfig, removeComponentConfig,
+    connections, connecting, federationEnabled,
+    gatewayOnline, gatewayConnections,
+    connectServer, disconnectServer, setFederationEnabled,
   } = useServerBridge()
+  const { connected, connectedPeers } = useConnectionBridge()
 
   const [collapsed, setCollapsed] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
   const [settingsSection, setSettingsSection] = useState<string | null>(null)
-  const [serverDomain, setServerDomain] = useState('')
-  const [host, setHost] = useState('')
-  const [port, setPort] = useState('5347')
-  const [secret, setSecret] = useState('')
-  const [componentDomain, setComponentDomain] = useState('')
+  const [jid, setJid] = useState('')
+  const [password, setPassword] = useState('')
+  const [serviceUrl, setServiceUrl] = useState('')
   const [addError, setAddError] = useState('')
-  const [saveToConfig, setSaveToConfig] = useState(true)
-  const [discovering, setDiscovering] = useState(false)
-  const [s2sDomainInput, setS2sDomainInput] = useState('')
-
-  const handleDiscover = useCallback(async () => {
-    if (!serverDomain) return
-    setDiscovering(true)
-    setAddError('')
-    try {
-      const endpoint = await resolveComponentEndpoint(serverDomain)
-      setHost(endpoint.host)
-      setPort(String(endpoint.port))
-      if (!componentDomain) setComponentDomain(serverDomain)
-    } catch (err) {
-      setAddError(err instanceof Error ? err.message : 'Discovery failed')
-    } finally {
-      setDiscovering(false)
-    }
-  }, [serverDomain, resolveComponentEndpoint, componentDomain])
 
   const handleConnect = async (e: React.FormEvent) => {
     e.preventDefault()
     setAddError('')
     try {
-      await connectComponent(host, Number(port), secret, componentDomain)
-      if (saveToConfig) {
-        await saveComponentConfig(componentDomain, secret, host, Number(port))
-      }
+      await connectServer(jid, password, serviceUrl || undefined)
       setShowAddForm(false)
-      setServerDomain('')
-      setHost('')
-      setPort('5347')
-      setSecret('')
-      setComponentDomain('')
+      setJid('')
+      setPassword('')
+      setServiceUrl('')
     } catch (err) {
       setAddError(err instanceof Error ? err.message : 'Connection failed')
     }
   }
 
-  const handleConnectSaved = async (cfg: typeof savedConfigs[number]) => {
-    if (cfg.domain === componentDomain) {
-      try { await connectComponent(cfg.host, cfg.port, '', cfg.domain) } catch { /* needs secret */ }
-    }
-  }
-
-  const handleS2SDomainBlur = () => {
-    setS2SDomain(s2sDomainInput)
-  }
+  const isServerConnected = connections.some(c => c.status === 'connected')
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
@@ -99,14 +59,47 @@ export default function SettingsPage() {
       </header>
 
       <main className="flex-1 overflow-y-auto">
-        {/* Federated Servers */}
+        {/* Network Status */}
+        <div className="border-b border-border bg-card">
+          <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
+            <Wifi size={16} className="text-muted-foreground" />
+            <span className="text-sm font-medium">Network Status</span>
+          </div>
+          <div className="divide-y divide-border">
+            <div className="flex items-center gap-3 px-4 py-3 text-sm">
+              <span className={`w-2 h-2 rounded-full ${getBrowserXmppBridge() ? 'bg-accent' : 'bg-destructive'}`} />
+              <span className="text-muted-foreground w-28 shrink-0">Bridge</span>
+              <span className={getBrowserXmppBridge() ? 'text-accent' : 'text-destructive'}>
+                {getBrowserXmppBridge() ? 'Available' : 'Not available'}
+              </span>
+            </div>
+            <div className="flex items-center gap-3 px-4 py-3 text-sm">
+              <span className={`w-2 h-2 rounded-full ${connected ? 'bg-accent' : 'bg-destructive'}`} />
+              <span className="text-muted-foreground w-28 shrink-0">P2P Node</span>
+              <span className={connected ? 'text-accent' : 'text-destructive'}>
+                {connected ? `${connectedPeers} peer${connectedPeers !== 1 ? 's' : ''}` : 'Disconnected'}
+              </span>
+            </div>
+            <div className="flex items-center gap-3 px-4 py-3 text-sm">
+              <span className={`w-2 h-2 rounded-full ${gatewayOnline ? 'bg-accent' : 'text-muted-foreground'}`} />
+              <span className="text-muted-foreground w-28 shrink-0">XMPP Server</span>
+              <span className={gatewayOnline ? 'text-accent' : 'text-muted-foreground'}>
+                {gatewayOnline
+                  ? `Online — ${gatewayConnections.length} server${gatewayConnections.length !== 1 ? 's' : ''}`
+                  : 'Disconnected'}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* XMPP Server Connection */}
         <div className="border-b border-border bg-card">
           <button
             onClick={() => setCollapsed(!collapsed)}
             className="w-full flex items-center gap-3 px-4 py-3 border-b border-border transition-colors hover:bg-secondary text-left"
           >
             <Server size={16} className="text-muted-foreground" />
-            <span className="text-sm font-medium flex-1">Federated Servers</span>
+            <span className="text-sm font-medium flex-1">XMPP Server</span>
             <ChevronDown size={14} className={`text-muted-foreground/40 transition-transform ${collapsed ? '-rotate-90' : ''}`} />
           </button>
 
@@ -128,7 +121,7 @@ export default function SettingsPage() {
                 </button>
               </div>
 
-              {/* Active connections */}
+              {/* Active connection */}
               {connections.length > 0 && (
                 <div className="border-b border-border">
                   {connections.map((conn) => (
@@ -144,15 +137,15 @@ export default function SettingsPage() {
                       )}
                       <div className="flex-1 min-w-0">
                         <div className="truncate font-medium">{conn.domain}</div>
-                        <div className="text-xs text-muted-foreground capitalize">{conn.type} &middot; {conn.status}{conn.error ? `: ${conn.error}` : ''}</div>
+                        <div className="text-xs text-muted-foreground capitalize">{conn.status}{conn.error ? `: ${conn.error}` : ''}</div>
                       </div>
                       {(conn.status === 'connected' || conn.status === 'error') && (
                         <button
-                          onClick={() => disconnectComponent()}
+                          onClick={() => disconnectServer()}
                           className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                           title="Disconnect"
                         >
-                          <X size={14} />
+                          <WifiOff size={14} />
                         </button>
                       )}
                     </div>
@@ -160,93 +153,34 @@ export default function SettingsPage() {
                 </div>
               )}
 
-              {/* Add form */}
-              {showAddForm ? (
+              {/* Add form / Login */}
+              {!isServerConnected && (showAddForm ? (
                 <form onSubmit={handleConnect} className="px-4 py-3 space-y-3 border-b border-border">
-                  {/* Quick select */}
-                  <select
-                    value=""
-                    onChange={e => {
-                      const val = e.target.value
-                      if (!val) return
-                      setServerDomain(val)
-                      setComponentDomain(`p2p.${val}`)
-                    }}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                  >
-                    <option value="">Quick select a server...</option>
-                    {PRESET_SERVERS.map(s => (
-                      <option key={s.domain} value={s.domain}>{s.label}</option>
-                    ))}
-                  </select>
-
-                  {/* Domain with discover */}
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="Server domain (e.g. jabber.example.org)"
-                      value={serverDomain}
-                      onChange={e => setServerDomain(e.target.value)}
-                      className="flex-1 px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleDiscover}
-                      disabled={discovering || !serverDomain}
-                      className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-50"
-                      title="Auto-discover host & port via DNS SRV"
-                    >
-                      {discovering ? <Loader size={14} className="animate-spin" /> : <Search size={14} />}
-                      Discover
-                    </button>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="Host"
-                      value={host}
-                      onChange={e => setHost(e.target.value)}
-                      required
-                      className="flex-1 px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                    <input
-                      type="number"
-                      placeholder="Port"
-                      value={port}
-                      onChange={e => setPort(e.target.value)}
-                      required
-                      className="w-24 px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                  </div>
-
                   <input
                     type="text"
-                    placeholder="Component domain (e.g. p2p.your-server.org)"
-                    value={componentDomain}
-                    onChange={e => setComponentDomain(e.target.value)}
+                    placeholder="JID (user@example.com)"
+                    value={jid}
+                    onChange={e => setJid(e.target.value)}
                     required
+                    autoComplete="username"
                     className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary"
                   />
-
                   <input
                     type="password"
-                    placeholder="Shared secret"
-                    value={secret}
-                    onChange={e => setSecret(e.target.value)}
+                    placeholder="Password"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
                     required
+                    autoComplete="current-password"
                     className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary"
                   />
-
-                  <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <input
-                      type="checkbox"
-                      checked={saveToConfig}
-                      onChange={e => setSaveToConfig(e.target.checked)}
-                      className="rounded border-border"
-                    />
-                    Save configuration for later
-                  </label>
+                  <input
+                    type="text"
+                    placeholder="Server URL (optional, e.g. wss://example.com:5443/ws)"
+                    value={serviceUrl}
+                    onChange={e => setServiceUrl(e.target.value)}
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
                   {addError && <p className="text-xs text-destructive">{addError}</p>}
                   <div className="flex gap-2">
                     <button
@@ -272,57 +206,18 @@ export default function SettingsPage() {
                   className="w-full flex items-center gap-3 px-4 py-3 border-b border-border transition-colors hover:bg-secondary text-left text-muted-foreground hover:text-foreground text-sm"
                 >
                   <Plus size={16} />
-                  <span>Add XMPP server</span>
+                  <span>Connect to XMPP server</span>
                 </button>
-              )}
+              ))}
 
-              {/* S2S domain */}
-              <div className="flex items-center gap-3 px-4 py-3">
-                <span className="text-sm text-muted-foreground shrink-0">S2S domain</span>
-                <input
-                  type="text"
-                  placeholder="e.g. p2p.example.org"
-                  value={s2sDomainInput}
-                  onChange={e => setS2sDomainInput(e.target.value)}
-                  onBlur={handleS2SDomainBlur}
-                  className="flex-1 px-3 py-1.5 text-sm rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-              </div>
+              {isServerConnected && (
+                <div className="px-4 py-3 text-sm text-muted-foreground">
+                  Connected. Messages to server contacts will be routed through the XMPP connection.
+                </div>
+              )}
             </>
           )}
         </div>
-
-        {/* Saved configs */}
-        {!collapsed && savedConfigs.length > 0 && (
-          <div className="border-b border-border bg-card">
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
-              <Save size={16} className="text-muted-foreground" />
-              <span className="text-sm font-medium">Saved Configurations</span>
-            </div>
-            {savedConfigs.map((cfg) => (
-              <div key={cfg.domain} className="flex items-center gap-3 px-4 py-3 text-sm border-b border-border last:border-0">
-                <div className="flex-1 min-w-0">
-                  <div className="truncate font-medium">{cfg.domain}</div>
-                  <div className="text-xs text-muted-foreground">{cfg.host}:{cfg.port}</div>
-                </div>
-                <button
-                  onClick={() => handleConnectSaved(cfg)}
-                  className="p-1.5 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                  title="Connect"
-                >
-                  <Wifi size={14} />
-                </button>
-                <button
-                  onClick={() => removeComponentConfig(cfg.domain)}
-                  className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                  title="Forget"
-                >
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
 
         {/* Settings section content */}
         {settingsSection && (

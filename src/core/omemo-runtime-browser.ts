@@ -20,10 +20,15 @@ let omemoModulePromise: Promise<OmemoModule> | undefined
 /**
  * Loads the browser build of libomemo.js once and reuses it for later callers.
  *
- * @returns The browser OMEMO module.
+ * libomemo.js ships a Curve25519 WASM module that resolves the .wasm path
+ * relative to the page URL when document.currentScript is unavailable (e.g.
+ * after a dynamic import).  Setting __WASM_BASE__ tells the Emscripten glue
+ * where to find the binary so it doesn't 404 on deep-linked routes like
+ * /onboarding/ready.
  */
 async function loadOmemoModule(): Promise<OmemoModule> {
   if (!omemoModulePromise) {
+    ;(self as any).__WASM_BASE__ = '/'
     omemoModulePromise = import('libomemo.js')
   }
   return await omemoModulePromise

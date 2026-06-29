@@ -38,8 +38,21 @@ function deriveKey(passphrase: string, salt: Buffer): Buffer {
 export class EncryptedStorage implements XmppStorage {
   private key: Buffer | null = null
   private _unlocked = false
+  private idleTimer: ReturnType<typeof setTimeout> | null = null
 
-  constructor(private readonly inner: XmppStorage) {}
+  constructor(
+    private readonly inner: XmppStorage,
+    private readonly autoLockTimeoutMs: number = 300000
+  ) {}
+
+  private resetIdleTimer() {
+    if (this.idleTimer) clearTimeout(this.idleTimer)
+    if (this._unlocked) {
+      this.idleTimer = setTimeout(() => {
+        this.lock()
+      }, this.autoLockTimeoutMs)
+    }
+  }
 
   get unlocked(): boolean {
     return this._unlocked
@@ -77,9 +90,12 @@ export class EncryptedStorage implements XmppStorage {
       this.key = deriveKey(passphrase, salt)
     }
     this._unlocked = true
+    this.resetIdleTimer()
   }
 
   lock(): void {
+    if (this.idleTimer) clearTimeout(this.idleTimer)
+    this.idleTimer = null
     this.key = null
     this._unlocked = false
   }
@@ -100,6 +116,7 @@ export class EncryptedStorage implements XmppStorage {
   }
 
   async getRecord(namespace: string, key: string): Promise<string | undefined> {
+    this.resetIdleTimer()
     if (namespace === CRYPTO_NS || !this.key) {
       return this.inner.getRecord(namespace, key)
     }
@@ -113,6 +130,7 @@ export class EncryptedStorage implements XmppStorage {
   }
 
   async putRecord(namespace: string, key: string, value: string, updatedAt: string): Promise<void> {
+    this.resetIdleTimer()
     if (namespace === CRYPTO_NS || !this.key) {
       return this.inner.putRecord(namespace, key, value, updatedAt)
     }
@@ -121,26 +139,33 @@ export class EncryptedStorage implements XmppStorage {
   }
 
   async deleteRecord(namespace: string, key: string): Promise<void> {
+    this.resetIdleTimer()
     return this.inner.deleteRecord(namespace, key)
   }
 
   async listRecords(namespace: string): Promise<StorageRecord[]> {
+    this.resetIdleTimer()
     return this.inner.listRecords(namespace)
   }
 
   async getBlob(namespace: string, key: string): Promise<Uint8Array | undefined> {
+    this.resetIdleTimer()
     return this.inner.getBlob(namespace, key)
   }
 
   async putBlob(namespace: string, key: string, data: Uint8Array): Promise<void> {
+    this.resetIdleTimer()
     return this.inner.putBlob(namespace, key, data)
   }
 
   async deleteBlob(namespace: string, key: string): Promise<void> {
+    this.resetIdleTimer()
     return this.inner.deleteBlob(namespace, key)
   }
 
   async close(): Promise<void> {
+    if (this.idleTimer) clearTimeout(this.idleTimer)
+    this.idleTimer = null
     return this.inner.close()
   }
 }

@@ -1,7 +1,7 @@
 import { XmppNode } from '../core/xmpp-node.js'
 import type { XmppMessage, XmppFeedPost, XmppPresence } from '../core/xmpp-records.js'
 import { jidFromPeerId } from '../core/xmpp-records.js'
-import type { ServerConnectionInfo, ServerDiscoInfoResult, ServerDiscoItemsResult } from '../core/xmpp-server-bridge.js'
+import type { ServerConnectionInfo, ServerDiscoInfoResult, ServerDiscoItemsResult } from '../core/xmpp-client-bridge.js'
 
 type Listener<Args extends unknown[]> = (...args: Args) => void
 
@@ -12,6 +12,7 @@ export class BrowserXmppRuntimeBridge {
   private connectionListeners = new Set<Listener<[string, boolean]>>()
   private serverConnectionListeners = new Set<Listener<[ServerConnectionInfo]>>()
   private chatStateListeners = new Set<Listener<[{ from: string; state: string }]>>()
+  private gatewayMessageListeners = new Set<Listener<[{ from: string; body: string; server: string }]>>()
 
   constructor(private readonly xmppNode: XmppNode) {
     this.hookEvents()
@@ -60,6 +61,16 @@ export class BrowserXmppRuntimeBridge {
     this.xmppNode.on('server:connection', (info: ServerConnectionInfo) => {
       for (const cb of this.serverConnectionListeners) {
         try { cb(info) } catch { /* swallow */ }
+      }
+    })
+
+    this.xmppNode.on('gateway:message', (msg: { from: string; body: string; server: string }) => {
+      for (const cb of this.gatewayMessageListeners) {
+        try { cb(msg) } catch { /* swallow */ }
+      }
+      // Also forward to regular message listeners
+      for (const cb of this.messageListeners) {
+        try { cb(msg as any) } catch { /* swallow */ }
       }
     })
   }
@@ -231,48 +242,29 @@ export class BrowserXmppRuntimeBridge {
     })
   }
 
-  async connectComponent(host: string, port: number, secret: string, domain: string): Promise<void> {
-    return this.xmppNode.connectComponent(host, port, secret, domain)
+  async connectServer(jid: string, password: string, service?: string): Promise<void> {
+    return this.xmppNode.connectServer({ jid, password, service })
   }
 
-  async disconnectComponent(): Promise<void> {
-    return this.xmppNode.disconnectComponent()
+  async disconnectServer(): Promise<void> {
+    return this.xmppNode.disconnectServer()
   }
 
-  isComponentConnected(): boolean {
-    return this.xmppNode.isComponentConnected()
+  async registerServer(jid: string, password: string, service: string): Promise<void> {
+    return this.xmppNode.registerServer(jid, password, service)
   }
 
-  setS2SDomain(domain: string): void {
-    this.xmppNode.setS2SDomain(domain)
+  isServerConnected(): boolean {
+    return this.xmppNode.isServerConnected()
   }
 
-  setFederationEnabled(enabled: boolean): void {
-    this.xmppNode.setFederationEnabled(enabled)
-  }
-
-  isFederationEnabled(): boolean {
-    return this.xmppNode.isFederationEnabled()
-  }
-
-  async resolveComponentEndpoint(domain: string): Promise<{ host: string; port: number }> {
-    return this.xmppNode.resolveComponentEndpoint(domain)
+  getServerStatus(): { online: boolean; connections: ServerConnectionInfo[] } {
+    const info = this.xmppNode.getServerStatus()
+    return { online: info.status === 'connected', connections: info.status === 'connected' ? [info] : [] }
   }
 
   getServerConnections(): ServerConnectionInfo[] {
     return this.xmppNode.getServerConnections()
-  }
-
-  async joinServerMuc(roomJid: string, nick: string): Promise<void> {
-    return this.xmppNode.joinServerMuc(roomJid, nick)
-  }
-
-  async sendServerMucMessage(roomJid: string, body: string): Promise<string> {
-    return this.xmppNode.sendServerMucMessage(roomJid, body)
-  }
-
-  async leaveServerMuc(roomJid: string): Promise<void> {
-    return this.xmppNode.leaveServerMuc(roomJid)
   }
 
   onServerConnection(cb: Listener<[ServerConnectionInfo]>): () => void {
@@ -315,71 +307,6 @@ export class BrowserXmppRuntimeBridge {
     this.connectionListeners.clear()
     this.serverConnectionListeners.clear()
     await this.xmppNode.close()
-  }
-
-  async saveComponentConfig(domain: string, secret: string, host: string, port: number): Promise<void> {
-    return this.xmppNode.serverBridge.configStore.save(domain, secret, host, port)
-  }
-
-  async listSavedComponentConfigs(): Promise<any[]> {
-    return this.xmppNode.serverBridge.configStore.list()
-  }
-
-  async removeComponentConfig(domain: string): Promise<void> {
-    return this.xmppNode.serverBridge.configStore.remove(domain)
-  }
-
-  // Phase 2: PubSub operations
-  async pubsubSubscribe(nodeJid: string, node: string): Promise<void> {
-    return this.xmppNode.pubsubSubscribe(nodeJid, node)
-  }
-
-  async pubsubPublish(nodeJid: string, node: string, itemId: string, body: string): Promise<string> {
-    const { xml } = await import('@xmpp/xml')
-    const payload = xml('body', {}, body)
-    return this.xmppNode.pubsubPublish(nodeJid, node, itemId, payload)
-  }
-
-  async pubsubGetItems(nodeJid: string, node: string, maxItems?: number): Promise<any[]> {
-    return this.xmppNode.pubsubGetItems(nodeJid, node, maxItems)
-  }
-
-  async pubsubUnsubscribe(nodeJid: string, node: string): Promise<void> {
-    return this.xmppNode.pubsubUnsubscribe(nodeJid, node)
-  }
-
-  // Phase 4: Service Discovery
-  async serverDiscoInfo(jid: string): Promise<ServerDiscoInfoResult> {
-    return this.xmppNode.serverDiscoInfo(jid)
-  }
-
-  async serverDiscoItems(jid: string): Promise<ServerDiscoItemsResult> {
-    return this.xmppNode.serverDiscoItems(jid)
-  }
-
-  // Phase 3 & 5: Bridge management
-  async setFeedBridge(feedTopic: string, pubsubNode: string): Promise<void> {
-    return this.xmppNode.setFeedBridge(feedTopic, pubsubNode)
-  }
-
-  async removeFeedBridge(feedTopic: string): Promise<void> {
-    return this.xmppNode.removeFeedBridge(feedTopic)
-  }
-
-  getAllFeedBridges(): Array<{ feedTopic: string; pubsubNode: string }> {
-    return this.xmppNode.getAllFeedBridges()
-  }
-
-  async setMucBridge(serverRoom: string, p2pRoom: string): Promise<void> {
-    return this.xmppNode.setMucBridge(serverRoom, p2pRoom)
-  }
-
-  async removeMucBridge(serverRoom: string): Promise<void> {
-    return this.xmppNode.removeMucBridge(serverRoom)
-  }
-
-  getAllMucBridges(): Array<{ serverRoom: string; p2pRoom: string }> {
-    return this.xmppNode.getAllMucBridges()
   }
 
   async uploadFile(file: File | Uint8Array, fileName?: string, mimeType?: string): Promise<{ url: string; alt: string; kind: 'image' | 'file' }> {

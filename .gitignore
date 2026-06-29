@@ -1,5 +1,6 @@
 AGENTS.md
 dist/
+ui/public/browser-bundle.js
 node_modules/
 .xmpp-*.json
 .xmpp-state*.sqlite*

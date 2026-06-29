@@ -1,4 +1,4 @@
-import { Suspense, useEffect } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router'
 import { Home, Hash, PlusSquare, MessageCircle, User, Zap, FileText } from 'lucide-react'
 import { getBrowserXmppBridge } from '../bridge/runtime'
@@ -7,6 +7,22 @@ import { useConnectionBridge } from '../bridge/useConnectionBridge'
 import { identityController } from '../bridge/identity/controller'
 import { useNotifications } from '../bridge/useNotifications'
 import { flushOutbox, getPendingMessages } from '../lib/message-queue'
+
+declare global {
+  interface Window {
+    XmppP2P?: {
+      createBrowserXmppClient: (opts: {
+        bootstrapAddrs: string[]
+        dbName?: string
+        nickname?: string
+        passphrase?: string
+      }) => Promise<unknown>
+    }
+    __XMPP_P2P_CONFIG__?: {
+      bootstrapAddrs: string[]
+    }
+  }
+}
 
 function PageLoader() {
   return (
@@ -31,7 +47,28 @@ export default function Root() {
   const { connected, connectedPeers } = useConnectionBridge()
   const navigate = useNavigate()
   const isOnboarding = window.location.pathname.startsWith('/onboarding')
+  const [initializing, setInitializing] = useState(false)
   useNotifications()
+
+  useEffect(() => {
+    if (initializing) return
+    if (isOnboarding) return
+    if (!identityController.isOnboardingComplete()) return
+    if (getBrowserXmppBridge()) return
+
+    setInitializing(true)
+    const bootstrapAddrs = window.__XMPP_P2P_CONFIG__?.bootstrapAddrs ?? []
+    const client = window.XmppP2P?.createBrowserXmppClient
+    if (client) {
+      client({ bootstrapAddrs, dbName: 'xmpp-p2p' })
+        .catch(() => {
+          // Bridge initialization failed — federation features will show "Bridge not available"
+        })
+        .finally(() => setInitializing(false))
+    } else {
+      setInitializing(false)
+    }
+  }, [isOnboarding, initializing])
 
   useEffect(() => {
     if (!connected) return
@@ -57,6 +94,17 @@ export default function Root() {
       navigate('/onboarding')
     }
   }, [navigate])
+
+  // Guard against deep-linking into onboarding steps without prerequisites
+  const pathForGuard = window.location.pathname
+  useEffect(() => {
+    if (!pathForGuard.startsWith('/onboarding')) return
+    const identity = identityController.getState().identity
+    const deepLinkPaths = ['/onboarding/recovery', '/onboarding/permissions', '/onboarding/network', '/onboarding/preferences', '/onboarding/ready']
+    if (deepLinkPaths.includes(pathForGuard) && !identity) {
+      navigate('/onboarding')
+    }
+  }, [pathForGuard, navigate])
 
   if (isOnboarding) {
     return (

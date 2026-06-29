@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#77a0ff" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Nexus" />
@@ -14,6 +15,13 @@
   </head>
   <body>
     <div id="root"></div>
+    <script src="/browser-bundle.js"></script>
+    <script>
+      fetch('/bootstrap-config.json')
+        .then(function(r) { return r.json() })
+        .then(function(cfg) { window.__XMPP_P2P_CONFIG__ = cfg })
+        .catch(function() { window.__XMPP_P2P_CONFIG__ = { bootstrapAddrs: [] } })
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
  </html>

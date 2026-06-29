@@ -47,7 +47,8 @@ export default function CreateIdentityPage() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto px-4 pb-4 space-y-5">
+      <main className="flex-1 overflow-y-auto px-4 pb-4">
+        <form className="space-y-5" onSubmit={(e) => { e.preventDefault(); handleCreate() }}>
         <div>
           <label className="text-[12px] font-medium text-muted-foreground block mb-1.5">Display name</label>
           <input
@@ -63,6 +64,7 @@ export default function CreateIdentityPage() {
           <input
             value={handle}
             onChange={(e) => { setHandle(e.target.value); if (errors.handle) setErrors((prev) => ({ ...prev, handle: undefined })) }}
+            autoComplete="username"
             className={`w-full bg-secondary rounded-xl h-[50px] px-4 text-foreground text-body outline-none focus:ring-2 ${errors.handle ? 'focus:ring-destructive ring-2 ring-destructive/50' : 'focus:ring-primary/50'}`}
           />
           {errors.handle && <p className="flex items-center gap-1 mt-1 text-[11px] text-destructive"><AlertCircle size={11} />{errors.handle}</p>}
@@ -75,6 +77,7 @@ export default function CreateIdentityPage() {
             value={passcode}
             onChange={(e) => setPasscode(e.target.value)}
             placeholder="Enter recovery passcode"
+            autoComplete="new-password"
             className="w-full bg-secondary rounded-xl h-[50px] px-4 text-foreground text-body outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/50"
           />
         </div>
@@ -106,17 +109,16 @@ export default function CreateIdentityPage() {
           </div>
           <Toggle checked={publicProfile} onChange={setPublicProfile} />
         </div>
-      </main>
 
-      <div className="flex-shrink-0 px-4 pb-4">
         <button
-          onClick={handleCreate}
+          type="submit"
           disabled={!displayName.trim() || !handle.trim()}
           className="w-full bg-primary text-white rounded-xl h-[50px] font-semibold text-sm transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           Create identity
         </button>
-      </div>
+        </form>
+      </main>
     </div>
   )
 }

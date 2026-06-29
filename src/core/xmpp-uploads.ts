@@ -3,7 +3,7 @@
  * pubsub announcements for uploaded content.
  */
 
-import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'http'
+import type { IncomingMessage, Server, ServerResponse } from 'http'
 import { createHash } from 'crypto'
 import { xml, Element } from '@xmpp/xml'
 import { HTTP_UPLOAD_XMLNS } from './xmpp-discovery.js'
@@ -54,6 +54,7 @@ export class XmppUploadManager {
     }
 
     this.uploadServerReady = (async () => {
+      const { createServer } = await import('http')
       this.uploadServer = createServer((req, res) => {
         void this.handleUploadHttpRequest(req, res).catch(err => {
           console.error('[XMPP] Upload server error:', err)

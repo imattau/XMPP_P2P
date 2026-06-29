@@ -52,7 +52,7 @@ export type BridgeCollectionPostRecord = BridgeFeedPostRecord & {
 }
 
 export type BridgeServerConnectionInfo = {
-  type: 'component' | 's2s'
+  type: 'component'
   domain: string
   status: 'connecting' | 'connected' | 'disconnected' | 'error'
   error?: string
@@ -177,10 +177,13 @@ export interface XmppRuntimeBridge {
   connectComponent(host: string, port: number, secret: string, domain: string): Promise<void>
   disconnectComponent(): Promise<void>
   isComponentConnected(): boolean
-  setS2SDomain(domain: string): void
+  connectServer(jid: string, password: string, service?: string): Promise<void>
+  disconnectServer(): Promise<void>
+  registerServer(jid: string, password: string, service: string): Promise<void>
+  isServerConnected(): boolean
+  getServerStatus(): { online: boolean; connections: BridgeServerConnectionInfo[] }
   setFederationEnabled(enabled: boolean): void
   isFederationEnabled(): boolean
-  resolveComponentEndpoint(domain: string): Promise<{ host: string; port: number }>
   getServerConnections(): BridgeServerConnectionInfo[]
   onServerConnection(cb: (info: BridgeServerConnectionInfo) => void): () => void
   saveComponentConfig(domain: string, secret: string, host: string, port: number): Promise<void>

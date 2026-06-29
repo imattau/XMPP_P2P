@@ -586,6 +586,10 @@ build_env_lines() {
 	local lines=""
 	lines="${lines}Environment=XMPP_UPLOAD_HOST=${UPLOAD_HOST}\n"
 	lines="${lines}Environment=XMPP_UPLOAD_PORT=${UPLOAD_PORT}\n"
+	lines="${lines}Environment=XMPP_P2P_BOOTSTRAP_OUTPUT=${INSTALL_DIR}/ui/dist/bootstrap-config.json\n"
+	if [[ -n "$DOMAIN" ]]; then
+		lines="${lines}Environment=XMPP_P2P_BOOTSTRAP_DOMAIN=${DOMAIN}\n"
+	fi
 	printf '%b' "$lines"
 }
 
@@ -684,19 +688,19 @@ ${domain} {
 	${CADDY_EMAIL:+tls ${CADDY_EMAIL}}
 	encode zstd gzip
 
-	handle_path /ws/* {
+	handle_path /ws* {
 		reverse_proxy localhost:${ws_port}
 	}
 
-	handle {
-		reverse_proxy localhost:${ui_port}
-	}
+	reverse_proxy localhost:${ui_port}
 }"
 	write_managed_file "$snippet_file" "$content"
 
 	if [[ ! -f "$main_file" ]]; then
 		write_managed_file "$main_file" "${managed_marker}
 ${import_line}"
+		sudo_run systemctl reload caddy 2>/dev/null || sudo_run systemctl restart caddy 2>/dev/null || true
+		remote_step_done
 		return 0
 	fi
 
@@ -708,6 +712,7 @@ ${import_line}"
 		if command -v caddy >/dev/null 2>&1; then
 			sudo_run caddy validate --config "$main_file"
 		fi
+		sudo_run systemctl reload caddy 2>/dev/null || sudo_run systemctl restart caddy 2>/dev/null || true
 		remote_step_done
 		return 0
 	fi
@@ -723,6 +728,7 @@ ${import_line}"
 		if command -v caddy >/dev/null 2>&1; then
 			sudo_run caddy validate --config "$main_file"
 		fi
+		sudo_run systemctl reload caddy 2>/dev/null || sudo_run systemctl restart caddy 2>/dev/null || true
 		remote_step_done
 		return 0
 	fi
@@ -787,7 +793,7 @@ server {
 	}
 
 	location /ws {
-		proxy_pass http://127.0.0.1:${ws_port};
+		proxy_pass http://127.0.0.1:${ws_port}/;
 		proxy_http_version 1.1;
 		proxy_set_header Upgrade \$http_upgrade;
 		proxy_set_header Connection \"upgrade\";
@@ -798,9 +804,8 @@ server {
 		proxy_read_timeout 3600;
 		proxy_send_timeout 3600;
 	}
-}"
-			write_managed_file "$conf_file" "$content"
-			;;
+}
+";;
 		sites)
 			local sites_available="/etc/nginx/sites-available/${SERVICE_NAME}.conf"
 			local sites_enabled="/etc/nginx/sites-enabled/${SERVICE_NAME}.conf"
@@ -824,7 +829,7 @@ server {
 	}
 
 	location /ws {
-		proxy_pass http://127.0.0.1:${ws_port};
+		proxy_pass http://127.0.0.1:${ws_port}/;
 		proxy_http_version 1.1;
 		proxy_set_header Upgrade \$http_upgrade;
 		proxy_set_header Connection \"upgrade\";

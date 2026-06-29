@@ -6,6 +6,8 @@ export interface ServerBridgeState {
   savedConfigs: BridgeStoredComponentConfig[]
   connecting: boolean
   federationEnabled: boolean
+  gatewayOnline: boolean
+  gatewayConnections: BridgeServerConnectionInfo[]
 }
 
 export function useServerBridge() {
@@ -14,6 +16,8 @@ export function useServerBridge() {
     savedConfigs: [],
     connecting: false,
     federationEnabled: true,
+    gatewayOnline: false,
+    gatewayConnections: [],
   })
 
   const refreshSavedConfigs = useCallback(async () => {
@@ -41,21 +45,40 @@ export function useServerBridge() {
     setState(prev => ({ ...prev, federationEnabled: enabled }))
   }, [])
 
+  const refreshGatewayStatus = useCallback(async () => {
+    const runtime = getBrowserXmppBridge()
+    if (!runtime?.getServerStatus) return
+    try {
+      const status = runtime.getServerStatus()
+      setState(prev => ({ ...prev, gatewayOnline: status.online, gatewayConnections: status.connections }))
+    } catch {
+      setState(prev => ({ ...prev, gatewayOnline: false, gatewayConnections: [] }))
+    }
+  }, [])
+
   useEffect(() => {
     const runtime = getBrowserXmppBridge()
 
     refreshConnections()
     refreshFederationEnabled()
     void refreshSavedConfigs()
+    void refreshGatewayStatus()
 
-    if (!runtime?.onServerConnection) return
+    const interval = setInterval(refreshGatewayStatus, 10000)
+
+    if (!runtime?.onServerConnection) {
+      return () => clearInterval(interval)
+    }
 
     const unsub = runtime.onServerConnection(() => {
       refreshConnections()
     })
 
-    return unsub
-  }, [refreshConnections, refreshSavedConfigs, refreshFederationEnabled])
+    return () => {
+      unsub()
+      clearInterval(interval)
+    }
+  }, [refreshConnections, refreshSavedConfigs, refreshFederationEnabled, refreshGatewayStatus])
 
   const connectComponent = useCallback(async (host: string, port: number, secret: string, domain: string): Promise<void> => {
     const runtime = getBrowserXmppBridge()
@@ -79,9 +102,26 @@ export function useServerBridge() {
     return runtime?.isComponentConnected?.() ?? false
   }, [])
 
-  const setS2SDomain = useCallback((domain: string): void => {
+  const connectServer = useCallback(async (jid: string, password: string, service?: string): Promise<void> => {
     const runtime = getBrowserXmppBridge()
-    runtime?.setS2SDomain?.(domain)
+    if (!runtime?.connectServer) throw new Error('Bridge not available')
+    setState(prev => ({ ...prev, connecting: true }))
+    try {
+      await runtime.connectServer(jid, password, service)
+    } finally {
+      setState(prev => ({ ...prev, connecting: false }))
+    }
+  }, [])
+
+  const disconnectServer = useCallback(async (): Promise<void> => {
+    const runtime = getBrowserXmppBridge()
+    if (!runtime?.disconnectServer) throw new Error('Bridge not available')
+    await runtime.disconnectServer()
+  }, [])
+
+  const isServerConnected = useCallback((): boolean => {
+    const runtime = getBrowserXmppBridge()
+    return runtime?.isServerConnected?.() ?? false
   }, [])
 
   const setFederationEnabled = useCallback((enabled: boolean): void => {
@@ -90,12 +130,6 @@ export function useServerBridge() {
     setState(prev => ({ ...prev, federationEnabled: enabled }))
     refreshConnections()
   }, [refreshConnections])
-
-  const resolveComponentEndpoint = useCallback(async (domain: string): Promise<{ host: string; port: number }> => {
-    const runtime = getBrowserXmppBridge()
-    if (!runtime?.resolveComponentEndpoint) throw new Error('Bridge not available')
-    return runtime.resolveComponentEndpoint(domain)
-  }, [])
 
   const saveComponentConfig = useCallback(async (domain: string, secret: string, host: string, port: number): Promise<void> => {
     const runtime = getBrowserXmppBridge()
@@ -116,9 +150,10 @@ export function useServerBridge() {
     connectComponent,
     disconnectComponent,
     isComponentConnected,
-    setS2SDomain,
+    connectServer,
+    disconnectServer,
+    isServerConnected,
     setFederationEnabled,
-    resolveComponentEndpoint,
     saveComponentConfig,
     removeComponentConfig,
     refreshSavedConfigs,
