@@ -30,12 +30,15 @@ let omemoFetchShimInstalled = false
  * @returns Nothing.
  */
 function installOmemoFetchShim(distDir: string) {
-  if (omemoFetchShimInstalled || !globalThis.fetch) {
+  if (omemoFetchShimInstalled) {
     return
   }
 
-  const originalFetch = globalThis.fetch.bind(globalThis)
-  ;(globalThis as typeof globalThis & { fetch?: typeof fetch }).fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+  const originalFetch: typeof globalThis.fetch | undefined = globalThis.fetch
+    ? globalThis.fetch.bind(globalThis)
+    : undefined
+
+  const shimFetch: typeof globalThis.fetch = async (input, init) => {
     const target = input instanceof Request ? input.url : input instanceof URL ? input.href : String(input)
 
     let filePath: string | undefined
@@ -58,9 +61,13 @@ function installOmemoFetchShim(distDir: string) {
       })
     }
 
-    return await originalFetch(input, init)
+    if (originalFetch) {
+      return originalFetch(input, init)
+    }
+    throw new Error(`fetch is not available and shim cannot handle: ${target}`)
   }
 
+  ;(globalThis as typeof globalThis & { fetch?: typeof fetch }).fetch = shimFetch
   omemoFetchShimInstalled = true
 }
 
@@ -72,19 +79,24 @@ function installOmemoFetchShim(distDir: string) {
 async function loadOmemoModule(): Promise<OmemoModule> {
   if (!omemoModulePromise) {
     const distDir = fileURLToPath(new URL('../../node_modules/libomemo.js/dist/', import.meta.url))
-    const sourcePath = join(distDir, 'libomemo.umd.js')
     const patchedPath = join(distDir, 'libomemo.node.cjs')
-    const source = await fs.readFile(sourcePath, 'utf8')
     const requireShim = createRequire(import.meta.url)
-    installOmemoFetchShim(distDir)
-    if (!(await fs.stat(patchedPath).catch(() => null))) {
-      const patchedSource = source.replace(
-        "var _scriptDir = (typeof document === 'undefined' && typeof location === 'undefined' ? require('u' + 'rl').pathToFileURL(__filename).href : typeof document === 'undefined' ? location.href : (_documentCurrentScript && _documentCurrentScript.tagName.toUpperCase() === 'SCRIPT' && _documentCurrentScript.src || new URL('libomemo.umd.js', document.baseURI).href));",
-        "var _scriptDir = require('path').dirname(__filename) + '/';"
-      )
-      await fs.writeFile(patchedPath, patchedSource, 'utf8')
-    }
-    omemoModulePromise = Promise.resolve(requireShim(patchedPath) as OmemoModule)
+    // Assign synchronously before any await so concurrent callers
+    // see the pending promise and don't race on file patching.
+    omemoModulePromise = (async (): Promise<OmemoModule> => {
+      const sourcePath = join(distDir, 'libomemo.umd.js')
+      const source = await fs.readFile(sourcePath, 'utf8')
+      installOmemoFetchShim(distDir)
+      const patchedExists = await fs.stat(patchedPath).then(() => true).catch(() => false)
+      if (!patchedExists) {
+        const patchedSource = source.replace(
+          "var _scriptDir = (typeof document === 'undefined' && typeof location === 'undefined' ? require('u' + 'rl').pathToFileURL(__filename).href : typeof document === 'undefined' ? location.href : (_documentCurrentScript && _documentCurrentScript.tagName.toUpperCase() === 'SCRIPT' && _documentCurrentScript.src || new URL('libomemo.umd.js', document.baseURI).href));",
+          "var _scriptDir = require('path').dirname(__filename) + '/';"
+        )
+        await fs.writeFile(patchedPath, patchedSource, 'utf8')
+      }
+      return requireShim(patchedPath) as OmemoModule
+    })()
   }
 
   return await omemoModulePromise

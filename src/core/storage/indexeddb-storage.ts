@@ -66,7 +66,13 @@ export class IndexedDbStorage implements XmppStorage {
     const rows = await this.getAllByNamespace<RecordRow>(db, RECORDS_STORE, namespace)
     return rows
       .map((row) => ({ key: row.key, value: row.value, updatedAt: row.updatedAt }))
-      .sort((a, b) => a.updatedAt.localeCompare(b.updatedAt) || a.key.localeCompare(b.key))
+      .sort((a, b) => {
+        if (a.updatedAt < b.updatedAt) return -1
+        if (a.updatedAt > b.updatedAt) return 1
+        if (a.key < b.key) return -1
+        if (a.key > b.key) return 1
+        return 0
+      })
   }
 
   /**

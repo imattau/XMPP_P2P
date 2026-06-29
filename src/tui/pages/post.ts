@@ -32,7 +32,7 @@ export const createPostPage = (
   const unmount = () => { box.hidden = true }
 
   const update = (s: TuiState) => {
-    const post = s.posts[0]
+    const post = s.currentPostId ? s.posts.find(p => p.id === s.currentPostId) : s.posts[0]
     if (post) {
       content.setContent(
         `{bold}${post.title || 'Post'}{/bold}\n\n` +

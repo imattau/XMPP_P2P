@@ -489,8 +489,8 @@ export function normalizeFeedPost(entry: Partial<XmppFeedPost> & { id: string; t
     summary: entry.summary,
     author: entry.author,
     contentType: entry.contentType,
-    categories: entry.categories?.filter(category => category.trim()),
-    links: entry.links?.filter(link => link.rel || link.href),
+    categories: entry.categories?.filter((c): c is string => typeof c === 'string' && c.trim().length > 0),
+    links: entry.links?.filter((l): l is NonNullable<typeof l> => l != null && !!(l.rel || l.href)),
     geoloc: entry.geoloc
   }
 }

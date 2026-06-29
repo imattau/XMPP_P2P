@@ -47,7 +47,10 @@ export const startTui = async (libp2p: Libp2pNode, xmppNode: XmppNode) => {
   const statusBar = createStatusBar(screen)
 
   const pages: Record<string, { box: blessed.Widgets.BoxElement; mount: () => void; unmount: () => void; focus: () => void; update: (state: TuiState) => void }> = {
-    [TuiView.Feed]: createFeedPage(pageBox, state, xmppNode, () => navigateTo(TuiView.Post)),
+    [TuiView.Feed]: createFeedPage(pageBox, state, xmppNode, (id: string) => {
+      state.currentPostId = id
+      navigateTo(TuiView.Post)
+    }),
     [TuiView.Post]: createPostPage(pageBox, state),
     [TuiView.Topics]: createTopicsPage(pageBox, state, (tag: string) => {
       state.posts = state.posts.filter(p => p.categories?.includes(tag))
@@ -95,10 +98,10 @@ export const startTui = async (libp2p: Libp2pNode, xmppNode: XmppNode) => {
     renderAll()
   })
 
-  screen.key(['q', 'C-c'], () => {
+  screen.key(['q', 'C-c'], async () => {
     screen.destroy()
-    xmppNode.close()
-    libp2p.stop()
+    await xmppNode.close().catch(() => {})
+    await libp2p.stop().catch(() => {})
     process.exit(0)
   })
 

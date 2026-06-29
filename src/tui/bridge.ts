@@ -12,6 +12,7 @@ export type TuiState = {
   chats: StoredChat[]
   messages: Map<string, StoredMessage[]>
   currentChatJid: string | null
+  currentPostId: string | null
 }
 
 export const createTuiState = (xmppNode: XmppNode): TuiState => ({
@@ -25,6 +26,7 @@ export const createTuiState = (xmppNode: XmppNode): TuiState => ({
   chats: [],
   messages: new Map(),
   currentChatJid: null,
+  currentPostId: null,
 })
 
 export const loadInitialData = async (xmppNode: XmppNode, state: TuiState) => {

@@ -1,15 +1,31 @@
 import { XmppNode } from '../core/xmpp-node.js'
 import { TuiState } from './bridge.js'
 
+const recentMessageIds = new Set<string>()
+const MAX_RECENT_IDS = 50
+
 export const attachTuiEventListeners = (xmppNode: XmppNode, state: TuiState, onUpdate: () => void) => {
   xmppNode.on('message', (msg: any) => {
     const jid = msg.from
+    if (!jid) {
+      return
+    }
+    const msgId = msg.id || `${Date.now()}`
+    if (recentMessageIds.has(msgId)) {
+      return
+    }
+    recentMessageIds.add(msgId)
+    if (recentMessageIds.size > MAX_RECENT_IDS) {
+      const first = recentMessageIds.values().next().value
+      if (first) recentMessageIds.delete(first)
+    }
+
     if (!state.messages.has(jid)) {
       state.messages.set(jid, [])
     }
     state.messages.get(jid)!.push({
-      id: msg.id || `${Date.now()}`,
-      from: msg.from,
+      id: msgId,
+      from: jid,
       body: msg.body || '',
       nickname: msg.nickname,
       encrypted: msg.encrypted,

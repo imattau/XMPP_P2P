@@ -1,21 +1,53 @@
 import { test, expect } from '@playwright/test'
+import { createServer, type Server } from 'http'
+import { readFileSync } from 'fs'
 import { createP2PNode } from '../src/core/p2p.js'
 import { join } from 'path'
 import { fileURLToPath } from 'url'
 
 const fixtureDir = fileURLToPath(new URL('../src/tests/browser', import.meta.url))
 
+const MIME: Record<string, string> = {
+  '.html': 'text/html',
+  '.js': 'application/javascript',
+  '.wasm': 'application/wasm',
+}
+
+function serveFixture(port: number): Promise<Server> {
+  return new Promise((resolve) => {
+    const server = createServer((req: any, res: any) => {
+      const urlPath = req.url === '/' ? '/fixture-page.html' : req.url!
+      const filePath = join(fixtureDir, urlPath)
+      try {
+        const content = readFileSync(filePath)
+        const ext = filePath.slice(filePath.lastIndexOf('.'))
+        res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' })
+        res.end(content)
+      } catch {
+        res.writeHead(404)
+        res.end('Not found')
+      }
+    })
+    server.listen(port, '127.0.0.1', () => resolve(server))
+  })
+}
+
 test('two browser tabs WebRTC-dial each other and exchange an XMPP message', async ({ browser }) => {
   const relay = await createP2PNode(0, { enableMdns: false, enableDht: true, host: '127.0.0.1' })
   await relay.start()
-  const relayWsAddr = relay.getMultiaddrs().find((ma) => ma.toString().includes('/ws'))
+  const relayWsAddr = relay.getMultiaddrs().find((ma: any) => ma.toString().includes('/ws'))
   expect(relayWsAddr).toBeTruthy()
+
+  const server = await serveFixture(0)
+  const addr = server.address()!
+  const port = typeof addr === 'object' ? addr.port : 0
+  const baseUrl = `http://127.0.0.1:${port}`
 
   const pageA = await browser.newPage()
   const pageB = await browser.newPage()
 
-  await pageA.goto(`file://${join(fixtureDir, 'fixture-page.html')}`)
-  await pageB.goto(`file://${join(fixtureDir, 'fixture-page.html')}`)
+  await pageA.goto(`${baseUrl}/`)
+  await pageB.goto(`${baseUrl}/`)
 
   const clientA = await pageA.evaluate(async (bootstrapAddr) => {
     const { xmppNode, libp2p } = await (window as any).createBrowserXmppClient({ bootstrapAddrs: [bootstrapAddr], dbName: 'tab-a' })

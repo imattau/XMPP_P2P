@@ -106,14 +106,14 @@ export function parseXepMetadata(element: Element): XepMetadata {
   }
 
   const threadEl = element.getChild('thread')
-  const thread = threadEl?.text().trim()
+  const thread = threadEl?.text()?.trim()
   if (thread) {
     metadata.thread = thread
   }
 
   const nickEl = element.getChild('nick')
   if (nickEl && nickEl.attrs.xmlns === NICK_XMLNS) {
-    const nick = nickEl.text().trim()
+    const nick = nickEl.text()?.trim()
     if (nick) {
       metadata.nick = nick
     }

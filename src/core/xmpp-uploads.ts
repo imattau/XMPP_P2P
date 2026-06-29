@@ -53,7 +53,14 @@ export class XmppUploadManager {
       return
     }
 
-    this.uploadServerReady = (async () => {
+    let resolveReady: (() => void) | undefined
+    let rejectReady: ((err: Error) => void) | undefined
+    this.uploadServerReady = new Promise<void>((resolve, reject) => {
+      resolveReady = resolve
+      rejectReady = reject
+    })
+
+    try {
       const { createServer } = await import('http')
       this.uploadServer = createServer((req, res) => {
         void this.handleUploadHttpRequest(req, res).catch(err => {
@@ -88,9 +95,12 @@ export class XmppUploadManager {
       } else {
         this.uploadBaseUrl = `http://${this.context.uploadHost}:${this.context.uploadPort}`
       }
-    })()
 
-    await this.uploadServerReady
+      resolveReady?.()
+    } catch (err) {
+      rejectReady?.(err as Error)
+      throw err
+    }
   }
 
   public async ensureUploadAnnouncementSubscription(): Promise<void> {
@@ -206,8 +216,7 @@ export class XmppUploadManager {
 
   private async storeUploadObject(manifest: XmppUploadManifest, payload: Buffer): Promise<void> {
     const providers = this.buildUploadProviders(manifest)
-    await this.context.storage.putBlob('uploads', manifest.cid, new Uint8Array(payload))
-    await this.context.storage.putRecord('uploads_meta', manifest.cid, JSON.stringify({
+    const meta = {
       cid: manifest.cid,
       slotId: manifest.slotId,
       filename: manifest.filename,
@@ -218,7 +227,15 @@ export class XmppUploadManager {
       from: manifest.from,
       providers,
       cachedAt: new Date().toISOString()
-    }), new Date().toISOString())
+    }
+    try {
+      await this.context.storage.putRecord('uploads_meta', manifest.cid, JSON.stringify(meta), new Date().toISOString())
+    } catch {
+      // Metadata write failed — clean up the orphaned blob
+      await this.context.storage.deleteBlob('uploads', manifest.cid).catch(() => {})
+      throw new Error('Failed to store upload metadata')
+    }
+    await this.context.storage.putBlob('uploads', manifest.cid, new Uint8Array(payload))
   }
 
   private sortUploadProviders(manifest: XmppUploadManifest, providers: XmppUploadProvider[]): XmppUploadProvider[] {
@@ -487,7 +504,8 @@ export class XmppUploadManager {
     res.setHeader('Content-Type', objectMeta?.contentType ?? 'application/octet-stream')
     res.setHeader('Content-Length', String(data.length))
     if (objectMeta?.filename) {
-      res.setHeader('Content-Disposition', `attachment; filename="${objectMeta.filename.replace(/\"/g, '\\"')}"`)
+      const safeFilename = objectMeta.filename.replace(/[\r\n"\\]/g, '').replace(/\"/g, '\\"')
+      res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"`)
     }
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
     res.end(Buffer.from(data))
@@ -507,6 +525,11 @@ export class XmppUploadManager {
       createdAt: new Date().toISOString()
     }
     this.uploadSlots.set(slotId, normalized)
+
+    // Auto-clean abandoned slots after 10 minutes
+    setTimeout(() => {
+      this.uploadSlots.delete(slotId)
+    }, 10 * 60 * 1000).unref()
 
     return xml(
       'slot',
