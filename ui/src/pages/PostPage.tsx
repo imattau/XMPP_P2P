@@ -369,12 +369,49 @@ export default function PostPage() {
   const handleSubmitReply = async () => {
     if (!replyText.trim()) return
     const runtime = getBrowserXmppBridge()
-    if (runtime && bridgePost?.sourceTopic) {
+    if (runtime && bridgePost) {
+      const replyBody = replyText.trim()
+      const authorServer = bridgePost.author.server.trim()
+      const isExternalAuthor = Boolean(authorServer && authorServer !== 'p2p')
+      const authorJid = isExternalAuthor
+        ? `${bridgePost.author.handle}@${authorServer}`
+        : undefined
+
       try {
-        await runtime.publishFeed(replyText.trim(), {
-          topic: bridgePost.sourceTopic,
-          replyTo: bridgePost.id,
-        })
+        let delivered = false
+        let deliveryError: unknown
+        // Standard XMPP servers deliver point-to-point chat and federation.
+        // Send the reply through that client path when the author is external
+        // so the author can receive it even if they do not consume our feed.
+        if (authorJid) {
+          try {
+            await runtime.sendChatMessage(
+              { id: authorJid, type: 'direct', name: bridgePost.author.name, handle: authorJid, server: authorServer },
+              replyBody,
+              { reply: { id: bridgePost.id, to: authorJid }, thread: bridgePost.id }
+            )
+            delivered = true
+          } catch (err) {
+            deliveryError = err
+          }
+        }
+
+        // Keep the feed/P2P copy for subscribers and history when this post
+        // belongs to a feed topic we can publish to.
+        if (bridgePost.sourceTopic) {
+          try {
+            await runtime.publishFeed(replyBody, {
+              topic: bridgePost.sourceTopic,
+              replyTo: bridgePost.id,
+            })
+            delivered = true
+          } catch (err) {
+            deliveryError = err
+          }
+        }
+        if (!delivered) {
+          throw deliveryError ?? new Error('No reply transport is available')
+        }
         setReplyText('')
       } catch (err) {
         emitToast(err instanceof Error ? err.message : 'Failed to publish reply', 'error')
