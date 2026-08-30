@@ -148,6 +148,7 @@ export class FeedBridgeController {
 
   getFilteredPosts() {
     let posts = filterFeedPosts(this.state.posts, this.state.activeFilter, this.state.searchQuery)
+    posts = posts.filter(post => !post.replyTo)
     const sortBy = this.state.sortBy
     if (sortBy === 'popular') {
       posts = [...posts].sort((a, b) => b.likes - a.likes)

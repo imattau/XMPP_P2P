@@ -57,12 +57,12 @@
       exports.byteLength = byteLength;
       exports.toByteArray = toByteArray;
       exports.fromByteArray = fromByteArray;
-      var lookup = [];
+      var lookup2 = [];
       var revLookup = [];
       var Arr = typeof Uint8Array !== "undefined" ? Uint8Array : Array;
       var code6 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
       for (i2 = 0, len = code6.length; i2 < len; ++i2) {
-        lookup[i2] = code6[i2];
+        lookup2[i2] = code6[i2];
         revLookup[code6.charCodeAt(i2)] = i2;
       }
       var i2;
@@ -115,7 +115,7 @@
         return arr;
       }
       function tripletToBase64(num) {
-        return lookup[num >> 18 & 63] + lookup[num >> 12 & 63] + lookup[num >> 6 & 63] + lookup[num & 63];
+        return lookup2[num >> 18 & 63] + lookup2[num >> 12 & 63] + lookup2[num >> 6 & 63] + lookup2[num & 63];
       }
       function encodeChunk(uint8, start2, end) {
         var tmp;
@@ -138,12 +138,12 @@
         if (extraBytes === 1) {
           tmp = uint8[len2 - 1];
           parts.push(
-            lookup[tmp >> 2] + lookup[tmp << 4 & 63] + "=="
+            lookup2[tmp >> 2] + lookup2[tmp << 4 & 63] + "=="
           );
         } else if (extraBytes === 2) {
           tmp = (uint8[len2 - 2] << 8) + uint8[len2 - 1];
           parts.push(
-            lookup[tmp >> 10] + lookup[tmp >> 4 & 63] + lookup[tmp << 2 & 63] + "="
+            lookup2[tmp >> 10] + lookup2[tmp >> 4 & 63] + lookup2[tmp << 2 & 63] + "="
           );
         }
         return parts.join("");
@@ -155,14 +155,14 @@
   var require_ieee754 = __commonJS({
     "node_modules/ieee754/index.js"(exports) {
       init_globals();
-      exports.read = function(buffer, offset, isLE3, mLen, nBytes) {
+      exports.read = function(buffer, offset, isLE2, mLen, nBytes) {
         var e2, m3;
         var eLen = nBytes * 8 - mLen - 1;
         var eMax = (1 << eLen) - 1;
         var eBias = eMax >> 1;
         var nBits = -7;
-        var i2 = isLE3 ? nBytes - 1 : 0;
-        var d3 = isLE3 ? -1 : 1;
+        var i2 = isLE2 ? nBytes - 1 : 0;
+        var d3 = isLE2 ? -1 : 1;
         var s3 = buffer[offset + i2];
         i2 += d3;
         e2 = s3 & (1 << -nBits) - 1;
@@ -185,14 +185,14 @@
         }
         return (s3 ? -1 : 1) * m3 * Math.pow(2, e2 - mLen);
       };
-      exports.write = function(buffer, value2, offset, isLE3, mLen, nBytes) {
+      exports.write = function(buffer, value2, offset, isLE2, mLen, nBytes) {
         var e2, m3, c2;
         var eLen = nBytes * 8 - mLen - 1;
         var eMax = (1 << eLen) - 1;
         var eBias = eMax >> 1;
         var rt2 = mLen === 23 ? Math.pow(2, -24) - Math.pow(2, -77) : 0;
-        var i2 = isLE3 ? 0 : nBytes - 1;
-        var d3 = isLE3 ? 1 : -1;
+        var i2 = isLE2 ? 0 : nBytes - 1;
+        var d3 = isLE2 ? 1 : -1;
         var s3 = value2 < 0 || value2 === 0 && 1 / value2 < 0 ? 1 : 0;
         value2 = Math.abs(value2);
         if (isNaN(value2) || value2 === Infinity) {
@@ -459,7 +459,7 @@
       Buffer4.isBuffer = function isBuffer(b2) {
         return b2 != null && b2._isBuffer === true && b2 !== Buffer4.prototype;
       };
-      Buffer4.compare = function compare3(a2, b2) {
+      Buffer4.compare = function compare4(a2, b2) {
         if (isInstance(a2, Uint8Array)) a2 = Buffer4.from(a2, a2.offset, a2.byteLength);
         if (isInstance(b2, Uint8Array)) b2 = Buffer4.from(b2, b2.offset, b2.byteLength);
         if (!Buffer4.isBuffer(a2) || !Buffer4.isBuffer(b2)) {
@@ -688,7 +688,7 @@
       if (customInspectSymbol) {
         Buffer4.prototype[customInspectSymbol] = Buffer4.prototype.inspect;
       }
-      Buffer4.prototype.compare = function compare3(target, start2, end, thisStart, thisEnd) {
+      Buffer4.prototype.compare = function compare4(target, start2, end, thisStart, thisEnd) {
         if (isInstance(target, Uint8Array)) {
           target = Buffer4.from(target, target.offset, target.byteLength);
         }
@@ -2650,7 +2650,7 @@
       "use strict";
       init_globals();
       var escape2 = require_escape();
-      var Element21 = class _Element {
+      var Element20 = class _Element {
         constructor(name5, attrs) {
           this.name = name5;
           this.parent = null;
@@ -2940,8 +2940,8 @@
           }
         }
       };
-      Element21.prototype.tree = Element21.prototype.root;
-      module.exports = Element21;
+      Element20.prototype.tree = Element20.prototype.root;
+      module.exports = Element20;
     }
   });
 
@@ -2950,7 +2950,7 @@
     "node_modules/ltx/lib/createElement.js"(exports, module) {
       "use strict";
       init_globals();
-      var Element21 = require_Element();
+      var Element20 = require_Element();
       function append(el2, child) {
         if (Array.isArray(child)) {
           for (const c2 of child) append(el2, c2);
@@ -2970,7 +2970,7 @@
             else attrs[key] = value2.toString(10);
           }
         }
-        const el2 = new Element21(name5, attrs);
+        const el2 = new Element20(name5, attrs);
         for (const child of children) {
           append(el2, child);
         }
@@ -3281,8 +3281,8 @@
   // node_modules/@xmpp/events/lib/delay.js
   function delay(ms3) {
     let timeout2;
-    const promise2 = new Promise((resolve2) => {
-      timeout2 = setTimeout(resolve2, ms3);
+    const promise2 = new Promise((resolve6) => {
+      timeout2 = setTimeout(resolve6, ms3);
     });
     promise2.timeout = timeout2;
     return promise2;
@@ -3339,7 +3339,7 @@
 
   // node_modules/@xmpp/events/lib/promise.js
   function promise(target, event, rejectEvent = "error", timeout2) {
-    return new Promise((resolve2, reject) => {
+    return new Promise((resolve6, reject) => {
       let timeoutId;
       const { off, once } = onoff(target);
       const cleanup = () => {
@@ -3352,7 +3352,7 @@
         cleanup();
       }
       function onEvent(value2) {
-        resolve2(value2);
+        resolve6(value2);
         cleanup();
       }
       once(event, onEvent);
@@ -3378,8 +3378,8 @@
 
   // node_modules/@xmpp/events/lib/Deferred.js
   function Deferred() {
-    this.promise = new Promise((resolve2, reject) => {
-      this.resolve = resolve2;
+    this.promise = new Promise((resolve6, reject) => {
+      this.resolve = resolve6;
       this.reject = reject;
     });
   }
@@ -3390,6 +3390,27 @@
   });
 
   // node_modules/@xmpp/events/lib/procedure.js
+  function procedure(entity, stanza = null, handler) {
+    return new Promise((resolve6, reject) => {
+      function onError(err) {
+        entity.removeListener("nonza", listener2);
+        reject(err);
+      }
+      function done(...args) {
+        entity.removeListener("nonza", listener2);
+        resolve6(...args);
+      }
+      async function listener2(element) {
+        try {
+          await handler(element, done);
+        } catch (err) {
+          onError(err);
+        }
+      }
+      stanza && entity.send(stanza).catch(onError);
+      entity.on("nonza", listener2);
+    });
+  }
   var init_procedure = __esm({
     "node_modules/@xmpp/events/lib/procedure.js"() {
       init_globals();
@@ -3561,764 +3582,17 @@
     }
   });
 
-  // node_modules/@xmpp/jid/lib/escaping.js
-  function detect(local) {
-    if (!local) {
-      return false;
-    }
-    const tmp = local.replaceAll(String.raw`\20`, "").replaceAll(String.raw`\22`, "").replaceAll(String.raw`\26`, "").replaceAll(String.raw`\27`, "").replaceAll(String.raw`\2f`, "").replaceAll(String.raw`\3a`, "").replaceAll(String.raw`\3c`, "").replaceAll(String.raw`\3e`, "").replaceAll(String.raw`\40`, "").replaceAll(String.raw`\5c`, "");
-    const search = tmp.search(/[ "&'/:<>@\\]/g);
-    if (search === -1) {
-      return false;
-    }
-    return true;
-  }
-  function escape(local) {
-    if (local === null) {
-      return null;
-    }
-    return local.replaceAll(/^\s+|\s+$/g, "").replaceAll("\\", String.raw`\5c`).replaceAll(" ", String.raw`\20`).replaceAll('"', String.raw`\22`).replaceAll("&", String.raw`\26`).replaceAll("'", String.raw`\27`).replaceAll("/", String.raw`\2f`).replaceAll(":", String.raw`\3a`).replaceAll("<", String.raw`\3c`).replaceAll(">", String.raw`\3e`).replaceAll("@", String.raw`\40`);
-  }
-  function unescape(local) {
-    if (local === null) {
-      return null;
-    }
-    return local.replaceAll(String.raw`\20`, " ").replaceAll(String.raw`\22`, '"').replaceAll(String.raw`\26`, "&").replaceAll(String.raw`\27`, "'").replaceAll(String.raw`\2f`, "/").replaceAll(String.raw`\3a`, ":").replaceAll(String.raw`\3c`, "<").replaceAll(String.raw`\3e`, ">").replaceAll(String.raw`\40`, "@").replaceAll(String.raw`\5c`, "\\");
-  }
-  var init_escaping = __esm({
-    "node_modules/@xmpp/jid/lib/escaping.js"() {
+  // (disabled):node_modules/@xmpp/tcp/index.js
+  var require_tcp = __commonJS({
+    "(disabled):node_modules/@xmpp/tcp/index.js"() {
       init_globals();
     }
   });
 
-  // node_modules/@xmpp/jid/lib/JID.js
-  var JID, JID_default;
-  var init_JID = __esm({
-    "node_modules/@xmpp/jid/lib/JID.js"() {
+  // (disabled):node_modules/@xmpp/tls/index.js
+  var require_tls = __commonJS({
+    "(disabled):node_modules/@xmpp/tls/index.js"() {
       init_globals();
-      init_escaping();
-      JID = class _JID {
-        constructor(local, domain, resource) {
-          if (typeof domain !== "string" || !domain) {
-            throw new TypeError(`Invalid domain.`);
-          }
-          this.setDomain(domain);
-          this.setLocal(typeof local === "string" ? local : "");
-          this.setResource(typeof resource === "string" ? resource : "");
-        }
-        [Symbol.toPrimitive](hint) {
-          if (hint === "number") {
-            return Number.NaN;
-          }
-          return this.toString();
-        }
-        toString(unescape2) {
-          let s3 = this._domain;
-          if (this._local) {
-            s3 = this.getLocal(unescape2) + "@" + s3;
-          }
-          if (this._resource) {
-            s3 = s3 + "/" + this._resource;
-          }
-          return s3;
-        }
-        /**
-         * Convenience method to distinguish users
-         * */
-        bare() {
-          if (this._resource) {
-            return new _JID(this._local, this._domain, null);
-          }
-          return this;
-        }
-        /**
-         * Comparison function
-         * */
-        equals(other) {
-          return this._local === other._local && this._domain === other._domain && this._resource === other._resource;
-        }
-        /**
-         * http://xmpp.org/rfcs/rfc6122.html#addressing-localpart
-         * */
-        setLocal(local, escape2) {
-          escape2 = escape2 || detect(local);
-          if (escape2) {
-            local = escape(local);
-          }
-          this._local = local && local.toLowerCase();
-          return this;
-        }
-        getLocal(unescape2 = false) {
-          let local = null;
-          local = unescape2 ? unescape(this._local) : this._local;
-          return local;
-        }
-        /**
-         * http://xmpp.org/rfcs/rfc6122.html#addressing-domain
-         */
-        setDomain(domain) {
-          this._domain = domain.toLowerCase();
-          return this;
-        }
-        getDomain() {
-          return this._domain;
-        }
-        /**
-         * http://xmpp.org/rfcs/rfc6122.html#addressing-resourcepart
-         */
-        setResource(resource) {
-          this._resource = resource;
-          return this;
-        }
-        getResource() {
-          return this._resource;
-        }
-      };
-      Object.defineProperty(JID.prototype, "local", {
-        get: JID.prototype.getLocal,
-        set: JID.prototype.setLocal
-      });
-      Object.defineProperty(JID.prototype, "domain", {
-        get: JID.prototype.getDomain,
-        set: JID.prototype.setDomain
-      });
-      Object.defineProperty(JID.prototype, "resource", {
-        get: JID.prototype.getResource,
-        set: JID.prototype.setResource
-      });
-      JID_default = JID;
-    }
-  });
-
-  // node_modules/@xmpp/jid/lib/parse.js
-  function parse2(s3) {
-    let local;
-    let resource;
-    const resourceStart = s3.indexOf("/");
-    if (resourceStart !== -1) {
-      resource = s3.slice(resourceStart + 1);
-      s3 = s3.slice(0, resourceStart);
-    }
-    const atStart = s3.indexOf("@");
-    if (atStart !== -1) {
-      local = s3.slice(0, atStart);
-      s3 = s3.slice(atStart + 1);
-    }
-    return new JID_default(local, s3, resource);
-  }
-  var init_parse = __esm({
-    "node_modules/@xmpp/jid/lib/parse.js"() {
-      init_globals();
-      init_JID();
-    }
-  });
-
-  // node_modules/@xmpp/jid/index.js
-  function equal(a2, b2) {
-    return a2.equals(b2);
-  }
-  function jid(...args) {
-    if (!args[1] && !args[2]) {
-      return parse2(...args);
-    }
-    return new JID_default(...args);
-  }
-  var j, jid_default;
-  var init_jid = __esm({
-    "node_modules/@xmpp/jid/index.js"() {
-      init_globals();
-      init_JID();
-      init_escaping();
-      init_parse();
-      j = jid.bind();
-      j.jid = jid;
-      j.JID = JID_default;
-      j.parse = parse2;
-      j.equal = equal;
-      j.detectEscape = detect;
-      j.escapeLocal = escape;
-      j.unescapeLocal = unescape;
-      jid_default = j;
-    }
-  });
-
-  // node_modules/@xmpp/error/index.js
-  var XMPPError, error_default;
-  var init_error = __esm({
-    "node_modules/@xmpp/error/index.js"() {
-      init_globals();
-      XMPPError = class extends Error {
-        constructor(condition, text, application) {
-          super(condition + (text ? ` - ${text}` : ""));
-          this.name = "XMPPError";
-          this.condition = condition;
-          this.text = text;
-          this.application = application;
-        }
-        static fromElement(element) {
-          const [condition, second4, third] = element.getChildElements();
-          let text;
-          let application;
-          if (second4) {
-            if (second4.is("text")) {
-              text = second4;
-            } else if (second4) {
-              application = second4;
-            }
-            if (third) application = third;
-          }
-          const error = new this(
-            condition.name,
-            text ? text.text() : "",
-            application
-          );
-          error.element = element;
-          return error;
-        }
-      };
-      error_default = XMPPError;
-    }
-  });
-
-  // node_modules/@xmpp/connection/lib/StreamError.js
-  var StreamError, StreamError_default;
-  var init_StreamError = __esm({
-    "node_modules/@xmpp/connection/lib/StreamError.js"() {
-      init_globals();
-      init_error();
-      StreamError = class extends error_default {
-        constructor(...args) {
-          super(...args);
-          this.name = "StreamError";
-        }
-      };
-      StreamError_default = StreamError;
-    }
-  });
-
-  // node_modules/@xmpp/connection/lib/util.js
-  function parseURI(URI) {
-    let { port, hostname, protocol } = new URL(URI);
-    if (hostname === "[::1]") {
-      hostname = "::1";
-    }
-    return { port, hostname, protocol };
-  }
-  function parseHost(host) {
-    const { port, hostname } = parseURI(`http://${host}`);
-    return { port, hostname };
-  }
-  function parseService(service2) {
-    return service2.includes("://") ? parseURI(service2) : parseHost(service2);
-  }
-  var init_util = __esm({
-    "node_modules/@xmpp/connection/lib/util.js"() {
-      init_globals();
-    }
-  });
-
-  // node_modules/@xmpp/connection/index.js
-  var NS_STREAM, NS_JABBER_STREAM, Connection2, connection_default;
-  var init_connection = __esm({
-    "node_modules/@xmpp/connection/index.js"() {
-      init_globals();
-      init_events2();
-      init_jid();
-      init_xml();
-      init_StreamError();
-      init_util();
-      NS_STREAM = "urn:ietf:params:xml:ns:xmpp-streams";
-      NS_JABBER_STREAM = "http://etherx.jabber.org/streams";
-      Connection2 = class extends EventEmitter2 {
-        #socketListeners = null;
-        #parserListeners = null;
-        constructor(options = {}) {
-          super();
-          if (typeof options === "string") {
-            options = { domain: options };
-          }
-          this.jid = null;
-          this.timeout = options.timeout || 2e3;
-          this.options = options;
-          this.status = "offline";
-          this.socket = null;
-          this.parser = null;
-          this.root = null;
-        }
-        isSecure() {
-          return this.socket?.secure === true;
-        }
-        async _streamError(condition, children) {
-          try {
-            await this.send(
-              // prettier-ignore
-              xml("stream:error", {}, [
-                xml(condition, { xmlns: NS_STREAM }, children)
-              ])
-            );
-          } catch {
-          }
-          return this.disconnect();
-        }
-        _onData(data) {
-          const str = data.toString("utf8");
-          this.parser.write(str);
-        }
-        #onParserError(error) {
-          this._streamError("bad-format");
-          this._detachParser();
-          this.emit("error", error);
-        }
-        #onSocketClosed(dirty, reason) {
-          this._detachSocket();
-          this._status("disconnect", { clean: !dirty, reason });
-        }
-        #onStreamClosed(dirty, reason) {
-          this._detachParser();
-          this._status("close", { clean: !dirty, reason });
-        }
-        _attachSocket(socket) {
-          this.socket = socket;
-          this.#socketListeners ??= listeners({
-            data: this._onData.bind(this),
-            close: this.#onSocketClosed.bind(this),
-            connect: () => this._status("connect"),
-            error: (error) => this.emit("error", error)
-          });
-          this.#socketListeners.subscribe(this.socket);
-        }
-        _detachSocket() {
-          this.socket && this.#socketListeners?.unsubscribe(this.socket);
-          this.socket = null;
-        }
-        _onElement(element) {
-          const isStreamError = element.is("error", NS_JABBER_STREAM);
-          if (isStreamError) {
-            this._onStreamError(element);
-          }
-          this.emit("element", element);
-          this.emit(this.isStanza(element) ? "stanza" : "nonza", element);
-          if (isStreamError) {
-            this.disconnect();
-          }
-        }
-        // https://xmpp.org/rfcs/rfc6120.html#streams-error
-        _onStreamError(element) {
-          const error = StreamError_default.fromElement(element);
-          if (error.condition === "see-other-host") {
-            return this._onSeeOtherHost(error);
-          }
-          this.emit("error", error);
-        }
-        // https://xmpp.org/rfcs/rfc6120.html#streams-error-conditions-see-other-host
-        async _onSeeOtherHost(error) {
-          const { protocol } = parseService(this.options.service);
-          const host = error.element.getChildText("see-other-host");
-          const { port } = parseHost(host);
-          let service2;
-          service2 = port ? `${protocol || "xmpp:"}//${host}` : (protocol ? `${protocol}//` : "") + host;
-          try {
-            await promise(this, "disconnect");
-            const { domain, lang } = this.options;
-            await this.connect(service2);
-            await this.open({ domain, lang });
-          } catch (err) {
-            this.emit("error", err);
-          }
-        }
-        _attachParser(parser2) {
-          this.parser = parser2;
-          this.#parserListeners ??= listeners({
-            element: this._onElement.bind(this),
-            error: this.#onParserError.bind(this),
-            end: this.#onStreamClosed.bind(this),
-            start: (element) => this._status("open", element)
-          });
-          this.#parserListeners.subscribe(this.parser);
-        }
-        _detachParser() {
-          this.parser && this.#parserListeners?.unsubscribe(this.parser);
-          this.parser = null;
-          this.root = null;
-        }
-        _jid(id2) {
-          this.jid = jid_default(id2);
-          return this.jid;
-        }
-        /*
-        [
-          "offline",
-          // "disconnect",
-          "connecting",
-          "connected",
-          "opening",
-          "open",
-          "online",
-          "closing",
-          "close",
-          "disconnecting",
-          "disconnect",
-          "offline",
-        ];
-        */
-        _status(status, ...args) {
-          if (this.status === status) return;
-          this.status = status;
-          this.emit("status", status, ...args);
-          this.emit(status, ...args);
-        }
-        _ready(resumed = false) {
-          if (resumed) {
-            this.status = "online";
-          } else {
-            this._status("online", this.jid);
-          }
-        }
-        async disconnect() {
-          let el2;
-          try {
-            el2 = await this._closeStream();
-          } catch (err) {
-            this.#onStreamClosed(err);
-          }
-          try {
-            await this._closeSocket();
-          } catch (err) {
-            this.#onSocketClosed(true, err);
-          }
-          return el2;
-        }
-        /**
-         * Opens the socket then opens the stream
-         */
-        async start() {
-          if (this.status !== "offline") {
-            throw new Error("Connection is not offline");
-          }
-          const { service: service2, domain, lang } = this.options;
-          await this.connect(service2);
-          const promiseOnline = promise(this, "online");
-          await this.open({ domain, lang });
-          return promiseOnline;
-        }
-        /**
-         * Connects the socket
-         */
-        async connect(service2) {
-          this._status("connecting", service2);
-          const socket = new this.Socket();
-          this._attachSocket(socket);
-          socket.connect(this.socketParameters(service2));
-          return promise(socket, "connect");
-        }
-        /**
-         * Disconnects the socket
-         * https://xmpp.org/rfcs/rfc6120.html#streams-close
-         * https://tools.ietf.org/html/rfc7395#section-3.6
-         */
-        async _closeSocket(timeout2 = this.timeout) {
-          this._status("disconnecting");
-          this.socket.end();
-          await promise(this.socket, "close", "error", timeout2);
-        }
-        /**
-         * Opens the stream
-         */
-        async open(options) {
-          this._status("opening");
-          const { domain, lang } = options;
-          const headerElement = this.headerElement();
-          headerElement.attrs.to = domain;
-          headerElement.attrs["xml:lang"] = lang;
-          this.root = headerElement;
-          this._attachParser(new this.Parser());
-          await this.write(this.header(headerElement));
-          return promise(this, "open", "error", this.timeout);
-        }
-        /**
-         * Closes the stream then closes the socket
-         * https://xmpp.org/rfcs/rfc6120.html#streams-close
-         * https://tools.ietf.org/html/rfc7395#section-3.6
-         */
-        async stop() {
-          const el2 = await this.disconnect();
-          this._status("offline", el2);
-          return el2;
-        }
-        /**
-         * Closes the stream and wait for the server to close it
-         * https://xmpp.org/rfcs/rfc6120.html#streams-close
-         * https://tools.ietf.org/html/rfc7395#section-3.6
-         */
-        async _closeStream(timeout2 = this.timeout) {
-          await this.#runHooks("close");
-          const fragment = this.footer(this.footerElement());
-          await this.write(fragment);
-          this._status("closing");
-          return promise(this.parser, "end", "error", timeout2);
-        }
-        /**
-         * Restart the stream
-         * https://xmpp.org/rfcs/rfc6120.html#streams-negotiation-restart
-         */
-        async restart() {
-          this._detachParser();
-          const { domain, lang } = this.options;
-          return this.open({ domain, lang });
-        }
-        async send(element) {
-          element.parent = this.root;
-          await this.write(element.toString());
-          this.emit("send", element);
-        }
-        sendReceive(element, timeout2 = this.timeout) {
-          return Promise.all([
-            this.send(element),
-            promise(this, "element", "error", timeout2)
-          ]).then(([, el2]) => el2);
-        }
-        async write(string4) {
-          if (this.status === "closing") {
-            throw new Error("Connection is closing");
-          }
-          return new Promise((resolve2, reject) => {
-            this.socket.write(string4, (err) => err ? reject(err) : resolve2());
-          });
-        }
-        isStanza(element) {
-          const { name: name5 } = element;
-          return name5 === "iq" || name5 === "message" || name5 === "presence";
-        }
-        isNonza(element) {
-          return !this.isStanza(element);
-        }
-        // Override
-        header(el2) {
-          return el2.toString();
-        }
-        // Override
-        headerElement() {
-          return new xml.Element("", {
-            version: "1.0",
-            xmlns: this.NS
-          });
-        }
-        // Override
-        footer(el2) {
-          return el2.toString();
-        }
-        // Override
-        footerElement() {
-        }
-        // Override
-        socketParameters() {
-        }
-        /* Experimental hooks */
-        #hooks = /* @__PURE__ */ new Map();
-        #hook_events = /* @__PURE__ */ new Set(["close"]);
-        hook(event, handler) {
-          this.#assertHookEventName(event);
-          if (!this.#hooks.has(event)) {
-            this.#hooks.set(event, /* @__PURE__ */ new Set());
-          }
-          this.#hooks.get(event).add([handler]);
-        }
-        #assertHookEventName(event) {
-          if (!this.#hook_events.has(event)) {
-            throw new Error(`Hook event name "${event}" is unknown.`);
-          }
-        }
-        unhook(event, handler) {
-          this.#assertHookEventName(event);
-          const handlers = this.#hooks.get("event");
-          const item = [...handlers].find((item2) => item2.handler === handler);
-          handlers.remove(item);
-        }
-        async #runHooks(event, ...args) {
-          this.#assertHookEventName(event);
-          const hooks = this.#hooks.get(event);
-          if (!hooks) return;
-          await Promise.all(
-            [...hooks].map(async ([handler]) => {
-              try {
-                await handler(...args);
-              } catch (err) {
-                this.emit("error", err);
-              }
-            })
-          );
-        }
-      };
-      Connection2.prototype.NS = "";
-      Connection2.prototype.Socket = null;
-      Connection2.prototype.Parser = null;
-      connection_default = Connection2;
-    }
-  });
-
-  // node_modules/@xmpp/connection-tcp/Socket.js
-  var import_node_net, Socket;
-  var init_Socket = __esm({
-    "node_modules/@xmpp/connection-tcp/Socket.js"() {
-      init_globals();
-      import_node_net = __require("node:net");
-      Socket = class extends import_node_net.Socket {
-        secure = false;
-      };
-    }
-  });
-
-  // node_modules/@xmpp/connection-tcp/index.js
-  var NS_STREAM2, ConnectionTCP, connection_tcp_default;
-  var init_connection_tcp = __esm({
-    "node_modules/@xmpp/connection-tcp/index.js"() {
-      init_globals();
-      init_connection();
-      init_xml();
-      init_util();
-      init_Socket();
-      NS_STREAM2 = "http://etherx.jabber.org/streams";
-      ConnectionTCP = class extends connection_default {
-        async sendMany(elements) {
-          let fragment = "";
-          for (const element of elements) {
-            element.parent = this.root;
-            fragment += element.toString();
-          }
-          await this.write(fragment);
-          for (const element of elements) {
-            this.emit("send", element);
-          }
-        }
-        socketParameters(service2) {
-          const { port, hostname, protocol } = parseURI(service2);
-          return protocol === "xmpp:" ? { port: port ? Number(port) : null, host: hostname } : void 0;
-        }
-        // https://xmpp.org/rfcs/rfc6120.html#streams-open
-        headerElement() {
-          const el2 = super.headerElement();
-          el2.name = "stream:stream";
-          el2.attrs["xmlns:stream"] = NS_STREAM2;
-          return el2;
-        }
-        // https://xmpp.org/rfcs/rfc6120.html#streams-open
-        header(el2) {
-          return `<?xml version='1.0'?>${el2.toString().slice(0, -2)}>`;
-        }
-        // https://xmpp.org/rfcs/rfc6120.html#streams-close
-        footer() {
-          return "</stream:stream>";
-        }
-      };
-      ConnectionTCP.prototype.NS = NS_STREAM2;
-      ConnectionTCP.prototype.Socket = Socket;
-      ConnectionTCP.prototype.Parser = Parser_default;
-      connection_tcp_default = ConnectionTCP;
-    }
-  });
-
-  // node_modules/@xmpp/component-core/lib/Component.js
-  var import_node_crypto, NS, Component, Component_default;
-  var init_Component = __esm({
-    "node_modules/@xmpp/component-core/lib/Component.js"() {
-      init_globals();
-      import_node_crypto = __require("node:crypto");
-      init_connection_tcp();
-      init_xml();
-      NS = "jabber:component:accept";
-      Component = class extends connection_tcp_default {
-        socketParameters(service2) {
-          const params = super.socketParameters(service2);
-          params.port = params.port || 5347;
-          return params;
-        }
-        // https://xmpp.org/extensions/xep-0114.html#example-4
-        send(el2) {
-          if (this.isStanza(el2) && !el2.attrs.from) {
-            el2.attrs.from = this.jid.toString();
-          }
-          return super.send(el2);
-        }
-        // https://xmpp.org/extensions/xep-0114.html#example-3
-        async authenticate(id2, password) {
-          const hash2 = (0, import_node_crypto.createHash)("sha1");
-          hash2.update(id2 + password, "binary");
-          const el2 = await this.sendReceive(xml("handshake", {}, hash2.digest("hex")));
-          if (el2.name !== "handshake") {
-            throw new Error("Unexpected server response");
-          }
-          this._jid(this.options.domain);
-          this._ready(false);
-        }
-      };
-      Component.NS = NS;
-      Component.prototype.NS = NS;
-      Component_default = Component;
-    }
-  });
-
-  // node_modules/@xmpp/component-core/index.js
-  var init_component_core = __esm({
-    "node_modules/@xmpp/component-core/index.js"() {
-      init_globals();
-      init_xml();
-      init_jid();
-      init_Component();
-    }
-  });
-
-  // node_modules/@xmpp/reconnect/index.js
-  function reconnect({ entity }) {
-    const r2 = new Reconnect(entity);
-    r2.start();
-    return r2;
-  }
-  var Reconnect;
-  var init_reconnect = __esm({
-    "node_modules/@xmpp/reconnect/index.js"() {
-      init_globals();
-      init_events2();
-      Reconnect = class extends EventEmitter2 {
-        constructor(entity) {
-          super();
-          this.delay = 1e3;
-          this.entity = entity;
-          this._timeout = null;
-        }
-        #onDisconnect = () => {
-          this.scheduleReconnect();
-        };
-        scheduleReconnect() {
-          const { entity, delay: delay2, _timeout } = this;
-          clearTimeout(_timeout);
-          this._timeout = setTimeout(async () => {
-            if (entity.status !== "disconnect") {
-              return;
-            }
-            try {
-              await this.reconnect();
-            } catch {
-            }
-          }, delay2);
-        }
-        async reconnect() {
-          const { entity } = this;
-          this.emit("reconnecting");
-          const { service: service2, domain, lang } = entity.options;
-          await entity.connect(service2);
-          await entity.open({ domain, lang });
-          this.emit("reconnected");
-        }
-        start() {
-          const { entity } = this;
-          entity.on("disconnect", this.#onDisconnect);
-        }
-        stop() {
-          const { entity, _timeout } = this;
-          entity.removeListener("disconnect", this.#onDisconnect);
-          clearTimeout(_timeout);
-        }
-      };
     }
   });
 
@@ -4353,472 +3627,214 @@
     }
   });
 
-  // node_modules/@xmpp/middleware/lib/Context.js
-  var Context;
-  var init_Context = __esm({
-    "node_modules/@xmpp/middleware/lib/Context.js"() {
-      init_globals();
-      Context = class {
-        constructor(entity, stanza) {
-          this.stanza = stanza;
-          this.entity = entity;
-          const { name: name5, attrs } = stanza;
-          const { type: type2, id: id2 } = attrs;
-          this.name = name5;
-          this.id = id2 || "";
-          if (name5 === "message") {
-            this.type = type2 || "normal";
-          } else if (name5 === "presence") {
-            this.type = type2 || "available";
-          } else {
-            this.type = type2 || "";
-          }
-          this.from = null;
-          this.to = null;
-          this.local = "";
-          this.domain = "";
-          this.resource = "";
-        }
-      };
-    }
-  });
-
-  // node_modules/@xmpp/middleware/lib/IncomingContext.js
-  var IncomingContext;
-  var init_IncomingContext = __esm({
-    "node_modules/@xmpp/middleware/lib/IncomingContext.js"() {
-      init_globals();
-      init_jid();
-      init_Context();
-      IncomingContext = class extends Context {
-        constructor(entity, stanza) {
-          super(entity, stanza);
-          const { jid: jid2 } = entity;
-          const { domain } = entity.options ?? {};
-          const to2 = stanza.attrs.to || jid2?.toString();
-          const from7 = stanza.attrs.from || domain;
-          if (to2) this.to = new jid_default(to2);
-          if (from7) {
-            this.from = new jid_default(from7);
-            this.local = this.from.local;
-            this.domain = this.from.domain;
-            this.resource = this.from.resource;
-          }
-        }
-      };
-    }
-  });
-
-  // node_modules/@xmpp/middleware/lib/OutgoingContext.js
-  var OutgoingContext;
-  var init_OutgoingContext = __esm({
-    "node_modules/@xmpp/middleware/lib/OutgoingContext.js"() {
-      init_globals();
-      init_jid();
-      init_Context();
-      OutgoingContext = class extends Context {
-        constructor(entity, stanza) {
-          super(entity, stanza);
-          const { jid: jid2 } = entity;
-          const { domain } = entity.options ?? {};
-          const from7 = stanza.attrs.from || jid2?.toString();
-          const to2 = stanza.attrs.to || domain;
-          if (from7) this.from = new jid_default(from7);
-          if (to2) {
-            this.to = new jid_default(to2);
-            this.local = this.to.local;
-            this.domain = this.to.domain;
-            this.resource = this.to.resource;
-          }
-        }
-      };
-    }
-  });
-
-  // node_modules/@xmpp/middleware/index.js
-  function listener(entity, middleware2, Context2) {
-    return (stanza) => {
-      const ctx = new Context2(entity, stanza);
-      return (0, import_koa_compose.default)(middleware2)(ctx);
-    };
-  }
-  function errorHandler(entity) {
-    return (ctx, next) => {
-      next().then((reply) => reply && entity.send(reply)).catch((err) => entity.emit("error", err));
-    };
-  }
-  function middleware({ entity }) {
-    const incoming = [errorHandler(entity)];
-    const outgoing = [];
-    const incomingListener = listener(entity, incoming, IncomingContext);
-    const outgoingListener = listener(entity, outgoing, OutgoingContext);
-    entity.on("element", incomingListener);
-    entity.on("send", outgoingListener);
-    return {
-      use(fn2) {
-        incoming.push(fn2);
-        return fn2;
-      },
-      filter(fn2) {
-        outgoing.push(fn2);
-        return fn2;
-      }
-    };
-  }
-  var import_koa_compose;
-  var init_middleware = __esm({
-    "node_modules/@xmpp/middleware/index.js"() {
-      init_globals();
-      import_koa_compose = __toESM(require_koa_compose(), 1);
-      init_IncomingContext();
-      init_OutgoingContext();
-    }
-  });
-
-  // node_modules/@xmpp/id/index.js
-  function id() {
-    let i2;
-    while (!i2) {
-      i2 = Math.random().toString(36).slice(2, 12);
-    }
-    return i2;
-  }
-  var init_id = __esm({
-    "node_modules/@xmpp/id/index.js"() {
+  // (disabled):node_modules/@xmpp/starttls/index.js
+  var require_starttls = __commonJS({
+    "(disabled):node_modules/@xmpp/starttls/index.js"() {
       init_globals();
     }
   });
 
-  // node_modules/@xmpp/middleware/lib/StanzaError.js
-  var StanzaError, StanzaError_default;
-  var init_StanzaError = __esm({
-    "node_modules/@xmpp/middleware/lib/StanzaError.js"() {
+  // node_modules/saslmechanisms/lib/factory.js
+  var require_factory = __commonJS({
+    "node_modules/saslmechanisms/lib/factory.js"(exports, module) {
       init_globals();
-      init_error();
-      StanzaError = class extends error_default {
-        constructor(condition, text, application, type2) {
-          super(condition, text, application);
-          this.type = type2;
-          this.name = "StanzaError";
+      (function(root2, factory) {
+        if (typeof exports === "object") {
+          factory(exports, module);
+        } else if (typeof define === "function" && define.amd) {
+          define(["exports", "module"], factory);
         }
-        static fromElement(element) {
-          const error = super.fromElement(element);
-          error.type = element.attrs.type;
-          return error;
+      })(exports, function(exports2, module2) {
+        function Factory() {
+          this._mechs = [];
         }
-      };
-      StanzaError_default = StanzaError;
+        Factory.prototype.use = function(name5, mech3) {
+          if (!mech3) {
+            mech3 = name5;
+            name5 = mech3.prototype.name;
+          }
+          this._mechs.push({ name: name5, mech: mech3 });
+          return this;
+        };
+        Factory.prototype.create = function(mechs) {
+          for (var i2 = 0, len = this._mechs.length; i2 < len; i2++) {
+            for (var j3 = 0, jlen = mechs.length; j3 < jlen; j3++) {
+              var entry = this._mechs[i2];
+              if (entry.name == mechs[j3]) {
+                return new entry.mech();
+              }
+            }
+          }
+          return null;
+        };
+        exports2 = module2.exports = Factory;
+      });
     }
   });
 
-  // node_modules/@xmpp/iq/caller.js
-  function isReply({ name: name5, type: type2 }) {
-    if (name5 !== "iq") return false;
-    if (type2 !== "error" && type2 !== "result") return false;
-    return true;
-  }
-  function iqCaller(...args) {
-    const iqCaller2 = new IQCaller(...args);
-    iqCaller2.start();
-    return iqCaller2;
-  }
-  var IQCaller;
-  var init_caller = __esm({
-    "node_modules/@xmpp/iq/caller.js"() {
+  // node_modules/saslmechanisms/main.js
+  var require_main = __commonJS({
+    "node_modules/saslmechanisms/main.js"(exports, module) {
       init_globals();
-      init_id();
-      init_StanzaError();
-      init_events2();
-      init_xml();
-      IQCaller = class {
-        constructor({ entity, middleware: middleware2 }) {
-          this.handlers = /* @__PURE__ */ new Map();
-          this.entity = entity;
-          this.middleware = middleware2;
-        }
-        start() {
-          this.middleware.use(this._route.bind(this));
-        }
-        _route({ type: type2, name: name5, id: id2, stanza }, next) {
-          if (!isReply({ name: name5, type: type2 })) return next();
-          const deferred = this.handlers.get(id2);
-          if (!deferred) {
-            return next();
-          }
-          if (type2 === "error") {
-            deferred.reject(StanzaError_default.fromElement(stanza.getChild("error")));
-          } else {
-            deferred.resolve(stanza);
-          }
-          this.handlers.delete(id2);
-        }
-        async request(stanza, timeout2 = 30 * 1e3) {
-          if (!stanza.attrs.id) {
-            stanza.attrs.id = id();
-          }
-          const deferred = new Deferred();
-          this.handlers.set(stanza.attrs.id, deferred);
-          try {
-            await this.entity.send(stanza);
-            await timeout(deferred.promise, timeout2);
-          } catch (err) {
-            this.handlers.delete(stanza.attrs.id);
-            throw err;
-          }
-          return deferred.promise;
-        }
-        _childRequest(type2, element, to2, ...args) {
-          const {
-            name: name5,
-            attrs: { xmlns }
-          } = element;
-          return this.request(xml("iq", { type: type2, to: to2 }, element), ...args).then(
-            (stanza) => stanza.getChild(name5, xmlns)
+      (function(root2, factory) {
+        if (typeof exports === "object") {
+          factory(
+            exports,
+            module,
+            require_factory()
           );
+        } else if (typeof define === "function" && define.amd) {
+          define([
+            "exports",
+            "module",
+            "./lib/factory"
+          ], factory);
         }
-        async get(...args) {
-          return this._childRequest("get", ...args);
+      })(exports, function(exports2, module2, Factory) {
+        exports2 = module2.exports = Factory;
+        exports2.Factory = Factory;
+      });
+    }
+  });
+
+  // (disabled):node_modules/@xmpp/sasl-scram-sha-1/index.js
+  var require_sasl_scram_sha_1 = __commonJS({
+    "(disabled):node_modules/@xmpp/sasl-scram-sha-1/index.js"() {
+      init_globals();
+    }
+  });
+
+  // node_modules/sasl-plain/lib/mechanism.js
+  var require_mechanism = __commonJS({
+    "node_modules/sasl-plain/lib/mechanism.js"(exports, module) {
+      init_globals();
+      (function(root2, factory) {
+        if (typeof exports === "object") {
+          factory(exports, module);
+        } else if (typeof define === "function" && define.amd) {
+          define(["exports", "module"], factory);
         }
-        async set(...args) {
-          return this._childRequest("set", ...args);
+      })(exports, function(exports2, module2) {
+        function Mechanism2() {
         }
-      };
-    }
-  });
-
-  // node_modules/@xmpp/iq/callee.js
-  function isQuery({ name: name5, type: type2 }) {
-    if (name5 !== "iq") return false;
-    if (type2 === "error" || type2 === "result") return false;
-    return true;
-  }
-  function isValidQuery({ type: type2 }, children, child) {
-    if (type2 !== "get" && type2 !== "set") return false;
-    if (children.length !== 1) return false;
-    if (!child) return false;
-    return true;
-  }
-  function buildReply({ stanza }) {
-    return xml("iq", {
-      to: stanza.attrs.from,
-      from: stanza.attrs.to,
-      id: stanza.attrs.id
-    });
-  }
-  function buildReplyResult(ctx, child) {
-    const reply = buildReply(ctx);
-    reply.attrs.type = "result";
-    if (child) {
-      reply.append(child);
-    }
-    return reply;
-  }
-  function buildReplyError(ctx, error, child) {
-    const reply = buildReply(ctx);
-    reply.attrs.type = "error";
-    if (child) {
-      reply.append(child);
-    }
-    reply.append(error);
-    return reply;
-  }
-  function buildError(type2, condition) {
-    return xml("error", { type: type2 }, xml(condition, NS_STANZA));
-  }
-  function iqHandler(entity) {
-    return async function iqHandler2(ctx, next) {
-      if (!isQuery(ctx)) return next();
-      const { stanza } = ctx;
-      const children = stanza.getChildElements();
-      const [child] = children;
-      if (!isValidQuery(ctx, children, child)) {
-        return buildReplyError(ctx, buildError("modify", "bad-request"), child);
-      }
-      ctx.element = child;
-      let reply;
-      try {
-        reply = await next();
-      } catch (err) {
-        entity.emit("error", err);
-        reply = buildError("cancel", "internal-server-error");
-      }
-      if (!reply) {
-        reply = buildError("cancel", "service-unavailable");
-      }
-      if (reply instanceof xml.Element && reply.is("error")) {
-        return buildReplyError(ctx, reply, child);
-      }
-      return buildReplyResult(
-        ctx,
-        reply instanceof xml.Element ? reply : void 0
-      );
-    };
-  }
-  function route(type2, ns2, name5, handler) {
-    return (ctx, next) => {
-      if (ctx.type !== type2 | !ctx.element || !ctx.element.is(name5, ns2))
-        return next();
-      return handler(ctx, next);
-    };
-  }
-  function iqCallee({ middleware: middleware2, entity }) {
-    middleware2.use(iqHandler(entity));
-    return {
-      get(ns2, name5, handler) {
-        middleware2.use(route("get", ns2, name5, handler));
-      },
-      set(ns2, name5, handler) {
-        middleware2.use(route("set", ns2, name5, handler));
-      }
-    };
-  }
-  var NS_STANZA;
-  var init_callee = __esm({
-    "node_modules/@xmpp/iq/callee.js"() {
-      init_globals();
-      init_xml();
-      NS_STANZA = "urn:ietf:params:xml:ns:xmpp-stanzas";
-    }
-  });
-
-  // node_modules/@xmpp/component/index.js
-  var component_exports = {};
-  __export(component_exports, {
-    component: () => component,
-    jid: () => jid_default,
-    xml: () => xml
-  });
-  function component(options) {
-    const { password, service: service2, domain } = options;
-    const entity = new Component_default({ service: service2, domain });
-    const reconnect2 = reconnect({ entity });
-    const middleware2 = middleware({ entity });
-    const iqCaller2 = iqCaller({ entity, middleware: middleware2 });
-    const iqCallee2 = iqCallee({ entity, middleware: middleware2 });
-    entity.on("open", async (el2) => {
-      try {
-        const { id: id2 } = el2.attrs;
-        await (typeof password === "function" ? password((creds) => entity.authenticate(id2, creds)) : entity.authenticate(id2, password));
-      } catch (err) {
-        entity.emit("error", err);
-      }
-    });
-    return Object.assign(entity, {
-      entity,
-      reconnect: reconnect2,
-      middleware: middleware2,
-      iqCaller: iqCaller2,
-      iqCallee: iqCallee2
-    });
-  }
-  var init_component = __esm({
-    "node_modules/@xmpp/component/index.js"() {
-      init_globals();
-      init_component_core();
-      init_reconnect();
-      init_middleware();
-      init_caller();
-      init_callee();
-    }
-  });
-
-  // shims/dns-promises.ts
-  var dns_promises_exports = {};
-  __export(dns_promises_exports, {
-    resolveSrv: () => resolveSrv
-  });
-  async function resolveSrv(_name) {
-    throw new Error("resolveSrv not available in browser");
-  }
-  var init_dns_promises = __esm({
-    "shims/dns-promises.ts"() {
-      init_globals();
-    }
-  });
-
-  // shims/net.ts
-  var net_exports = {};
-  __export(net_exports, {
-    connect: () => connect,
-    createServer: () => createServer
-  });
-  var connect, createServer;
-  var init_net = __esm({
-    "shims/net.ts"() {
-      init_globals();
-      connect = () => {
-        const socket = {
-          on: () => socket,
-          write: () => true,
-          end: () => {
-          },
-          destroy: () => {
-          },
-          setKeepAlive: () => {
-          },
-          setTimeout: () => {
-          },
-          removeAllListeners: () => {
-          }
+        Mechanism2.prototype.name = "PLAIN";
+        Mechanism2.prototype.clientFirst = true;
+        Mechanism2.prototype.response = function(cred) {
+          var str = "";
+          str += cred.authzid || "";
+          str += "\0";
+          str += cred.username;
+          str += "\0";
+          str += cred.password;
+          return str;
         };
-        return socket;
-      };
-      createServer = () => ({ on: () => {
-      }, listen: () => {
-      }, close: () => {
-      } });
+        Mechanism2.prototype.challenge = function(chal) {
+          return this;
+        };
+        exports2 = module2.exports = Mechanism2;
+      });
     }
   });
 
-  // shims/tls.ts
-  var tls_exports = {};
-  __export(tls_exports, {
-    connect: () => connect2
-  });
-  var connect2;
-  var init_tls = __esm({
-    "shims/tls.ts"() {
+  // node_modules/sasl-plain/main.js
+  var require_main2 = __commonJS({
+    "node_modules/sasl-plain/main.js"(exports, module) {
       init_globals();
-      connect2 = () => {
-        const socket = {
-          on: () => socket,
-          write: () => true,
-          end: () => {
-          },
-          destroy: () => {
-          },
-          removeAllListeners: () => {
-          }
+      (function(root2, factory) {
+        if (typeof exports === "object") {
+          factory(
+            exports,
+            module,
+            require_mechanism()
+          );
+        } else if (typeof define === "function" && define.amd) {
+          define([
+            "exports",
+            "module",
+            "./lib/mechanism"
+          ], factory);
+        }
+      })(exports, function(exports2, module2, Mechanism2) {
+        exports2 = module2.exports = Mechanism2;
+        exports2.Mechanism = Mechanism2;
+      });
+    }
+  });
+
+  // node_modules/sasl-anonymous/lib/mechanism.js
+  var require_mechanism2 = __commonJS({
+    "node_modules/sasl-anonymous/lib/mechanism.js"(exports, module) {
+      init_globals();
+      (function(root2, factory) {
+        if (typeof exports === "object") {
+          factory(exports, module);
+        } else if (typeof define === "function" && define.amd) {
+          define(["exports", "module"], factory);
+        }
+      })(exports, function(exports2, module2) {
+        function Mechanism2() {
+        }
+        Mechanism2.prototype.name = "ANONYMOUS";
+        Mechanism2.prototype.clientFirst = true;
+        Mechanism2.prototype.response = function(cred) {
+          return cred.trace || "";
         };
-        return socket;
-      };
+        Mechanism2.prototype.challenge = function(chal) {
+        };
+        exports2 = module2.exports = Mechanism2;
+      });
+    }
+  });
+
+  // node_modules/sasl-anonymous/main.js
+  var require_main3 = __commonJS({
+    "node_modules/sasl-anonymous/main.js"(exports, module) {
+      init_globals();
+      (function(root2, factory) {
+        if (typeof exports === "object") {
+          factory(
+            exports,
+            module,
+            require_mechanism2()
+          );
+        } else if (typeof define === "function" && define.amd) {
+          define([
+            "exports",
+            "module",
+            "./lib/mechanism"
+          ], factory);
+        }
+      })(exports, function(exports2, module2, Mechanism2) {
+        exports2 = module2.exports = Mechanism2;
+        exports2.Mechanism = Mechanism2;
+      });
     }
   });
 
   // shims/http.ts
-  var http_exports = {};
-  __export(http_exports, {
-    createServer: () => createServer2
+  var http_exports2 = {};
+  __export(http_exports2, {
+    createServer: () => createServer
   });
-  var createServer2;
+  var createServer;
   var init_http = __esm({
     "shims/http.ts"() {
       init_globals();
-      createServer2 = () => {
+      createServer = () => {
         const handlers = {};
         let addr = { port: 0, family: "IPv4", address: "127.0.0.1" };
-        return {
+        const server = {
           on: (evt, cb) => {
             handlers[evt] = cb;
-            return void 0;
+            return server;
           },
           once: (evt, cb) => {
             handlers[evt] = cb;
-            return void 0;
+            return server;
           },
           off: (evt, cb) => {
             delete handlers[evt];
-            return void 0;
+            return server;
           },
           listen: (_port, _host, cb) => {
             addr = { port: Number(_port) || 0, family: "IPv4", address: _host || "127.0.0.1" };
@@ -4830,6 +3846,7 @@
           },
           address: () => addr
         };
+        return server;
       };
     }
   });
@@ -4862,9 +3879,9 @@
     dirname: () => dirname,
     extname: () => extname,
     join: () => join,
-    resolve: () => resolve
+    resolve: () => resolve5
   });
-  var join, dirname, basename, extname, resolve;
+  var join, dirname, basename, extname, resolve5;
   var init_path = __esm({
     "shims/path.ts"() {
       init_globals();
@@ -4881,7 +3898,7 @@
         const i2 = p2.lastIndexOf(".");
         return i2 >= 0 ? p2.substring(i2) : "";
       };
-      resolve = (...args) => args.join("/");
+      resolve5 = (...args) => args.join("/");
     }
   });
 
@@ -4904,8 +3921,8 @@
     SessionCipher: () => SessionCipher,
     SessionRecord: () => SessionRecord,
     createKeyPair: () => createKeyPair,
-    decrypt: () => decrypt3,
-    encrypt: () => encrypt3,
+    decrypt: () => decrypt2,
+    encrypt: () => encrypt2,
     getRandomBytes: () => getRandomBytes,
     hash: () => hash,
     internalCrypto: () => internalCrypto,
@@ -5055,12 +4072,12 @@
     webCrypto.getRandomValues(array);
     return array.buffer;
   }
-  async function encrypt3(key, data, iv) {
+  async function encrypt2(key, data, iv) {
     const algo = { name: "AES-CBC" };
     const importedKey = await webCrypto.subtle.importKey("raw", key, algo, false, ["encrypt"]);
     return webCrypto.subtle.encrypt({ ...algo, iv: new Uint8Array(iv) }, importedKey, data);
   }
-  async function decrypt3(key, data, iv) {
+  async function decrypt2(key, data, iv) {
     const algo = { name: "AES-CBC" };
     const importedKey = await webCrypto.subtle.importKey("raw", key, algo, false, ["decrypt"]);
     return webCrypto.subtle.decrypt({ ...algo, iv: new Uint8Array(iv) }, importedKey, data);
@@ -5172,7 +4189,7 @@
       var params = new Array(arguments.length - 1), offset = 0, index = 2, pending = true;
       while (index < arguments.length)
         params[offset++] = arguments[index++];
-      return new Promise(function executor(resolve2, reject) {
+      return new Promise(function executor(resolve6, reject) {
         params[offset] = function callback(err) {
           if (pending) {
             pending = false;
@@ -5182,7 +4199,7 @@
               var params2 = new Array(arguments.length - 1), offset2 = 0;
               while (offset2 < params2.length)
                 params2[offset2++] = arguments[offset2];
-              resolve2.apply(null, params2);
+              resolve6.apply(null, params2);
             }
           }
         };
@@ -5217,7 +4234,7 @@
         s64[b64[i2] = i2 < 26 ? i2 + 65 : i2 < 52 ? i2 + 71 : i2 < 62 ? i2 - 4 : i2 - 59 | 43] = i2++;
       s64[45] = 62;
       s64[95] = 63;
-      base645.encode = function encode15(buffer, start2, end) {
+      base645.encode = function encode16(buffer, start2, end) {
         var parts = null, chunk = [];
         var i3 = 0, j3 = 0, t2;
         while (start2 < end) {
@@ -5258,7 +4275,7 @@
         return String.fromCharCode.apply(String, chunk.slice(0, i3));
       };
       var invalidEncoding = "invalid encoding";
-      base645.decode = function decode18(string4, buffer, offset) {
+      base645.decode = function decode19(string4, buffer, offset) {
         var start2 = offset;
         var j3 = 0, t2;
         for (var i3 = 0; i3 < string4.length; ) {
@@ -6367,7 +5384,7 @@
           };
           LongPrototype.gte = LongPrototype.greaterThanOrEqual;
           LongPrototype.ge = LongPrototype.greaterThanOrEqual;
-          LongPrototype.compare = function compare3(other) {
+          LongPrototype.compare = function compare4(other) {
             if (!isLong(other)) other = fromValue(other);
             if (this.eq(other)) return 0;
             var thisNeg = this.isNegative(), otherNeg = other.isNegative();
@@ -7558,28 +6575,28 @@
         return self2.rpcImpl(
           method2,
           requestCtor[self2.requestDelimited ? "encodeDelimited" : "encode"](request).finish(),
-          function rpcCallback(err, response) {
+          function rpcCallback(err, response2) {
             if (err) {
               self2.emit("error", err, method2);
               return callback(err);
             }
-            if (response === null) {
+            if (response2 === null) {
               self2.end(
                 /* endedByRPC */
                 true
               );
               return void 0;
             }
-            if (!(response instanceof responseCtor)) {
+            if (!(response2 instanceof responseCtor)) {
               try {
-                response = responseCtor[self2.responseDelimited ? "decodeDelimited" : "decode"](response);
+                response2 = responseCtor[self2.responseDelimited ? "decodeDelimited" : "decode"](response2);
               } catch (err2) {
                 self2.emit("error", err2, method2);
                 return callback(err2);
               }
             }
-            self2.emit("data", response, method2);
-            return callback(null, response);
+            self2.emit("data", response2, method2);
+            return callback(null, response2);
           }
         );
       } catch (err) {
@@ -7831,7 +6848,7 @@
           return uncPrefix + prefix + parts.join("/");
         }
       );
-      path2.resolve = function resolve2(originPath, includePath, alreadyNormalized) {
+      path2.resolve = function resolve6(originPath, includePath, alreadyNormalized) {
         if (!alreadyNormalized)
           includePath = normalize(includePath);
         if (isAbsolute(includePath))
@@ -7987,7 +7004,7 @@
       object2.onRemove(this);
       return clearCache(this);
     };
-    Namespace.prototype.define = function define(path2, json) {
+    Namespace.prototype.define = function define2(path2, json) {
       if (util2.isString(path2))
         path2 = path2.split(".");
       else if (!Array.isArray(path2))
@@ -8034,7 +7051,7 @@
       });
       return this;
     };
-    Namespace.prototype.lookup = function lookup(path2, filterTypes, parentAlreadyChecked) {
+    Namespace.prototype.lookup = function lookup2(path2, filterTypes, parentAlreadyChecked) {
       if (typeof filterTypes === "boolean") {
         parentAlreadyChecked = filterTypes;
         filterTypes = void 0;
@@ -8069,7 +7086,7 @@
       }
       return null;
     };
-    Namespace.prototype._lookupImpl = function lookup(path2, flatPath) {
+    Namespace.prototype._lookupImpl = function lookup2(path2, flatPath) {
       if (Object.prototype.hasOwnProperty.call(this._lookupCache, flatPath)) {
         return this._lookupCache[flatPath];
       }
@@ -8158,7 +7175,7 @@
         keepComments ? this.comment : void 0
       ]);
     };
-    MapField.prototype.resolve = function resolve2() {
+    MapField.prototype.resolve = function resolve6() {
       if (this.resolved)
         return this;
       if (types2.mapKey[this.keyType] === void 0)
@@ -8233,7 +7250,7 @@
         this.parsedOptions
       ]);
     };
-    Method.prototype.resolve = function resolve2() {
+    Method.prototype.resolve = function resolve6() {
       if (this.resolved)
         return this;
       this.resolvedRequestType = this.parent.lookupType(this.requestType);
@@ -8370,13 +7387,13 @@
     Message4.create = function create4(properties) {
       return this.$type.create(properties);
     };
-    Message4.encode = function encode15(message4, writer2) {
+    Message4.encode = function encode16(message4, writer2) {
       return this.$type.encode(message4, writer2);
     };
     Message4.encodeDelimited = function encodeDelimited(message4, writer2) {
       return this.$type.encodeDelimited(message4, writer2);
     };
-    Message4.decode = function decode18(reader2) {
+    Message4.decode = function decode19(reader2) {
       return this.$type.decode(reader2);
     };
     Message4.decodeDelimited = function decodeDelimited(reader2) {
@@ -9200,7 +8217,7 @@
     var Namespace = requireNamespace();
     ((Root.prototype = Object.create(Namespace.prototype)).constructor = Root).className = "Root";
     var Field2 = requireField(), Enum = require_enum(), OneOf = requireOneof(), util2 = requireUtil();
-    var Type, parse3, common;
+    var Type, parse4, common;
     function Root(options) {
       Namespace.call(this, "", options);
       this.deferred = [];
@@ -9263,8 +8280,8 @@
           if (!util2.isString(source))
             self2.setOptions(source.options).addJSON(source.nested);
           else {
-            parse3.filename = filename2;
-            var parsed = parse3(source, self2, options), resolved2, i3 = 0;
+            parse4.filename = filename2;
+            var parsed = parse4(source, self2, options), resolved2, i3 = 0;
             if (parsed.imports) {
               for (; i3 < parsed.imports.length; ++i3)
                 if (resolved2 = getBundledFileName(parsed.imports[i3]) || self2.resolvePath(filename2, parsed.imports[i3]))
@@ -9435,7 +8452,7 @@
     };
     Root._configure = function(Type_, parse_, common_) {
       Type = Type_;
-      parse3 = parse_;
+      parse4 = parse_;
       common = common_;
     };
     return root;
@@ -9841,7 +8858,7 @@
         keepComments ? this.comment : void 0
       ]);
     };
-    Field2.prototype.resolve = function resolve2() {
+    Field2.prototype.resolve = function resolve6() {
       if (this.resolved)
         return this;
       if ((this.typeDefault = types2.defaults[this.type]) === void 0) {
@@ -10110,7 +9127,7 @@
       this.parent = null;
       this.resolved = false;
     };
-    ReflectionObject.prototype.resolve = function resolve2() {
+    ReflectionObject.prototype.resolve = function resolve6() {
       if (this.resolved)
         return this;
       if (this.root instanceof Root)
@@ -10678,18 +9695,18 @@
   function requireParse() {
     if (hasRequiredParse) return parse_1;
     hasRequiredParse = 1;
-    parse_1 = parse3;
-    parse3.filename = null;
-    parse3.defaults = { keepCase: false };
+    parse_1 = parse4;
+    parse4.filename = null;
+    parse4.defaults = { keepCase: false };
     var tokenize = requireTokenize(), Root = requireRoot(), Type = requireType(), Field2 = requireField(), MapField = requireMapfield(), OneOf = requireOneof(), Enum = require_enum(), Service = requireService(), Method = requireMethod(), ReflectionObject = requireObject(), types2 = requireTypes(), util2 = requireUtil();
     var base10Re = /^[1-9][0-9]*$/, base10NegRe = /^-?[1-9][0-9]*$/, base16Re = /^0[x][0-9a-fA-F]+$/, base16NegRe = /^-?0[x][0-9a-fA-F]+$/, base8Re = /^0[0-7]+$/, base8NegRe = /^-?0[0-7]+$/, numberRe = util2.patterns.numberRe, nameRe = /^[a-zA-Z_][a-zA-Z_0-9]*$/, typeRefRe = util2.patterns.typeRefRe;
-    function parse3(source, root2, options) {
+    function parse4(source, root2, options) {
       if (!(root2 instanceof Root)) {
         options = root2;
         root2 = new Root();
       }
       if (!options)
-        options = parse3.defaults;
+        options = parse4.defaults;
       var preferTrailingComment = options.preferTrailingComment || false;
       var tn2 = tokenize(source, options.alternateCommentMode || false), next = tn2.next, push = tn2.push, peek = tn2.peek, skip = tn2.skip, cmnt = tn2.cmnt;
       var head = true, pkg, imports, weakImports, edition = "proto2";
@@ -10709,9 +9726,9 @@
         });
       }
       function illegal(token2, name5, insideTryCatch) {
-        var filename = parse3.filename;
+        var filename = parse4.filename;
         if (!insideTryCatch)
-          parse3.filename = null;
+          parse4.filename = null;
         return Error("illegal " + (name5 || "token") + " '" + token2 + "' (" + (filename ? filename + ", " : "") + "line " + tn2.line + ")");
       }
       function readString2() {
@@ -10932,7 +9949,7 @@
           if (typeof obj.comment !== "string") {
             obj.comment = cmnt();
           }
-          obj.filename = parse3.filename;
+          obj.filename = parse4.filename;
         }
         if (skip("{", true)) {
           var token2;
@@ -11060,7 +10077,7 @@
         var type2 = new Type(name5);
         type2.group = true;
         var field2 = new Field2(fieldName, id2, name5, rule, extend);
-        field2.filename = parse3.filename;
+        field2.filename = parse4.filename;
         ifBlock(type2, function parseGroup_block(token2) {
           switch (token2) {
             case ";":
@@ -11436,7 +10453,7 @@
         }
       }
       resolveFileFeatures();
-      parse3.filename = null;
+      parse4.filename = null;
       return {
         "package": pkg,
         "imports": imports,
@@ -11827,8 +10844,8 @@
           Curve25519Module2 = Curve25519Module2 || {};
           var Module = typeof Curve25519Module2 != "undefined" ? Curve25519Module2 : {};
           var readyPromiseResolve, readyPromiseReject;
-          Module["ready"] = new Promise(function(resolve2, reject) {
-            readyPromiseResolve = resolve2;
+          Module["ready"] = new Promise(function(resolve6, reject) {
+            readyPromiseResolve = resolve6;
             readyPromiseReject = reject;
           });
           var moduleOverrides = Object.assign({}, Module);
@@ -12076,21 +11093,21 @@
           function getBinaryPromise() {
             if (!wasmBinary && (ENVIRONMENT_IS_WEB || ENVIRONMENT_IS_WORKER)) {
               if (typeof fetch == "function" && !isFileURI(wasmBinaryFile)) {
-                return fetch(wasmBinaryFile, { credentials: "same-origin" }).then(function(response) {
-                  if (!response["ok"]) {
+                return fetch(wasmBinaryFile, { credentials: "same-origin" }).then(function(response2) {
+                  if (!response2["ok"]) {
                     throw "failed to load wasm binary file at '" + wasmBinaryFile + "'";
                   }
-                  return response["arrayBuffer"]();
+                  return response2["arrayBuffer"]();
                 }).catch(function() {
                   return getBinary(wasmBinaryFile);
                 });
               } else {
                 if (readAsync) {
-                  return new Promise(function(resolve2, reject) {
-                    readAsync(wasmBinaryFile, function(response) {
-                      resolve2(new Uint8Array(
+                  return new Promise(function(resolve6, reject) {
+                    readAsync(wasmBinaryFile, function(response2) {
+                      resolve6(new Uint8Array(
                         /** @type{!ArrayBuffer} */
-                        response
+                        response2
                       ));
                     }, reject);
                   });
@@ -12132,8 +11149,8 @@
             function instantiateAsync() {
               if (!wasmBinary && typeof WebAssembly.instantiateStreaming == "function" && !isDataURI(wasmBinaryFile) && // Don't use streaming for file:// delivered objects in a webview, fetch them synchronously.
               !isFileURI(wasmBinaryFile) && typeof fetch == "function") {
-                return fetch(wasmBinaryFile, { credentials: "same-origin" }).then(function(response) {
-                  var result = WebAssembly.instantiateStreaming(response, info);
+                return fetch(wasmBinaryFile, { credentials: "same-origin" }).then(function(response2) {
+                  var result = WebAssembly.instantiateStreaming(response2, info);
                   return result.then(
                     receiveInstantiationResult,
                     function(reason) {
@@ -13039,7 +12056,7 @@
             delete chain.messageKeys[chain.chainKey.counter];
             msg.counter = chain.chainKey.counter;
             msg.previousCounter = session.currentRatchet.previousCounter;
-            const ciphertext = await encrypt3(keys[0], buf, keys[2].slice(0, 16));
+            const ciphertext = await encrypt2(keys[0], buf, keys[2].slice(0, 16));
             msg.ciphertext = new Uint8Array(ciphertext);
             const encodedMsg = WhisperMessage.encode(msg).finish();
             const macInput = new Uint8Array(encodedMsg.byteLength + 33 * 2 + 1);
@@ -13288,7 +12305,7 @@
         macInput[33 * 2] = 3 << 4 | 3;
         macInput.set(new Uint8Array(messageProto), 33 * 2 + 1);
         await verifyMAC(macInput.buffer, keys[1], mac, 8);
-        const plaintext = await decrypt3(keys[0], message4.ciphertext.slice().buffer, keys[2].slice(0, 16));
+        const plaintext = await decrypt2(keys[0], message4.ciphertext.slice().buffer, keys[2].slice(0, 16));
         delete session.pendingPreKey;
         return plaintext;
       }, _SessionCipher_decryptWithSessionList = async function _SessionCipher_decryptWithSessionList2(buffer, sessionList, errors = []) {
@@ -13396,9 +12413,9 @@
         }
         delete __classPrivateFieldGet(this, _Curve25519Worker_jobs, "f")[e2.data.id];
       }, _Curve25519Worker_postMessage = function _Curve25519Worker_postMessage2(methodName, args) {
-        return new Promise((resolve2, reject) => {
+        return new Promise((resolve6, reject) => {
           var _a2;
-          __classPrivateFieldGet(this, _Curve25519Worker_jobs, "f")[__classPrivateFieldGet(this, _Curve25519Worker_jobId, "f")] = { onsuccess: resolve2, onerror: reject };
+          __classPrivateFieldGet(this, _Curve25519Worker_jobs, "f")[__classPrivateFieldGet(this, _Curve25519Worker_jobId, "f")] = { onsuccess: resolve6, onerror: reject };
           this.worker.postMessage({ id: __classPrivateFieldGet(this, _Curve25519Worker_jobId, "f"), methodName, args });
           __classPrivateFieldSet(this, _Curve25519Worker_jobId, (_a2 = __classPrivateFieldGet(this, _Curve25519Worker_jobId, "f"), _a2++, _a2), "f");
         });
@@ -13990,7 +13007,7 @@
     var LEADER = ALPHABET.charAt(0);
     var FACTOR = Math.log(BASE) / Math.log(256);
     var iFACTOR = Math.log(256) / Math.log(BASE);
-    function encode15(source) {
+    function encode16(source) {
       if (source instanceof Uint8Array)
         ;
       else if (ArrayBuffer.isView(source)) {
@@ -14088,7 +13105,7 @@
       }
       return vch;
     }
-    function decode18(string4) {
+    function decode19(string4) {
       var buffer = decodeUnsafe(string4);
       if (buffer) {
         return buffer;
@@ -14096,9 +13113,9 @@
       throw new Error(`Non-${name5} character`);
     }
     return {
-      encode: encode15,
+      encode: encode16,
       decodeUnsafe,
-      decode: decode18
+      decode: decode19
     };
   }
   var src = base;
@@ -14198,16 +13215,16 @@
       return this.decoder.decode(input);
     }
   };
-  function from({ name: name5, prefix, encode: encode15, decode: decode18 }) {
-    return new Codec(name5, prefix, encode15, decode18);
+  function from({ name: name5, prefix, encode: encode16, decode: decode19 }) {
+    return new Codec(name5, prefix, encode16, decode19);
   }
   function baseX({ name: name5, prefix, alphabet: alphabet4 }) {
-    const { encode: encode15, decode: decode18 } = base_x_default(alphabet4, name5);
+    const { encode: encode16, decode: decode19 } = base_x_default(alphabet4, name5);
     return from({
       prefix,
       name: name5,
-      encode: encode15,
-      decode: (text) => coerce(decode18(text))
+      encode: encode16,
+      decode: (text) => coerce(decode19(text))
     });
   }
   function decode(string4, alphabetIdx, bitsPerChar, name5) {
@@ -15595,8 +14612,8 @@
   // node_modules/multiformats/dist/src/hashes/hasher.js
   init_globals();
   var DEFAULT_MIN_DIGEST_LENGTH = 20;
-  function from2({ name: name5, code: code6, encode: encode15, minDigestLength, maxDigestLength }) {
-    return new Hasher(name5, code6, encode15, minDigestLength, maxDigestLength);
+  function from2({ name: name5, code: code6, encode: encode16, minDigestLength, maxDigestLength }) {
+    return new Hasher(name5, code6, encode16, minDigestLength, maxDigestLength);
   }
   var Hasher = class {
     name;
@@ -15604,10 +14621,10 @@
     encode;
     minDigestLength;
     maxDigestLength;
-    constructor(name5, code6, encode15, minDigestLength, maxDigestLength) {
+    constructor(name5, code6, encode16, minDigestLength, maxDigestLength) {
       this.name = name5;
       this.code = code6;
-      this.encode = encode15;
+      this.encode = encode16;
       this.minDigestLength = minDigestLength ?? DEFAULT_MIN_DIGEST_LENGTH;
       this.maxDigestLength = maxDigestLength;
     }
@@ -15679,17 +14696,17 @@
   var hashes = { ...sha2_browser_exports, ...identity_exports };
 
   // node_modules/uint8arrays/dist/src/util/bases.js
-  function createCodec(name5, prefix, encode15, decode18) {
+  function createCodec(name5, prefix, encode16, decode19) {
     return {
       name: name5,
       prefix,
       encoder: {
         name: name5,
         prefix,
-        encode: encode15
+        encode: encode16
       },
       decoder: {
-        decode: decode18
+        decode: decode19
       }
     };
   }
@@ -16153,9 +15170,6 @@
       throw new RangeError('"digestInto() output" expected to be of length >=' + min);
     }
   }
-  function u32(arr) {
-    return new Uint32Array(arr.buffer, arr.byteOffset, Math.floor(arr.byteLength / 4));
-  }
   function clean(...arrays) {
     for (let i2 = 0; i2 < arrays.length; i2++) {
       arrays[i2].fill(0);
@@ -16167,20 +15181,6 @@
   function rotr(word, shift) {
     return word << 32 - shift | word >>> shift;
   }
-  function rotl(word, shift) {
-    return word << shift | word >>> 32 - shift >>> 0;
-  }
-  var isLE = /* @__PURE__ */ (() => new Uint8Array(new Uint32Array([287454020]).buffer)[0] === 68)();
-  function byteSwap(word) {
-    return word << 24 & 4278190080 | word << 8 & 16711680 | word >>> 8 & 65280 | word >>> 24 & 255;
-  }
-  function byteSwap32(arr) {
-    for (let i2 = 0; i2 < arr.length; i2++) {
-      arr[i2] = byteSwap(arr[i2]);
-    }
-    return arr;
-  }
-  var swap32IfBE = isLE ? (u2) => u2 : byteSwap32;
   var hasHexBuiltin = /* @__PURE__ */ (() => (
     // @ts-ignore
     typeof Uint8Array.from([]).toHex === "function" && typeof Uint8Array.fromHex === "function"
@@ -16310,11 +15310,11 @@
     length = 0;
     pos = 0;
     destroyed = false;
-    constructor(blockLen, outputLen, padOffset, isLE3) {
+    constructor(blockLen, outputLen, padOffset, isLE2) {
       this.blockLen = blockLen;
       this.outputLen = outputLen;
       this.padOffset = padOffset;
-      this.isLE = isLE3;
+      this.isLE = isLE2;
       this.buffer = new Uint8Array(blockLen);
       this.view = createView(this.buffer);
     }
@@ -16347,7 +15347,7 @@
       aexists(this);
       aoutput(out, this);
       this.finished = true;
-      const { buffer, view, blockLen, isLE: isLE3 } = this;
+      const { buffer, view, blockLen, isLE: isLE2 } = this;
       let { pos } = this;
       buffer[pos++] = 128;
       clean(this.buffer.subarray(pos));
@@ -16357,7 +15357,7 @@
       }
       for (let i2 = pos; i2 < blockLen; i2++)
         buffer[i2] = 0;
-      view.setBigUint64(blockLen - 8, BigInt(this.length * 8), isLE3);
+      view.setBigUint64(blockLen - 8, BigInt(this.length * 8), isLE2);
       this.process(view, 0);
       const oview = createView(out);
       const len = this.outputLen;
@@ -16368,7 +15368,7 @@
       if (outLen > state.length)
         throw new Error("_sha2: outputLen bigger than state");
       for (let i2 = 0; i2 < outLen; i2++)
-        oview.setUint32(4 * i2, state[i2], isLE3);
+        oview.setUint32(4 * i2, state[i2], isLE2);
     }
     digest() {
       const { buffer, outputLen } = this;
@@ -17353,18 +16353,18 @@
     }
     fromBytes(bytes, skipValidation = false) {
       abytes2(bytes);
-      const { _lengths: allowedLengths, BYTES, isLE: isLE3, ORDER, _mod: modFromBytes } = this;
+      const { _lengths: allowedLengths, BYTES, isLE: isLE2, ORDER, _mod: modFromBytes } = this;
       if (allowedLengths) {
         if (bytes.length < 1 || !allowedLengths.includes(bytes.length) || bytes.length > BYTES) {
           throw new Error("Field.fromBytes: expected " + allowedLengths + " bytes, got " + bytes.length);
         }
         const padded = new Uint8Array(BYTES);
-        padded.set(bytes, isLE3 ? 0 : padded.length - bytes.length);
+        padded.set(bytes, isLE2 ? 0 : padded.length - bytes.length);
         bytes = padded;
       }
       if (bytes.length !== BYTES)
         throw new Error("Field.fromBytes: expected " + BYTES + " bytes, got " + bytes.length);
-      let scalar = isLE3 ? bytesToNumberLE(bytes) : bytesToNumberBE(bytes);
+      let scalar = isLE2 ? bytesToNumberLE(bytes) : bytesToNumberBE(bytes);
       if (modFromBytes)
         scalar = mod(scalar, ORDER);
       if (!skipValidation) {
@@ -17400,16 +16400,16 @@
     const length7 = getFieldBytesLength(fieldOrder);
     return length7 + Math.ceil(length7 / 2);
   }
-  function mapHashToField(key, fieldOrder, isLE3 = false) {
+  function mapHashToField(key, fieldOrder, isLE2 = false) {
     abytes2(key);
     const len = key.length;
     const fieldLen = getFieldBytesLength(fieldOrder);
     const minLen = Math.max(getMinHashLength(fieldOrder), 16);
     if (len < minLen || len > 1024)
       throw new Error("expected " + minLen + "-1024 bytes of input, got " + len);
-    const num = isLE3 ? bytesToNumberLE(key) : bytesToNumberBE(key);
+    const num = isLE2 ? bytesToNumberLE(key) : bytesToNumberBE(key);
     const reduced = mod(num, fieldOrder - _1n2) + _1n2;
-    return isLE3 ? numberToBytesLE(reduced, fieldLen) : numberToBytesBE(reduced, fieldLen);
+    return isLE2 ? numberToBytesLE(reduced, fieldLen) : numberToBytesBE(reduced, fieldLen);
   }
 
   // node_modules/@noble/curves/abstract/curve.js
@@ -17608,14 +16608,14 @@
     }
     return { p1, p2 };
   }
-  function createField(order, field2, isLE3) {
+  function createField(order, field2, isLE2) {
     if (field2) {
       if (field2.ORDER !== order)
         throw new Error("Field.ORDER must match order: Fp == p, Fn == n");
       validateField(field2);
       return field2;
     } else {
-      return Field(order, { isLE: isLE3 });
+      return Field(order, { isLE: isLE2 });
     }
   }
   function createCurveFields(type2, CURVE, curveOpts = {}, FpFnLE) {
@@ -20131,12 +19131,12 @@
     END_GROUP: 4,
     BIT32: 5
   };
-  function createCodec2(name5, type2, encode15, decode18, stream) {
+  function createCodec2(name5, type2, encode16, decode19, stream) {
     return {
       name: name5,
       type: type2,
-      encode: encode15,
-      decode: decode18,
+      encode: encode16,
+      decode: decode19,
       stream
     };
   }
@@ -20149,11 +19149,11 @@
       }
       return v2[val];
     }
-    const encode15 = function enumEncode(val, writer2) {
+    const encode16 = function enumEncode(val, writer2) {
       const enumValue = findValue(val);
       writer2.int32(enumValue);
     };
-    const decode18 = function enumDecode(reader2) {
+    const decode19 = function enumDecode(reader2) {
       const val = reader2.int32();
       return findValue(val);
     };
@@ -20161,13 +19161,13 @@
       const val = reader2.int32();
       yield findValue(val);
     };
-    return createCodec2("enum", CODEC_TYPES.VARINT, encode15, decode18, stream);
+    return createCodec2("enum", CODEC_TYPES.VARINT, encode16, decode19, stream);
   }
 
   // node_modules/protons-runtime/dist/src/codecs/message.js
   init_globals();
-  function message(encode15, decode18, stream) {
-    return createCodec2("message", CODEC_TYPES.LENGTH_DELIMITED, encode15, decode18, stream);
+  function message(encode16, decode19, stream) {
+    return createCodec2("message", CODEC_TYPES.LENGTH_DELIMITED, encode16, decode19, stream);
   }
 
   // node_modules/protons-runtime/dist/src/index.js
@@ -20280,14 +19280,14 @@
       }
       return _codec;
     };
-    function encode15(obj) {
+    function encode16(obj) {
       return encodeMessage(obj, PublicKey2.codec());
     }
-    PublicKey2.encode = encode15;
-    function decode18(buf, opts) {
+    PublicKey2.encode = encode16;
+    function decode19(buf, opts) {
       return decodeMessage(buf, PublicKey2.codec(), opts);
     }
-    PublicKey2.decode = decode18;
+    PublicKey2.decode = decode19;
     function stream(buf, opts) {
       return streamMessage(buf, PublicKey2.codec(), opts);
     }
@@ -20363,14 +19363,14 @@
       }
       return _codec;
     };
-    function encode15(obj) {
+    function encode16(obj) {
       return encodeMessage(obj, PrivateKey2.codec());
     }
-    PrivateKey2.encode = encode15;
-    function decode18(buf, opts) {
+    PrivateKey2.encode = encode16;
+    function decode19(buf, opts) {
       return decodeMessage(buf, PrivateKey2.codec(), opts);
     }
-    PrivateKey2.decode = decode18;
+    PrivateKey2.decode = decode19;
     function stream(buf, opts) {
       return streamMessage(buf, PrivateKey2.codec(), opts);
     }
@@ -22257,7 +21257,7 @@
     createDebug.default = createDebug;
     createDebug.coerce = coerce4;
     createDebug.disable = disable;
-    createDebug.enable = enable;
+    createDebug.enable = enable2;
     createDebug.enabled = enabled;
     createDebug.humanize = ms;
     createDebug.destroy = destroy;
@@ -22350,7 +21350,7 @@
       newDebug.log = this.log;
       return newDebug;
     }
-    function enable(namespaces) {
+    function enable2(namespaces) {
       createDebug.save(namespaces);
       createDebug.namespaces = namespaces;
       createDebug.names = [];
@@ -24480,7 +23480,7 @@ ${indent}[Error list was empty]`;
         sizeLength = encodingLength2(size);
       }
       const componentLength = codeLength + sizeLength + size;
-      const component2 = {
+      const component = {
         code: code6,
         name: codec.name,
         bytes: withArrayBuffer(bytes.subarray(i2, i2 + componentLength))
@@ -24488,9 +23488,9 @@ ${indent}[Error list was empty]`;
       if (size > 0) {
         const valueOffset = i2 + codeLength + sizeLength;
         const valueBytes = bytes.subarray(valueOffset, valueOffset + size);
-        component2.value = codec.bytesToValue?.(valueBytes) ?? toString2(valueBytes);
+        component.value = codec.bytesToValue?.(valueBytes) ?? toString2(valueBytes);
       }
-      components.push(component2);
+      components.push(component);
       i2 += componentLength;
     }
     return components;
@@ -24498,15 +23498,15 @@ ${indent}[Error list was empty]`;
   function componentsToBytes(components) {
     let length7 = 0;
     const bytes = [];
-    for (const component2 of components) {
-      if (component2.bytes == null) {
-        const codec = registry.getProtocol(component2.code);
-        const codecLength = encodingLength2(component2.code);
+    for (const component of components) {
+      if (component.bytes == null) {
+        const codec = registry.getProtocol(component.code);
+        const codecLength = encodingLength2(component.code);
         let valueBytes;
         let valueLength = 0;
         let valueLengthLength = 0;
-        if (component2.value != null) {
-          valueBytes = codec.valueToBytes?.(component2.value) ?? fromString2(component2.value);
+        if (component.value != null) {
+          valueBytes = codec.valueToBytes?.(component.value) ?? fromString2(component.value);
           valueLength = valueBytes.byteLength;
           if (codec.size === V) {
             valueLengthLength = encodingLength2(valueLength);
@@ -24514,7 +23514,7 @@ ${indent}[Error list was empty]`;
         }
         const bytes2 = new Uint8Array(codecLength + valueLengthLength + valueLength);
         let offset = 0;
-        encodeUint8Array(component2.code, bytes2, offset);
+        encodeUint8Array(component.code, bytes2, offset);
         offset += codecLength;
         if (valueBytes != null) {
           if (codec.size === V) {
@@ -24523,10 +23523,10 @@ ${indent}[Error list was empty]`;
           }
           bytes2.set(valueBytes, offset);
         }
-        component2.bytes = bytes2;
+        component.bytes = bytes2;
       }
-      bytes.push(component2.bytes);
-      length7 += component2.bytes.byteLength;
+      bytes.push(component.bytes);
+      length7 += component.bytes.byteLength;
     }
     return concat(bytes, length7);
   }
@@ -24565,7 +23565,7 @@ ${indent}[Error list was empty]`;
           }
           collecting = "value";
         } else if (collecting === "value") {
-          const component2 = {
+          const component = {
             code: codec.code,
             name: codec.name
           };
@@ -24573,9 +23573,9 @@ ${indent}[Error list was empty]`;
             if (value2 === "") {
               throw new InvalidMultiaddrError2(`Component ${protocol} was missing value`);
             }
-            component2.value = codec.stringToValue?.(value2) ?? value2;
+            component.value = codec.stringToValue?.(value2) ?? value2;
           }
-          components.push(component2);
+          components.push(component);
           value2 = "";
           protocol = "";
           collecting = "protocol";
@@ -24588,17 +23588,17 @@ ${indent}[Error list was empty]`;
     return components;
   }
   function componentsToString(components) {
-    return `/${components.flatMap((component2) => {
-      if (component2.value == null) {
-        return component2.name;
+    return `/${components.flatMap((component) => {
+      if (component.value == null) {
+        return component.name;
       }
-      const codec = registry.getProtocol(component2.code);
+      const codec = registry.getProtocol(component.code);
       if (codec == null) {
-        throw new InvalidMultiaddrError2(`Unknown protocol code ${component2.code}`);
+        throw new InvalidMultiaddrError2(`Unknown protocol code ${component.code}`);
       }
       return [
-        component2.name,
-        codec.valueToString?.(component2.value) ?? component2.value
+        component.name,
+        codec.valueToString?.(component.value) ?? component.value
       ];
     }).join("/")}`;
   }
@@ -24722,12 +23722,12 @@ ${indent}[Error list was empty]`;
     }
   };
   function validate2(addr) {
-    addr.getComponents().forEach((component2) => {
-      const codec = registry.getProtocol(component2.code);
-      if (component2.value == null) {
+    addr.getComponents().forEach((component) => {
+      const codec = registry.getProtocol(component.code);
+      if (component.value == null) {
         return;
       }
-      codec.validate?.(component2.value);
+      codec.validate?.(component.value);
     });
   }
 
@@ -24744,14 +23744,14 @@ ${indent}[Error list was empty]`;
   var code3 = (code6) => {
     return {
       match: (vals) => {
-        const component2 = vals[0];
-        if (component2 == null) {
+        const component = vals[0];
+        if (component == null) {
           return false;
         }
-        if (component2.code !== code6) {
+        if (component.code !== code6) {
           return false;
         }
-        if (component2.value != null) {
+        if (component.value != null) {
           return false;
         }
         return vals.slice(1);
@@ -24761,14 +23761,14 @@ ${indent}[Error list was empty]`;
   var value = (code6, value2) => {
     return {
       match: (vals) => {
-        const component2 = vals[0];
-        if (component2?.code !== code6) {
+        const component = vals[0];
+        if (component?.code !== code6) {
           return false;
         }
-        if (component2.value == null) {
+        if (component.value == null) {
           return false;
         }
-        if (value2 != null && component2.value !== value2) {
+        if (value2 != null && component.value !== value2) {
           return false;
         }
         return vals.slice(1);
@@ -25009,8 +24009,8 @@ ${indent}[Error list was empty]`;
   init_globals();
   function pDefer() {
     const deferred = {};
-    deferred.promise = new Promise((resolve2, reject) => {
-      deferred.resolve = resolve2;
+    deferred.promise = new Promise((resolve6, reject) => {
+      deferred.resolve = resolve6;
       deferred.reject = reject;
     });
     return deferred;
@@ -25143,12 +24143,12 @@ ${indent}[Error list was empty]`;
         if (ended) {
           return { done: true };
         }
-        return await new Promise((resolve2, reject) => {
+        return await new Promise((resolve6, reject) => {
           onNext = (next) => {
             onNext = null;
             buffer.push(next);
             try {
-              resolve2(getNext(buffer));
+              resolve6(getNext(buffer));
             } catch (err) {
               reject(err);
             }
@@ -25225,7 +24225,7 @@ ${indent}[Error list was empty]`;
         let cancel;
         let listener2;
         if (signal != null) {
-          cancel = new Promise((resolve2, reject) => {
+          cancel = new Promise((resolve6, reject) => {
             listener2 = () => {
               reject(new AbortError2());
             };
@@ -25313,7 +24313,7 @@ ${indent}[Error list was empty]`;
     } = options;
     let timer;
     let abortHandler;
-    const wrappedPromise = new Promise((resolve2, reject) => {
+    const wrappedPromise = new Promise((resolve6, reject) => {
       if (typeof milliseconds !== "number" || Math.sign(milliseconds) !== 1) {
         throw new TypeError(`Expected \`milliseconds\` to be a positive number, got \`${milliseconds}\``);
       }
@@ -25327,7 +24327,7 @@ ${indent}[Error list was empty]`;
         };
         signal.addEventListener("abort", abortHandler, { once: true });
       }
-      promise2.then(resolve2, reject);
+      promise2.then(resolve6, reject);
       if (milliseconds === Number.POSITIVE_INFINITY) {
         return;
       }
@@ -25335,7 +24335,7 @@ ${indent}[Error list was empty]`;
       timer = customTimers.setTimeout.call(void 0, () => {
         if (fallback) {
           try {
-            resolve2(fallback());
+            resolve6(fallback());
           } catch (error) {
             reject(error);
           }
@@ -25345,7 +24345,7 @@ ${indent}[Error list was empty]`;
           promise2.cancel();
         }
         if (message4 === false) {
-          resolve2();
+          resolve6();
         } else if (message4 instanceof Error) {
           reject(message4);
         } else {
@@ -25381,7 +24381,7 @@ ${indent}[Error list was empty]`;
   };
   function pEventMultiple(emitter, event, options) {
     let cancel;
-    const returnValue = new Promise((resolve2, reject) => {
+    const returnValue = new Promise((resolve6, reject) => {
       options = {
         rejectionEvents: ["error"],
         multiArgs: false,
@@ -25412,7 +24412,7 @@ ${indent}[Error list was empty]`;
         items.push(value2);
         if (options.count === items.length) {
           cancel();
-          resolve2(items);
+          resolve6(items);
         }
       };
       const rejectHandler = (...arguments_) => {
@@ -25443,7 +24443,7 @@ ${indent}[Error list was empty]`;
         }, { once: true });
       }
       if (options.resolveImmediately) {
-        resolve2(items);
+        resolve6(items);
       }
     });
     returnValue.cancel = cancel;
@@ -25550,7 +24550,7 @@ ${indent}[Error list was empty]`;
     try {
       return await Promise.race([
         promise2,
-        new Promise((resolve2, reject) => {
+        new Promise((resolve6, reject) => {
           listener2 = () => {
             reject(translateError(signal));
           };
@@ -28053,14 +27053,14 @@ ${indent}[Error list was empty]`;
       }
       return _codec;
     };
-    function encode15(obj) {
+    function encode16(obj) {
       return encodeMessage(obj, Envelope3.codec());
     }
-    Envelope3.encode = encode15;
-    function decode18(buf, opts) {
+    Envelope3.encode = encode16;
+    function decode19(buf, opts) {
       return decodeMessage(buf, Envelope3.codec(), opts);
     }
-    Envelope3.decode = decode18;
+    Envelope3.decode = decode19;
     function stream(buf, opts) {
       return streamMessage(buf, Envelope3.codec(), opts);
     }
@@ -28247,14 +27247,14 @@ ${indent}[Error list was empty]`;
         }
         return _codec2;
       };
-      function encode16(obj) {
+      function encode17(obj) {
         return encodeMessage(obj, AddressInfo2.codec());
       }
-      AddressInfo2.encode = encode16;
-      function decode19(buf, opts) {
+      AddressInfo2.encode = encode17;
+      function decode20(buf, opts) {
         return decodeMessage(buf, AddressInfo2.codec(), opts);
       }
-      AddressInfo2.decode = decode19;
+      AddressInfo2.decode = decode20;
       function stream2(buf, opts) {
         return streamMessage(buf, AddressInfo2.codec(), opts);
       }
@@ -28365,14 +27365,14 @@ ${indent}[Error list was empty]`;
       }
       return _codec;
     };
-    function encode15(obj) {
+    function encode16(obj) {
       return encodeMessage(obj, PeerRecord3.codec());
     }
-    PeerRecord3.encode = encode15;
-    function decode18(buf, opts) {
+    PeerRecord3.encode = encode16;
+    function decode19(buf, opts) {
       return decodeMessage(buf, PeerRecord3.codec(), opts);
     }
-    PeerRecord3.decode = decode18;
+    PeerRecord3.decode = decode19;
     function stream(buf, opts) {
       return streamMessage(buf, PeerRecord3.codec(), opts);
     }
@@ -28504,7 +27504,7 @@ ${indent}[Error list was empty]`;
     if (signal?.aborted === true) {
       return Promise.reject(error);
     }
-    return new Promise((resolve2, reject) => {
+    return new Promise((resolve6, reject) => {
       function removeListeners() {
         removeListener(signal, "abort", abortListener);
         removeListener(emitter, eventName, eventListener);
@@ -28521,7 +27521,7 @@ ${indent}[Error list was empty]`;
           return;
         }
         removeListeners();
-        resolve2(evt);
+        resolve6(evt);
       };
       const errorEventListener = (evt) => {
         removeListeners();
@@ -28992,7 +27992,7 @@ ${indent}[Error list was empty]`;
                 name: requestEvent.name,
                 identifier: requestEvent.identifier
               });
-              await new Promise((resolve2) => {
+              await new Promise((resolve6) => {
                 const releaseEventListener = (event2) => {
                   if (event2?.data == null) {
                     return;
@@ -29004,7 +28004,7 @@ ${indent}[Error list was empty]`;
                   };
                   if (releaseEvent.type === releaseType && releaseEvent.identifier === requestEvent.identifier) {
                     channel.removeEventListener("message", releaseEventListener);
-                    resolve2();
+                    resolve6();
                   }
                 };
                 channel.addEventListener("message", releaseEventListener);
@@ -29081,7 +28081,7 @@ ${indent}[Error list was empty]`;
         identifier: id2,
         name: this.name
       });
-      return new Promise((resolve2, reject) => {
+      return new Promise((resolve6, reject) => {
         const abortListener = () => {
           this.channel.postMessage({
             type: abortType,
@@ -29099,7 +28099,7 @@ ${indent}[Error list was empty]`;
           if (event.data?.type === grantType) {
             this.channel.removeEventListener("message", listener2);
             options?.signal?.removeEventListener("abort", abortListener);
-            resolve2(() => {
+            resolve6(() => {
               this.channel.postMessage({
                 type: releaseType,
                 identifier: id2,
@@ -29218,8 +28218,8 @@ ${indent}[Error list was empty]`;
   async function createReleasable(queue, options) {
     let res;
     let rej;
-    const p2 = new Promise((resolve2, reject) => {
-      res = resolve2;
+    const p2 = new Promise((resolve6, reject) => {
+      res = resolve6;
       rej = reject;
     });
     const listener2 = () => {
@@ -29229,10 +28229,10 @@ ${indent}[Error list was empty]`;
       once: true
     });
     queue.add(async () => {
-      await new Promise((resolve2) => {
+      await new Promise((resolve6) => {
         res(() => {
           options?.signal?.removeEventListener("abort", listener2);
-          resolve2();
+          resolve6();
         });
       });
     }, {
@@ -29392,14 +28392,14 @@ ${indent}[Error list was empty]`;
         }
         return _codec2;
       };
-      function encode16(obj) {
+      function encode17(obj) {
         return encodeMessage(obj, Peer$metadataEntry2.codec());
       }
-      Peer$metadataEntry2.encode = encode16;
-      function decode19(buf, opts) {
+      Peer$metadataEntry2.encode = encode17;
+      function decode20(buf, opts) {
         return decodeMessage(buf, Peer$metadataEntry2.codec(), opts);
       }
-      Peer$metadataEntry2.decode = decode19;
+      Peer$metadataEntry2.decode = decode20;
       function stream2(buf, opts) {
         return streamMessage(buf, Peer$metadataEntry2.codec(), opts);
       }
@@ -29478,14 +28478,14 @@ ${indent}[Error list was empty]`;
         }
         return _codec2;
       };
-      function encode16(obj) {
+      function encode17(obj) {
         return encodeMessage(obj, Peer$tagsEntry2.codec());
       }
-      Peer$tagsEntry2.encode = encode16;
-      function decode19(buf, opts) {
+      Peer$tagsEntry2.encode = encode17;
+      function decode20(buf, opts) {
         return decodeMessage(buf, Peer$tagsEntry2.codec(), opts);
       }
-      Peer$tagsEntry2.decode = decode19;
+      Peer$tagsEntry2.decode = decode20;
       function stream2(buf, opts) {
         return streamMessage(buf, Peer$tagsEntry2.codec(), opts);
       }
@@ -29700,14 +28700,14 @@ ${indent}[Error list was empty]`;
       }
       return _codec;
     };
-    function encode15(obj) {
+    function encode16(obj) {
       return encodeMessage(obj, Peer3.codec());
     }
-    Peer3.encode = encode15;
-    function decode18(buf, opts) {
+    Peer3.encode = encode16;
+    function decode19(buf, opts) {
       return decodeMessage(buf, Peer3.codec(), opts);
     }
-    Peer3.decode = decode18;
+    Peer3.decode = decode19;
     function stream(buf, opts) {
       return streamMessage(buf, Peer3.codec(), opts);
     }
@@ -29800,14 +28800,14 @@ ${indent}[Error list was empty]`;
       }
       return _codec;
     };
-    function encode15(obj) {
+    function encode16(obj) {
       return encodeMessage(obj, Address2.codec());
     }
-    Address2.encode = encode15;
-    function decode18(buf, opts) {
+    Address2.encode = encode16;
+    function decode19(buf, opts) {
       return decodeMessage(buf, Address2.codec(), opts);
     }
-    Address2.decode = decode18;
+    Address2.decode = decode19;
     function stream(buf, opts) {
       return streamMessage(buf, Address2.codec(), opts);
     }
@@ -29885,14 +28885,14 @@ ${indent}[Error list was empty]`;
       }
       return _codec;
     };
-    function encode15(obj) {
+    function encode16(obj) {
       return encodeMessage(obj, Tag2.codec());
     }
-    Tag2.encode = encode15;
-    function decode18(buf, opts) {
+    Tag2.encode = encode16;
+    function decode19(buf, opts) {
       return decodeMessage(buf, Tag2.codec(), opts);
     }
-    Tag2.decode = decode18;
+    Tag2.decode = decode19;
     function stream(buf, opts) {
       return streamMessage(buf, Tag2.codec(), opts);
     }
@@ -29980,18 +28980,18 @@ ${indent}[Error list was empty]`;
     }
     return false;
   }
-  function compareArrays(arrA, arrB, compare3) {
+  function compareArrays(arrA, arrB, compare4) {
     if (arrA.length !== arrB.length) {
       return false;
     }
     for (let i2 = 0; i2 < arrA.length; i2++) {
-      if (!compare3(arrA[i2], arrB[i2])) {
+      if (!compare4(arrA[i2], arrB[i2])) {
         return false;
       }
     }
     return true;
   }
-  function compareMaps(mapA, mapB, compare3) {
+  function compareMaps(mapA, mapB, compare4) {
     if (mapA.size !== mapB.size) {
       return false;
     }
@@ -30000,7 +29000,7 @@ ${indent}[Error list was empty]`;
       if (valueB == null) {
         return false;
       }
-      if (!compare3(value2, valueB)) {
+      if (!compare4(value2, valueB)) {
         return false;
       }
     }
@@ -33036,7 +32036,7 @@ ${indent}[Error list was empty]`;
         // Assign unique ID if not provided
         id: options.id ?? (this.#idAssigner++).toString()
       };
-      return new Promise((resolve2, reject) => {
+      return new Promise((resolve6, reject) => {
         const taskSymbol = /* @__PURE__ */ Symbol(`task-${options.id}`);
         let cleanupQueueAbortHandler = () => void 0;
         const run = async () => {
@@ -33076,7 +32076,7 @@ ${indent}[Error list was empty]`;
               })]);
             }
             const result = await operation;
-            resolve2(result);
+            resolve6(result);
             this.emit("completed", result);
           } catch (error) {
             reject(error);
@@ -33264,13 +32264,13 @@ ${indent}[Error list was empty]`;
       });
     }
     async #onEvent(event, filter2) {
-      return new Promise((resolve2) => {
+      return new Promise((resolve6) => {
         const listener2 = () => {
           if (filter2 && !filter2()) {
             return;
           }
           this.off(event, listener2);
-          resolve2();
+          resolve6();
         };
         this.on(event, listener2);
       });
@@ -33528,7 +32528,7 @@ ${indent}[Error list was empty]`;
     var LEADER = ALPHABET.charAt(0);
     var FACTOR = Math.log(BASE) / Math.log(256);
     var iFACTOR = Math.log(256) / Math.log(BASE);
-    function encode15(source) {
+    function encode16(source) {
       if (source instanceof Uint8Array)
         ;
       else if (ArrayBuffer.isView(source)) {
@@ -33626,7 +32626,7 @@ ${indent}[Error list was empty]`;
       }
       return vch;
     }
-    function decode18(string4) {
+    function decode19(string4) {
       var buffer = decodeUnsafe(string4);
       if (buffer) {
         return buffer;
@@ -33634,9 +32634,9 @@ ${indent}[Error list was empty]`;
       throw new Error(`Non-${name5} character`);
     }
     return {
-      encode: encode15,
+      encode: encode16,
       decodeUnsafe,
-      decode: decode18
+      decode: decode19
     };
   }
   var src2 = base3;
@@ -33736,16 +32736,16 @@ ${indent}[Error list was empty]`;
       return this.decoder.decode(input);
     }
   };
-  function from3({ name: name5, prefix, encode: encode15, decode: decode18 }) {
-    return new Codec2(name5, prefix, encode15, decode18);
+  function from3({ name: name5, prefix, encode: encode16, decode: decode19 }) {
+    return new Codec2(name5, prefix, encode16, decode19);
   }
   function baseX2({ name: name5, prefix, alphabet: alphabet4 }) {
-    const { encode: encode15, decode: decode18 } = base_x_default2(alphabet4, name5);
+    const { encode: encode16, decode: decode19 } = base_x_default2(alphabet4, name5);
     return from3({
       prefix,
       name: name5,
-      encode: encode15,
-      decode: (text) => coerce2(decode18(text))
+      encode: encode16,
+      decode: (text) => coerce2(decode19(text))
     });
   }
   function decode8(string4, alphabetIdx, bitsPerChar, name5) {
@@ -34236,8 +33236,8 @@ ${indent}[Error list was empty]`;
   // node_modules/@multiformats/dns/node_modules/multiformats/dist/src/hashes/hasher.js
   init_globals();
   var DEFAULT_MIN_DIGEST_LENGTH2 = 20;
-  function from4({ name: name5, code: code6, encode: encode15, minDigestLength, maxDigestLength }) {
-    return new Hasher2(name5, code6, encode15, minDigestLength, maxDigestLength);
+  function from4({ name: name5, code: code6, encode: encode16, minDigestLength, maxDigestLength }) {
+    return new Hasher2(name5, code6, encode16, minDigestLength, maxDigestLength);
   }
   var Hasher2 = class {
     name;
@@ -34245,10 +33245,10 @@ ${indent}[Error list was empty]`;
     encode;
     minDigestLength;
     maxDigestLength;
-    constructor(name5, code6, encode15, minDigestLength, maxDigestLength) {
+    constructor(name5, code6, encode16, minDigestLength, maxDigestLength) {
       this.name = name5;
       this.code = code6;
-      this.encode = encode15;
+      this.encode = encode16;
       this.minDigestLength = minDigestLength ?? DEFAULT_MIN_DIGEST_LENGTH2;
       this.maxDigestLength = maxDigestLength;
     }
@@ -34668,17 +33668,17 @@ ${indent}[Error list was empty]`;
   }
 
   // node_modules/@multiformats/dns/node_modules/uint8arrays/dist/src/util/bases.js
-  function createCodec3(name5, prefix, encode15, decode18) {
+  function createCodec3(name5, prefix, encode16, decode19) {
     return {
       name: name5,
       prefix,
       encoder: {
         name: name5,
         prefix,
-        encode: encode15
+        encode: encode16
       },
       decoder: {
-        decode: decode18
+        decode: decode19
       }
     };
   }
@@ -34765,7 +33765,7 @@ ${indent}[Error list was empty]`;
       });
       options.onProgress?.(new CustomProgressEvent("dns:query", fqdn));
       log2?.("GET %s", `${url}?${searchParams}`);
-      const response = await httpQueue.add(async () => {
+      const response2 = await httpQueue.add(async () => {
         const res = await fetch(`${url}?${searchParams}`, {
           headers: {
             accept: "application/dns-json"
@@ -34776,16 +33776,16 @@ ${indent}[Error list was empty]`;
         if (res.status !== 200) {
           throw new Error(`Unexpected HTTP status: ${res.status} - ${res.statusText}`);
         }
-        const response2 = toDNSResponse(await res.json());
-        options.onProgress?.(new CustomProgressEvent("dns:response", response2));
-        return response2;
+        const response3 = toDNSResponse(await res.json());
+        options.onProgress?.(new CustomProgressEvent("dns:response", response3));
+        return response3;
       }, {
         signal: options.signal
       });
-      if (response == null) {
+      if (response2 == null) {
         throw new Error("No DNS response received");
       }
-      return response;
+      return response2;
     };
   }
 
@@ -34944,7 +33944,7 @@ ${indent}[Error list was empty]`;
       return ma.getComponents().some(({ name: name5 }) => name5 === "dnsaddr");
     }
     async resolve(ma, options) {
-      const hostname = ma.getComponents().find((component2) => component2.name === "dnsaddr")?.value;
+      const hostname = ma.getComponents().find((component) => component.name === "dnsaddr")?.value;
       if (hostname == null) {
         return [ma];
       }
@@ -34955,7 +33955,7 @@ ${indent}[Error list was empty]`;
           RecordType.TXT
         ]
       });
-      const peerId = ma.getComponents().find((component2) => component2.name === "p2p")?.value;
+      const peerId = ma.getComponents().find((component) => component.name === "p2p")?.value;
       const output = [];
       for (const answer of result.Answer) {
         const addr = answer.data.replace(/["']/g, "").trim().split("=")[1];
@@ -35457,7 +34457,7 @@ ${indent}[Error list was empty]`;
     if (delay2 <= 0) {
       return;
     }
-    await new Promise((resolve2, reject) => {
+    await new Promise((resolve6, reject) => {
       const onAbort = () => {
         clearTimeout(timeoutToken);
         options.signal?.removeEventListener("abort", onAbort);
@@ -35465,7 +34465,7 @@ ${indent}[Error list was empty]`;
       };
       const timeoutToken = setTimeout(() => {
         options.signal?.removeEventListener("abort", onAbort);
-        resolve2();
+        resolve6();
       }, delay2);
       if (options.unref) {
         timeoutToken.unref?.();
@@ -37187,7 +36187,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     });
     for (let i2 = 0; i2 < protocols.length; i2++) {
       const protocol = protocols[i2];
-      let response;
+      let response2;
       if (i2 === 0) {
         log2.trace('write ["%s", "%s"]', PROTOCOL_ID, protocol);
         const p1 = fromString2(`${PROTOCOL_ID}
@@ -37196,9 +36196,9 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
 `);
         await lp.writeV([p1, p2], options);
         log2.trace("reading multistream-select header");
-        response = await readString(lp, options);
-        log2.trace('read "%s"', response);
-        if (response !== PROTOCOL_ID) {
+        response2 = await readString(lp, options);
+        log2.trace('read "%s"', response2);
+        if (response2 !== PROTOCOL_ID) {
           log2.error("did not read multistream-select header from response");
           break;
         }
@@ -37208,10 +36208,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
 `), options);
       }
       log2.trace("reading protocol response");
-      response = await readString(lp, options);
-      log2.trace('read "%s"', response);
-      if (response === protocol) {
-        log2.trace('selected "%s" after negotiation', response);
+      response2 = await readString(lp, options);
+      log2.trace('read "%s"', response2);
+      if (response2 === protocol) {
+        log2.trace('selected "%s" after negotiation', response2);
         lp.unwrap();
         return protocol;
       }
@@ -37299,7 +36299,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       this.closeTimeout = init.closeTimeout ?? CONNECTION_CLOSE_TIMEOUT;
       this.direct = isDirect(init.maConn.remoteAddr);
       this.onIncomingStream = this.onIncomingStream.bind(this);
-      if (this.remoteAddr.getComponents().find((component2) => component2.code === CODE_P2P) == null) {
+      if (this.remoteAddr.getComponents().find((component) => component.code === CODE_P2P) == null) {
         this.remoteAddr = this.remoteAddr.encapsulate(`/p2p/${this.remotePeer}`);
       }
       if (init.muxer != null) {
@@ -37440,12 +36440,12 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       for (let i2 = 0; i2 < middleware2.length; i2++) {
         const mw = middleware2[i2];
         stream.log.trace("running middleware", i2, mw);
-        await new Promise((resolve2, reject) => {
+        await new Promise((resolve6, reject) => {
           try {
             const result = mw(stream, connection, (s3, c2) => {
               stream = s3;
               connection = c2;
-              resolve2();
+              resolve6();
             });
             if (result instanceof Promise) {
               result.catch(reject);
@@ -37963,12 +36963,12 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       }
       checkServiceDependencies(components);
     }
-    configureComponent(name5, component2) {
-      if (component2 == null) {
+    configureComponent(name5, component) {
+      if (component == null) {
         this.log.error("component %s was null or undefined", name5);
       }
-      this.components[name5] = component2;
-      return component2;
+      this.components[name5] = component;
+      return component;
     }
     /**
      * Starts the libp2p node and all its subsystems
@@ -38162,7 +37162,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     return `:${port}`;
   }
   function extractTuple(name5, ma) {
-    return ma.find((component2) => component2.name === name5);
+    return ma.find((component) => component.name === name5);
   }
   function hasTLS(ma) {
     return ma.some(({ code: code6 }) => code6 === CODE_TLS);
@@ -38449,11 +37449,11 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       options?.signal?.throwIfAborted();
       const uri = multiaddrToUri(ma);
       this.log("create websocket connection to %s", uri);
-      const websocket = new WebSocket(uri);
-      websocket.binaryType = "arraybuffer";
+      const websocket2 = new WebSocket(uri);
+      websocket2.binaryType = "arraybuffer";
       try {
         options.onProgress?.(new CustomProgressEvent("websockets:open-connection"));
-        await pEvent(websocket, "open", options);
+        await pEvent(websocket2, "open", options);
       } catch (err) {
         if (options.signal?.aborted) {
           this.metrics?.dialerEvents.increment({ abort: true });
@@ -38462,14 +37462,14 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
           this.metrics?.dialerEvents.increment({ error: true });
         }
         try {
-          websocket.close();
+          websocket2.close();
         } catch {
         }
         throw err;
       }
       this.log("connected %s", ma);
       this.metrics?.dialerEvents.increment({ connect: true });
-      return websocket;
+      return websocket2;
     }
     /**
      * Creates a WebSockets listener. The provided `handler` function will be called
@@ -38599,14 +37599,14 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       }
       return _codec;
     };
-    function encode15(obj) {
+    function encode16(obj) {
       return encodeMessage(obj, Message4.codec());
     }
-    Message4.encode = encode15;
-    function decode18(buf, opts) {
+    Message4.encode = encode16;
+    function decode19(buf, opts) {
       return decodeMessage(buf, Message4.codec(), opts);
     }
-    Message4.decode = decode18;
+    Message4.decode = decode19;
     function stream(buf, opts) {
       return streamMessage(buf, Message4.codec(), opts);
     }
@@ -39098,14 +38098,14 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       }
       return _codec;
     };
-    function encode15(obj) {
+    function encode16(obj) {
       return encodeMessage(obj, Message4.codec());
     }
-    Message4.encode = encode15;
-    function decode18(buf, opts) {
+    Message4.encode = encode16;
+    function decode19(buf, opts) {
       return decodeMessage(buf, Message4.codec(), opts);
     }
-    Message4.decode = decode18;
+    Message4.decode = decode19;
     function stream(buf, opts) {
       return streamMessage(buf, Message4.codec(), opts);
     }
@@ -39175,9 +38175,9 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
   }
   function getRemotePeer(ma) {
     let remotePeer;
-    for (const component2 of ma.getComponents()) {
-      if (component2.name === "p2p") {
-        remotePeer = peerIdFromString(component2.value ?? "");
+    for (const component of ma.getComponents()) {
+      if (component.name === "p2p") {
+        remotePeer = peerIdFromString(component.value ?? "");
       }
     }
     if (remotePeer == null) {
@@ -39671,7 +38671,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     if (onlyAligned && !isAligned32(out))
       throw new Error("invalid output, must be aligned");
   }
-  function u322(arr) {
+  function u32(arr) {
     return new Uint32Array(arr.buffer, arr.byteOffset, Math.floor(arr.byteLength / 4));
   }
   function clean2(...arrays) {
@@ -39682,14 +38682,14 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
   function createView2(arr) {
     return new DataView(arr.buffer, arr.byteOffset, arr.byteLength);
   }
-  var isLE2 = /* @__PURE__ */ (() => new Uint8Array(new Uint32Array([287454020]).buffer)[0] === 68)();
-  var byteSwap2 = (word) => word << 24 & 4278190080 | word << 8 & 16711680 | word >>> 8 & 65280 | word >>> 24 & 255;
-  var byteSwap322 = (arr) => {
+  var isLE = /* @__PURE__ */ (() => new Uint8Array(new Uint32Array([287454020]).buffer)[0] === 68)();
+  var byteSwap = (word) => word << 24 & 4278190080 | word << 8 & 16711680 | word >>> 8 & 65280 | word >>> 24 & 255;
+  var byteSwap32 = (arr) => {
     for (let i2 = 0; i2 < arr.length; i2++)
-      arr[i2] = byteSwap2(arr[i2]);
+      arr[i2] = byteSwap(arr[i2]);
     return arr;
   };
-  var swap32IfBE2 = isLE2 ? (u2) => u2 : byteSwap322;
+  var swap32IfBE = isLE ? (u2) => u2 : byteSwap32;
   function checkOpts2(defaults2, opts) {
     if (opts == null || typeof opts !== "object")
       throw new Error("options must be defined");
@@ -39765,14 +38765,14 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       throw new Error("invalid output, must be aligned");
     return out;
   }
-  function u64Lengths(dataLength, aadLength, isLE3) {
+  function u64Lengths(dataLength, aadLength, isLE2) {
     anumber3(dataLength);
     anumber3(aadLength);
-    abool2(isLE3);
+    abool2(isLE2);
     const num = new Uint8Array(16);
     const view = createView2(num);
-    view.setBigUint64(0, BigInt(aadLength), isLE3);
-    view.setBigUint64(8, BigInt(dataLength), isLE3);
+    view.setBigUint64(0, BigInt(aadLength), isLE2);
+    view.setBigUint64(8, BigInt(dataLength), isLE2);
     return num;
   }
   function isAligned32(bytes) {
@@ -39784,9 +38784,9 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
 
   // node_modules/@noble/ciphers/_arx.js
   var encodeStr = (str) => Uint8Array.from(str.split(""), (c2) => c2.charCodeAt(0));
-  var sigma16_32 = /* @__PURE__ */ (() => swap32IfBE2(u322(encodeStr("expand 16-byte k"))))();
-  var sigma32_32 = /* @__PURE__ */ (() => swap32IfBE2(u322(encodeStr("expand 32-byte k"))))();
-  function rotl2(a2, b2) {
+  var sigma16_32 = /* @__PURE__ */ (() => swap32IfBE(u32(encodeStr("expand 16-byte k"))))();
+  var sigma32_32 = /* @__PURE__ */ (() => swap32IfBE(u32(encodeStr("expand 32-byte k"))))();
+  function rotl(a2, b2) {
     return a2 << b2 | a2 >>> 32 - b2;
   }
   var BLOCK_LEN = 64;
@@ -39796,14 +38796,14 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
   function runCipher(core, sigma, key, nonce, data, output, counter, rounds) {
     const len = data.length;
     const block = new Uint8Array(BLOCK_LEN);
-    const b32 = u322(block);
-    const isAligned = isLE2 && isAligned32(data) && isAligned32(output);
-    const d32 = isAligned ? u322(data) : U32_EMPTY;
-    const o32 = isAligned ? u322(output) : U32_EMPTY;
-    if (!isLE2) {
+    const b32 = u32(block);
+    const isAligned = isLE && isAligned32(data) && isAligned32(output);
+    const d32 = isAligned ? u32(data) : U32_EMPTY;
+    const o32 = isAligned ? u32(output) : U32_EMPTY;
+    if (!isLE) {
       for (let pos = 0; pos < len; counter++) {
         core(sigma, key, nonce, b32, counter, rounds);
-        swap32IfBE2(b32);
+        swap32IfBE(b32);
         if (counter >= MAX_COUNTER)
           throw new Error("arx: counter overflow");
         const take2 = Math.min(BLOCK_LEN, len - pos);
@@ -39872,24 +38872,24 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         abytes3(key, 32, "arx key");
         throw new Error("invalid key size");
       }
-      if (!isLE2 || !isAligned32(nonce))
+      if (!isLE || !isAligned32(nonce))
         toClean.push(nonce = copyBytes2(nonce));
-      let k32 = u322(k2);
+      let k32 = u32(k2);
       if (extendNonceFn) {
         if (nonce.length !== 24)
           throw new Error(`arx: extended nonce must be 24 bytes`);
         const n16 = nonce.subarray(0, 16);
-        if (isLE2)
-          extendNonceFn(sigma, k32, u322(n16), k32);
+        if (isLE)
+          extendNonceFn(sigma, k32, u32(n16), k32);
         else {
-          const sigmaRaw = swap32IfBE2(Uint32Array.from(sigma));
-          extendNonceFn(sigmaRaw, k32, u322(n16), k32);
+          const sigmaRaw = swap32IfBE(Uint32Array.from(sigma));
+          extendNonceFn(sigmaRaw, k32, u32(n16), k32);
           clean2(sigmaRaw);
-          swap32IfBE2(k32);
+          swap32IfBE(k32);
         }
         nonce = nonce.subarray(16);
-      } else if (!isLE2)
-        swap32IfBE2(k32);
+      } else if (!isLE)
+        swap32IfBE(k32);
       const nonceNcLen = 16 - counterLength;
       if (nonceNcLen !== nonce.length)
         throw new Error(`arx: nonce must be ${nonceNcLen} or 16 bytes`);
@@ -39899,7 +38899,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         nonce = nc2;
         toClean.push(nonce);
       }
-      const n32 = swap32IfBE2(u322(nonce));
+      const n32 = swap32IfBE(u32(nonce));
       try {
         runCipher(core, sigma, k32, n32, data, output, counter, rounds);
         return output;
@@ -40167,69 +39167,69 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     let x00 = y00, x01 = y01, x02 = y02, x03 = y03, x04 = y04, x05 = y05, x06 = y06, x07 = y07, x08 = y08, x09 = y09, x10 = y10, x11 = y11, x12 = y12, x13 = y13, x14 = y14, x15 = y15;
     for (let r2 = 0; r2 < rounds; r2 += 2) {
       x00 = x00 + x04 | 0;
-      x12 = rotl2(x12 ^ x00, 16);
+      x12 = rotl(x12 ^ x00, 16);
       x08 = x08 + x12 | 0;
-      x04 = rotl2(x04 ^ x08, 12);
+      x04 = rotl(x04 ^ x08, 12);
       x00 = x00 + x04 | 0;
-      x12 = rotl2(x12 ^ x00, 8);
+      x12 = rotl(x12 ^ x00, 8);
       x08 = x08 + x12 | 0;
-      x04 = rotl2(x04 ^ x08, 7);
+      x04 = rotl(x04 ^ x08, 7);
       x01 = x01 + x05 | 0;
-      x13 = rotl2(x13 ^ x01, 16);
+      x13 = rotl(x13 ^ x01, 16);
       x09 = x09 + x13 | 0;
-      x05 = rotl2(x05 ^ x09, 12);
+      x05 = rotl(x05 ^ x09, 12);
       x01 = x01 + x05 | 0;
-      x13 = rotl2(x13 ^ x01, 8);
+      x13 = rotl(x13 ^ x01, 8);
       x09 = x09 + x13 | 0;
-      x05 = rotl2(x05 ^ x09, 7);
+      x05 = rotl(x05 ^ x09, 7);
       x02 = x02 + x06 | 0;
-      x14 = rotl2(x14 ^ x02, 16);
+      x14 = rotl(x14 ^ x02, 16);
       x10 = x10 + x14 | 0;
-      x06 = rotl2(x06 ^ x10, 12);
+      x06 = rotl(x06 ^ x10, 12);
       x02 = x02 + x06 | 0;
-      x14 = rotl2(x14 ^ x02, 8);
+      x14 = rotl(x14 ^ x02, 8);
       x10 = x10 + x14 | 0;
-      x06 = rotl2(x06 ^ x10, 7);
+      x06 = rotl(x06 ^ x10, 7);
       x03 = x03 + x07 | 0;
-      x15 = rotl2(x15 ^ x03, 16);
+      x15 = rotl(x15 ^ x03, 16);
       x11 = x11 + x15 | 0;
-      x07 = rotl2(x07 ^ x11, 12);
+      x07 = rotl(x07 ^ x11, 12);
       x03 = x03 + x07 | 0;
-      x15 = rotl2(x15 ^ x03, 8);
+      x15 = rotl(x15 ^ x03, 8);
       x11 = x11 + x15 | 0;
-      x07 = rotl2(x07 ^ x11, 7);
+      x07 = rotl(x07 ^ x11, 7);
       x00 = x00 + x05 | 0;
-      x15 = rotl2(x15 ^ x00, 16);
+      x15 = rotl(x15 ^ x00, 16);
       x10 = x10 + x15 | 0;
-      x05 = rotl2(x05 ^ x10, 12);
+      x05 = rotl(x05 ^ x10, 12);
       x00 = x00 + x05 | 0;
-      x15 = rotl2(x15 ^ x00, 8);
+      x15 = rotl(x15 ^ x00, 8);
       x10 = x10 + x15 | 0;
-      x05 = rotl2(x05 ^ x10, 7);
+      x05 = rotl(x05 ^ x10, 7);
       x01 = x01 + x06 | 0;
-      x12 = rotl2(x12 ^ x01, 16);
+      x12 = rotl(x12 ^ x01, 16);
       x11 = x11 + x12 | 0;
-      x06 = rotl2(x06 ^ x11, 12);
+      x06 = rotl(x06 ^ x11, 12);
       x01 = x01 + x06 | 0;
-      x12 = rotl2(x12 ^ x01, 8);
+      x12 = rotl(x12 ^ x01, 8);
       x11 = x11 + x12 | 0;
-      x06 = rotl2(x06 ^ x11, 7);
+      x06 = rotl(x06 ^ x11, 7);
       x02 = x02 + x07 | 0;
-      x13 = rotl2(x13 ^ x02, 16);
+      x13 = rotl(x13 ^ x02, 16);
       x08 = x08 + x13 | 0;
-      x07 = rotl2(x07 ^ x08, 12);
+      x07 = rotl(x07 ^ x08, 12);
       x02 = x02 + x07 | 0;
-      x13 = rotl2(x13 ^ x02, 8);
+      x13 = rotl(x13 ^ x02, 8);
       x08 = x08 + x13 | 0;
-      x07 = rotl2(x07 ^ x08, 7);
+      x07 = rotl(x07 ^ x08, 7);
       x03 = x03 + x04 | 0;
-      x14 = rotl2(x14 ^ x03, 16);
+      x14 = rotl(x14 ^ x03, 16);
       x09 = x09 + x14 | 0;
-      x04 = rotl2(x04 ^ x09, 12);
+      x04 = rotl(x04 ^ x09, 12);
       x03 = x03 + x04 | 0;
-      x14 = rotl2(x14 ^ x03, 8);
+      x14 = rotl(x14 ^ x03, 8);
       x09 = x09 + x14 | 0;
-      x04 = rotl2(x04 ^ x09, 7);
+      x04 = rotl(x04 ^ x09, 7);
     }
     let oi2 = 0;
     out[oi2++] = y00 + x00 | 0;
@@ -40515,14 +39515,14 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       }
       return _codec;
     };
-    function encode15(obj) {
+    function encode16(obj) {
       return encodeMessage(obj, HopMessage2.codec());
     }
-    HopMessage2.encode = encode15;
-    function decode18(buf, opts) {
+    HopMessage2.encode = encode16;
+    function decode19(buf, opts) {
       return decodeMessage(buf, HopMessage2.codec(), opts);
     }
-    HopMessage2.decode = decode18;
+    HopMessage2.decode = decode19;
     function stream(buf, opts) {
       return streamMessage(buf, HopMessage2.codec(), opts);
     }
@@ -40645,14 +39645,14 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       }
       return _codec;
     };
-    function encode15(obj) {
+    function encode16(obj) {
       return encodeMessage(obj, StopMessage2.codec());
     }
-    StopMessage2.encode = encode15;
-    function decode18(buf, opts) {
+    StopMessage2.encode = encode16;
+    function decode19(buf, opts) {
       return decodeMessage(buf, StopMessage2.codec(), opts);
     }
-    StopMessage2.decode = decode18;
+    StopMessage2.decode = decode19;
     function stream(buf, opts) {
       return streamMessage(buf, StopMessage2.codec(), opts);
     }
@@ -40744,14 +39744,14 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       }
       return _codec;
     };
-    function encode15(obj) {
+    function encode16(obj) {
       return encodeMessage(obj, Peer3.codec());
     }
-    Peer3.encode = encode15;
-    function decode18(buf, opts) {
+    Peer3.encode = encode16;
+    function decode19(buf, opts) {
       return decodeMessage(buf, Peer3.codec(), opts);
     }
-    Peer3.decode = decode18;
+    Peer3.decode = decode19;
     function stream(buf, opts) {
       return streamMessage(buf, Peer3.codec(), opts);
     }
@@ -40859,14 +39859,14 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       }
       return _codec;
     };
-    function encode15(obj) {
+    function encode16(obj) {
       return encodeMessage(obj, Reservation2.codec());
     }
-    Reservation2.encode = encode15;
-    function decode18(buf, opts) {
+    Reservation2.encode = encode16;
+    function decode19(buf, opts) {
       return decodeMessage(buf, Reservation2.codec(), opts);
     }
-    Reservation2.decode = decode18;
+    Reservation2.decode = decode19;
     function stream(buf, opts) {
       return streamMessage(buf, Reservation2.codec(), opts);
     }
@@ -40942,14 +39942,14 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       }
       return _codec;
     };
-    function encode15(obj) {
+    function encode16(obj) {
       return encodeMessage(obj, Limit2.codec());
     }
-    Limit2.encode = encode15;
-    function decode18(buf, opts) {
+    Limit2.encode = encode16;
+    function decode19(buf, opts) {
       return decodeMessage(buf, Limit2.codec(), opts);
     }
-    Limit2.decode = decode18;
+    Limit2.decode = decode19;
     function stream(buf, opts) {
       return streamMessage(buf, Limit2.codec(), opts);
     }
@@ -41073,14 +40073,14 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       }
       return _codec;
     };
-    function encode15(obj) {
+    function encode16(obj) {
       return encodeMessage(obj, ReservationVoucher2.codec());
     }
-    ReservationVoucher2.encode = encode15;
-    function decode18(buf, opts) {
+    ReservationVoucher2.encode = encode16;
+    function decode19(buf, opts) {
       return decodeMessage(buf, ReservationVoucher2.codec(), opts);
     }
-    ReservationVoucher2.decode = decode18;
+    ReservationVoucher2.decode = decode19;
     function stream(buf, opts) {
       return streamMessage(buf, ReservationVoucher2.codec(), opts);
     }
@@ -41191,14 +40191,14 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       }
       return _codec;
     };
-    function encode15(obj) {
+    function encode16(obj) {
       return encodeMessage(obj, Envelope3.codec());
     }
-    Envelope3.encode = encode15;
-    function decode18(buf, opts) {
+    Envelope3.encode = encode16;
+    function decode19(buf, opts) {
       return decodeMessage(buf, Envelope3.codec(), opts);
     }
-    Envelope3.decode = decode18;
+    Envelope3.decode = decode19;
     function stream(buf, opts) {
       return streamMessage(buf, Envelope3.codec(), opts);
     }
@@ -41834,10 +40834,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       const hopstr = pbstr.pb(HopMessage);
       this.log.trace("send RESERVE to %p", connection.remotePeer);
       await hopstr.write({ type: HopMessage.Type.RESERVE }, options);
-      let response;
+      let response2;
       try {
         this.log.trace("reading response from %p", connection.remotePeer);
-        response = await hopstr.read(options);
+        response2 = await hopstr.read(options);
       } catch (err) {
         stream.abort(err);
         throw err;
@@ -41846,11 +40846,11 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
           await stream.close(options);
         }
       }
-      this.log.trace("read response %s", response.status);
-      if (response.status === Status.OK && response.reservation != null) {
+      this.log.trace("read response %s", response2.status);
+      if (response2.status === Status.OK && response2.reservation != null) {
         const addresses = /* @__PURE__ */ new Set();
         addresses.add(connection.remoteAddr.toString());
-        for (const buf of response.reservation.addrs) {
+        for (const buf of response2.reservation.addrs) {
           let ma = multiaddr(buf);
           if (ma.getComponents().find((c2) => c2.code === CODE_P2P) == null) {
             ma = ma.encapsulate(`/p2p/${connection.remotePeer}`);
@@ -41858,10 +40858,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
           ma = multiaddr(ma.toString().replace(`/p2p/${connection.remotePeer}/p2p/${connection.remotePeer}`, `/p2p/${connection.remotePeer}`));
           addresses.add(ma.toString());
         }
-        response.reservation.addrs = [...addresses].map((str) => multiaddr(str).bytes);
-        return response.reservation;
+        response2.reservation.addrs = [...addresses].map((str) => multiaddr(str).bytes);
+        return response2.reservation;
       }
-      const errMsg = `reservation failed with status ${response.status ?? "undefined"}`;
+      const errMsg = `reservation failed with status ${response2.status ?? "undefined"}`;
       this.log.error(errMsg);
       throw new Error(errMsg);
     }
@@ -42443,7 +41443,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     var LEADER = ALPHABET.charAt(0);
     var FACTOR = Math.log(BASE) / Math.log(256);
     var iFACTOR = Math.log(256) / Math.log(BASE);
-    function encode15(source) {
+    function encode16(source) {
       if (source instanceof Uint8Array)
         ;
       else if (ArrayBuffer.isView(source)) {
@@ -42541,7 +41541,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       }
       return vch;
     }
-    function decode18(string4) {
+    function decode19(string4) {
       var buffer = decodeUnsafe(string4);
       if (buffer) {
         return buffer;
@@ -42549,9 +41549,9 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       throw new Error(`Non-${name5} character`);
     }
     return {
-      encode: encode15,
+      encode: encode16,
       decodeUnsafe,
-      decode: decode18
+      decode: decode19
     };
   }
   var src3 = base4;
@@ -42651,16 +41651,16 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       return this.decoder.decode(input);
     }
   };
-  function from5({ name: name5, prefix, encode: encode15, decode: decode18 }) {
-    return new Codec3(name5, prefix, encode15, decode18);
+  function from5({ name: name5, prefix, encode: encode16, decode: decode19 }) {
+    return new Codec3(name5, prefix, encode16, decode19);
   }
   function baseX3({ name: name5, prefix, alphabet: alphabet4 }) {
-    const { encode: encode15, decode: decode18 } = base_x_default3(alphabet4, name5);
+    const { encode: encode16, decode: decode19 } = base_x_default3(alphabet4, name5);
     return from5({
       prefix,
       name: name5,
-      encode: encode15,
-      decode: (text) => coerce3(decode18(text))
+      encode: encode16,
+      decode: (text) => coerce3(decode19(text))
     });
   }
   function decode13(string4, alphabetIdx, bitsPerChar, name5) {
@@ -43151,8 +42151,8 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
   // node_modules/@libp2p/noise/node_modules/multiformats/dist/src/hashes/hasher.js
   init_globals();
   var DEFAULT_MIN_DIGEST_LENGTH3 = 20;
-  function from6({ name: name5, code: code6, encode: encode15, minDigestLength, maxDigestLength }) {
-    return new Hasher3(name5, code6, encode15, minDigestLength, maxDigestLength);
+  function from6({ name: name5, code: code6, encode: encode16, minDigestLength, maxDigestLength }) {
+    return new Hasher3(name5, code6, encode16, minDigestLength, maxDigestLength);
   }
   var Hasher3 = class {
     name;
@@ -43160,10 +42160,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     encode;
     minDigestLength;
     maxDigestLength;
-    constructor(name5, code6, encode15, minDigestLength, maxDigestLength) {
+    constructor(name5, code6, encode16, minDigestLength, maxDigestLength) {
       this.name = name5;
       this.code = code6;
-      this.encode = encode15;
+      this.encode = encode16;
       this.minDigestLength = minDigestLength ?? DEFAULT_MIN_DIGEST_LENGTH3;
       this.maxDigestLength = maxDigestLength;
     }
@@ -43577,17 +42577,17 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
   var hashes3 = { ...sha2_browser_exports3, ...identity_exports6 };
 
   // node_modules/@libp2p/noise/node_modules/uint8arrays/dist/src/util/bases.js
-  function createCodec4(name5, prefix, encode15, decode18) {
+  function createCodec4(name5, prefix, encode16, decode19) {
     return {
       name: name5,
       prefix,
       encoder: {
         name: name5,
         prefix,
-        encode: encode15
+        encode: encode16
       },
       decoder: {
-        decode: decode18
+        decode: decode19
       }
     };
   }
@@ -45654,19 +44654,19 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     CODEC_TYPES3[CODEC_TYPES3["END_GROUP"] = 4] = "END_GROUP";
     CODEC_TYPES3[CODEC_TYPES3["BIT32"] = 5] = "BIT32";
   })(CODEC_TYPES2 || (CODEC_TYPES2 = {}));
-  function createCodec5(name5, type2, encode15, decode18) {
+  function createCodec5(name5, type2, encode16, decode19) {
     return {
       name: name5,
       type: type2,
-      encode: encode15,
-      decode: decode18
+      encode: encode16,
+      decode: decode19
     };
   }
 
   // node_modules/@libp2p/noise/node_modules/protons-runtime/dist/src/codecs/message.js
   init_globals();
-  function message2(encode15, decode18) {
-    return createCodec5("message", CODEC_TYPES2.LENGTH_DELIMITED, encode15, decode18);
+  function message2(encode16, decode19) {
+    return createCodec5("message", CODEC_TYPES2.LENGTH_DELIMITED, encode16, decode19);
   }
 
   // node_modules/@libp2p/noise/node_modules/protons-runtime/dist/src/index.js
@@ -47811,14 +46811,14 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       }
       return _codec;
     };
-    function encode15(obj) {
+    function encode16(obj) {
       return encodeMessage(obj, Identify3.codec());
     }
-    Identify3.encode = encode15;
-    function decode18(buf, opts) {
+    Identify3.encode = encode16;
+    function decode19(buf, opts) {
       return decodeMessage(buf, Identify3.codec(), opts);
     }
-    Identify3.decode = decode18;
+    Identify3.decode = decode19;
     function stream(buf, opts) {
       return streamMessage(buf, Identify3.codec(), opts);
     }
@@ -48321,14 +47321,14 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       }
       return _codec;
     };
-    function encode15(obj) {
+    function encode16(obj) {
       return encodeMessage(obj, Record3.codec());
     }
-    Record3.encode = encode15;
-    function decode18(buf, opts) {
+    Record3.encode = encode16;
+    function decode19(buf, opts) {
       return decodeMessage(buf, Record3.codec(), opts);
     }
-    Record3.decode = decode18;
+    Record3.decode = decode19;
     function stream(buf, opts) {
       return streamMessage(buf, Record3.codec(), opts);
     }
@@ -48596,14 +47596,14 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       }
       return _codec;
     };
-    function encode15(obj) {
+    function encode16(obj) {
       return encodeMessage(obj, Record3.codec());
     }
-    Record3.encode = encode15;
-    function decode18(buf, opts) {
+    Record3.encode = encode16;
+    function decode19(buf, opts) {
       return decodeMessage(buf, Record3.codec(), opts);
     }
-    Record3.decode = decode18;
+    Record3.decode = decode19;
     function stream(buf, opts) {
       return streamMessage(buf, Record3.codec(), opts);
     }
@@ -48752,14 +47752,14 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       }
       return _codec;
     };
-    function encode15(obj) {
+    function encode16(obj) {
       return encodeMessage(obj, PeerInfo2.codec());
     }
-    PeerInfo2.encode = encode15;
-    function decode18(buf, opts) {
+    PeerInfo2.encode = encode16;
+    function decode19(buf, opts) {
       return decodeMessage(buf, PeerInfo2.codec(), opts);
     }
-    PeerInfo2.decode = decode18;
+    PeerInfo2.decode = decode19;
     function stream(buf, opts) {
       return streamMessage(buf, PeerInfo2.codec(), opts);
     }
@@ -48933,14 +47933,14 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       }
       return _codec;
     };
-    function encode15(obj) {
+    function encode16(obj) {
       return encodeMessage(obj, Message4.codec());
     }
-    Message4.encode = encode15;
-    function decode18(buf, opts) {
+    Message4.encode = encode16;
+    function decode19(buf, opts) {
       return decodeMessage(buf, Message4.codec(), opts);
     }
-    Message4.decode = decode18;
+    Message4.decode = decode19;
     function stream(buf, opts) {
       return streamMessage(buf, Message4.codec(), opts);
     }
@@ -49776,17 +48776,17 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         stream = await this.components.connectionManager.openStream(to2, this.protocol, options);
         this.log("sending %s to %p", msg.type, to2);
         yield sendQueryEvent({ to: to2, type: type2, path: options.path }, options);
-        const response = await this._writeReadMessage(stream, msg, options);
+        const response2 = await this._writeReadMessage(stream, msg, options);
         stream.close(options).catch((err) => {
           this.log.error("error closing stream to %p - %e", to2, err);
           stream?.abort(err);
         });
         yield peerResponseEvent({
           from: to2,
-          messageType: response.type,
-          closer: response.closer.map(fromPbPeerInfo),
-          providers: response.providers.map(fromPbPeerInfo),
-          record: response.record == null ? void 0 : Libp2pRecord.deserialize(response.record),
+          messageType: response2.type,
+          closer: response2.closer.map(fromPbPeerInfo),
+          providers: response2.providers.map(fromPbPeerInfo),
+          record: response2.record == null ? void 0 : Libp2pRecord.deserialize(response2.record),
           path: options.path
         }, options);
       } catch (err) {
@@ -68345,7 +67345,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
             multiaddrs: this.addressManager.getAddresses().map((ma) => ma.decapsulateCode(CODE_P2P))
           });
         }
-        const response = {
+        const response2 = {
           type: MessageType.FIND_NODE,
           clusterLevel: msg.clusterLevel,
           closer: closer.map(this.peerInfoMapper).filter(({ multiaddrs }) => multiaddrs.length).map((peerInfo) => ({
@@ -68354,12 +67354,12 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
           })),
           providers: []
         };
-        if (response.closer.length === 0) {
+        if (response2.closer.length === 0) {
           this.log("could not find any peers closer to %b for %p", msg.key, peerId);
         } else {
-          this.log("found %d peers close to %b for %p", response.closer.length, msg.key, peerId);
+          this.log("found %d peers close to %b for %p", response2.closer.length, msg.key, peerId);
         }
-        return response;
+        return response2;
       } catch (err) {
         this.log("error during finding peers closer to %b for %p - %e", msg.key, peerId, err);
         throw err;
@@ -68407,7 +67407,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         })),
         this.peerRouting.getClosestPeersOffline(msg.key)
       ]);
-      const response = {
+      const response2 = {
         type: MessageType.GET_PROVIDERS,
         key: msg.key,
         clusterLevel: msg.clusterLevel,
@@ -68420,8 +67420,8 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
           multiaddrs: peerInfo.multiaddrs.map((ma) => ma.bytes)
         }))
       };
-      this.log("got %s providers %s closerPeers", response.providers.length, response.closer.length);
-      return response;
+      this.log("got %s providers %s closerPeers", response2.providers.length, response2.closer.length);
+      return response2;
     }
     async _getAddresses(peerId) {
       return [];
@@ -68449,7 +67449,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       if (key == null || key.length === 0) {
         throw new InvalidMessageError("Invalid key");
       }
-      const response = {
+      const response2 = {
         type: MessageType.GET_VALUE,
         key,
         clusterLevel: msg.clusterLevel,
@@ -68473,8 +67473,8 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         }
         if (pubKey != null) {
           this.log("returning found public key");
-          response.record = new Libp2pRecord(key, pubKey, /* @__PURE__ */ new Date()).serialize();
-          return response;
+          response2.record = new Libp2pRecord(key, pubKey, /* @__PURE__ */ new Date()).serialize();
+          return response2;
         }
       }
       const [record, closer] = await Promise.all([
@@ -68483,16 +67483,16 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       ]);
       if (record != null) {
         this.log("had record for %b in local datastore", key);
-        response.record = record.serialize();
+        response2.record = record.serialize();
       }
       if (closer.length > 0) {
         this.log("had %s closer peers in routing table", closer.length);
-        response.closer = closer.map((peerInfo) => ({
+        response2.closer = closer.map((peerInfo) => ({
           id: peerInfo.id.toMultihash().bytes,
           multiaddrs: peerInfo.multiaddrs.map((ma) => ma.bytes)
         }));
       }
-      return response;
+      return response2;
     }
     /**
      * Try to fetch a given record by from the local datastore.
@@ -69280,14 +68280,14 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         }
         return _codec2;
       };
-      function encode16(obj) {
+      function encode17(obj) {
         return encodeMessage(obj, SubOpts2.codec());
       }
-      SubOpts2.encode = encode16;
-      function decode19(buf, opts) {
+      SubOpts2.encode = encode17;
+      function decode20(buf, opts) {
         return decodeMessage(buf, SubOpts2.codec(), opts);
       }
-      SubOpts2.decode = decode19;
+      SubOpts2.decode = decode20;
       function stream2(buf, opts) {
         return streamMessage(buf, SubOpts2.codec(), opts);
       }
@@ -69425,14 +68425,14 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         }
         return _codec2;
       };
-      function encode16(obj) {
+      function encode17(obj) {
         return encodeMessage(obj, Message5.codec());
       }
-      Message5.encode = encode16;
-      function decode19(buf, opts) {
+      Message5.encode = encode17;
+      function decode20(buf, opts) {
         return decodeMessage(buf, Message5.codec(), opts);
       }
-      Message5.decode = decode19;
+      Message5.decode = decode20;
       function stream2(buf, opts) {
         return streamMessage(buf, Message5.codec(), opts);
       }
@@ -69641,14 +68641,14 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         }
         return _codec2;
       };
-      function encode16(obj) {
+      function encode17(obj) {
         return encodeMessage(obj, ControlMessage2.codec());
       }
-      ControlMessage2.encode = encode16;
-      function decode19(buf, opts) {
+      ControlMessage2.encode = encode17;
+      function decode20(buf, opts) {
         return decodeMessage(buf, ControlMessage2.codec(), opts);
       }
-      ControlMessage2.decode = decode19;
+      ControlMessage2.decode = decode20;
       function stream2(buf, opts) {
         return streamMessage(buf, ControlMessage2.codec(), opts);
       }
@@ -69739,14 +68739,14 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         }
         return _codec2;
       };
-      function encode16(obj) {
+      function encode17(obj) {
         return encodeMessage(obj, ControlIHave2.codec());
       }
-      ControlIHave2.encode = encode16;
-      function decode19(buf, opts) {
+      ControlIHave2.encode = encode17;
+      function decode20(buf, opts) {
         return decodeMessage(buf, ControlIHave2.codec(), opts);
       }
-      ControlIHave2.decode = decode19;
+      ControlIHave2.decode = decode20;
       function stream2(buf, opts) {
         return streamMessage(buf, ControlIHave2.codec(), opts);
       }
@@ -69822,14 +68822,14 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         }
         return _codec2;
       };
-      function encode16(obj) {
+      function encode17(obj) {
         return encodeMessage(obj, ControlIWant2.codec());
       }
-      ControlIWant2.encode = encode16;
-      function decode19(buf, opts) {
+      ControlIWant2.encode = encode17;
+      function decode20(buf, opts) {
         return decodeMessage(buf, ControlIWant2.codec(), opts);
       }
-      ControlIWant2.decode = decode19;
+      ControlIWant2.decode = decode20;
       function stream2(buf, opts) {
         return streamMessage(buf, ControlIWant2.codec(), opts);
       }
@@ -69890,14 +68890,14 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         }
         return _codec2;
       };
-      function encode16(obj) {
+      function encode17(obj) {
         return encodeMessage(obj, ControlGraft2.codec());
       }
-      ControlGraft2.encode = encode16;
-      function decode19(buf, opts) {
+      ControlGraft2.encode = encode17;
+      function decode20(buf, opts) {
         return decodeMessage(buf, ControlGraft2.codec(), opts);
       }
-      ControlGraft2.decode = decode19;
+      ControlGraft2.decode = decode20;
       function stream2(buf, opts) {
         return streamMessage(buf, ControlGraft2.codec(), opts);
       }
@@ -70008,14 +69008,14 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         }
         return _codec2;
       };
-      function encode16(obj) {
+      function encode17(obj) {
         return encodeMessage(obj, ControlPrune2.codec());
       }
-      ControlPrune2.encode = encode16;
-      function decode19(buf, opts) {
+      ControlPrune2.encode = encode17;
+      function decode20(buf, opts) {
         return decodeMessage(buf, ControlPrune2.codec(), opts);
       }
-      ControlPrune2.decode = decode19;
+      ControlPrune2.decode = decode20;
       function stream2(buf, opts) {
         return streamMessage(buf, ControlPrune2.codec(), opts);
       }
@@ -70091,14 +69091,14 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         }
         return _codec2;
       };
-      function encode16(obj) {
+      function encode17(obj) {
         return encodeMessage(obj, PeerInfo3.codec());
       }
-      PeerInfo3.encode = encode16;
-      function decode19(buf, opts) {
+      PeerInfo3.encode = encode17;
+      function decode20(buf, opts) {
         return decodeMessage(buf, PeerInfo3.codec(), opts);
       }
-      PeerInfo3.decode = decode19;
+      PeerInfo3.decode = decode20;
       function stream2(buf, opts) {
         return streamMessage(buf, PeerInfo3.codec(), opts);
       }
@@ -70174,14 +69174,14 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         }
         return _codec2;
       };
-      function encode16(obj) {
+      function encode17(obj) {
         return encodeMessage(obj, ControlIDontWant2.codec());
       }
-      ControlIDontWant2.encode = encode16;
-      function decode19(buf, opts) {
+      ControlIDontWant2.encode = encode17;
+      function decode20(buf, opts) {
         return decodeMessage(buf, ControlIDontWant2.codec(), opts);
       }
-      ControlIDontWant2.decode = decode19;
+      ControlIDontWant2.decode = decode20;
       function stream2(buf, opts) {
         return streamMessage(buf, ControlIDontWant2.codec(), opts);
       }
@@ -70308,14 +69308,14 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       }
       return _codec;
     };
-    function encode15(obj) {
+    function encode16(obj) {
       return encodeMessage(obj, RPC3.codec());
     }
-    RPC3.encode = encode15;
-    function decode18(buf, opts) {
+    RPC3.encode = encode16;
+    function decode19(buf, opts) {
       return decodeMessage(buf, RPC3.codec(), opts);
     }
-    RPC3.decode = decode18;
+    RPC3.decode = decode19;
     function stream(buf, opts) {
       return streamMessage(buf, RPC3.codec(), opts);
     }
@@ -75109,6 +74109,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
   // src/core/p2p-browser.ts
   async function createBrowserP2PNode(options) {
     const services = createBaseLibp2pServices({ enableDht: true });
+    const peerDiscovery = options.bootstrapAddrs.length > 0 ? [bootstrap({ list: options.bootstrapAddrs })] : [];
     const node = await createLibp2p({
       transports: [
         webSockets(),
@@ -75117,11 +74118,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       ],
       connectionEncrypters: [noise()],
       streamMuxers: [yamux()],
-      peerDiscovery: [
-        bootstrap({
-          list: options.bootstrapAddrs
-        })
-      ],
+      peerDiscovery,
       services
     });
     return node;
@@ -75170,7 +74167,13 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     async listRecords(namespace2) {
       const db = await this.open();
       const rows = await this.getAllByNamespace(db, RECORDS_STORE, namespace2);
-      return rows.map((row) => ({ key: row.key, value: row.value, updatedAt: row.updatedAt })).sort((a2, b2) => a2.updatedAt.localeCompare(b2.updatedAt) || a2.key.localeCompare(b2.key));
+      return rows.map((row) => ({ key: row.key, value: row.value, updatedAt: row.updatedAt })).sort((a2, b2) => {
+        if (a2.updatedAt < b2.updatedAt) return -1;
+        if (a2.updatedAt > b2.updatedAt) return 1;
+        if (a2.key < b2.key) return -1;
+        if (a2.key > b2.key) return 1;
+        return 0;
+      });
     }
     /**
      * Reads a binary blob from IndexedDB.
@@ -75210,58 +74213,64 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
      */
     open() {
       if (!this.dbPromise) {
-        this.dbPromise = new Promise((resolve2, reject) => {
-          const request = indexedDB.open(this.dbName, 1);
-          request.onupgradeneeded = () => {
+        this.dbPromise = new Promise((resolve6, reject) => {
+          const request = indexedDB.open(this.dbName, 2);
+          request.onupgradeneeded = (evt) => {
             const db = request.result;
             if (!db.objectStoreNames.contains(RECORDS_STORE)) {
-              db.createObjectStore(RECORDS_STORE, { keyPath: ["namespace", "key"] });
+              const store = db.createObjectStore(RECORDS_STORE, { keyPath: ["namespace", "key"] });
+              store.createIndex("namespace_idx", "namespace", { unique: false });
+            } else if (evt.oldVersion < 2) {
+              const tx = request.transaction;
+              const store = tx.objectStore(RECORDS_STORE);
+              if (!store.indexNames.contains("namespace_idx")) {
+                store.createIndex("namespace_idx", "namespace", { unique: false });
+              }
             }
             if (!db.objectStoreNames.contains(BLOBS_STORE)) {
               db.createObjectStore(BLOBS_STORE, { keyPath: ["namespace", "key"] });
             }
           };
-          request.onsuccess = () => resolve2(request.result);
+          request.onsuccess = () => resolve6(request.result);
           request.onerror = () => reject(request.error);
         });
       }
       return this.dbPromise;
     }
     get(db, storeName, key) {
-      return new Promise((resolve2, reject) => {
+      return new Promise((resolve6, reject) => {
         const request = db.transaction(storeName, "readonly").objectStore(storeName).get(key);
-        request.onsuccess = () => resolve2(request.result);
+        request.onsuccess = () => resolve6(request.result);
         request.onerror = () => reject(request.error);
       });
     }
     put(db, storeName, value2) {
-      return new Promise((resolve2, reject) => {
+      return new Promise((resolve6, reject) => {
         const request = db.transaction(storeName, "readwrite").objectStore(storeName).put(value2);
-        request.onsuccess = () => resolve2();
+        request.onsuccess = () => resolve6();
         request.onerror = () => reject(request.error);
       });
     }
     delete(db, storeName, key) {
-      return new Promise((resolve2, reject) => {
+      return new Promise((resolve6, reject) => {
         const request = db.transaction(storeName, "readwrite").objectStore(storeName).delete(key);
-        request.onsuccess = () => resolve2();
+        request.onsuccess = () => resolve6();
         request.onerror = () => reject(request.error);
       });
     }
     getAllByNamespace(db, storeName, namespace2) {
-      return new Promise((resolve2, reject) => {
+      return new Promise((resolve6, reject) => {
         const results = [];
-        const request = db.transaction(storeName, "readonly").objectStore(storeName).openCursor();
+        const store = db.transaction(storeName, "readonly").objectStore(storeName);
+        const index = store.index("namespace_idx");
+        const request = index.openCursor(IDBKeyRange.only(namespace2));
         request.onsuccess = () => {
           const cursor = request.result;
           if (!cursor) {
-            resolve2(results);
+            resolve6(results);
             return;
           }
-          const value2 = cursor.value;
-          if (value2.namespace === namespace2) {
-            results.push(value2);
-          }
+          results.push(cursor.value);
           cursor.continue();
         };
         request.onerror = () => reject(request.error);
@@ -75325,156 +74334,6 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     return pbkdf2Output(PRF, PRFSalt, DK, prfW, u2);
   }
 
-  // node_modules/@noble/hashes/scrypt.js
-  init_globals();
-  function XorAndSalsa(prev, pi2, input, ii2, out, oi2) {
-    let y00 = prev[pi2++] ^ input[ii2++], y01 = prev[pi2++] ^ input[ii2++];
-    let y02 = prev[pi2++] ^ input[ii2++], y03 = prev[pi2++] ^ input[ii2++];
-    let y04 = prev[pi2++] ^ input[ii2++], y05 = prev[pi2++] ^ input[ii2++];
-    let y06 = prev[pi2++] ^ input[ii2++], y07 = prev[pi2++] ^ input[ii2++];
-    let y08 = prev[pi2++] ^ input[ii2++], y09 = prev[pi2++] ^ input[ii2++];
-    let y10 = prev[pi2++] ^ input[ii2++], y11 = prev[pi2++] ^ input[ii2++];
-    let y12 = prev[pi2++] ^ input[ii2++], y13 = prev[pi2++] ^ input[ii2++];
-    let y14 = prev[pi2++] ^ input[ii2++], y15 = prev[pi2++] ^ input[ii2++];
-    let x00 = y00, x01 = y01, x02 = y02, x03 = y03, x04 = y04, x05 = y05, x06 = y06, x07 = y07, x08 = y08, x09 = y09, x10 = y10, x11 = y11, x12 = y12, x13 = y13, x14 = y14, x15 = y15;
-    for (let i2 = 0; i2 < 8; i2 += 2) {
-      x04 ^= rotl(x00 + x12 | 0, 7);
-      x08 ^= rotl(x04 + x00 | 0, 9);
-      x12 ^= rotl(x08 + x04 | 0, 13);
-      x00 ^= rotl(x12 + x08 | 0, 18);
-      x09 ^= rotl(x05 + x01 | 0, 7);
-      x13 ^= rotl(x09 + x05 | 0, 9);
-      x01 ^= rotl(x13 + x09 | 0, 13);
-      x05 ^= rotl(x01 + x13 | 0, 18);
-      x14 ^= rotl(x10 + x06 | 0, 7);
-      x02 ^= rotl(x14 + x10 | 0, 9);
-      x06 ^= rotl(x02 + x14 | 0, 13);
-      x10 ^= rotl(x06 + x02 | 0, 18);
-      x03 ^= rotl(x15 + x11 | 0, 7);
-      x07 ^= rotl(x03 + x15 | 0, 9);
-      x11 ^= rotl(x07 + x03 | 0, 13);
-      x15 ^= rotl(x11 + x07 | 0, 18);
-      x01 ^= rotl(x00 + x03 | 0, 7);
-      x02 ^= rotl(x01 + x00 | 0, 9);
-      x03 ^= rotl(x02 + x01 | 0, 13);
-      x00 ^= rotl(x03 + x02 | 0, 18);
-      x06 ^= rotl(x05 + x04 | 0, 7);
-      x07 ^= rotl(x06 + x05 | 0, 9);
-      x04 ^= rotl(x07 + x06 | 0, 13);
-      x05 ^= rotl(x04 + x07 | 0, 18);
-      x11 ^= rotl(x10 + x09 | 0, 7);
-      x08 ^= rotl(x11 + x10 | 0, 9);
-      x09 ^= rotl(x08 + x11 | 0, 13);
-      x10 ^= rotl(x09 + x08 | 0, 18);
-      x12 ^= rotl(x15 + x14 | 0, 7);
-      x13 ^= rotl(x12 + x15 | 0, 9);
-      x14 ^= rotl(x13 + x12 | 0, 13);
-      x15 ^= rotl(x14 + x13 | 0, 18);
-    }
-    out[oi2++] = y00 + x00 | 0;
-    out[oi2++] = y01 + x01 | 0;
-    out[oi2++] = y02 + x02 | 0;
-    out[oi2++] = y03 + x03 | 0;
-    out[oi2++] = y04 + x04 | 0;
-    out[oi2++] = y05 + x05 | 0;
-    out[oi2++] = y06 + x06 | 0;
-    out[oi2++] = y07 + x07 | 0;
-    out[oi2++] = y08 + x08 | 0;
-    out[oi2++] = y09 + x09 | 0;
-    out[oi2++] = y10 + x10 | 0;
-    out[oi2++] = y11 + x11 | 0;
-    out[oi2++] = y12 + x12 | 0;
-    out[oi2++] = y13 + x13 | 0;
-    out[oi2++] = y14 + x14 | 0;
-    out[oi2++] = y15 + x15 | 0;
-  }
-  function BlockMix(input, ii2, out, oi2, r2) {
-    let head = oi2 + 0;
-    let tail = oi2 + 16 * r2;
-    for (let i2 = 0; i2 < 16; i2++)
-      out[tail + i2] = input[ii2 + (2 * r2 - 1) * 16 + i2];
-    for (let i2 = 0; i2 < r2; i2++, head += 16, ii2 += 16) {
-      XorAndSalsa(out, tail, input, ii2, out, head);
-      if (i2 > 0)
-        tail += 16;
-      XorAndSalsa(out, head, input, ii2 += 16, out, tail);
-    }
-  }
-  function scryptInit(password, salt, _opts) {
-    const opts = checkOpts({
-      dkLen: 32,
-      asyncTick: 10,
-      maxmem: 1024 ** 3 + 1024
-    }, _opts);
-    const { N: N10, r: r2, p: p2, dkLen, asyncTick, maxmem, onProgress } = opts;
-    anumber(N10, "N");
-    anumber(r2, "r");
-    anumber(p2, "p");
-    anumber(dkLen, "dkLen");
-    anumber(asyncTick, "asyncTick");
-    anumber(maxmem, "maxmem");
-    if (onProgress !== void 0 && typeof onProgress !== "function")
-      throw new Error("progressCb must be a function");
-    const blockSize = 128 * r2;
-    const blockSize32 = blockSize / 4;
-    const pow32 = Math.pow(2, 32);
-    if (N10 <= 1 || (N10 & N10 - 1) !== 0 || N10 > pow32)
-      throw new Error('"N" expected a power of 2, and 2^1 <= N <= 2^32');
-    if (p2 < 1 || p2 > (pow32 - 1) * 32 / blockSize)
-      throw new Error('"p" expected integer 1..((2^32 - 1) * 32) / (128 * r)');
-    if (dkLen < 1 || dkLen > (pow32 - 1) * 32)
-      throw new Error('"dkLen" expected integer 1..(2^32 - 1) * 32');
-    const memUsed = blockSize * (N10 + p2 + 1);
-    if (memUsed > maxmem)
-      throw new Error('"maxmem" limit was hit: memUsed(128*r*(N+p+1))=' + memUsed + ", maxmem=" + maxmem);
-    const B2 = pbkdf2(sha2562, password, salt, { c: 1, dkLen: blockSize * p2 });
-    const B32 = u32(B2);
-    const V3 = u32(new Uint8Array(blockSize * N10));
-    const tmp = u32(new Uint8Array(blockSize));
-    let blockMixCb = () => {
-    };
-    if (onProgress) {
-      const totalBlockMix = 2 * N10 * p2;
-      const callbackPer = Math.max(Math.floor(totalBlockMix / 1e4), 1);
-      let blockMixCnt = 0;
-      blockMixCb = () => {
-        blockMixCnt++;
-        if (onProgress && (!(blockMixCnt % callbackPer) || blockMixCnt === totalBlockMix))
-          onProgress(blockMixCnt / totalBlockMix);
-      };
-    }
-    return { N: N10, r: r2, p: p2, dkLen, blockSize32, V: V3, B32, B: B2, tmp, blockMixCb, asyncTick };
-  }
-  function scryptOutput(password, dkLen, B2, V3, tmp) {
-    const res = pbkdf2(sha2562, password, B2, { c: 1, dkLen });
-    clean(B2, V3, tmp);
-    return res;
-  }
-  function scrypt(password, salt, opts) {
-    const { N: N10, r: r2, p: p2, dkLen, blockSize32, V: V3, B32, B: B2, tmp, blockMixCb } = scryptInit(password, salt, opts);
-    swap32IfBE(B32);
-    for (let pi2 = 0; pi2 < p2; pi2++) {
-      const Pi2 = blockSize32 * pi2;
-      for (let i2 = 0; i2 < blockSize32; i2++)
-        V3[i2] = B32[Pi2 + i2];
-      for (let i2 = 0, pos = 0; i2 < N10 - 1; i2++) {
-        BlockMix(V3, pos, V3, pos += blockSize32, r2);
-        blockMixCb();
-      }
-      BlockMix(V3, (N10 - 1) * blockSize32, B32, Pi2, r2);
-      blockMixCb();
-      for (let i2 = 0; i2 < N10; i2++) {
-        const j3 = (B32[Pi2 + blockSize32 - 16] & N10 - 1) >>> 0;
-        for (let k2 = 0; k2 < blockSize32; k2++)
-          tmp[k2] = B32[Pi2 + k2] ^ V3[j3 * blockSize32 + k2];
-        BlockMix(tmp, 0, B32, Pi2, r2);
-        blockMixCb();
-      }
-    }
-    swap32IfBE(B32);
-    return scryptOutput(password, dkLen, B2, V3, tmp);
-  }
-
   // shims/crypto.ts
   var import_buffer2 = __toESM(require_buffer());
   function toBytes(data) {
@@ -75510,27 +74369,14 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     }
     return import_buffer2.Buffer.from(buf);
   }
-  function createCipheriv(_algorithm, _key, _iv) {
-    return {
-      update: (data) => import_buffer2.Buffer.from(data),
-      final: () => import_buffer2.Buffer.from(""),
-      getAuthTag: () => import_buffer2.Buffer.from("")
-    };
+  function createCipheriv() {
+    throw new Error("crypto.createCipheriv is not available in the browser \u2014 AES-GCM encryption is disabled");
   }
-  function createDecipheriv(_algorithm, _key, _iv) {
-    return {
-      update: (data) => import_buffer2.Buffer.from(data),
-      final: () => import_buffer2.Buffer.from(""),
-      setAuthTag: (_tag) => {
-      }
-    };
+  function createDecipheriv() {
+    throw new Error("crypto.createDecipheriv is not available in the browser \u2014 AES-GCM decryption is disabled");
   }
   function pbkdf2Sync(password, salt, iterations, keylen, _digest) {
     const key = pbkdf2(sha2562, toBytes(password), toBytes(salt), { c: iterations, dkLen: keylen });
-    return import_buffer2.Buffer.from(key);
-  }
-  function scryptSync(password, salt, keylen) {
-    const key = scrypt(toBytes(password), toBytes(salt), { N: 16384, r: 8, p: 1, dkLen: keylen });
     return import_buffer2.Buffer.from(key);
   }
   function timingSafeEqual(a2, b2) {
@@ -75571,12 +74417,23 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     return pbkdf2Sync(passphrase, salt, PBKDF2_ITERATIONS, KEY_LENGTH, "sha256");
   }
   var EncryptedStorage = class {
-    constructor(inner) {
+    constructor(inner, autoLockTimeoutMs = 3e5) {
       this.inner = inner;
+      this.autoLockTimeoutMs = autoLockTimeoutMs;
     }
     inner;
+    autoLockTimeoutMs;
     key = null;
     _unlocked = false;
+    idleTimer = null;
+    resetIdleTimer() {
+      if (this.idleTimer) clearTimeout(this.idleTimer);
+      if (this._unlocked) {
+        this.idleTimer = setTimeout(() => {
+          this.lock();
+        }, this.autoLockTimeoutMs);
+      }
+    }
     get unlocked() {
       return this._unlocked;
     }
@@ -75591,11 +74448,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       const salt = import_buffer.Buffer.from(saltRaw, "base64");
       const key = deriveKey(passphrase, salt);
       const hash2 = hashKey(key);
-      try {
-        return timingSafeEqual(import_buffer.Buffer.from(hash2), import_buffer.Buffer.from(verificationRaw));
-      } catch {
-        return hash2 === verificationRaw;
-      }
+      const hashBuf = import_buffer.Buffer.from(hash2);
+      const verBuf = import_buffer.Buffer.from(verificationRaw);
+      if (hashBuf.length !== verBuf.length) return false;
+      return timingSafeEqual(hashBuf, verBuf);
     }
     async initialize(passphrase) {
       const saltRaw = await this.inner.getRecord(CRYPTO_NS, "salt");
@@ -75610,12 +74466,15 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         this.key = deriveKey(passphrase, salt);
       }
       this._unlocked = true;
+      this.resetIdleTimer();
     }
     lock() {
+      if (this.idleTimer) clearTimeout(this.idleTimer);
+      this.idleTimer = null;
       this.key = null;
       this._unlocked = false;
     }
-    async migrateFromPlaintext(passphrase, records) {
+    async migrateFromPlaintext(passphrase, namespace2, records) {
       await this.initialize(passphrase);
       if (!this.key) return 0;
       let count = 0;
@@ -75623,7 +74482,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         if (record.key.startsWith(CRYPTO_NS)) continue;
         try {
           const encrypted = encrypt(record.value, this.key);
-          await this.inner.putRecord(record.key, record.value, encrypted, record.updatedAt);
+          await this.inner.putRecord(namespace2, record.key, encrypted, record.updatedAt);
           count++;
         } catch {
         }
@@ -75631,6 +74490,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       return count;
     }
     async getRecord(namespace2, key) {
+      this.resetIdleTimer();
       if (namespace2 === CRYPTO_NS || !this.key) {
         return this.inner.getRecord(namespace2, key);
       }
@@ -75643,6 +74503,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       }
     }
     async putRecord(namespace2, key, value2, updatedAt) {
+      this.resetIdleTimer();
       if (namespace2 === CRYPTO_NS || !this.key) {
         return this.inner.putRecord(namespace2, key, value2, updatedAt);
       }
@@ -75650,21 +74511,28 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       return this.inner.putRecord(namespace2, key, encrypted, updatedAt);
     }
     async deleteRecord(namespace2, key) {
+      this.resetIdleTimer();
       return this.inner.deleteRecord(namespace2, key);
     }
     async listRecords(namespace2) {
+      this.resetIdleTimer();
       return this.inner.listRecords(namespace2);
     }
     async getBlob(namespace2, key) {
+      this.resetIdleTimer();
       return this.inner.getBlob(namespace2, key);
     }
     async putBlob(namespace2, key, data) {
+      this.resetIdleTimer();
       return this.inner.putBlob(namespace2, key, data);
     }
     async deleteBlob(namespace2, key) {
+      this.resetIdleTimer();
       return this.inner.deleteBlob(namespace2, key);
     }
     async close() {
+      if (this.idleTimer) clearTimeout(this.idleTimer);
+      this.idleTimer = null;
       return this.inner.close();
     }
   };
@@ -75684,6 +74552,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
   var MUC_SETTINGS_PREFIX = "/xmpp/muc/room/";
   var DEFAULT_DHT_TTL_MS = 24 * 60 * 60 * 1e3;
   var MAILBOX_TTL_MS = 7 * 24 * 60 * 60 * 1e3;
+  var mailboxLocks = /* @__PURE__ */ new Map();
   function isExpired(entry) {
     if (!entry.expiresAt) return false;
     return Date.now() > new Date(entry.expiresAt).getTime();
@@ -75719,6 +74588,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       }
       return envelope.data;
     } catch (err) {
+      console.debug(`[DHT] Failed to read key ${new TextDecoder().decode(key)}:`, err?.message);
       return void 0;
     }
   }
@@ -75771,12 +74641,18 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
   }
   async function bufferStanzaToDht(libp2p, peerId, stanza) {
     const key = mailboxKey(peerId);
-    let queue = await readDhtJson(libp2p, key);
-    if (!Array.isArray(queue)) {
-      queue = [];
-    }
-    queue.push(stanza.toString());
-    await writeDhtJson(libp2p, key, queue, MAILBOX_TTL_MS);
+    const prev = mailboxLocks.get(peerId) ?? Promise.resolve();
+    const next = prev.then(async () => {
+      let queue = await readDhtJson(libp2p, key);
+      if (!Array.isArray(queue)) {
+        queue = [];
+      }
+      queue.push(stanza.toString());
+      await writeDhtJson(libp2p, key, queue, MAILBOX_TTL_MS);
+    });
+    mailboxLocks.set(peerId, next.catch(() => {
+    }));
+    return next;
   }
   async function flushDhtMailbox(ctx) {
     const key = mailboxKey(ctx.libp2p.peerId.toString());
@@ -75937,7 +74813,22 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       const parsed = await readState(ctx.storage, "chat_history");
       const messages2 = Array.isArray(parsed) ? parsed : parsed?.messages;
       for (const msg of messages2 ?? []) {
-        ctx.chatHistory.set(msg.id || Math.random().toString(36).substring(2, 15), msg);
+        const normalized = {
+          from: msg.from || "",
+          to: msg.to || "",
+          body: msg.body || "",
+          id: msg.id,
+          type: msg.type || "chat",
+          thread: msg.thread,
+          delay: msg.delay,
+          chatState: msg.chatState,
+          encrypted: msg.encrypted,
+          encryption: msg.encryption
+        };
+        const key = normalized.id || `${normalized.from}:${normalized.to}:${normalized.body}:${normalized.delay?.stamp || ""}`;
+        if (!ctx.chatHistory.has(key)) {
+          ctx.chatHistory.set(key, normalized);
+        }
       }
       trimMap(ctx.chatHistory, limit);
     } catch (err) {
@@ -76082,9 +74973,19 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     if (requestEl && requestEl.attrs.xmlns === RECEIPTS_XMLNS && element.attrs.id) {
       metadata.receipt = { type: "request", id: element.attrs.id };
     }
-    const receivedEl = element.getChild("received");
-    if (receivedEl && receivedEl.attrs.xmlns === RECEIPTS_XMLNS) {
-      metadata.receipt = { type: "received", id: receivedEl.attrs.id };
+    const receivedChildren = element.children.filter((child) => child?.name === "received");
+    for (const child of receivedChildren) {
+      if (child.attrs.xmlns === RECEIPTS_XMLNS) {
+        metadata.receipt = { type: "received", id: child.attrs.id };
+      } else if (child.attrs.xmlns === CARBONS_XMLNS) {
+        const forwardedEl = child.getChild("forwarded");
+        if (forwardedEl && forwardedEl.attrs.xmlns === FORWARD_XMLNS) {
+          const forwardedMsg = forwardedEl.getChild("message");
+          if (forwardedMsg) {
+            metadata.carbon = { type: "received", forwardedMessage: forwardedMsg };
+          }
+        }
+      }
     }
     const chatStateNames = ["active", "composing", "paused", "inactive", "gone"];
     for (const name5 of chatStateNames) {
@@ -76113,13 +75014,13 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       };
     }
     const threadEl = element.getChild("thread");
-    const thread = threadEl?.text().trim();
+    const thread = threadEl?.text()?.trim();
     if (thread) {
       metadata.thread = thread;
     }
     const nickEl = element.getChild("nick");
     if (nickEl && nickEl.attrs.xmlns === NICK_XMLNS) {
-      const nick = nickEl.text().trim();
+      const nick = nickEl.text()?.trim();
       if (nick) {
         metadata.nick = nick;
       }
@@ -76138,16 +75039,6 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     const privateEl = element.getChild("private");
     if (privateEl && privateEl.attrs.xmlns === CARBONS_XMLNS) {
       metadata.private = true;
-    }
-    const receivedCarbonEl = element.getChild("received");
-    if (receivedCarbonEl && receivedCarbonEl.attrs.xmlns === CARBONS_XMLNS) {
-      const forwardedEl = receivedCarbonEl.getChild("forwarded");
-      if (forwardedEl && forwardedEl.attrs.xmlns === FORWARD_XMLNS) {
-        const forwardedMsg = forwardedEl.getChild("message");
-        if (forwardedMsg) {
-          metadata.carbon = { type: "received", forwardedMessage: forwardedMsg };
-        }
-      }
     }
     const sentCarbonEl = element.getChild("sent");
     if (sentCarbonEl && sentCarbonEl.attrs.xmlns === CARBONS_XMLNS) {
@@ -76272,6 +75163,9 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       }
       return import_buffer.Buffer.from(raw, "base64");
     }
+    chatKey(msg) {
+      return msg.id || `${msg.from}:${msg.to}:${msg.body}:${msg.delay?.stamp || ""}`;
+    }
     async loadChatHistory() {
       await loadChatHistoryState({
         storage: this.ctx.storage,
@@ -76295,8 +75189,9 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
           }
           if (chatData && Array.isArray(chatData.messages)) {
             for (const msg of chatData.messages) {
-              if (!this.chatHistory.has(msg.id || "")) {
-                this.chatHistory.set(msg.id || Math.random().toString(36).substring(2, 15), msg);
+              const ck = this.chatKey(msg);
+              if (!this.chatHistory.has(ck)) {
+                this.chatHistory.set(ck, msg);
               }
             }
             while (this.chatHistory.size > CHAT_HISTORY_LIMIT) {
@@ -76311,19 +75206,30 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       }
     }
     async recordChatMessage(msg) {
-      const key = msg.id || Math.random().toString(36).substring(2, 15);
+      const key = this.chatKey(msg);
       this.chatHistory.set(key, msg);
       while (this.chatHistory.size > CHAT_HISTORY_LIMIT) {
         const oldestKey = this.chatHistory.keys().next().value;
         if (oldestKey == null) break;
         this.chatHistory.delete(oldestKey);
       }
-      this.chatHistorySaveQueue = this.chatHistorySaveQueue.then(async () => {
-        await persistChatHistoryState({
-          storage: this.ctx.storage,
-          chatHistory: this.chatHistory
+      this.scheduleChatPersist();
+    }
+    persistScheduled = false;
+    scheduleChatPersist() {
+      if (this.persistScheduled) return;
+      this.persistScheduled = true;
+      queueMicrotask(() => {
+        this.persistScheduled = false;
+        this.chatHistorySaveQueue = this.chatHistorySaveQueue.then(async () => {
+          await persistChatHistoryState({
+            storage: this.ctx.storage,
+            chatHistory: this.chatHistory
+          });
+          await this.persistChatHistoryToDht();
+        }).catch((err) => {
+          console.warn("[XMPP] Failed to persist chat history:", err);
         });
-        await this.persistChatHistoryToDht();
       });
     }
     async persistChatHistoryToDht() {
@@ -76465,294 +75371,2651 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     }
   };
 
-  // src/core/xmpp-server-bridge.ts
+  // src/core/xmpp-client-bridge.ts
   init_globals();
   init_events();
+
+  // node_modules/@xmpp/client/index.js
+  init_globals();
+
+  // node_modules/@xmpp/client-core/index.js
+  init_globals();
   init_xml();
 
-  // src/core/xmpp-server-storage.ts
+  // node_modules/@xmpp/jid/index.js
   init_globals();
-  var ALGORITHM2 = "aes-256-gcm";
-  var IV_LENGTH2 = 12;
-  var KEY_LENGTH2 = 32;
-  var NAMESPACE = "componentSecrets";
-  function deriveKey2(passphrase) {
-    return scryptSync(passphrase, "xmpp-component-creds-salt", KEY_LENGTH2);
+
+  // node_modules/@xmpp/jid/lib/JID.js
+  init_globals();
+
+  // node_modules/@xmpp/jid/lib/escaping.js
+  init_globals();
+  function detect(local) {
+    if (!local) {
+      return false;
+    }
+    const tmp = local.replaceAll(String.raw`\20`, "").replaceAll(String.raw`\22`, "").replaceAll(String.raw`\26`, "").replaceAll(String.raw`\27`, "").replaceAll(String.raw`\2f`, "").replaceAll(String.raw`\3a`, "").replaceAll(String.raw`\3c`, "").replaceAll(String.raw`\3e`, "").replaceAll(String.raw`\40`, "").replaceAll(String.raw`\5c`, "");
+    const search = tmp.search(/[ "&'/:<>@\\]/g);
+    if (search === -1) {
+      return false;
+    }
+    return true;
   }
-  function encrypt2(plaintext, key) {
-    const iv = randomBytes4(IV_LENGTH2);
-    const cipher = createCipheriv(ALGORITHM2, key, iv);
-    const encrypted = import_buffer.Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
-    const tag = cipher.getAuthTag();
-    return `${iv.toString("base64")}.${tag.toString("base64")}.${encrypted.toString("base64")}`;
+  function escape(local) {
+    if (local === null) {
+      return null;
+    }
+    return local.replaceAll(/^\s+|\s+$/g, "").replaceAll("\\", String.raw`\5c`).replaceAll(" ", String.raw`\20`).replaceAll('"', String.raw`\22`).replaceAll("&", String.raw`\26`).replaceAll("'", String.raw`\27`).replaceAll("/", String.raw`\2f`).replaceAll(":", String.raw`\3a`).replaceAll("<", String.raw`\3c`).replaceAll(">", String.raw`\3e`).replaceAll("@", String.raw`\40`);
   }
-  function decrypt2(payload, key) {
-    const parts = payload.split(".");
-    if (parts.length !== 3) throw new Error("Invalid encrypted payload format");
-    const [ivB64, tagB64, ciphertextB64] = parts;
-    const decipher = createDecipheriv(ALGORITHM2, key, import_buffer.Buffer.from(ivB64, "base64"));
-    decipher.setAuthTag(import_buffer.Buffer.from(tagB64, "base64"));
-    return import_buffer.Buffer.concat([decipher.update(import_buffer.Buffer.from(ciphertextB64, "base64")), decipher.final()]).toString("utf8");
+  function unescape(local) {
+    if (local === null) {
+      return null;
+    }
+    return local.replaceAll(String.raw`\20`, " ").replaceAll(String.raw`\22`, '"').replaceAll(String.raw`\26`, "&").replaceAll(String.raw`\27`, "'").replaceAll(String.raw`\2f`, "/").replaceAll(String.raw`\3a`, ":").replaceAll(String.raw`\3c`, "<").replaceAll(String.raw`\3e`, ">").replaceAll(String.raw`\40`, "@").replaceAll(String.raw`\5c`, "\\");
   }
-  var XmppComponentConfigStore = class {
-    constructor(storage2, passphrase) {
-      this.storage = storage2;
-      this.passphrase = passphrase;
+
+  // node_modules/@xmpp/jid/lib/JID.js
+  var JID = class _JID {
+    constructor(local, domain, resource) {
+      if (typeof domain !== "string" || !domain) {
+        throw new TypeError(`Invalid domain.`);
+      }
+      this.setDomain(domain);
+      this.setLocal(typeof local === "string" ? local : "");
+      this.setResource(typeof resource === "string" ? resource : "");
     }
-    storage;
-    passphrase;
-    getKey() {
-      return deriveKey2(this.passphrase);
+    [Symbol.toPrimitive](hint) {
+      if (hint === "number") {
+        return Number.NaN;
+      }
+      return this.toString();
     }
-    async save(domain, secret, host, port) {
-      const key = this.getKey();
-      const encrypted = encrypt2(secret, key);
-      const now = (/* @__PURE__ */ new Date()).toISOString();
-      const record = {
-        domain,
-        host,
-        port,
-        secretEncrypted: encrypted,
-        createdAt: now,
-        updatedAt: now
-      };
-      await this.storage.putRecord(NAMESPACE, domain, JSON.stringify(record), now);
+    toString(unescape2) {
+      let s3 = this._domain;
+      if (this._local) {
+        s3 = this.getLocal(unescape2) + "@" + s3;
+      }
+      if (this._resource) {
+        s3 = s3 + "/" + this._resource;
+      }
+      return s3;
     }
-    async load(domain) {
-      const raw = await this.storage.getRecord(NAMESPACE, domain);
-      if (!raw) return void 0;
-      const record = JSON.parse(raw);
-      const key = this.getKey();
-      const secret = decrypt2(record.secretEncrypted, key);
-      return { secret, host: record.host, port: record.port };
+    /**
+     * Convenience method to distinguish users
+     * */
+    bare() {
+      if (this._resource) {
+        return new _JID(this._local, this._domain, null);
+      }
+      return this;
     }
-    async list() {
-      const records = await this.storage.listRecords(NAMESPACE);
-      return records.map((r2) => {
-        const parsed = JSON.parse(r2.value);
-        const { secretEncrypted: _2, ...rest } = parsed;
-        return rest;
+    /**
+     * Comparison function
+     * */
+    equals(other) {
+      return this._local === other._local && this._domain === other._domain && this._resource === other._resource;
+    }
+    /**
+     * http://xmpp.org/rfcs/rfc6122.html#addressing-localpart
+     * */
+    setLocal(local, escape2) {
+      escape2 = escape2 || detect(local);
+      if (escape2) {
+        local = escape(local);
+      }
+      this._local = local && local.toLowerCase();
+      return this;
+    }
+    getLocal(unescape2 = false) {
+      let local = null;
+      local = unescape2 ? unescape(this._local) : this._local;
+      return local;
+    }
+    /**
+     * http://xmpp.org/rfcs/rfc6122.html#addressing-domain
+     */
+    setDomain(domain) {
+      this._domain = domain.toLowerCase();
+      return this;
+    }
+    getDomain() {
+      return this._domain;
+    }
+    /**
+     * http://xmpp.org/rfcs/rfc6122.html#addressing-resourcepart
+     */
+    setResource(resource) {
+      this._resource = resource;
+      return this;
+    }
+    getResource() {
+      return this._resource;
+    }
+  };
+  Object.defineProperty(JID.prototype, "local", {
+    get: JID.prototype.getLocal,
+    set: JID.prototype.setLocal
+  });
+  Object.defineProperty(JID.prototype, "domain", {
+    get: JID.prototype.getDomain,
+    set: JID.prototype.setDomain
+  });
+  Object.defineProperty(JID.prototype, "resource", {
+    get: JID.prototype.getResource,
+    set: JID.prototype.setResource
+  });
+  var JID_default = JID;
+
+  // node_modules/@xmpp/jid/lib/parse.js
+  init_globals();
+  function parse2(s3) {
+    let local;
+    let resource;
+    const resourceStart = s3.indexOf("/");
+    if (resourceStart !== -1) {
+      resource = s3.slice(resourceStart + 1);
+      s3 = s3.slice(0, resourceStart);
+    }
+    const atStart = s3.indexOf("@");
+    if (atStart !== -1) {
+      local = s3.slice(0, atStart);
+      s3 = s3.slice(atStart + 1);
+    }
+    return new JID_default(local, s3, resource);
+  }
+
+  // node_modules/@xmpp/jid/index.js
+  function equal(a2, b2) {
+    return a2.equals(b2);
+  }
+  function jid(...args) {
+    if (!args[1] && !args[2]) {
+      return parse2(...args);
+    }
+    return new JID_default(...args);
+  }
+  var j = jid.bind();
+  j.jid = jid;
+  j.JID = JID_default;
+  j.parse = parse2;
+  j.equal = equal;
+  j.detectEscape = detect;
+  j.escapeLocal = escape;
+  j.unescapeLocal = unescape;
+  var jid_default = j;
+
+  // node_modules/@xmpp/client-core/lib/Client.js
+  init_globals();
+
+  // node_modules/@xmpp/connection/index.js
+  init_globals();
+  init_events2();
+  init_xml();
+
+  // node_modules/@xmpp/connection/lib/StreamError.js
+  init_globals();
+
+  // node_modules/@xmpp/error/index.js
+  init_globals();
+  var XMPPError = class extends Error {
+    constructor(condition, text, application) {
+      super(condition + (text ? ` - ${text}` : ""));
+      this.name = "XMPPError";
+      this.condition = condition;
+      this.text = text;
+      this.application = application;
+    }
+    static fromElement(element) {
+      const [condition, second4, third] = element.getChildElements();
+      let text;
+      let application;
+      if (second4) {
+        if (second4.is("text")) {
+          text = second4;
+        } else if (second4) {
+          application = second4;
+        }
+        if (third) application = third;
+      }
+      const error = new this(
+        condition.name,
+        text ? text.text() : "",
+        application
+      );
+      error.element = element;
+      return error;
+    }
+  };
+  var error_default = XMPPError;
+
+  // node_modules/@xmpp/connection/lib/StreamError.js
+  var StreamError = class extends error_default {
+    constructor(...args) {
+      super(...args);
+      this.name = "StreamError";
+    }
+  };
+  var StreamError_default = StreamError;
+
+  // node_modules/@xmpp/connection/lib/util.js
+  init_globals();
+  function parseURI(URI) {
+    let { port, hostname, protocol } = new URL(URI);
+    if (hostname === "[::1]") {
+      hostname = "::1";
+    }
+    return { port, hostname, protocol };
+  }
+  function parseHost(host) {
+    const { port, hostname } = parseURI(`http://${host}`);
+    return { port, hostname };
+  }
+  function parseService(service2) {
+    return service2.includes("://") ? parseURI(service2) : parseHost(service2);
+  }
+
+  // node_modules/@xmpp/connection/index.js
+  var NS_STREAM = "urn:ietf:params:xml:ns:xmpp-streams";
+  var NS_JABBER_STREAM = "http://etherx.jabber.org/streams";
+  var Connection2 = class extends EventEmitter2 {
+    #socketListeners = null;
+    #parserListeners = null;
+    constructor(options = {}) {
+      super();
+      if (typeof options === "string") {
+        options = { domain: options };
+      }
+      this.jid = null;
+      this.timeout = options.timeout || 2e3;
+      this.options = options;
+      this.status = "offline";
+      this.socket = null;
+      this.parser = null;
+      this.root = null;
+    }
+    isSecure() {
+      return this.socket?.secure === true;
+    }
+    async _streamError(condition, children) {
+      try {
+        await this.send(
+          // prettier-ignore
+          xml("stream:error", {}, [
+            xml(condition, { xmlns: NS_STREAM }, children)
+          ])
+        );
+      } catch {
+      }
+      return this.disconnect();
+    }
+    _onData(data) {
+      const str = data.toString("utf8");
+      this.parser.write(str);
+    }
+    #onParserError(error) {
+      this._streamError("bad-format");
+      this._detachParser();
+      this.emit("error", error);
+    }
+    #onSocketClosed(dirty, reason) {
+      this._detachSocket();
+      this._status("disconnect", { clean: !dirty, reason });
+    }
+    #onStreamClosed(dirty, reason) {
+      this._detachParser();
+      this._status("close", { clean: !dirty, reason });
+    }
+    _attachSocket(socket) {
+      this.socket = socket;
+      this.#socketListeners ??= listeners({
+        data: this._onData.bind(this),
+        close: this.#onSocketClosed.bind(this),
+        connect: () => this._status("connect"),
+        error: (error) => this.emit("error", error)
+      });
+      this.#socketListeners.subscribe(this.socket);
+    }
+    _detachSocket() {
+      this.socket && this.#socketListeners?.unsubscribe(this.socket);
+      this.socket = null;
+    }
+    _onElement(element) {
+      const isStreamError = element.is("error", NS_JABBER_STREAM);
+      if (isStreamError) {
+        this._onStreamError(element);
+      }
+      this.emit("element", element);
+      this.emit(this.isStanza(element) ? "stanza" : "nonza", element);
+      if (isStreamError) {
+        this.disconnect();
+      }
+    }
+    // https://xmpp.org/rfcs/rfc6120.html#streams-error
+    _onStreamError(element) {
+      const error = StreamError_default.fromElement(element);
+      if (error.condition === "see-other-host") {
+        return this._onSeeOtherHost(error);
+      }
+      this.emit("error", error);
+    }
+    // https://xmpp.org/rfcs/rfc6120.html#streams-error-conditions-see-other-host
+    async _onSeeOtherHost(error) {
+      const { protocol } = parseService(this.options.service);
+      const host = error.element.getChildText("see-other-host");
+      const { port } = parseHost(host);
+      let service2;
+      service2 = port ? `${protocol || "xmpp:"}//${host}` : (protocol ? `${protocol}//` : "") + host;
+      try {
+        await promise(this, "disconnect");
+        const { domain, lang } = this.options;
+        await this.connect(service2);
+        await this.open({ domain, lang });
+      } catch (err) {
+        this.emit("error", err);
+      }
+    }
+    _attachParser(parser2) {
+      this.parser = parser2;
+      this.#parserListeners ??= listeners({
+        element: this._onElement.bind(this),
+        error: this.#onParserError.bind(this),
+        end: this.#onStreamClosed.bind(this),
+        start: (element) => this._status("open", element)
+      });
+      this.#parserListeners.subscribe(this.parser);
+    }
+    _detachParser() {
+      this.parser && this.#parserListeners?.unsubscribe(this.parser);
+      this.parser = null;
+      this.root = null;
+    }
+    _jid(id2) {
+      this.jid = jid_default(id2);
+      return this.jid;
+    }
+    /*
+    [
+      "offline",
+      // "disconnect",
+      "connecting",
+      "connected",
+      "opening",
+      "open",
+      "online",
+      "closing",
+      "close",
+      "disconnecting",
+      "disconnect",
+      "offline",
+    ];
+    */
+    _status(status, ...args) {
+      if (this.status === status) return;
+      this.status = status;
+      this.emit("status", status, ...args);
+      this.emit(status, ...args);
+    }
+    _ready(resumed = false) {
+      if (resumed) {
+        this.status = "online";
+      } else {
+        this._status("online", this.jid);
+      }
+    }
+    async disconnect() {
+      let el2;
+      try {
+        el2 = await this._closeStream();
+      } catch (err) {
+        this.#onStreamClosed(err);
+      }
+      try {
+        await this._closeSocket();
+      } catch (err) {
+        this.#onSocketClosed(true, err);
+      }
+      return el2;
+    }
+    /**
+     * Opens the socket then opens the stream
+     */
+    async start() {
+      if (this.status !== "offline") {
+        throw new Error("Connection is not offline");
+      }
+      const { service: service2, domain, lang } = this.options;
+      await this.connect(service2);
+      const promiseOnline = promise(this, "online");
+      await this.open({ domain, lang });
+      return promiseOnline;
+    }
+    /**
+     * Connects the socket
+     */
+    async connect(service2) {
+      this._status("connecting", service2);
+      const socket = new this.Socket();
+      this._attachSocket(socket);
+      socket.connect(this.socketParameters(service2));
+      return promise(socket, "connect");
+    }
+    /**
+     * Disconnects the socket
+     * https://xmpp.org/rfcs/rfc6120.html#streams-close
+     * https://tools.ietf.org/html/rfc7395#section-3.6
+     */
+    async _closeSocket(timeout2 = this.timeout) {
+      this._status("disconnecting");
+      this.socket.end();
+      await promise(this.socket, "close", "error", timeout2);
+    }
+    /**
+     * Opens the stream
+     */
+    async open(options) {
+      this._status("opening");
+      const { domain, lang } = options;
+      const headerElement = this.headerElement();
+      headerElement.attrs.to = domain;
+      headerElement.attrs["xml:lang"] = lang;
+      this.root = headerElement;
+      this._attachParser(new this.Parser());
+      await this.write(this.header(headerElement));
+      return promise(this, "open", "error", this.timeout);
+    }
+    /**
+     * Closes the stream then closes the socket
+     * https://xmpp.org/rfcs/rfc6120.html#streams-close
+     * https://tools.ietf.org/html/rfc7395#section-3.6
+     */
+    async stop() {
+      const el2 = await this.disconnect();
+      this._status("offline", el2);
+      return el2;
+    }
+    /**
+     * Closes the stream and wait for the server to close it
+     * https://xmpp.org/rfcs/rfc6120.html#streams-close
+     * https://tools.ietf.org/html/rfc7395#section-3.6
+     */
+    async _closeStream(timeout2 = this.timeout) {
+      await this.#runHooks("close");
+      const fragment = this.footer(this.footerElement());
+      await this.write(fragment);
+      this._status("closing");
+      return promise(this.parser, "end", "error", timeout2);
+    }
+    /**
+     * Restart the stream
+     * https://xmpp.org/rfcs/rfc6120.html#streams-negotiation-restart
+     */
+    async restart() {
+      this._detachParser();
+      const { domain, lang } = this.options;
+      return this.open({ domain, lang });
+    }
+    async send(element) {
+      element.parent = this.root;
+      await this.write(element.toString());
+      this.emit("send", element);
+    }
+    sendReceive(element, timeout2 = this.timeout) {
+      return Promise.all([
+        this.send(element),
+        promise(this, "element", "error", timeout2)
+      ]).then(([, el2]) => el2);
+    }
+    async write(string4) {
+      if (this.status === "closing") {
+        throw new Error("Connection is closing");
+      }
+      return new Promise((resolve6, reject) => {
+        this.socket.write(string4, (err) => err ? reject(err) : resolve6());
       });
     }
-    async remove(domain) {
-      await this.storage.deleteRecord(NAMESPACE, domain);
+    isStanza(element) {
+      const { name: name5 } = element;
+      return name5 === "iq" || name5 === "message" || name5 === "presence";
+    }
+    isNonza(element) {
+      return !this.isStanza(element);
+    }
+    // Override
+    header(el2) {
+      return el2.toString();
+    }
+    // Override
+    headerElement() {
+      return new xml.Element("", {
+        version: "1.0",
+        xmlns: this.NS
+      });
+    }
+    // Override
+    footer(el2) {
+      return el2.toString();
+    }
+    // Override
+    footerElement() {
+    }
+    // Override
+    socketParameters() {
+    }
+    /* Experimental hooks */
+    #hooks = /* @__PURE__ */ new Map();
+    #hook_events = /* @__PURE__ */ new Set(["close"]);
+    hook(event, handler) {
+      this.#assertHookEventName(event);
+      if (!this.#hooks.has(event)) {
+        this.#hooks.set(event, /* @__PURE__ */ new Set());
+      }
+      this.#hooks.get(event).add([handler]);
+    }
+    #assertHookEventName(event) {
+      if (!this.#hook_events.has(event)) {
+        throw new Error(`Hook event name "${event}" is unknown.`);
+      }
+    }
+    unhook(event, handler) {
+      this.#assertHookEventName(event);
+      const handlers = this.#hooks.get("event");
+      const item = [...handlers].find((item2) => item2.handler === handler);
+      handlers.remove(item);
+    }
+    async #runHooks(event, ...args) {
+      this.#assertHookEventName(event);
+      const hooks = this.#hooks.get(event);
+      if (!hooks) return;
+      await Promise.all(
+        [...hooks].map(async ([handler]) => {
+          try {
+            await handler(...args);
+          } catch (err) {
+            this.emit("error", err);
+          }
+        })
+      );
+    }
+  };
+  Connection2.prototype.NS = "";
+  Connection2.prototype.Socket = null;
+  Connection2.prototype.Parser = null;
+  var connection_default = Connection2;
+
+  // node_modules/@xmpp/client-core/lib/Client.js
+  var Client = class extends connection_default {
+    constructor(options) {
+      super(options);
+      this.transports = [];
+    }
+    send(element, ...args) {
+      return this.Transport.prototype.send.call(this, element, ...args);
+    }
+    sendMany(...args) {
+      return this.Transport.prototype.sendMany.call(this, ...args);
+    }
+    _findTransport(service2) {
+      return this.transports.find((Transport) => {
+        try {
+          return Transport.prototype.socketParameters(service2) !== void 0;
+        } catch {
+          return false;
+        }
+      });
+    }
+    connect(service2) {
+      const Transport = this._findTransport(service2);
+      if (!Transport) {
+        throw new Error("No compatible connection method found.");
+      }
+      this.Transport = Transport;
+      this.Socket = Transport.prototype.Socket;
+      this.Parser = Transport.prototype.Parser;
+      return super.connect(service2);
+    }
+    socketParameters(...args) {
+      return this.Transport.prototype.socketParameters(...args);
+    }
+    header(headerElement, ...args) {
+      const from7 = this.isSecure() && this.jid?.bare().toString();
+      if (from7) headerElement.attrs.from = from7;
+      return this.Transport.prototype.header(headerElement, ...args);
+    }
+    headerElement(...args) {
+      return this.Transport.prototype.headerElement(...args);
+    }
+    footer(...args) {
+      return this.Transport.prototype.footer(...args);
+    }
+    footerElement(...args) {
+      return this.Transport.prototype.footerElement(...args);
+    }
+  };
+  Client.prototype.NS = "jabber:client";
+  var Client_default = Client;
+
+  // node_modules/@xmpp/reconnect/index.js
+  init_globals();
+  init_events2();
+  var Reconnect = class extends EventEmitter2 {
+    constructor(entity) {
+      super();
+      this.delay = 1e3;
+      this.entity = entity;
+      this._timeout = null;
+    }
+    #onDisconnect = () => {
+      this.scheduleReconnect();
+    };
+    scheduleReconnect() {
+      const { entity, delay: delay2, _timeout } = this;
+      clearTimeout(_timeout);
+      this._timeout = setTimeout(async () => {
+        if (entity.status !== "disconnect") {
+          return;
+        }
+        try {
+          await this.reconnect();
+        } catch {
+        }
+      }, delay2);
+    }
+    async reconnect() {
+      const { entity } = this;
+      this.emit("reconnecting");
+      const { service: service2, domain, lang } = entity.options;
+      await entity.connect(service2);
+      await entity.open({ domain, lang });
+      this.emit("reconnected");
+    }
+    start() {
+      const { entity } = this;
+      entity.on("disconnect", this.#onDisconnect);
+    }
+    stop() {
+      const { entity, _timeout } = this;
+      entity.removeListener("disconnect", this.#onDisconnect);
+      clearTimeout(_timeout);
+    }
+  };
+  function reconnect({ entity }) {
+    const r2 = new Reconnect(entity);
+    r2.start();
+    return r2;
+  }
+
+  // node_modules/@xmpp/websocket/index.js
+  init_globals();
+
+  // node_modules/@xmpp/websocket/lib/Connection.js
+  init_globals();
+  init_xml();
+
+  // node_modules/@xmpp/websocket/lib/Socket.js
+  init_globals();
+  init_events2();
+  var CODE = "ECONNERROR";
+  function isSecure(url) {
+    const uri = parseURI(url);
+    if (uri.protocol === "wss:") return true;
+    if (["localhost", "127.0.0.1", "::1"].includes(uri.hostname)) return true;
+    return false;
+  }
+  var Socket = class extends EventEmitter2 {
+    #listeners = null;
+    socket = null;
+    url = null;
+    secure = false;
+    connect(url) {
+      this.url = url;
+      this.secure = isSecure(url);
+      this._attachSocket(new WebSocket(url, ["xmpp"]));
+    }
+    _attachSocket(socket) {
+      this.socket = socket;
+      this.#listeners ??= listeners({
+        open: () => this.emit("connect"),
+        message: ({ data }) => this.emit("data", data),
+        error: (event) => {
+          const { url } = this;
+          let { error } = event;
+          if (!error) {
+            error = new Error(event.message || `WebSocket ${CODE} ${url}`);
+            error.errno = CODE;
+            error.code = CODE;
+          }
+          error.event = event;
+          error.url = url;
+          this.emit("error", error);
+        },
+        close: (event) => {
+          this._detachSocket();
+          this.emit("close", !event.wasClean, event);
+        }
+      });
+      this.#listeners.subscribe(this.socket);
+    }
+    _detachSocket() {
+      this.url = null;
+      this.secure = false;
+      this.socket && this.#listeners?.unsubscribe(this.socket);
+      this.socket = null;
+    }
+    end() {
+      this.socket.close();
+    }
+    write(data, fn2) {
+      function done(err) {
+        if (!fn2) return;
+        Promise.resolve().then(() => fn2(err));
+      }
+      try {
+        this.socket.send(data);
+      } catch (err) {
+        done(err);
+        return;
+      }
+      done();
     }
   };
 
-  // src/core/xmpp-server-bridge.ts
-  var NS_JABBER_SERVER = "jabber:server";
-  var NS_PUBSUB_EVENT = "http://jabber.org/protocol/pubsub#event";
+  // node_modules/@xmpp/websocket/lib/FramedParser.js
+  init_globals();
+  init_xml();
+  var FramedParser = class extends Parser_default {
+    onStartElement(name5, attrs) {
+      const element = new import_Element2.default(name5, attrs);
+      const { cursor } = this;
+      if (cursor) {
+        cursor.append(element);
+      }
+      this.cursor = element;
+    }
+    onEndElement(name5) {
+      const { cursor } = this;
+      if (name5 !== cursor.name) {
+        this.emit("error", new XMLError(`${cursor.name} must be closed.`));
+        return;
+      }
+      if (cursor.parent) {
+        this.cursor = cursor.parent;
+        return;
+      }
+      if (cursor.is("open", "urn:ietf:params:xml:ns:xmpp-framing")) {
+        this.emit("start", cursor);
+      } else if (cursor.is("close", "urn:ietf:params:xml:ns:xmpp-framing")) {
+        this.emit("end", cursor);
+      } else {
+        this.emit("element", cursor);
+      }
+      this.cursor = null;
+    }
+  };
+
+  // node_modules/@xmpp/websocket/lib/Connection.js
+  var NS_FRAMING = "urn:ietf:params:xml:ns:xmpp-framing";
+  var ConnectionWebSocket = class extends connection_default {
+    send(element, ...args) {
+      element.attrs.xmlns ??= this.NS;
+      return super.send(element, ...args);
+    }
+    async sendMany(elements) {
+      for (const element of elements) {
+        element.attrs.xmlns ??= this.NS;
+        element.parent = this.root;
+        this.socket.write(element.toString());
+        this.emit("send", element);
+      }
+    }
+    // https://tools.ietf.org/html/rfc7395#section-3.6
+    footerElement() {
+      return new xml.Element("close", {
+        xmlns: NS_FRAMING
+      });
+    }
+    // https://tools.ietf.org/html/rfc7395#section-3.4
+    headerElement() {
+      const el2 = super.headerElement();
+      el2.name = "open";
+      el2.attrs.xmlns = NS_FRAMING;
+      return el2;
+    }
+    socketParameters(service2) {
+      return /^wss?:\/\//.test(service2) ? service2 : void 0;
+    }
+  };
+  ConnectionWebSocket.prototype.Socket = Socket;
+  ConnectionWebSocket.prototype.NS = "jabber:client";
+  ConnectionWebSocket.prototype.Parser = FramedParser;
+  var Connection_default = ConnectionWebSocket;
+
+  // node_modules/@xmpp/websocket/index.js
+  function websocket({ entity }) {
+    entity.transports.push(Connection_default);
+  }
+
+  // node_modules/@xmpp/client/index.js
+  var import_tcp = __toESM(require_tcp(), 1);
+  var import_tls = __toESM(require_tls(), 1);
+
+  // node_modules/@xmpp/middleware/index.js
+  init_globals();
+  var import_koa_compose = __toESM(require_koa_compose(), 1);
+
+  // node_modules/@xmpp/middleware/lib/IncomingContext.js
+  init_globals();
+
+  // node_modules/@xmpp/middleware/lib/Context.js
+  init_globals();
+  var Context = class {
+    constructor(entity, stanza) {
+      this.stanza = stanza;
+      this.entity = entity;
+      const { name: name5, attrs } = stanza;
+      const { type: type2, id: id2 } = attrs;
+      this.name = name5;
+      this.id = id2 || "";
+      if (name5 === "message") {
+        this.type = type2 || "normal";
+      } else if (name5 === "presence") {
+        this.type = type2 || "available";
+      } else {
+        this.type = type2 || "";
+      }
+      this.from = null;
+      this.to = null;
+      this.local = "";
+      this.domain = "";
+      this.resource = "";
+    }
+  };
+
+  // node_modules/@xmpp/middleware/lib/IncomingContext.js
+  var IncomingContext = class extends Context {
+    constructor(entity, stanza) {
+      super(entity, stanza);
+      const { jid: jid2 } = entity;
+      const { domain } = entity.options ?? {};
+      const to2 = stanza.attrs.to || jid2?.toString();
+      const from7 = stanza.attrs.from || domain;
+      if (to2) this.to = new jid_default(to2);
+      if (from7) {
+        this.from = new jid_default(from7);
+        this.local = this.from.local;
+        this.domain = this.from.domain;
+        this.resource = this.from.resource;
+      }
+    }
+  };
+
+  // node_modules/@xmpp/middleware/lib/OutgoingContext.js
+  init_globals();
+  var OutgoingContext = class extends Context {
+    constructor(entity, stanza) {
+      super(entity, stanza);
+      const { jid: jid2 } = entity;
+      const { domain } = entity.options ?? {};
+      const from7 = stanza.attrs.from || jid2?.toString();
+      const to2 = stanza.attrs.to || domain;
+      if (from7) this.from = new jid_default(from7);
+      if (to2) {
+        this.to = new jid_default(to2);
+        this.local = this.to.local;
+        this.domain = this.to.domain;
+        this.resource = this.to.resource;
+      }
+    }
+  };
+
+  // node_modules/@xmpp/middleware/index.js
+  function listener(entity, middleware2, Context2) {
+    return (stanza) => {
+      const ctx = new Context2(entity, stanza);
+      return (0, import_koa_compose.default)(middleware2)(ctx);
+    };
+  }
+  function errorHandler(entity) {
+    return (ctx, next) => {
+      next().then((reply) => reply && entity.send(reply)).catch((err) => entity.emit("error", err));
+    };
+  }
+  function middleware({ entity }) {
+    const incoming = [errorHandler(entity)];
+    const outgoing = [];
+    const incomingListener = listener(entity, incoming, IncomingContext);
+    const outgoingListener = listener(entity, outgoing, OutgoingContext);
+    entity.on("element", incomingListener);
+    entity.on("send", outgoingListener);
+    return {
+      use(fn2) {
+        incoming.push(fn2);
+        return fn2;
+      },
+      filter(fn2) {
+        outgoing.push(fn2);
+        return fn2;
+      }
+    };
+  }
+
+  // node_modules/@xmpp/stream-features/index.js
+  init_globals();
+  function streamFeatures({ middleware: middleware2 }) {
+    function use(name5, xmlns, handler) {
+      return middleware2.use((ctx, next) => {
+        const { stanza } = ctx;
+        if (!stanza.is("features", "http://etherx.jabber.org/streams"))
+          return next();
+        const feature = stanza.getChild(name5, xmlns);
+        if (!feature) return next();
+        return handler(ctx, next, feature);
+      });
+    }
+    return {
+      use
+    };
+  }
+
+  // node_modules/@xmpp/iq/caller.js
+  init_globals();
+
+  // node_modules/@xmpp/id/index.js
+  init_globals();
+  function id() {
+    let i2;
+    while (!i2) {
+      i2 = Math.random().toString(36).slice(2, 12);
+    }
+    return i2;
+  }
+
+  // node_modules/@xmpp/middleware/lib/StanzaError.js
+  init_globals();
+  var StanzaError = class extends error_default {
+    constructor(condition, text, application, type2) {
+      super(condition, text, application);
+      this.type = type2;
+      this.name = "StanzaError";
+    }
+    static fromElement(element) {
+      const error = super.fromElement(element);
+      error.type = element.attrs.type;
+      return error;
+    }
+  };
+  var StanzaError_default = StanzaError;
+
+  // node_modules/@xmpp/iq/caller.js
+  init_events2();
+  init_xml();
+  function isReply({ name: name5, type: type2 }) {
+    if (name5 !== "iq") return false;
+    if (type2 !== "error" && type2 !== "result") return false;
+    return true;
+  }
+  var IQCaller = class {
+    constructor({ entity, middleware: middleware2 }) {
+      this.handlers = /* @__PURE__ */ new Map();
+      this.entity = entity;
+      this.middleware = middleware2;
+    }
+    start() {
+      this.middleware.use(this._route.bind(this));
+    }
+    _route({ type: type2, name: name5, id: id2, stanza }, next) {
+      if (!isReply({ name: name5, type: type2 })) return next();
+      const deferred = this.handlers.get(id2);
+      if (!deferred) {
+        return next();
+      }
+      if (type2 === "error") {
+        deferred.reject(StanzaError_default.fromElement(stanza.getChild("error")));
+      } else {
+        deferred.resolve(stanza);
+      }
+      this.handlers.delete(id2);
+    }
+    async request(stanza, timeout2 = 30 * 1e3) {
+      if (!stanza.attrs.id) {
+        stanza.attrs.id = id();
+      }
+      const deferred = new Deferred();
+      this.handlers.set(stanza.attrs.id, deferred);
+      try {
+        await this.entity.send(stanza);
+        await timeout(deferred.promise, timeout2);
+      } catch (err) {
+        this.handlers.delete(stanza.attrs.id);
+        throw err;
+      }
+      return deferred.promise;
+    }
+    _childRequest(type2, element, to2, ...args) {
+      const {
+        name: name5,
+        attrs: { xmlns }
+      } = element;
+      return this.request(xml("iq", { type: type2, to: to2 }, element), ...args).then(
+        (stanza) => stanza.getChild(name5, xmlns)
+      );
+    }
+    async get(...args) {
+      return this._childRequest("get", ...args);
+    }
+    async set(...args) {
+      return this._childRequest("set", ...args);
+    }
+  };
+  function iqCaller(...args) {
+    const iqCaller2 = new IQCaller(...args);
+    iqCaller2.start();
+    return iqCaller2;
+  }
+
+  // node_modules/@xmpp/iq/callee.js
+  init_globals();
+  init_xml();
+  var NS_STANZA = "urn:ietf:params:xml:ns:xmpp-stanzas";
+  function isQuery({ name: name5, type: type2 }) {
+    if (name5 !== "iq") return false;
+    if (type2 === "error" || type2 === "result") return false;
+    return true;
+  }
+  function isValidQuery({ type: type2 }, children, child) {
+    if (type2 !== "get" && type2 !== "set") return false;
+    if (children.length !== 1) return false;
+    if (!child) return false;
+    return true;
+  }
+  function buildReply({ stanza }) {
+    return xml("iq", {
+      to: stanza.attrs.from,
+      from: stanza.attrs.to,
+      id: stanza.attrs.id
+    });
+  }
+  function buildReplyResult(ctx, child) {
+    const reply = buildReply(ctx);
+    reply.attrs.type = "result";
+    if (child) {
+      reply.append(child);
+    }
+    return reply;
+  }
+  function buildReplyError(ctx, error, child) {
+    const reply = buildReply(ctx);
+    reply.attrs.type = "error";
+    if (child) {
+      reply.append(child);
+    }
+    reply.append(error);
+    return reply;
+  }
+  function buildError(type2, condition) {
+    return xml("error", { type: type2 }, xml(condition, NS_STANZA));
+  }
+  function iqHandler(entity) {
+    return async function iqHandler2(ctx, next) {
+      if (!isQuery(ctx)) return next();
+      const { stanza } = ctx;
+      const children = stanza.getChildElements();
+      const [child] = children;
+      if (!isValidQuery(ctx, children, child)) {
+        return buildReplyError(ctx, buildError("modify", "bad-request"), child);
+      }
+      ctx.element = child;
+      let reply;
+      try {
+        reply = await next();
+      } catch (err) {
+        entity.emit("error", err);
+        reply = buildError("cancel", "internal-server-error");
+      }
+      if (!reply) {
+        reply = buildError("cancel", "service-unavailable");
+      }
+      if (reply instanceof xml.Element && reply.is("error")) {
+        return buildReplyError(ctx, reply, child);
+      }
+      return buildReplyResult(
+        ctx,
+        reply instanceof xml.Element ? reply : void 0
+      );
+    };
+  }
+  function route(type2, ns2, name5, handler) {
+    return (ctx, next) => {
+      if (ctx.type !== type2 | !ctx.element || !ctx.element.is(name5, ns2))
+        return next();
+      return handler(ctx, next);
+    };
+  }
+  function iqCallee({ middleware: middleware2, entity }) {
+    middleware2.use(iqHandler(entity));
+    return {
+      get(ns2, name5, handler) {
+        middleware2.use(route("get", ns2, name5, handler));
+      },
+      set(ns2, name5, handler) {
+        middleware2.use(route("set", ns2, name5, handler));
+      }
+    };
+  }
+
+  // node_modules/@xmpp/resolve/index.js
+  init_globals();
+  init_events2();
+
+  // node_modules/@xmpp/resolve/resolve.js
+  init_globals();
+
+  // node_modules/@xmpp/resolve/lib/dns.js
+  init_globals();
+  var import_node_dns = __toESM(__require("node:dns"), 1);
+  var IGNORE_CODES = ["ENOTFOUND", "ENODATA"];
+  function lookup(domain, options = {}) {
+    options.all = true;
+    return new Promise((resolve6, reject) => {
+      import_node_dns.default.lookup(domain, options, (err, addresses) => {
+        if (err) {
+          return reject(err);
+        }
+        const result = [];
+        for (const { family, address } of addresses) {
+          const uri = `://${family === 4 ? address : "[" + address + "]"}:`;
+          result.push(
+            {
+              family,
+              address,
+              uri: "xmpps" + uri + "5223"
+            },
+            {
+              family,
+              address,
+              uri: "xmpp" + uri + "5222"
+            }
+          );
+        }
+        resolve6(result);
+      });
+    });
+  }
+  function resolveSrv(domain, { service: service2, protocol }) {
+    return new Promise((resolve6, reject) => {
+      import_node_dns.default.resolveSrv(`_${service2}._${protocol}.${domain}`, (err, records) => {
+        if (err && IGNORE_CODES.includes(err.code)) {
+          resolve6([]);
+        } else if (err) {
+          reject(err);
+        } else {
+          resolve6(
+            records.map((record) => {
+              return Object.assign(record, { service: service2, protocol });
+            })
+          );
+        }
+      });
+    });
+  }
+  function sortSrv(records) {
+    return records.toSorted((a2, b2) => {
+      const priority = a2.priority - b2.priority;
+      if (priority !== 0) {
+        return priority;
+      }
+      const weight = b2.weight - a2.weight;
+      if (weight !== 0) {
+        return weight;
+      }
+      return 0;
+    });
+  }
+  function lookupSrvs(srvs, options) {
+    const addresses = [];
+    return Promise.all(
+      srvs.map(async (srv) => {
+        const srvAddresses = await lookup(srv.name, options);
+        for (const address of srvAddresses) {
+          const { port, service: service2 } = srv;
+          const addr = address.address;
+          addresses.push({
+            ...address,
+            ...srv,
+            uri: `${service2.split("-")[0]}://${address.family === 6 ? "[" + addr + "]" : addr}:${port}`
+          });
+        }
+      })
+    ).then(() => addresses);
+  }
+  function resolve(domain, options = {}) {
+    if (!options.srv) {
+      options.srv = [
+        {
+          service: "xmpps-client",
+          protocol: "tcp"
+        },
+        {
+          service: "xmpp-client",
+          protocol: "tcp"
+        },
+        {
+          service: "xmpps-server",
+          protocol: "tcp"
+        },
+        {
+          service: "xmpp-server",
+          protocol: "tcp"
+        },
+        {
+          service: "stun",
+          protocol: "tcp"
+        },
+        {
+          service: "stun",
+          protocol: "udp"
+        },
+        {
+          service: "stuns ",
+          protcol: "tcp"
+        },
+        {
+          service: "turn",
+          protocol: "tcp"
+        },
+        {
+          service: "turn",
+          protocol: "udp"
+        },
+        {
+          service: "turns",
+          protcol: "tcp"
+        }
+      ];
+    }
+    const family = { options };
+    return lookup(domain, options).then((addresses) => {
+      return Promise.all(
+        options.srv.map((srv) => {
+          return resolveSrv(domain, { ...srv, family }).then((records) => {
+            return lookupSrvs(records, options);
+          });
+        })
+      ).then((srvs) => [...sortSrv(srvs.flat()), ...addresses]);
+    });
+  }
+
+  // node_modules/@xmpp/resolve/lib/http.js
+  init_globals();
+
+  // node_modules/@xmpp/xml/lib/parse.js
+  init_globals();
+  init_Parser();
+  function parse3(data) {
+    const p2 = new Parser_default();
+    let result = null;
+    let error = null;
+    p2.on("start", (el2) => {
+      result = el2;
+    });
+    p2.on("element", (el2) => {
+      result.append(el2);
+    });
+    p2.on("error", (err) => {
+      error = err;
+    });
+    p2.write(data);
+    p2.end();
+    if (error) {
+      throw error;
+    } else {
+      return result;
+    }
+  }
+
+  // node_modules/@xmpp/resolve/lib/alt-connections.js
+  init_globals();
+  function isSecure2(uri) {
+    return uri.startsWith("https") || uri.startsWith("wss");
+  }
+  function compare3(a2, b2) {
+    let secure;
+    if (isSecure2(a2.uri) && !isSecure2(b2.uri)) {
+      secure = -1;
+    } else if (!isSecure2(a2.uri) && isSecure2(b2.uri)) {
+      secure = 1;
+    } else {
+      secure = 0;
+    }
+    if (secure !== 0) {
+      return secure;
+    }
+    let method2;
+    if (a2.method === b2.method) {
+      method2 = 0;
+    } else if (a2.method === "websocket") {
+      method2 = -1;
+    } else if (b2.method === "websocket") {
+      method2 = 1;
+    } else if (a2.method === "xbosh") {
+      method2 = -1;
+    } else if (b2.method === "xbosh") {
+      method2 = 1;
+    } else if (a2.method === "httppoll") {
+      method2 = -1;
+    } else if (b2.method === "httppoll") {
+      method2 = 1;
+    } else {
+      method2 = 0;
+    }
+    if (method2 !== 0) {
+      return method2;
+    }
+    return 0;
+  }
+
+  // node_modules/@xmpp/resolve/lib/http.js
+  function resolve2(domain) {
+    return fetch(`https://${domain}/.well-known/host-meta`).then((res) => res.text()).then((res) => {
+      return parse3(res).getChildren("Link").filter(
+        (link) => [
+          "urn:xmpp:alt-connections:websocket",
+          "urn:xmpp:alt-connections:httppoll",
+          "urn:xmpp:alt-connections:xbosh"
+        ].includes(link.attrs.rel)
+      ).map(({ attrs }) => ({
+        rel: attrs.rel,
+        href: attrs.href,
+        method: attrs.rel.split(":").pop(),
+        uri: attrs.href
+      })).toSorted(compare3);
+    }).catch(() => {
+      return [];
+    });
+  }
+
+  // node_modules/@xmpp/resolve/resolve.js
+  function resolve3(...args) {
+    return Promise.all([
+      resolve ? resolve(...args) : Promise.resolve([]),
+      resolve2(...args)
+    ]).then(([records, endpoints]) => [...records, ...endpoints]);
+  }
+
+  // node_modules/@xmpp/resolve/index.js
+  async function fetchURIs(domain) {
+    const result = await resolve3(domain, {
+      srv: [
+        {
+          service: "xmpps-client",
+          protocol: "tcp"
+        },
+        {
+          service: "xmpp-client",
+          protocol: "tcp"
+        }
+      ]
+    });
+    return [
+      // Remove duplicates
+      ...new Set(result.map((record) => record.uri))
+    ];
+  }
+  function filterSupportedURIs(entity, uris) {
+    return uris.filter((uri) => entity._findTransport(uri));
+  }
+  async function fallbackConnect(entity, uris) {
+    if (uris.length === 0) {
+      throw new Error("Couldn't connect");
+    }
+    const uri = uris.shift();
+    const Transport = entity._findTransport(uri);
+    if (!Transport) {
+      return fallbackConnect(entity, uris);
+    }
+    entity._status("connecting", uri);
+    const params = Transport.prototype.socketParameters(uri);
+    const socket = new Transport.prototype.Socket();
+    try {
+      socket.connect(params);
+      await promise(socket, "connect");
+    } catch {
+      return fallbackConnect(entity, uris);
+    }
+    entity._attachSocket(socket);
+    socket.emit("connect");
+    entity.Transport = Transport;
+    entity.Socket = Transport.prototype.Socket;
+    entity.Parser = Transport.prototype.Parser;
+  }
+  function resolve4({ entity }) {
+    const _connect = entity.connect;
+    entity.connect = async function connect(service2) {
+      if (!service2 || /:\/\//.test(service2)) {
+        return _connect.call(this, service2);
+      }
+      const uris = filterSupportedURIs(entity, await fetchURIs(service2));
+      if (uris.length === 0) {
+        throw new Error("No compatible transport found.");
+      }
+      try {
+        await fallbackConnect(entity, uris);
+      } catch (err) {
+        await entity.disconnect();
+        entity._status("disconnect");
+        throw err;
+      }
+    };
+  }
+
+  // node_modules/@xmpp/client/index.js
+  var import_starttls = __toESM(require_starttls(), 1);
+
+  // node_modules/@xmpp/sasl2/index.js
+  init_globals();
+
+  // node_modules/@xmpp/base64/index.js
+  init_globals();
+  function encode15(string4) {
+    return globalThis.btoa(string4);
+  }
+  function decode18(string4) {
+    return globalThis.atob(string4);
+  }
+
+  // node_modules/@xmpp/sasl/lib/SASLError.js
+  init_globals();
+  var SASLError = class extends error_default {
+    constructor(...args) {
+      super(...args);
+      this.name = "SASLError";
+    }
+  };
+  var SASLError_default = SASLError;
+
+  // node_modules/@xmpp/sasl2/index.js
+  init_xml();
+  init_events2();
+
+  // node_modules/@xmpp/sasl/index.js
+  init_globals();
+  init_xml();
+  init_events2();
+  var NS = "urn:ietf:params:xml:ns:xmpp-sasl";
+  function getAvailableMechanisms(element, NS7, saslFactory) {
+    const offered = new Set(
+      element.getChildren("mechanism", NS7).map((m3) => m3.text())
+    );
+    const supported = saslFactory._mechs.map(({ name: name5 }) => name5);
+    return supported.filter((mech3) => offered.has(mech3));
+  }
+  async function authenticate({ saslFactory, entity, mechanism, credentials }) {
+    const mech3 = saslFactory.create([mechanism]);
+    if (!mech3) {
+      throw new Error(`SASL: Mechanism ${mechanism} not found.`);
+    }
+    const { domain } = entity.options;
+    const creds = {
+      username: null,
+      password: null,
+      server: domain,
+      host: domain,
+      realm: domain,
+      serviceType: "xmpp",
+      serviceName: domain,
+      ...credentials
+    };
+    await procedure(
+      entity,
+      mech3.clientFirst && xml(
+        "auth",
+        { xmlns: NS, mechanism: mech3.name },
+        encode15(await mech3.response(creds))
+      ),
+      async (element, done) => {
+        if (element.getNS() !== NS) return;
+        if (element.name === "challenge") {
+          await mech3.challenge(decode18(element.text()));
+          const resp = await mech3.response(creds);
+          await entity.send(
+            xml(
+              "response",
+              { xmlns: NS, mechanism: mech3.name },
+              typeof resp === "string" ? encode15(resp) : ""
+            )
+          );
+          return;
+        }
+        if (element.name === "failure") {
+          throw SASLError_default.fromElement(element);
+        }
+        if (element.name === "success") {
+          return done();
+        }
+      }
+    );
+  }
+  function sasl({ streamFeatures: streamFeatures2, saslFactory }, onAuthenticate) {
+    streamFeatures2.use("mechanisms", NS, async ({ entity }, _next, element) => {
+      const mechanisms = getAvailableMechanisms(element, NS, saslFactory);
+      if (mechanisms.length === 0) {
+        throw new SASLError_default("SASL: No compatible mechanism available.");
+      }
+      async function done(credentials, mechanism) {
+        await authenticate({
+          saslFactory,
+          entity,
+          mechanism,
+          credentials
+        });
+      }
+      await onAuthenticate(done, mechanisms, null, entity);
+      await entity.restart();
+    });
+  }
+
+  // node_modules/@xmpp/sasl2/index.js
+  var NS2 = "urn:xmpp:sasl:2";
+  async function authenticate2({
+    saslFactory,
+    entity,
+    mechanism,
+    credentials,
+    userAgent: userAgent2,
+    streamFeatures: streamFeatures2,
+    features
+  }) {
+    const mech3 = saslFactory.create([mechanism]);
+    if (!mech3) {
+      throw new Error(`SASL: Mechanism ${mechanism} not found.`);
+    }
+    const { domain } = entity.options;
+    const creds = {
+      username: null,
+      password: null,
+      server: domain,
+      host: domain,
+      realm: domain,
+      serviceType: "xmpp",
+      serviceName: domain,
+      ...credentials
+    };
+    await procedure(
+      entity,
+      xml("authenticate", { xmlns: NS2, mechanism: mech3.name }, [
+        mech3.clientFirst && xml("initial-response", {}, encode15(await mech3.response(creds))),
+        userAgent2,
+        ...streamFeatures2
+      ]),
+      async (element, done) => {
+        if (element.getNS() !== NS2) return;
+        if (element.name === "challenge") {
+          await mech3.challenge(decode18(element.text()));
+          const resp = await mech3.response(creds);
+          await entity.send(
+            xml(
+              "response",
+              { xmlns: NS2, mechanism: mech3.name },
+              typeof resp === "string" ? encode15(resp) : ""
+            )
+          );
+          return;
+        }
+        if (element.name === "failure") {
+          throw SASLError_default.fromElement(element);
+        }
+        if (element.name === "continue") {
+          throw new Error("SASL continue is not supported yet");
+        }
+        if (element.name === "success") {
+          const additionalData = element.getChild("additional-data")?.text();
+          if (additionalData && mech3.final) {
+            await mech3.final(decode18(additionalData));
+          }
+          const aid = element.getChildText("authorization-identifier");
+          if (aid) {
+            entity._jid(aid);
+          }
+          for (const child of element.getChildElements()) {
+            const feature = features.get(child.getNS());
+            feature?.[1]?.(child);
+          }
+          return done();
+        }
+      }
+    );
+  }
+  function sasl2({ streamFeatures: streamFeatures2, saslFactory }, onAuthenticate) {
+    const features = /* @__PURE__ */ new Map();
+    let fast2;
+    streamFeatures2.use(
+      "authentication",
+      NS2,
+      async ({ entity }, _next, element) => {
+        const mechanisms = getAvailableMechanisms(element, NS2, saslFactory);
+        const streamFeatures3 = await getStreamFeatures({ element, features });
+        const fast_available = !!fast2?.mechanism;
+        if (mechanisms.length === 0 && !fast_available) {
+          throw new SASLError_default("SASL: No compatible mechanism available.");
+        }
+        await onAuthenticate(
+          done,
+          mechanisms,
+          fast_available ? fast2 : null,
+          entity
+        );
+        async function done(credentials, mechanism, userAgent2) {
+          const success = await fast2.auth({
+            authenticate: authenticate2,
+            entity,
+            userAgent: userAgent2,
+            streamFeatures: streamFeatures3,
+            features,
+            credentials
+          });
+          if (success) return;
+          await authenticate2({
+            entity,
+            userAgent: userAgent2,
+            streamFeatures: streamFeatures3,
+            features,
+            saslFactory,
+            mechanism,
+            credentials
+          });
+        }
+      }
+    );
+    return {
+      use(ns2, req, res) {
+        features.set(ns2, [req, res]);
+      },
+      setup({ fast: _fast }) {
+        fast2 = _fast;
+      }
+    };
+  }
+  async function getStreamFeatures({ element, features }) {
+    const promises2 = [];
+    const inline = element.getChild("inline");
+    if (!inline) return promises2;
+    for (const element2 of inline.getChildElements()) {
+      const xmlns = element2.getNS();
+      const feature = features.get(xmlns);
+      if (!feature) continue;
+      promises2.push(feature[0](element2));
+    }
+    return Promise.all(promises2);
+  }
+
+  // node_modules/@xmpp/resource-binding/index.js
+  init_globals();
+  init_xml();
+  var NS3 = "urn:ietf:params:xml:ns:xmpp-bind";
+  function makeBindElement(resource) {
+    return xml("bind", { xmlns: NS3 }, resource && xml("resource", {}, resource));
+  }
+  async function bind(entity, iqCaller2, resource) {
+    const result = await iqCaller2.set(makeBindElement(resource));
+    const jid2 = result.getChildText("jid");
+    entity._jid(jid2);
+    entity._ready(false);
+    return jid2;
+  }
+  function route2({ iqCaller: iqCaller2 }, resource) {
+    return async ({ entity }, next) => {
+      resource = typeof resource === "function" ? await resource() : resource;
+      await bind(entity, iqCaller2, resource);
+      next();
+    };
+  }
+  function resourceBinding({ streamFeatures: streamFeatures2, iqCaller: iqCaller2 }, resource) {
+    streamFeatures2.use("bind", NS3, route2({ iqCaller: iqCaller2 }, resource));
+  }
+
+  // node_modules/@xmpp/stream-management/index.js
+  init_globals();
+  init_events2();
+  init_xml();
+
+  // node_modules/@xmpp/time/index.js
+  init_globals();
+  function datetime(d3 = /* @__PURE__ */ new Date()) {
+    if (typeof d3 === "string") {
+      d3 = new Date(d3);
+    }
+    return new Date(d3).toISOString().split(".")[0] + "Z";
+  }
+
+  // node_modules/@xmpp/stream-management/bind2.js
+  init_globals();
+  function setupBind2({ bind2: bind22, sm, failed, enabled }) {
+    bind22.use(
+      NS4,
+      // https://xmpp.org/extensions/xep-0198.html#inline-examples
+      (_element) => {
+        return makeEnableElement({ sm });
+      },
+      async (element) => {
+        if (element.is("enabled")) {
+          enabled(element.attrs);
+        } else if (element.is("failed")) {
+          failed();
+        }
+      }
+    );
+  }
+
+  // node_modules/@xmpp/stream-management/sasl2.js
+  init_globals();
+  function setupSasl2({ sasl2: sasl22, sm, failed, resumed }) {
+    sasl22.use(
+      NS4,
+      (element) => {
+        if (!element.is("sm")) return;
+        if (sm.id) return makeResumeElement({ sm });
+      },
+      (element) => {
+        if (element.is("resumed")) {
+          resumed(element);
+        } else if (element.is("failed")) {
+          failed();
+        }
+      }
+    );
+  }
+
+  // node_modules/@xmpp/stream-management/stream-feature.js
+  init_globals();
+  init_events2();
+  function setupStreamFeature({
+    streamFeatures: streamFeatures2,
+    sm,
+    entity,
+    resumed,
+    failed,
+    enabled
+  }) {
+    streamFeatures2.use("sm", NS4, async (context, next) => {
+      if (sm.id) {
+        try {
+          const element = await resume(entity, sm);
+          await resumed(element);
+          return;
+        } catch {
+          failed();
+        }
+      }
+      await next();
+      const promiseEnable = enable(entity, sm);
+      if (sm.outbound_q.length > 0) {
+        throw new Error(
+          "Stream Management assertion failure, queue should be empty after enable"
+        );
+      }
+      sm.outbound = 0;
+      try {
+        const response2 = await promiseEnable;
+        enabled(response2.attrs);
+      } catch {
+        sm.enabled = false;
+        sm.enableSent = false;
+      }
+    });
+  }
+  function enable(entity, sm) {
+    return procedure(entity, makeEnableElement({ sm }), (element, done) => {
+      if (element.is("enabled", NS4)) {
+        return done(element);
+      } else if (element.is("failed", NS4)) {
+        throw error_default.fromElement(element);
+      }
+    });
+  }
+  async function resume(entity, sm) {
+    return procedure(entity, makeResumeElement({ sm }), (element, done) => {
+      if (element.is("resumed", NS4)) {
+        return done(element);
+      } else if (element.is("failed", NS4)) {
+        throw error_default.fromElement(element);
+      }
+    });
+  }
+
+  // node_modules/@xmpp/stream-management/index.js
+  var NS4 = "urn:xmpp:sm:3";
+  function makeEnableElement({ sm }) {
+    return xml("enable", {
+      xmlns: NS4,
+      max: sm.preferredMaximum,
+      resume: "true"
+    });
+  }
+  function makeResumeElement({ sm }) {
+    return xml("resume", { xmlns: NS4, h: sm.inbound, previd: sm.id });
+  }
+  function streamManagement({
+    streamFeatures: streamFeatures2,
+    entity,
+    middleware: middleware2,
+    bind2: bind22,
+    sasl2: sasl22
+  }) {
+    let timeoutTimeout = null;
+    let requestAckTimeout = null;
+    let requestAckDebounce = null;
+    const sm = new EventEmitter2();
+    Object.assign(sm, {
+      preferredMaximum: null,
+      enabled: false,
+      enableSent: false,
+      id: "",
+      outbound_q: [],
+      outbound: 0,
+      inbound: 0,
+      max: null,
+      timeout: 6e4,
+      requestAckInterval: 3e4,
+      requestAckDebounce: 250
+    });
+    async function sendAck() {
+      try {
+        await entity.send(xml("a", { xmlns: NS4, h: sm.inbound }));
+      } catch {
+      }
+    }
+    entity.on("disconnect", () => {
+      clearTimeout(timeoutTimeout);
+      clearTimeout(requestAckTimeout);
+      clearTimeout(requestAckDebounce);
+      sm.enabled = false;
+      sm.enableSent = false;
+    });
+    entity.hook("close", async () => {
+      if (!sm.enabled) return;
+      await sendAck();
+    });
+    async function resumed(resumed2) {
+      sm.enabled = true;
+      ackQueue(+resumed2.attrs.h);
+      let q2 = sm.outbound_q;
+      sm.outbound_q = [];
+      await entity.sendMany(q2.map((item) => queueToStanza({ entity, item })));
+      sm.emit("resumed");
+      entity._ready(true);
+      scheduleRequestAck();
+    }
+    function failed() {
+      sm.enabled = false;
+      sm.enableSent = false;
+      sm.id = "";
+      failQueue();
+    }
+    function ackQueue(n2) {
+      const oldOutbound = sm.outbound;
+      for (let i2 = 0; i2 < +n2 - oldOutbound; i2++) {
+        const item = sm.outbound_q.shift();
+        sm.outbound++;
+        sm.emit("ack", item.stanza);
+      }
+    }
+    function failQueue() {
+      let item;
+      while (item = sm.outbound_q.shift()) {
+        sm.emit("fail", item.stanza);
+      }
+      sm.outbound = 0;
+    }
+    function enabled({ id: id2, max }) {
+      sm.enabled = true;
+      sm.id = id2;
+      sm.max = max;
+      sm.inbound = 0;
+      scheduleRequestAck();
+    }
+    entity.on("offline", () => {
+      failQueue();
+      sm.inbound = 0;
+      sm.enabled = false;
+      sm.enableSent = false;
+      sm.id = "";
+    });
+    middleware2.use(async (context, next) => {
+      const { stanza } = context;
+      clearTimeout(timeoutTimeout);
+      timeoutTimeout = null;
+      if (["presence", "message", "iq"].includes(stanza.name)) {
+        sm.inbound += 1;
+      } else if (stanza.is("r", NS4)) {
+        await sendAck();
+      } else if (stanza.is("a", NS4)) {
+        ackQueue(+stanza.attrs.h);
+      }
+      scheduleRequestAck();
+      return next();
+    });
+    if (bind22) {
+      setupBind2({ bind2: bind22, sm, failed, enabled });
+    }
+    if (sasl22) {
+      setupSasl2({ sasl2: sasl22, sm, failed, resumed });
+    }
+    function scheduleRequestAck(timeout2 = sm.requestAckInterval) {
+      clearTimeout(requestAckTimeout);
+      if (!sm.enabled) return;
+      if (!timeout2) return;
+      requestAckTimeout = setTimeout(requestAck, timeout2);
+    }
+    function requestAck() {
+      clearTimeout(requestAckTimeout);
+      clearTimeout(requestAckDebounce);
+      if (!sm.enabled) return;
+      if (sm.timeout && !timeoutTimeout) {
+        timeoutTimeout = setTimeout(() => {
+          clearTimeout(requestAckTimeout);
+          entity.disconnect().catch(() => {
+          });
+        }, sm.timeout);
+      }
+      entity.send(xml("r", { xmlns: NS4 })).catch(() => {
+      });
+      scheduleRequestAck();
+    }
+    middleware2.filter((context, next) => {
+      const { stanza } = context;
+      if (stanza.is("enable", NS4)) {
+        sm.enableSent = true;
+      }
+      if (!sm.enabled && !sm.enableSent) return next();
+      if (!["presence", "message", "iq"].includes(stanza.name)) return next();
+      sm.outbound_q.push({ stanza, stamp: datetime() });
+      clearTimeout(requestAckTimeout);
+      clearTimeout(requestAckDebounce);
+      requestAckDebounce = setTimeout(requestAck, sm.requestAckDebounce);
+      return next();
+    });
+    if (streamFeatures2) {
+      setupStreamFeature({
+        streamFeatures: streamFeatures2,
+        sm,
+        entity,
+        resumed,
+        failed,
+        enabled
+      });
+    }
+    return sm;
+  }
+  function queueToStanza({ entity, item }) {
+    const { stanza, stamp } = item;
+    if (stanza.name === "message" && !stanza.getChild("delay", "urn:xmpp:delay")) {
+      stanza.append(
+        xml("delay", {
+          xmlns: "urn:xmpp:delay",
+          from: entity.jid.toString(),
+          stamp
+        })
+      );
+    }
+    return stanza;
+  }
+
+  // node_modules/@xmpp/client-core/src/bind2/bind2.js
+  init_globals();
+  init_xml();
+  var NS5 = "urn:xmpp:bind:0";
+  function bind2({ sasl2: sasl22, entity }, tag) {
+    const features = /* @__PURE__ */ new Map();
+    sasl22.use(
+      NS5,
+      async (element) => {
+        if (!element.is("bind", NS5)) return;
+        tag = typeof tag === "function" ? await tag() : tag;
+        const sessionFeatures = await getSessionFeatures({ element, features });
+        return xml(
+          "bind",
+          { xmlns: "urn:xmpp:bind:0" },
+          tag && xml("tag", null, tag),
+          ...sessionFeatures
+        );
+      },
+      (element) => {
+        if (!element.is("bound")) return;
+        entity._ready(false);
+        for (const child of element.getChildElements()) {
+          const feature = features.get(child.getNS());
+          feature?.[1]?.(child);
+        }
+      }
+    );
+    return {
+      use(ns2, req, res) {
+        features.set(ns2, [req, res]);
+      }
+    };
+  }
+  function getSessionFeatures({ element, features }) {
+    const promises2 = [];
+    const inline = element.getChild("inline");
+    if (!inline) return promises2;
+    for (const element2 of inline.getChildElements()) {
+      const xmlns = element2.attrs.var;
+      const feature = features.get(xmlns);
+      if (!feature) continue;
+      promises2.push(feature[0](element2));
+    }
+    return Promise.all(promises2);
+  }
+
+  // node_modules/@xmpp/client-core/src/fast/fast.js
+  init_globals();
+  init_events2();
+  init_xml();
+  var import_saslmechanisms = __toESM(require_main(), 1);
+  var NS6 = "urn:xmpp:fast:0";
+  function fast({ sasl2: sasl22, entity }) {
+    const saslFactory = new import_saslmechanisms.default();
+    let token;
+    const fast2 = new EventEmitter2();
+    Object.assign(fast2, {
+      mechanism: null,
+      mechanisms: [],
+      async saveToken(t2) {
+        token = t2;
+      },
+      async fetchToken() {
+        return token;
+      },
+      async deleteToken() {
+        token = null;
+      },
+      async save(token2) {
+        try {
+          await this.saveToken(token2);
+        } catch (err) {
+          entity.emit("error", err);
+        }
+      },
+      async fetch() {
+        try {
+          return this.fetchToken();
+        } catch (err) {
+          entity.emit("error", err);
+        }
+      },
+      async delete() {
+        try {
+          await this.deleteToken();
+        } catch (err) {
+          entity.emit("error", err);
+        }
+      },
+      saslFactory,
+      async auth({
+        authenticate: authenticate3,
+        entity: entity2,
+        userAgent: userAgent2,
+        credentials,
+        streamFeatures: streamFeatures2,
+        features
+      }) {
+        if (!fast2.mechanism) {
+          return false;
+        }
+        const { token: token2 } = credentials;
+        if (!isTokenValid(token2, fast2.mechanisms)) {
+          return onInvalidToken();
+        }
+        try {
+          await authenticate3({
+            saslFactory: fast2.saslFactory,
+            mechanism: token2.mechanism,
+            credentials: {
+              ...credentials,
+              password: token2.token
+            },
+            streamFeatures: [
+              ...streamFeatures2,
+              xml("fast", {
+                xmlns: NS6
+              })
+            ],
+            entity: entity2,
+            userAgent: userAgent2,
+            features
+          });
+          return true;
+        } catch (err) {
+          if (err instanceof SASLError_default && ["not-authorized", "credentials-expired"].includes(err.condition)) {
+            return onInvalidToken();
+          }
+          entity2.emit("error", err);
+          return false;
+        }
+        async function onInvalidToken() {
+          await fast2.delete();
+          requestToken(streamFeatures2);
+          return false;
+        }
+      }
+    });
+    function requestToken(streamFeatures2) {
+      streamFeatures2.push(
+        xml("request-token", {
+          xmlns: NS6,
+          mechanism: fast2.mechanism
+        })
+      );
+    }
+    function reset() {
+      fast2.mechanism = null;
+      fast2.mechanisms = [];
+    }
+    reset();
+    sasl22.use(
+      NS6,
+      async (element) => {
+        if (!element.is("fast", NS6)) return reset();
+        fast2.available = true;
+        const mechanisms = getAvailableMechanisms(element, NS6, saslFactory);
+        const mechanism = mechanisms[0];
+        if (!mechanism) return reset();
+        fast2.mechanisms = mechanisms;
+        fast2.mechanism = mechanism;
+      },
+      async (element) => {
+        if (element.is("token", NS6)) {
+          await fast2.save({
+            // The token is bound by the mechanism
+            // > Servers MUST bind tokens to the mechanism selected by the client in its original request, and reject attempts to use them with other mechanisms.
+            mechanism: fast2.mechanism,
+            token: element.attrs.token,
+            expiry: element.attrs.expiry
+          });
+        }
+      }
+    );
+    return fast2;
+  }
+  function isTokenValid(token, mechanisms) {
+    if (!token) return false;
+    if (!mechanisms.includes(token.mechanism)) {
+      return false;
+    }
+    if (new Date(token.expiry) <= /* @__PURE__ */ new Date()) {
+      return false;
+    }
+    return true;
+  }
+
+  // node_modules/@xmpp/client/index.js
+  var import_saslmechanisms2 = __toESM(require_main(), 1);
+  var import_sasl_scram_sha_1 = __toESM(require_sasl_scram_sha_1(), 1);
+
+  // node_modules/@xmpp/sasl-plain/index.js
+  init_globals();
+  var import_sasl_plain = __toESM(require_main2(), 1);
+  function saslPlain(sasl3) {
+    sasl3.use(import_sasl_plain.default);
+  }
+
+  // node_modules/@xmpp/sasl-anonymous/index.js
+  init_globals();
+  var import_sasl_anonymous = __toESM(require_main3(), 1);
+  function saslAnonymous(sasl3) {
+    sasl3.use(import_sasl_anonymous.default);
+  }
+
+  // node_modules/@xmpp/sasl-ht-sha-256-none/index.js
+  init_globals();
+  function Mechanism() {
+  }
+  Mechanism.prototype.Mechanism = Mechanism;
+  Mechanism.prototype.name = "HT-SHA-256-NONE";
+  Mechanism.prototype.clientFirst = true;
+  Mechanism.prototype.response = async function response({ username, password }) {
+    this.key = await crypto.subtle.importKey(
+      "raw",
+      new TextEncoder().encode(password),
+      // https://developer.mozilla.org/en-US/docs/Web/API/HmacImportParams
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      // extractable
+      ["sign", "verify"]
+    );
+    const signature = await crypto.subtle.sign(
+      "HMAC",
+      this.key,
+      new TextEncoder().encode("Initiator")
+    );
+    return `${username}\0${String.fromCodePoint(...new Uint8Array(signature))}`;
+  };
+  Mechanism.prototype.final = async function final(data) {
+    const signature = Uint8Array.from(data, (c2) => c2.codePointAt(0));
+    const result = await crypto.subtle.verify(
+      "HMAC",
+      this.key,
+      signature,
+      new TextEncoder().encode("Responder")
+    );
+    if (result !== true) {
+      throw new Error("Responder message from server was wrong");
+    }
+  };
+  function saslHashedToken(sasl3) {
+    sasl3.use(Mechanism);
+  }
+
+  // node_modules/@xmpp/client/lib/createOnAuthenticate.js
+  init_globals();
+  var ANONYMOUS = "ANONYMOUS";
+  var PLAIN = "PLAIN";
+  function createOnAuthenticate(credentials, userAgent2) {
+    return async function onAuthenticate(...args) {
+      if (typeof credentials === "function") {
+        await credentials(...args);
+        return;
+      }
+      const [authenticate3, mechanisms, fast2, entity] = args;
+      credentials.token ??= await fast2?.fetch();
+      const mechanism = getMechanism({ mechanisms, entity, credentials });
+      await authenticate3(credentials, mechanism, userAgent2);
+    };
+  }
+  function getMechanism({ mechanisms, entity, credentials }) {
+    if (!credentials?.username && !credentials?.password && !credentials?.token && mechanisms.includes(ANONYMOUS)) {
+      return ANONYMOUS;
+    }
+    if (entity.isSecure()) return mechanisms[0];
+    return mechanisms.find((mechanism) => mechanism !== PLAIN);
+  }
+
+  // node_modules/@xmpp/client/lib/getDomain.js
+  init_globals();
+  function getDomain(service2) {
+    const domain = service2.split("://")[1] || service2;
+    return domain.split(":")[0].split("/")[0];
+  }
+
+  // node_modules/@xmpp/client/index.js
+  function client(options = {}) {
+    let { resource, credentials, username, password, userAgent: userAgent2, ...params } = options;
+    const { domain, service: service2 } = params;
+    if (!domain && service2) {
+      params.domain = getDomain(service2);
+    }
+    const entity = new Client_default(params);
+    if (username && params.domain) {
+      entity.jid = jid_default(username, params.domain);
+    }
+    const reconnect2 = reconnect({ entity });
+    const websocket2 = websocket({ entity });
+    const tcp = setupIfAvailable(import_tcp.default, { entity });
+    const tls = setupIfAvailable(import_tls.default, { entity });
+    const middleware2 = middleware({ entity });
+    const streamFeatures2 = streamFeatures({ middleware: middleware2 });
+    const iqCaller2 = iqCaller({ middleware: middleware2, entity });
+    const iqCallee2 = iqCallee({ middleware: middleware2, entity });
+    const resolve6 = resolve4({ entity });
+    const saslFactory = new import_saslmechanisms2.default();
+    const mechanisms = Object.entries({
+      ...typeof import_sasl_scram_sha_1.default === "function" && { scramsha1: import_sasl_scram_sha_1.default },
+      plain: saslPlain,
+      anonymous: saslAnonymous
+    }).map(([k2, v2]) => ({ [k2]: v2(saslFactory) }));
+    userAgent2 ??= xml("user-agent", { id: globalThis.crypto.randomUUID() });
+    const starttls = setupIfAvailable(import_starttls.default, { streamFeatures: streamFeatures2 });
+    const sasl22 = sasl2(
+      { streamFeatures: streamFeatures2, saslFactory },
+      createOnAuthenticate(credentials ?? { username, password }, userAgent2)
+    );
+    const fast2 = fast({
+      sasl2: sasl22,
+      entity
+    });
+    sasl22.setup({ fast: fast2 });
+    const bind22 = bind2({ sasl2: sasl22, entity }, resource);
+    saslHashedToken(fast2.saslFactory);
+    const sasl3 = sasl(
+      { streamFeatures: streamFeatures2, saslFactory },
+      createOnAuthenticate(credentials ?? { username, password }, userAgent2)
+    );
+    const streamManagement2 = streamManagement({
+      streamFeatures: streamFeatures2,
+      entity,
+      middleware: middleware2,
+      bind2: bind22,
+      sasl2: sasl22
+    });
+    const resourceBinding2 = resourceBinding(
+      { iqCaller: iqCaller2, streamFeatures: streamFeatures2 },
+      resource
+    );
+    iqCallee2?.get("urn:xmpp:ping", "ping", () => {
+      return {};
+    });
+    return Object.assign(entity, {
+      entity,
+      reconnect: reconnect2,
+      tcp,
+      websocket: websocket2,
+      tls,
+      middleware: middleware2,
+      streamFeatures: streamFeatures2,
+      iqCaller: iqCaller2,
+      iqCallee: iqCallee2,
+      resolve: resolve6,
+      starttls,
+      saslFactory,
+      sasl2: sasl22,
+      sasl: sasl3,
+      resourceBinding: resourceBinding2,
+      streamManagement: streamManagement2,
+      mechanisms,
+      bind2: bind22,
+      fast: fast2
+    });
+  }
+  function setupIfAvailable(module, ...args) {
+    if (typeof module !== "function") {
+      return void 0;
+    }
+    return module(...args);
+  }
+
+  // src/core/xmpp-client-bridge.ts
+  init_xml();
   var NS_PUBSUB = "http://jabber.org/protocol/pubsub";
-  var NS_DISCO_INFO = "http://jabber.org/protocol/disco#info";
-  var NS_DISCO_ITEMS = "http://jabber.org/protocol/disco#items";
+  var NS_PUBSUB_EVENT = "http://jabber.org/protocol/pubsub#event";
   var NS_MUC = "http://jabber.org/protocol/muc";
-  var ATOM_XMLNS = "http://www.w3.org/2005/Atom";
-  var NS_APP_SETTINGS = "appSettings";
-  var KEY_FEDERATION_SETTINGS = "federation";
-  var XmppServerBridge = class extends EventEmitter2 {
-    configStore;
-    storage;
-    component = null;
-    componentDomain = "";
-    componentStatus = "disconnected";
-    federationEnabled = true;
-    s2sDomain = "";
-    s2sConnections = /* @__PURE__ */ new Map();
-    mucRooms = /* @__PURE__ */ new Map();
+  var XmppClientBridge = class extends EventEmitter2 {
+    client = null;
+    status = "disconnected";
+    domain = "";
     pendingIq = /* @__PURE__ */ new Map();
     iqTimeoutMs = 3e4;
-    feedPubsubMap = /* @__PURE__ */ new Map();
-    pubsubFeedMap = /* @__PURE__ */ new Map();
-    mucBridgeMap = /* @__PURE__ */ new Map();
-    constructor(storage2, passphrase) {
-      super();
-      this.storage = storage2;
-      this.configStore = new XmppComponentConfigStore(storage2, passphrase || "default");
+    get connectionInfo() {
+      return { type: "component", domain: this.domain, status: this.status };
     }
-    async loadSettings() {
-      try {
-        const raw = await this.storage.getRecord(NS_APP_SETTINGS, KEY_FEDERATION_SETTINGS);
-        if (raw) {
-          const settings = JSON.parse(raw);
-          if (typeof settings.s2sDomain === "string") this.s2sDomain = settings.s2sDomain;
-          if (typeof settings.federationEnabled === "boolean") this.federationEnabled = settings.federationEnabled;
+    get isConnected() {
+      return this.status === "connected";
+    }
+    async discoverWebSocketUrl(domain) {
+      return this.discoverViaDNS(domain);
+    }
+    async discoverViaDNS(domain) {
+      const providers = [
+        { url: `https://dns.google/resolve?name=_xmppconnect.${domain}&type=TXT`, json: true },
+        { url: `https://cloudflare-dns.com/dns-query?name=_xmppconnect.${domain}&type=TXT`, json: true, accept: "application/dns-json" }
+      ];
+      for (const provider of providers) {
+        try {
+          const headers = {};
+          if (provider.accept) headers.Accept = provider.accept;
+          const resp = await fetch(provider.url, { signal: AbortSignal.timeout(4e3), headers });
+          if (resp.ok) {
+            const data = await resp.json();
+            if (data.Answer) {
+              for (const ans of data.Answer) {
+                const val = ans.data.replace(/"/g, "");
+                if (val.startsWith("_xmpp-client-websocket=")) {
+                  return val.split("=")[1];
+                }
+              }
+            }
+          }
+        } catch {
         }
-      } catch {
       }
+      return null;
     }
-    async saveSettings() {
-      try {
-        const settings = { s2sDomain: this.s2sDomain, federationEnabled: this.federationEnabled };
-        await this.storage.putRecord(NS_APP_SETTINGS, KEY_FEDERATION_SETTINGS, JSON.stringify(settings), (/* @__PURE__ */ new Date()).toISOString());
-      } catch {
-      }
-    }
-    async connectComponent(host, port, secret, domain) {
-      if (this.component) {
-        throw new Error(`Already connected as component ${this.componentDomain}`);
-      }
-      this.componentStatus = "connecting";
-      this.emitConnection("component", domain, "connecting");
-      const service2 = `xmpp://${host}:${port}`;
-      const { component: xmppComponent } = await Promise.resolve().then(() => (init_component(), component_exports));
-      const comp = xmppComponent({ service: service2, domain, password: secret });
-      this.component = comp;
-      this.componentDomain = domain;
-      comp.on("online", () => {
-        this.componentStatus = "connected";
-        this.emitConnection("component", domain, "connected");
-        console.log(`[XMPP Component] Connected as ${domain}`);
+    async connect(credentials) {
+      await this.disconnect().catch(() => {
       });
-      comp.on("stanza", (stanza) => {
-        this.handleComponentStanza(stanza);
+      const jidObj = jid_default(credentials.jid);
+      this.domain = jidObj.domain;
+      this.status = "connecting";
+      this.emit("connection", this.connectionInfo);
+      let service2 = credentials.service;
+      if (service2 && /^wss?:\/\//.test(service2)) {
+      } else if (service2 && !/:\/\//.test(service2)) {
+        service2 = await this.discoverWebSocketUrl(service2) || this.defaultWsUrl(service2);
+      } else {
+        service2 = await this.discoverWebSocketUrl(this.domain) || this.defaultWsUrl(this.domain);
+      }
+      const clientOptions = {
+        domain: this.domain,
+        username: jidObj.local,
+        password: credentials.password
+      };
+      if (service2) {
+        clientOptions.service = service2;
+      }
+      this.client = client(clientOptions);
+      const client2 = this.client;
+      client2.on("online", () => {
+        this.status = "connected";
+        this.domain = client2?.jid?.domain || this.domain;
+        this.emit("connection", this.connectionInfo);
       });
-      comp.on("status", (status) => {
+      this.client.on("stanza", (stanza) => {
+        this.handleStanza(stanza);
+      });
+      this.client.on("status", (status) => {
         if (status === "disconnect" || status === "offline") {
-          this.componentStatus = "disconnected";
-          this.emitConnection("component", domain, "disconnected");
-          this.mucRooms.delete(domain);
-          console.log(`[XMPP Component] Disconnected from ${domain}`);
-          this.component = null;
-          this.componentDomain = "";
-          for (const [id2, pending] of this.pendingIq) {
+          this.status = "disconnected";
+          this.emit("connection", { ...this.connectionInfo, status: "disconnected" });
+          for (const [, pending] of this.pendingIq) {
             clearTimeout(pending.timer);
-            pending.reject(new Error("Component disconnected"));
+            pending.reject(new Error("Server disconnected"));
           }
           this.pendingIq.clear();
         }
       });
-      comp.on("error", (err) => {
-        this.componentStatus = "error";
-        this.emitConnection("component", domain, "error", err.message);
-        console.error(`[XMPP Component] Error: ${err.message}`);
+      this.client.on("error", (err) => {
+        this.status = "error";
+        this.emit("connection", { ...this.connectionInfo, status: "error", error: err.message });
+        if (disconnectReject) disconnectReject(err);
       });
+      let disconnectReject = null;
+      const onDisconnect = (status) => {
+        if ((status === "disconnect" || status === "offline") && disconnectReject) {
+          disconnectReject(new Error("Server disconnected before authentication completed"));
+        }
+      };
+      this.client.on("status", onDisconnect);
       try {
-        await comp.start();
+        await Promise.race([
+          this.client.start(),
+          new Promise((_2, reject) => {
+            disconnectReject = reject;
+            setTimeout(() => reject(new Error("Connection timed out after 30 seconds")), 3e4);
+          })
+        ]);
       } catch (err) {
-        this.componentStatus = "disconnected";
-        this.component = null;
-        this.componentDomain = "";
-        this.emitConnection("component", domain, "error", err.message);
-        throw new Error(`Failed to connect component ${domain}: ${err.message}`);
+        disconnectReject = null;
+        this.client?.removeListener?.("status", onDisconnect);
+        this.status = "disconnected";
+        this.emit("connection", { ...this.connectionInfo, status: "disconnected" });
+        throw new Error(`Failed to connect: ${err.message}`);
       }
+      disconnectReject = null;
+      this.client?.removeListener?.("status", onDisconnect);
     }
-    async disconnectComponent() {
-      if (!this.component) {
-        throw new Error("Component not connected");
+    async disconnect() {
+      if (!this.client) return;
+      const oldClient = this.client;
+      try {
+        oldClient.reconnect?.stop?.();
+        await oldClient.stop();
+      } catch {
       }
-      const domain = this.componentDomain;
-      await this.component.stop();
-      this.component = null;
-      this.componentDomain = "";
-      this.componentStatus = "disconnected";
-      this.mucRooms.delete(domain);
-      this.emitConnection("component", domain, "disconnected");
-      for (const [id2, pending] of this.pendingIq) {
+      oldClient.removeAllListeners?.("online");
+      oldClient.removeAllListeners?.("stanza");
+      oldClient.removeAllListeners?.("status");
+      oldClient.removeAllListeners?.("error");
+      this.client = null;
+      this.status = "disconnected";
+      this.emit("connection", { ...this.connectionInfo, status: "disconnected" });
+      for (const [, pending] of this.pendingIq) {
         clearTimeout(pending.timer);
-        pending.reject(new Error("Component disconnected"));
+        pending.reject(new Error("Server disconnected"));
       }
       this.pendingIq.clear();
     }
-    isComponentConnected() {
-      return this.componentStatus === "connected";
+    /**
+     * Returns a sensible WebSocket fallback URL for a domain per XEP-0156 conventions.
+     * Uses port 5443 for wss:// (most ejabberd/Prosody HTTPS listeners) with the
+     * standard /xmpp-websocket path, which Prosody defaults to. Ejabberd also accepts
+     * this path. Change this if your server uses a non-standard path.
+     */
+    defaultWsUrl(domain) {
+      return `wss://${domain}:5443/xmpp-websocket`;
     }
-    setFederationEnabled(enabled) {
-      this.federationEnabled = enabled;
-      if (!enabled) {
-        void this.disconnectAll();
+    async register(domainOrService, username, password) {
+      const isUrl = /^wss?:\/\//.test(domainOrService);
+      let service2;
+      let domain;
+      if (isUrl) {
+        domain = domainOrService.split("/")[2]?.split(":")[0] || domainOrService;
+        service2 = domainOrService;
+      } else {
+        domain = domainOrService;
+        const discovered = await this.discoverWebSocketUrl(domainOrService);
+        service2 = discovered || this.defaultWsUrl(domainOrService);
       }
-      void this.saveSettings();
+      return new Promise((resolve6, reject) => {
+        const ws2 = new WebSocket(service2, ["xmpp"]);
+        let buffer = "";
+        let step = "open";
+        let done = false;
+        const finish = (fn2) => {
+          if (done) return;
+          done = true;
+          clearTimeout(timeout2);
+          try {
+            ws2.close();
+          } catch {
+          }
+          fn2();
+        };
+        const timeout2 = setTimeout(() => {
+          finish(() => reject(new Error("Registration timed out")));
+        }, 15e3);
+        ws2.onopen = () => {
+          ws2.send(`<open xmlns='urn:ietf:params:xml:ns:xmpp-framing' to='${domain}' version='1.0'/>`);
+        };
+        ws2.onmessage = (event) => {
+          if (done) return;
+          buffer += typeof event.data === "string" ? event.data : new TextDecoder().decode(event.data);
+          if (step === "open") {
+            if (buffer.includes("<open ") || buffer.includes("<stream:stream")) {
+              step = "features";
+            } else {
+              return;
+            }
+          }
+          if (step === "features" && buffer.includes("</stream:features>")) {
+            const supportsRegistration = buffer.includes("http://jabber.org/features/iq-register") || buffer.includes("jabber:iq:register");
+            if (!supportsRegistration) {
+              finish(() => reject(new Error("Server does not support in-band registration")));
+              return;
+            }
+            step = "form";
+            buffer = "";
+            ws2.send(`<iq type='get' id='reg-1'><query xmlns='jabber:iq:register'/></iq>`);
+            return;
+          }
+          if (step === "form") {
+            const match = buffer.match(/id=['"](reg-1)['"]/);
+            if (match && (buffer.includes('type="result"') || buffer.includes("type='result'"))) {
+              step = "submit";
+              buffer = "";
+              const u2 = username.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+              const p2 = password.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+              ws2.send(`<iq type='set' id='reg-2'><query xmlns='jabber:iq:register'><username>${u2}</username><password>${p2}</password></query></iq>`);
+              return;
+            }
+          }
+          if (step === "submit") {
+            const match = buffer.match(/id=['"](reg-2)['"]/);
+            if (match && (buffer.includes('type="result"') || buffer.includes("type='result'"))) {
+              finish(() => resolve6(service2));
+              return;
+            }
+          }
+          if (!done && (buffer.includes('type="error"') || buffer.includes("type='error'"))) {
+            const textMatch = buffer.match(/<text[^>]*>([^<]+)<\/text>/);
+            const errText = textMatch?.[1] || "Registration rejected by server";
+            finish(() => reject(new Error(errText)));
+          }
+        };
+        ws2.onerror = () => {
+          finish(() => reject(new Error("WebSocket connection failed")));
+        };
+      });
     }
-    isFederationEnabled() {
-      return this.federationEnabled;
+    async sendStanza(stanza) {
+      if (!this.client) throw new Error("Not connected to server");
+      await this.client.send(stanza);
     }
-    setS2SDomain(domain) {
-      this.s2sDomain = domain;
-      void this.saveSettings();
-    }
-    async resolveComponentEndpoint(domain) {
-      try {
-        const { resolveSrv: resolveSrv2 } = await Promise.resolve().then(() => (init_dns_promises(), dns_promises_exports));
-        const records = await resolveSrv2(`_xmpp-component._tcp.${domain}`);
-        return { host: records[0].name, port: records[0].port };
-      } catch {
-        return { host: domain, port: 5347 };
-      }
-    }
-    getS2SDomain() {
-      return this.s2sDomain;
-    }
-    async sendMessage(to2, body, options, fromLocalpart) {
-      const id2 = Math.random().toString(36).substring(2, 15);
-      const from7 = this.getFromAddress(fromLocalpart);
+    async sendMessage(to2, body, options) {
+      const id2 = options?.replace || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const attrs = { to: to2, type: options?.type || "chat", id: id2 };
       const children = [xml("body", {}, body)];
-      if (options?.thread) {
-        children.push(xml("thread", {}, options.thread));
-      }
-      const msg = xml("message", { to: to2, from: from7, type: "chat", id: id2 }, ...children);
-      await this.sendStanza(to2, msg);
+      if (options?.thread) children.push(xml("thread", {}, options.thread));
+      if (options?.replace) children.push(xml("replace", { id: options.replace, xmlns: "urn:xmpp:message-correct:0" }));
+      await this.sendStanza(xml("message", attrs, ...children));
       return id2;
     }
-    async joinMuc(roomJid, nick, fromLocalpart) {
-      const from7 = this.getFromAddress(fromLocalpart);
-      const fullJid = `${roomJid}/${nick}`;
-      const pres = xml(
+    async sendPresence(type2, status, show) {
+      const attrs = {};
+      if (type2) attrs.type = type2;
+      const children = [];
+      if (show) children.push(xml("show", {}, show));
+      if (status) children.push(xml("status", {}, status));
+      await this.sendStanza(xml("presence", attrs, ...children));
+    }
+    async sendIQ(to2, type2, queryEl) {
+      const id2 = `iq-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const stanza = xml("iq", { to: to2, type: type2, id: id2 }, queryEl);
+      await this.sendStanza(stanza);
+      return new Promise((resolve6, reject) => {
+        const timer = setTimeout(() => {
+          this.pendingIq.delete(id2);
+          reject(new Error(`IQ timeout: ${id2}`));
+        }, this.iqTimeoutMs);
+        this.pendingIq.set(id2, { resolve: resolve6, reject, timer });
+      });
+    }
+    async joinMuc(roomJid, nick) {
+      await this.sendStanza(xml(
         "presence",
-        { to: fullJid, from: from7 },
+        { to: `${roomJid}/${nick}` },
         xml("x", { xmlns: NS_MUC })
-      );
-      await this.sendStanza(roomJid, pres);
-      const domain = roomJid.includes("@") ? roomJid.split("@")[1] : "";
-      const rooms = this.mucRooms.get(domain) || /* @__PURE__ */ new Set();
-      rooms.add(roomJid);
-      this.mucRooms.set(domain, rooms);
+      ));
     }
-    async sendMucMessage(roomJid, body, fromLocalpart) {
-      const id2 = Math.random().toString(36).substring(2, 15);
-      const from7 = this.getFromAddress(fromLocalpart);
-      const msg = xml(
-        "message",
-        { to: roomJid, from: from7, type: "groupchat", id: id2 },
-        xml("body", {}, body)
-      );
-      await this.sendStanza(roomJid, msg);
-      return id2;
+    async sendMucMessage(roomJid, body) {
+      return this.sendMessage(roomJid, body, { type: "groupchat" });
     }
-    async leaveMuc(roomJid, fromLocalpart) {
-      const from7 = this.getFromAddress(fromLocalpart);
-      const pres = xml("presence", {
-        to: `${roomJid}/${this.getMucNick()}`,
-        from: from7,
-        type: "unavailable"
-      });
-      await this.sendStanza(roomJid, pres).catch(() => {
-      });
-      const domain = roomJid.includes("@") ? roomJid.split("@")[1] : "";
-      const rooms = this.mucRooms.get(domain);
-      if (rooms) {
-        rooms.delete(roomJid);
-        if (rooms.size === 0) this.mucRooms.delete(domain);
-      }
+    async leaveMuc(roomJid, nick) {
+      await this.sendStanza(xml("presence", { to: `${roomJid}/${nick}`, type: "unavailable" }));
     }
-    // Phase 2: PubSub operations
-    async pubsubSubscribe(nodeJid, node, fromLocalpart) {
-      const from7 = this.getFromAddress(fromLocalpart);
+    async pubsubSubscribe(nodeJid, node) {
       const iq = xml(
         "iq",
-        { type: "set", id: "", to: nodeJid, from: from7 },
+        { to: nodeJid, type: "set" },
         xml(
           "pubsub",
           { xmlns: NS_PUBSUB },
-          xml("subscribe", { node, jid: from7 })
+          xml("subscribe", { node, jid: this.client?.jid?.toString() || "" })
         )
       );
-      await this.sendIQ(nodeJid, iq);
+      await this.sendStanza(iq);
     }
-    async pubsubPublish(nodeJid, node, itemId, payload, fromLocalpart) {
-      const iqId = Math.random().toString(36).substring(2, 15);
+    async pubsubPublish(nodeJid, node, itemId, payload) {
       const iq = xml(
         "iq",
-        { type: "set", id: iqId, to: nodeJid, from: this.getFromAddress(fromLocalpart) },
+        { to: nodeJid, type: "set" },
         xml(
           "pubsub",
           { xmlns: NS_PUBSUB },
@@ -76763,532 +78026,140 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
           )
         )
       );
-      await this.sendIQ(nodeJid, iq);
-      return itemId;
+      await this.sendStanza(iq);
     }
-    async pubsubGetItems(nodeJid, node, maxItems, fromLocalpart) {
-      const iqId = Math.random().toString(36).substring(2, 15);
+    async pubsubGetItems(nodeJid, node, maxItems) {
       const attrs = { node };
-      if (maxItems !== void 0) attrs["max_items"] = String(maxItems);
-      const iq = xml(
-        "iq",
-        { type: "get", id: iqId, to: nodeJid, from: this.getFromAddress(fromLocalpart) },
+      if (maxItems !== void 0) attrs.max_items = String(maxItems);
+      const result = await this.sendIQ(
+        nodeJid,
+        "get",
         xml(
           "pubsub",
           { xmlns: NS_PUBSUB },
           xml("items", attrs)
         )
       );
-      const result = await this.sendIQ(nodeJid, iq);
-      const pubsubEl = result.getChild("pubsub");
-      if (!pubsubEl) return [];
-      const itemsEl = pubsubEl.getChild("items");
-      if (!itemsEl) return [];
-      return itemsEl.children.filter((c2) => c2.name === "item");
+      const pubsub = result.getChild("pubsub");
+      if (!pubsub) return [];
+      const items = pubsub.getChild("items");
+      if (!items) return [];
+      return items.children.filter((c2) => c2 instanceof import_Element2.default) || [];
     }
-    async pubsubUnsubscribe(nodeJid, node, fromLocalpart) {
-      const from7 = this.getFromAddress(fromLocalpart);
+    async pubsubUnsubscribe(nodeJid, node) {
       const iq = xml(
         "iq",
-        { type: "set", id: "", to: nodeJid, from: from7 },
+        { to: nodeJid, type: "set" },
         xml(
           "pubsub",
           { xmlns: NS_PUBSUB },
-          xml("unsubscribe", { node, jid: from7 })
+          xml("unsubscribe", { node, jid: this.client?.jid?.toString() || "" })
         )
       );
-      await this.sendIQ(nodeJid, iq);
+      await this.sendStanza(iq);
     }
-    async pubsubCreateNode(nodeJid, node, fromLocalpart) {
-      const iq = xml(
-        "iq",
-        { type: "set", id: "", to: nodeJid, from: this.getFromAddress(fromLocalpart) },
-        xml(
-          "pubsub",
-          { xmlns: NS_PUBSUB },
-          xml("create", { node })
-        )
+    async discoInfo(jid2) {
+      const result = await this.sendIQ(
+        jid2,
+        "get",
+        xml("query", { xmlns: "http://jabber.org/protocol/disco#info" })
       );
-      await this.sendIQ(nodeJid, iq);
-    }
-    // Phase 3: Feed bridge config
-    async setFeedBridge(feedTopic, pubsubNode) {
-      this.feedPubsubMap.set(feedTopic, pubsubNode);
-      this.pubsubFeedMap.set(pubsubNode, feedTopic);
-    }
-    async removeFeedBridge(feedTopic) {
-      const pubsubNode = this.feedPubsubMap.get(feedTopic);
-      if (pubsubNode) {
-        this.feedPubsubMap.delete(feedTopic);
-        this.pubsubFeedMap.delete(pubsubNode);
-      }
-    }
-    getFeedBridge(feedTopic) {
-      return this.feedPubsubMap.get(feedTopic);
-    }
-    getAllFeedBridges() {
-      return Array.from(this.feedPubsubMap.entries()).map(([feedTopic, pubsubNode]) => ({ feedTopic, pubsubNode }));
-    }
-    getPubsubFeedBridge(pubsubNode) {
-      return this.pubsubFeedMap.get(pubsubNode);
-    }
-    async crossPostFeedToPubSub(feedPost) {
-      if (!this.component) return;
-      const pubsubNode = this.feedPubsubMap.get(feedPost.id.split(":")[0]);
-      if (!pubsubNode) return;
-      const children = [];
-      if (feedPost.title) {
-        children.push(xml("title", { type: "text" }, feedPost.title));
-      }
-      children.push(xml("id", {}, feedPost.id));
-      children.push(xml("published", {}, (/* @__PURE__ */ new Date()).toISOString()));
-      children.push(xml("updated", {}, (/* @__PURE__ */ new Date()).toISOString()));
-      if (feedPost.author) {
-        children.push(xml("author", {}, xml("name", {}, feedPost.author)));
-      }
-      if (feedPost.summary) {
-        children.push(xml("summary", { type: "text" }, feedPost.summary));
-      }
-      children.push(xml("content", { type: "text" }, feedPost.body));
-      if (feedPost.categories) {
-        for (const cat of feedPost.categories) {
-          children.push(xml("category", { term: cat }));
-        }
-      }
-      const entry = xml("entry", { xmlns: ATOM_XMLNS }, ...children);
-      await this.pubsubPublish(this.componentDomain, pubsubNode, feedPost.id, entry).catch((err) => {
-        console.warn(`[Bridge] Failed to cross-post to pubsub: ${err.message}`);
-      });
-    }
-    // Phase 4: Service Discovery
-    async discoInfo(jid2, fromLocalpart) {
-      const iqId = Math.random().toString(36).substring(2, 15);
-      const iq = xml(
-        "iq",
-        { type: "get", id: iqId, to: jid2, from: this.getFromAddress(fromLocalpart) },
-        xml("query", { xmlns: NS_DISCO_INFO })
-      );
-      const result = await this.sendIQ(jid2, iq);
       const query = result.getChild("query");
       if (!query) return { identities: [], features: [] };
-      const identities = query.children.filter((c2) => c2.name === "identity").map((c2) => ({ category: c2.attrs.category || "", type: c2.attrs.type || "", name: c2.attrs.name }));
-      const features = query.children.filter((c2) => c2.name === "feature").map((c2) => c2.attrs.var || "").filter(Boolean);
+      const identityEls = query.children.filter((c2) => c2.name === "identity");
+      const identities = identityEls.map((el2) => ({
+        category: el2.attrs.category || "",
+        type: el2.attrs.type || "",
+        name: el2.attrs.name
+      }));
+      const featureEls = query.children.filter((c2) => c2.name === "feature");
+      const features = featureEls.map((el2) => el2.attrs.var || "");
       return { identities, features };
     }
-    async discoItems(jid2, fromLocalpart) {
-      const iqId = Math.random().toString(36).substring(2, 15);
-      const iq = xml(
-        "iq",
-        { type: "get", id: iqId, to: jid2, from: this.getFromAddress(fromLocalpart) },
-        xml("query", { xmlns: NS_DISCO_ITEMS })
+    async discoItems(jid2) {
+      const result = await this.sendIQ(
+        jid2,
+        "get",
+        xml("query", { xmlns: "http://jabber.org/protocol/disco#items" })
       );
-      const result = await this.sendIQ(jid2, iq);
       const query = result.getChild("query");
       if (!query) return { items: [] };
-      const items = query.children.filter((c2) => c2.name === "item").map((c2) => ({ jid: c2.attrs.jid || "", node: c2.attrs.node, name: c2.attrs.name }));
+      const itemEls = query.children.filter((c2) => c2.name === "item");
+      const items = itemEls.map((el2) => ({
+        jid: el2.attrs.jid || "",
+        node: el2.attrs.node,
+        name: el2.attrs.name
+      }));
       return { items };
     }
-    // Phase 5: MUC bridge config
-    async setMucBridge(serverRoom, p2pRoom) {
-      this.mucBridgeMap.set(serverRoom, p2pRoom);
-    }
-    async removeMucBridge(serverRoom) {
-      this.mucBridgeMap.delete(serverRoom);
-    }
-    getMucBridge(serverRoom) {
-      return this.mucBridgeMap.get(serverRoom);
-    }
-    getAllMucBridges() {
-      return Array.from(this.mucBridgeMap.entries()).map(([serverRoom, p2pRoom]) => ({ serverRoom, p2pRoom }));
-    }
-    // Status
-    getConnectionInfo() {
-      const infos = [];
-      if (this.componentDomain) {
-        infos.push({
-          type: "component",
-          domain: this.componentDomain,
-          status: this.componentStatus
+    handleStanza(stanza) {
+      if (stanza.name === "message") {
+        this.handleMessage(stanza);
+      } else if (stanza.name === "presence") {
+        this.emit("presence", {
+          from: stanza.attrs.from || "",
+          to: stanza.attrs.to || "",
+          type: stanza.attrs.type,
+          show: stanza.getChild("show")?.text(),
+          status: stanza.getChild("status")?.text(),
+          server: this.domain
         });
-      }
-      if (this.s2sDomain) {
-        infos.push({
-          type: "s2s",
-          domain: this.s2sDomain,
-          status: "connected"
-        });
-      }
-      return infos;
-    }
-    isFederatedJid(target) {
-      if (!this.federationEnabled) return false;
-      const atIndex = target.lastIndexOf("@");
-      if (atIndex < 0) return false;
-      const domain = target.slice(atIndex + 1);
-      return domain !== "p2p" && domain !== "";
-    }
-    async disconnectAll() {
-      if (this.component) {
-        await this.component.stop().catch(() => {
-        });
-        this.component = null;
-        this.componentDomain = "";
-        this.componentStatus = "disconnected";
-      }
-      for (const [domain, conn] of this.s2sConnections) {
-        try {
-          conn.socket.end();
-        } catch {
+      } else if (stanza.name === "iq") {
+        const id2 = stanza.attrs.id;
+        if (id2 && (stanza.attrs.type === "result" || stanza.attrs.type === "error")) {
+          const pending = this.pendingIq.get(id2);
+          if (pending) {
+            clearTimeout(pending.timer);
+            this.pendingIq.delete(id2);
+            if (stanza.attrs.type === "error") {
+              pending.reject(new Error(`IQ error: ${stanza.toString()}`));
+            } else {
+              pending.resolve(stanza);
+            }
+          }
         }
       }
-      this.s2sConnections.clear();
-      this.mucRooms.clear();
-      for (const [id2, pending] of this.pendingIq) {
-        clearTimeout(pending.timer);
-        pending.reject(new Error("Bridge disconnected"));
-      }
-      this.pendingIq.clear();
     }
-    // Private helpers
-    getFromAddress(localpart) {
-      const domain = this.componentDomain || this.s2sDomain || "p2p-node";
-      return localpart ? `${localpart}@${domain}` : domain;
-    }
-    getMucNick() {
-      return "p2p-user";
-    }
-    emitConnection(type2, domain, status, error) {
-      this.emit("connection", { type: type2, domain, status, error });
-    }
-    // Stanza sending
-    async sendStanza(to2, stanza) {
-      if (!this.federationEnabled) {
-        throw new Error("Federation is disabled");
-      }
-      if (this.component) {
-        this.component.send(stanza);
-        return;
-      }
-      if (this.s2sDomain) {
-        await this.sendViaS2S(to2, stanza);
-        return;
-      }
-      throw new Error("No federation connection available");
-    }
-    // IQ engine
-    async sendIQ(to2, iq) {
-      const id2 = iq.attrs.id || Math.random().toString(36).substring(2, 15);
-      iq.attrs.id = id2;
-      return new Promise((resolve2, reject) => {
-        const timer = setTimeout(() => {
-          this.pendingIq.delete(id2);
-          reject(new Error(`IQ timed out to ${to2}`));
-        }, this.iqTimeoutMs);
-        this.pendingIq.set(id2, { resolve: resolve2, reject, timer });
-        this.sendStanza(to2, iq).catch((err) => {
-          clearTimeout(timer);
-          this.pendingIq.delete(id2);
-          reject(err);
-        });
-      });
-    }
-    resolvePendingIQ(id2, result) {
-      const pending = this.pendingIq.get(id2);
-      if (pending) {
-        clearTimeout(pending.timer);
-        this.pendingIq.delete(id2);
-        pending.resolve(result);
-      }
-    }
-    rejectPendingIQ(id2, error) {
-      const pending = this.pendingIq.get(id2);
-      if (pending) {
-        clearTimeout(pending.timer);
-        this.pendingIq.delete(id2);
-        pending.reject(error);
-      }
-    }
-    // Inbound handler (Phase 1 - all stanzas)
-    handleComponentStanza(stanza) {
-      const domain = this.componentDomain;
-      if (!domain) return;
-      if (stanza.name === "message") {
-        this.handleInboundMessage(domain, stanza);
-      } else if (stanza.name === "presence") {
-        this.handleInboundPresence(domain, stanza);
-      } else if (stanza.name === "iq") {
-        this.handleInboundIQ(domain, stanza);
-      }
-    }
-    handleInboundMessage(domain, stanza) {
-      const type2 = stanza.attrs.type || "chat";
+    handleMessage(stanza) {
       const from7 = stanza.attrs.from || "";
       const to2 = stanza.attrs.to || "";
+      const type2 = stanza.attrs.type || "normal";
       const id2 = stanza.attrs.id || "";
-      const eventEl = stanza.getChild("event");
-      if (eventEl && eventEl.attrs.xmlns === NS_PUBSUB_EVENT) {
-        this.handleInboundPubSubEvent(domain, from7, stanza);
-        return;
-      }
-      const bodyEl = stanza.getChild("body");
-      const body = bodyEl?.text();
-      if (type2 === "headline" && body) {
-        this.emit("message", {
-          from: from7,
-          to: to2,
-          body,
-          id: id2,
-          type: type2,
-          server: domain
-        });
-        return;
-      }
-      if (type2 === "groupchat" && body) {
-        const roomJid = from7.includes("/") ? from7.slice(0, from7.indexOf("/")) : "";
-        const nick = from7.includes("/") ? from7.slice(from7.indexOf("/") + 1) : "";
-        const event = { room: roomJid, from: nick || from7, body, id: id2, server: domain };
-        this.emit("muc:message", event);
-        const p2pRoom = this.mucBridgeMap.get(roomJid);
-        if (p2pRoom) {
-          this.emit("muc:bridge", { serverRoom: roomJid, p2pRoom, from: nick || from7, body, id: id2 });
+      const body = stanza.getChild("body")?.text() || "";
+      const thread = stanza.getChild("thread")?.text();
+      const delayEl = stanza.getChild("delay");
+      const delay2 = delayEl ? { stamp: delayEl.attrs.stamp || "", from: delayEl.attrs.from } : void 0;
+      const chatState = ["active", "composing", "paused", "inactive", "gone"].map((s3) => stanza.getChild(s3)).find((child) => child?.attrs?.xmlns === "http://jabber.org/protocol/chatstates");
+      const chatStateName = chatState?.name;
+      if (type2 === "groupchat") {
+        const roomJid = from7.includes("/") ? from7.split("/")[0] : from7;
+        const nick = from7.includes("/") ? from7.split("/")[1] : void 0;
+        this.emit("muc:message", { room: roomJid, roomJid, from: from7, body, id: id2, type: "groupchat", server: this.domain, nick, delay: delay2, chatState: chatStateName });
+        if (body) {
+          this.emit("message", { from: from7, to: to2, body, id: id2, type: "groupchat", server: this.domain, thread, delay: delay2, chatState: chatStateName });
         }
         return;
       }
-      if (type2 === "chat" && body) {
-        const threadEl = stanza.getChild("thread");
-        const thread = threadEl?.text();
-        const delayEl = stanza.getChild("delay");
-        this.emit("message", {
-          from: from7,
-          to: to2,
-          body,
-          id: id2,
-          type: type2,
-          server: domain,
-          thread,
-          delay: delayEl ? { stamp: delayEl.attrs.stamp || "", from: delayEl.attrs.from } : void 0
-        });
+      const pubsubEvent = stanza.getChild("event", NS_PUBSUB_EVENT);
+      if (pubsubEvent) {
+        this.handlePubsubEvent(stanza);
+        return;
       }
+      this.emit("message", { from: from7, to: to2, body, id: id2, type: type2, server: this.domain, thread, delay: delay2, chatState: chatStateName });
     }
-    // Phase 1: Inbound PubSub event handler
-    handleInboundPubSubEvent(domain, from7, stanza) {
-      const eventEl = stanza.getChild("event");
-      if (!eventEl) return;
-      const itemsEl = eventEl.getChild("items");
-      if (!itemsEl) return;
-      const node = itemsEl.attrs.node || "";
-      const itemElements = itemsEl.children.filter((c2) => c2.name === "item");
-      for (const item of itemElements) {
-        const itemId = item.attrs.id || "";
-        const entryEl = item.getChild("entry");
-        const bodyEl = item.getChild("body");
-        if (entryEl && entryEl.attrs.xmlns === ATOM_XMLNS) {
-          const titleEl = entryEl.getChild("title");
-          const contentEl = entryEl.getChild("content");
-          const body = contentEl?.text() || entryEl.text() || "";
-          const title = titleEl?.text();
-          const pubsubEvent = { node, itemId, from: from7, server: domain, payload: { body, entry: entryEl } };
-          this.emit("pubsub:event", pubsubEvent);
-          const feedTopic = this.pubsubFeedMap.get(node);
-          if (feedTopic) {
-            this.emit("feed:bridge", {
-              feedTopic,
-              itemId,
-              body,
-              title,
-              from: from7,
-              server: domain
-            });
-          }
-        } else if (bodyEl) {
-          const body = bodyEl.text();
-          const pubsubEvent = { node, itemId, from: from7, server: domain, payload: { body } };
-          this.emit("pubsub:event", pubsubEvent);
-        }
-      }
-    }
-    // Phase 1: Inbound presence handler
-    handleInboundPresence(domain, stanza) {
-      const type2 = stanza.attrs.type || "available";
+    handlePubsubEvent(stanza) {
       const from7 = stanza.attrs.from || "";
-      const showEl = stanza.getChild("show");
-      const statusEl = stanza.getChild("status");
-      this.emit("presence", {
-        from: from7,
-        type: type2,
-        server: domain,
-        show: showEl?.text(),
-        status: statusEl?.text()
-      });
-    }
-    // Phase 1: Inbound IQ handler
-    handleInboundIQ(domain, stanza) {
-      const type2 = stanza.attrs.type || "";
-      const id2 = stanza.attrs.id || "";
-      if (type2 === "result" || type2 === "error") {
-        if (type2 === "error") {
-          const errorEl = stanza.getChild("error");
-          const text = errorEl?.getChild("text")?.text() || "IQ error";
-          this.rejectPendingIQ(id2, new Error(text));
-        } else {
-          this.resolvePendingIQ(id2, stanza);
-        }
-        return;
+      const event = stanza.getChild("event", NS_PUBSUB_EVENT);
+      if (!event) return;
+      const items = event.getChild("items");
+      if (!items) return;
+      const node = items.attrs.node || "";
+      for (const item of (items.children || []).filter((c2) => c2 instanceof import_Element2.default)) {
+        if (item.name !== "item") continue;
+        const itemId = item.attrs.id || "";
+        const entry = item.getChild("entry", "http://www.w3.org/2005/Atom");
+        this.emit("pubsub:event", { node, itemId, from: from7, server: this.domain, payload: entry ? { entry } : void 0 });
       }
-      if (type2 === "get") {
-        const queryEl = stanza.getChild("query");
-        if (!queryEl) return;
-        const xmlns = queryEl.attrs.xmlns;
-        if (xmlns === NS_DISCO_INFO) {
-          this.handleDiscoInfoIQ(domain, stanza);
-        } else if (xmlns === NS_DISCO_ITEMS) {
-          this.handleDiscoItemsIQ(domain, stanza);
-        } else if (xmlns === NS_PUBSUB) {
-          this.handlePubsubIQ(domain, stanza);
-        }
-      }
-    }
-    // Phase 4: Disco IQ handlers
-    handleDiscoInfoIQ(domain, stanza) {
-      const id2 = stanza.attrs.id;
-      const from7 = stanza.attrs.from || domain;
-      const to2 = stanza.attrs.to || this.getFromAddress();
-      const result = xml(
-        "iq",
-        { type: "result", id: id2, from: to2, to: from7 },
-        xml(
-          "query",
-          { xmlns: NS_DISCO_INFO },
-          xml("identity", { category: "pubsub", type: "p2p", name: "XMPP P2P" }),
-          xml("feature", { var: NS_PUBSUB }),
-          xml("feature", { var: NS_PUBSUB_EVENT }),
-          xml("feature", { var: NS_DISCO_INFO }),
-          xml("feature", { var: NS_DISCO_ITEMS }),
-          xml("feature", { var: "http://jabber.org/protocol/muc" }),
-          xml("feature", { var: "urn:xmpp:microblog:0" })
-        )
-      );
-      this.sendStanza(domain, result).catch(() => {
-      });
-    }
-    handleDiscoItemsIQ(domain, stanza) {
-      const id2 = stanza.attrs.id;
-      const from7 = stanza.attrs.from || domain;
-      const to2 = stanza.attrs.to || this.getFromAddress();
-      const items = this.feedPubsubMap.size > 0 ? Array.from(this.feedPubsubMap.entries()).map(
-        ([feedTopic, pubsubNode]) => xml("item", { jid: to2, node: pubsubNode, name: `Feed: ${feedTopic}` })
-      ) : [];
-      const result = xml(
-        "iq",
-        { type: "result", id: id2, from: to2, to: from7 },
-        xml("query", { xmlns: NS_DISCO_ITEMS }, ...items)
-      );
-      this.sendStanza(domain, result).catch(() => {
-      });
-    }
-    // Phase 2/4: PubSub IQ handler (server requesting pubsub operations)
-    handlePubsubIQ(domain, stanza) {
-      const queryEl = stanza.getChild("pubsub") || stanza.getChild("query");
-      if (!queryEl) return;
-      const id2 = stanza.attrs.id;
-      const from7 = stanza.attrs.from || domain;
-      const to2 = stanza.attrs.to || this.getFromAddress();
-      const error = xml(
-        "iq",
-        { type: "error", id: id2, from: to2, to: from7 },
-        xml(
-          "error",
-          { type: "cancel" },
-          xml("feature-not-implemented", { xmlns: "urn:ietf:params:xml:ns:xmpp-stanzas" })
-        )
-      );
-      this.sendStanza(domain, error).catch(() => {
-      });
-    }
-    // S2S (existing)
-    async sendViaS2S(to2, stanza) {
-      const toDomain = to2.includes("@") ? to2.split("@")[1] : to2;
-      let conn = this.s2sConnections.get(toDomain);
-      if (!conn || !conn.connected) {
-        conn = await this.establishS2SConnection(toDomain);
-        this.s2sConnections.set(toDomain, conn);
-      }
-      await this.writeS2SStanza(conn.socket, stanza);
-    }
-    async establishS2SConnection(remoteDomain) {
-      const endpoint = await this.resolveS2SEndpoint(remoteDomain);
-      console.log(`[S2S] Connecting to ${remoteDomain} at ${endpoint.host}:${endpoint.port}`);
-      const { connect: tcpConnect } = await Promise.resolve().then(() => (init_net(), net_exports));
-      return new Promise((resolve2, reject) => {
-        const socket = tcpConnect(endpoint.port, endpoint.host, () => {
-          const streamOpen = `<?xml version='1.0'?><stream:stream to='${remoteDomain}' from='${this.s2sDomain}' version='1.0' xml:lang='en' xmlns='${NS_JABBER_SERVER}' xmlns:stream='http://etherx.jabber.org/streams'>`;
-          socket.write(streamOpen);
-        });
-        const parser2 = new Parser_default();
-        let streamOpened = false;
-        parser2.on("element", (element) => {
-          if (!streamOpened) {
-            streamOpened = true;
-            return;
-          }
-          if (element.name === "features" && element.attrs.xmlns !== NS_JABBER_SERVER) {
-            this.attemptS2SUpgrade(socket, parser2, remoteDomain, element).then(() => resolve2({ socket, connected: true })).catch(reject);
-          }
-        });
-        socket.on("error", reject);
-        socket.on("close", () => this.s2sConnections.delete(remoteDomain));
-        socket.on("data", (data) => parser2.write(data.toString("utf8")));
-        setTimeout(() => resolve2({ socket, connected: true }), 5e3);
-      });
-    }
-    async attemptS2SUpgrade(socket, _parser, domain, _features) {
-      const starttls = xml("starttls", { xmlns: "urn:ietf:params:xml:ns:xmpp-tls" });
-      const { connect: tlsConnect } = await Promise.resolve().then(() => (init_tls(), tls_exports));
-      return new Promise((resolve2, reject) => {
-        let tlsNegotiated = false;
-        const tlsParser = new Parser_default();
-        tlsParser.on("element", (el2) => {
-          if (el2.name === "proceed" && !tlsNegotiated) {
-            tlsNegotiated = true;
-            const tlsSocket = tlsConnect({
-              socket,
-              servername: domain,
-              rejectUnauthorized: false
-            }, () => {
-              const reOpen = `<?xml version='1.0'?><stream:stream to='${domain}' from='${this.s2sDomain}' version='1.0' xml:lang='en' xmlns='${NS_JABBER_SERVER}' xmlns:stream='http://etherx.jabber.org/streams'>`;
-              tlsSocket.write(reOpen);
-              resolve2();
-            });
-            tlsSocket.on("data", (data) => _parser.write(data.toString("utf8")));
-            tlsSocket.on("error", reject);
-          }
-        });
-        socket.write(starttls.toString());
-        socket.on("data", (data) => {
-          if (!tlsNegotiated) tlsParser.write(data.toString("utf8"));
-        });
-      });
-    }
-    async writeS2SStanza(socket, stanza) {
-      stanza.attrs.from = stanza.attrs.from || this.s2sDomain;
-      socket.write(stanza.toString());
-    }
-    async resolveS2SEndpoint(domain) {
-      const { resolveSrv: resolveSrv2 } = await Promise.resolve().then(() => (init_dns_promises(), dns_promises_exports));
-      try {
-        const records = await resolveSrv2(`_xmpps-server._tcp.${domain}`);
-        return { host: records[0].name, port: records[0].port };
-      } catch {
-        try {
-          const records = await resolveSrv2(`_xmpp-server._tcp.${domain}`);
-          return { host: records[0].name, port: records[0].port };
-        } catch {
-          return { host: domain, port: 5269 };
-        }
-      }
-    }
-    async sendServerMessage(roomJid, body, fromLocalpart) {
-      return this.sendMucMessage(roomJid, body, fromLocalpart);
     }
   };
 
@@ -77325,6 +78196,9 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     stream;
     parser;
     isClosed = false;
+    /** Queue that buffers outbound bytes until the underlying stream accepts them. */
+    outbound;
+    sinkPromise;
     remotePeer;
     // XEP-0198 Stream Management properties
     smEnabled = false;
@@ -77336,7 +78210,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     /**
      * Creates an XMPP parser wrapper around a libp2p stream.
      *
-     * @param stream - The underlying duplex stream from libp2p.
+     * @param stream - The underlying duplex stream from libp2p (source/sink interface).
      * @param remotePeer - String form of the remote peer ID.
      */
     constructor(stream, remotePeer) {
@@ -77360,25 +78234,59 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       this.parser.on("error", (err) => {
         this.emit("error", err);
       });
-      this.stream.addEventListener("message", (event) => {
-        if (this.isClosed) return;
-        try {
-          const data = event.detail ?? event.data;
-          const array = data instanceof Uint8Array ? data : data.subarray();
-          const text = new TextDecoder().decode(array);
-          console.log(`[DEBUG] Stream received data (peer: ${this.remotePeer}): ${text}`);
-          this.parser.write(text);
-        } catch (err) {
+      this.outbound = pushable({ objectMode: false });
+      this.sinkPromise = this.writeOutbound().catch((err) => {
+        if (!this.isClosed) {
           this.emit("error", err);
         }
       });
-      this.stream.addEventListener("close", () => {
+      this.readInbound().catch((err) => {
         if (!this.isClosed) {
-          this.isClosed = true;
-          this.emit("close");
+          this.emit("error", err);
         }
       });
       this.parser.write("<stream:stream>");
+    }
+    /**
+     * Reads inbound bytes from the libp2p stream source as an async iterable
+     * and feeds them into the XML parser.
+     */
+    async readInbound() {
+      try {
+        const source = this.stream.source ?? this.stream;
+        for await (const chunk of source) {
+          if (this.isClosed) break;
+          try {
+            const array = chunk instanceof Uint8Array ? chunk : chunk.subarray();
+            const text = new TextDecoder().decode(array);
+            console.log(`[DEBUG] Stream received data (peer: ${this.remotePeer}): ${text}`);
+            this.parser.write(text);
+          } catch (err) {
+            this.emit("error", err);
+          }
+        }
+      } finally {
+        if (!this.isClosed) {
+          this.isClosed = true;
+          this.outbound.end();
+          this.emit("close");
+        }
+      }
+    }
+    /** Drain queued bytes into either libp2p stream API. */
+    async writeOutbound() {
+      if (typeof this.stream.sink === "function") {
+        await this.stream.sink(this.outbound);
+        return;
+      }
+      for await (const chunk of this.outbound) {
+        while (!this.stream.send(chunk)) {
+          if (typeof this.stream.onDrain !== "function") {
+            throw new Error("Underlying stream is not writable");
+          }
+          await this.stream.onDrain();
+        }
+      }
     }
     /**
      * Handles inbound XEP-0198 stream management stanzas.
@@ -77389,13 +78297,13 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     handleSmElement(element) {
       const name5 = element.name;
       if (name5 === "enable") {
-        const resume = element.attrs.resume === "true";
+        const resume2 = element.attrs.resume === "true";
         this.smEnabled = true;
-        this.smResumable = resume;
+        this.smResumable = resume2;
         this.send(xml("enabled", {
           xmlns: "urn:xmpp:sm:3",
           id: this.sessionId,
-          resume: resume ? "true" : "false"
+          resume: resume2 ? "true" : "false"
         }));
       } else if (name5 === "enabled") {
         this.smEnabled = true;
@@ -77418,44 +78326,51 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
           }
         }
       } else if (name5 === "resume") {
-        const prevId = element.attrs.previd;
         const h3 = Number(element.attrs.h ?? 0);
         this.send(xml("resumed", {
           xmlns: "urn:xmpp:sm:3",
           previd: this.sessionId,
           h: String(this.inboundStanzaCount)
         }));
-        const sentBeforeQueue = this.outboundStanzaCount - this.unackedQueue.length;
-        const resendStartIndex = h3 - sentBeforeQueue;
-        if (resendStartIndex >= 0 && resendStartIndex < this.unackedQueue.length) {
-          const toResend = this.unackedQueue.slice(resendStartIndex);
-          for (const msg of toResend) {
-            this.sendRaw(msg.toString());
-          }
+        const toResend = this.computeStanzasToResend(h3);
+        for (const msg of toResend) {
+          this.sendRaw(msg.toString());
         }
       } else if (name5 === "resumed") {
         const h3 = Number(element.attrs.h ?? 0);
-        const sentBeforeQueue = this.outboundStanzaCount - this.unackedQueue.length;
-        const resendStartIndex = h3 - sentBeforeQueue;
-        if (resendStartIndex >= 0 && resendStartIndex < this.unackedQueue.length) {
-          const toResend = this.unackedQueue.slice(resendStartIndex);
-          for (const msg of toResend) {
-            this.sendRaw(msg.toString());
-          }
+        const toResend = this.computeStanzasToResend(h3);
+        for (const msg of toResend) {
+          this.sendRaw(msg.toString());
         }
       }
     }
     /**
-     * Sends raw XML text bytes to the remote peer.
+     * Encodes and pushes raw XML text bytes into the outbound pushable sink.
      *
      * @param text - The XML payload to transmit.
      * @returns Nothing.
      */
+    /**
+     * Computes which stanzas from the unacked queue need resending
+     * based on the remote peer's last acknowledged stanza count (h).
+     * Clamps the index to safe bounds to prevent off-by-one errors.
+     */
+    computeStanzasToResend(remoteH) {
+      if (this.unackedQueue.length === 0) return [];
+      if (remoteH >= this.outboundStanzaCount) return [];
+      const sentBeforeQueue = this.outboundStanzaCount - this.unackedQueue.length;
+      const resendStartIndex = Math.max(0, Math.min(
+        remoteH - sentBeforeQueue,
+        this.unackedQueue.length
+      ));
+      if (resendStartIndex >= this.unackedQueue.length) return [];
+      return this.unackedQueue.slice(resendStartIndex);
+    }
     sendRaw(text) {
-      if (this.isClosed) return;
+      if (this.isClosed) throw new Error("Stream is closed");
       try {
         const bytes = new TextEncoder().encode(text);
-        this.stream.send(bytes);
+        this.outbound.push(bytes);
       } catch (err) {
         this.emit("error", err);
       }
@@ -77467,7 +78382,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
      * @returns Nothing.
      */
     send(element) {
-      if (this.isClosed) return;
+      if (this.isClosed) throw new Error("Stream is closed");
       try {
         let xmlStr;
         if (element instanceof import_Element2.default) {
@@ -77497,8 +78412,16 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       if (this.isClosed) return;
       this.isClosed = true;
       try {
+        this.outbound.end();
+      } catch {
+      }
+      try {
+        await this.sinkPromise;
+      } catch {
+      }
+      try {
         await this.stream.close();
-      } catch (e2) {
+      } catch {
       }
       this.emit("close");
     }
@@ -77721,8 +78644,8 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       summary: entry.summary,
       author: entry.author,
       contentType: entry.contentType,
-      categories: entry.categories?.filter((category) => category.trim()),
-      links: entry.links?.filter((link) => link.rel || link.href),
+      categories: entry.categories?.filter((c2) => typeof c2 === "string" && c2.trim().length > 0),
+      links: entry.links?.filter((l2) => l2 != null && !!(l2.rel || l2.href)),
       geoloc: entry.geoloc
     };
   }
@@ -77842,7 +78765,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
   var DISCO_ITEMS_XMLNS = "http://jabber.org/protocol/disco#items";
   var CAPS_XMLNS = "http://jabber.org/protocol/caps";
   var PUBSUB_EVENT_XMLNS = "http://jabber.org/protocol/pubsub#event";
-  var ATOM_XMLNS2 = "http://www.w3.org/2005/Atom";
+  var ATOM_XMLNS = "http://www.w3.org/2005/Atom";
   var MICROBLOG_XMLNS = "urn:xmpp:microblog:0";
   var COLLECTION_XMLNS = "urn:xmpp:collection:0";
   var ATTACHMENT_XMLNS = "urn:xmpp:pubsub:attachments:0";
@@ -78183,18 +79106,24 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         await this.uploadServerReady;
         return;
       }
-      this.uploadServerReady = (async () => {
-        const { createServer: createServer3 } = await Promise.resolve().then(() => (init_http(), http_exports));
-        this.uploadServer = createServer3((req, res) => {
+      let resolveReady;
+      let rejectReady;
+      this.uploadServerReady = new Promise((resolve6, reject) => {
+        resolveReady = resolve6;
+        rejectReady = reject;
+      });
+      try {
+        const { createServer: createServer2 } = await Promise.resolve().then(() => (init_http(), http_exports2));
+        this.uploadServer = createServer2((req, res) => {
           void this.handleUploadHttpRequest(req, res).catch((err) => {
             console.error("[XMPP] Upload server error:", err);
             if (!res.headersSent) {
               res.statusCode = 500;
+              res.end("upload error");
             }
-            res.end("upload error");
           });
         });
-        await new Promise((resolve2, reject) => {
+        await new Promise((resolve6, reject) => {
           const server = this.uploadServer;
           const onError = (err) => {
             server.off("listening", onListening);
@@ -78202,7 +79131,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
           };
           const onListening = () => {
             server.off("error", onError);
-            resolve2();
+            resolve6();
           };
           server.once("error", onError);
           server.once("listening", onListening);
@@ -78215,8 +79144,12 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         } else {
           this.uploadBaseUrl = `http://${this.context.uploadHost}:${this.context.uploadPort}`;
         }
-      })();
-      await this.uploadServerReady;
+        resolveReady?.();
+      } catch (err) {
+        this.uploadServerReady = void 0;
+        rejectReady?.(err);
+        throw err;
+      }
     }
     async ensureUploadAnnouncementSubscription() {
       const pubsub = this.context.getPubSubService();
@@ -78319,8 +79252,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     }
     async storeUploadObject(manifest, payload) {
       const providers = this.buildUploadProviders(manifest);
-      await this.context.storage.putBlob("uploads", manifest.cid, new Uint8Array(payload));
-      await this.context.storage.putRecord("uploads_meta", manifest.cid, JSON.stringify({
+      const meta = {
         cid: manifest.cid,
         slotId: manifest.slotId,
         filename: manifest.filename,
@@ -78331,7 +79263,15 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         from: manifest.from,
         providers,
         cachedAt: (/* @__PURE__ */ new Date()).toISOString()
-      }), (/* @__PURE__ */ new Date()).toISOString());
+      };
+      try {
+        await this.context.storage.putRecord("uploads_meta", manifest.cid, JSON.stringify(meta), (/* @__PURE__ */ new Date()).toISOString());
+      } catch {
+        await this.context.storage.deleteBlob("uploads", manifest.cid).catch(() => {
+        });
+        throw new Error("Failed to store upload metadata");
+      }
+      await this.context.storage.putBlob("uploads", manifest.cid, new Uint8Array(payload));
     }
     sortUploadProviders(manifest, providers) {
       const seed = this.context.jid;
@@ -78345,11 +79285,11 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       const controller = new AbortController();
       const timeout2 = setTimeout(() => controller.abort(), 5e3);
       try {
-        const response = await fetch(url, { signal: controller.signal });
-        if (!response.ok) {
+        const response2 = await fetch(url, { signal: controller.signal });
+        if (!response2.ok) {
           return void 0;
         }
-        const bytes = import_buffer.Buffer.from(await response.arrayBuffer());
+        const bytes = import_buffer.Buffer.from(await response2.arrayBuffer());
         if (bytes.length === 0) {
           return void 0;
         }
@@ -78562,7 +79502,8 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       res.setHeader("Content-Type", objectMeta?.contentType ?? "application/octet-stream");
       res.setHeader("Content-Length", String(data.length));
       if (objectMeta?.filename) {
-        res.setHeader("Content-Disposition", `attachment; filename="${objectMeta.filename.replace(/\"/g, '\\"')}"`);
+        const safeFilename = objectMeta.filename.replace(/[\r\n"\\]/g, "").replace(/\"/g, '\\"');
+        res.setHeader("Content-Disposition", `attachment; filename="${safeFilename}"`);
       }
       res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
       res.end(import_buffer.Buffer.from(data));
@@ -78580,6 +79521,9 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         createdAt: (/* @__PURE__ */ new Date()).toISOString()
       };
       this.uploadSlots.set(slotId, normalized);
+      setTimeout(() => {
+        this.uploadSlots.delete(slotId);
+      }, 10 * 60 * 1e3).unref();
       return xml(
         "slot",
         { xmlns: HTTP_UPLOAD_XMLNS },
@@ -78589,8 +79533,8 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     }
     async close() {
       if (this.uploadServer) {
-        await new Promise((resolve2) => {
-          this.uploadServer?.close(() => resolve2());
+        await new Promise((resolve6) => {
+          this.uploadServer?.close(() => resolve6());
         });
         this.uploadServer = void 0;
         this.uploadServerReady = void 0;
@@ -78629,11 +79573,11 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
   var omemoModulePromise;
   var omemoFetchShimInstalled = false;
   function installOmemoFetchShim(distDir) {
-    if (omemoFetchShimInstalled || !globalThis.fetch) {
+    if (omemoFetchShimInstalled) {
       return;
     }
-    const originalFetch = globalThis.fetch.bind(globalThis);
-    globalThis.fetch = async (input, init) => {
+    const originalFetch = globalThis.fetch ? globalThis.fetch.bind(globalThis) : void 0;
+    const shimFetch = async (input, init) => {
       const target = input instanceof Request ? input.url : input instanceof URL ? input.href : String(input);
       let filePath;
       if (target.startsWith("file:")) {
@@ -78653,26 +79597,39 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
           }
         });
       }
-      return await originalFetch(input, init);
+      if (originalFetch) {
+        return originalFetch(input, init);
+      }
+      throw new Error(`fetch is not available and shim cannot handle: ${target}`);
     };
+    globalThis.fetch = shimFetch;
     omemoFetchShimInstalled = true;
   }
   async function loadOmemoModule() {
     if (!omemoModulePromise) {
       const distDir = fileURLToPath(new URL("../../node_modules/libomemo.js/dist/", import_meta.url));
-      const sourcePath = join(distDir, "libomemo.umd.js");
       const patchedPath = join(distDir, "libomemo.node.cjs");
-      const source = await promises.readFile(sourcePath, "utf8");
       const requireShim = createRequire(import_meta.url);
-      installOmemoFetchShim(distDir);
-      if (!await promises.stat(patchedPath).catch(() => null)) {
-        const patchedSource = source.replace(
-          "var _scriptDir = (typeof document === 'undefined' && typeof location === 'undefined' ? require('u' + 'rl').pathToFileURL(__filename).href : typeof document === 'undefined' ? location.href : (_documentCurrentScript && _documentCurrentScript.tagName.toUpperCase() === 'SCRIPT' && _documentCurrentScript.src || new URL('libomemo.umd.js', document.baseURI).href));",
-          "var _scriptDir = require('path').dirname(__filename) + '/';"
-        );
-        await promises.writeFile(patchedPath, patchedSource, "utf8");
-      }
-      omemoModulePromise = Promise.resolve(requireShim(patchedPath));
+      omemoModulePromise = (async () => {
+        try {
+          const sourcePath = join(distDir, "libomemo.umd.js");
+          const source = await promises.readFile(sourcePath, "utf8");
+          installOmemoFetchShim(distDir);
+          const patchedExists = await promises.stat(patchedPath).then(() => true).catch(() => false);
+          if (!patchedExists) {
+            const patchedSource = source.replace(
+              "var _scriptDir = (typeof document === 'undefined' && typeof location === 'undefined' ? require('u' + 'rl').pathToFileURL(__filename).href : typeof document === 'undefined' ? location.href : (_documentCurrentScript && _documentCurrentScript.tagName.toUpperCase() === 'SCRIPT' && _documentCurrentScript.src || new URL('libomemo.umd.js', document.baseURI).href));",
+              "var _scriptDir = require('path').dirname(__filename) + '/';"
+            );
+            await promises.writeFile(patchedPath, patchedSource, "utf8");
+          }
+          return requireShim(patchedPath);
+        } catch (err) {
+          omemoModulePromise = void 0;
+          console.error("[OMEMO] Failed to load OMEMO module, will retry on next call:", err);
+          throw err;
+        }
+      })();
     }
     return await omemoModulePromise;
   }
@@ -78911,6 +79868,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         removeSignedPreKey: (keyId) => {
           if (this.signedPreKey?.keyId === Number(keyId)) {
             this.signedPreKey = void 0;
+            void this.schedulePersist();
           }
         },
         loadSession: (address) => {
@@ -88503,7 +89461,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     return { lat, lon, country, countryCode, region };
   };
   function isMicroblogEntryElement(entryEl) {
-    return Boolean(entryEl && entryEl.attrs.xmlns === ATOM_XMLNS2);
+    return Boolean(entryEl && entryEl.attrs.xmlns === ATOM_XMLNS);
   }
   function buildMicroblogEntry(post, options = {}) {
     const publishedAt = options.publishedAt ?? post.publishedAt ?? (/* @__PURE__ */ new Date()).toISOString();
@@ -88554,7 +89512,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         options.geoloc.region ? xml("region", {}, options.geoloc.region) : null
       ) : null
     ].filter(Boolean);
-    return xml("entry", { xmlns: ATOM_XMLNS2 }, ...entryChildren);
+    return xml("entry", { xmlns: ATOM_XMLNS }, ...entryChildren);
   }
   function parseMicroblogEntry(topic, itemEl, from7, node) {
     const id2 = itemEl.attrs.id;
@@ -88595,7 +89553,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
 
   // src/core/xmpp-pubsub.ts
   function parseFeedPost(topic, itemEl, from7, node) {
-    const entryEl = itemEl.children.find((child) => child?.name === "entry" && child?.attrs?.xmlns === ATOM_XMLNS2);
+    const entryEl = itemEl.children.find((child) => child?.name === "entry" && child?.attrs?.xmlns === ATOM_XMLNS);
     if (!entryEl) {
       return void 0;
     }
@@ -88785,6 +89743,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
           body: bodyEl.text(),
           itemId: itemEl.attrs.id
         });
+        continue;
       }
       const collectionPost = parseCollectionPost(topic, itemEl, element.attrs.from || "unknown");
       if (collectionPost) {
@@ -88794,6 +89753,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       const feedPost = parseFeedPost(topic, itemEl, element.attrs.from || "unknown", nodeName);
       if (feedPost) {
         void ctx.recordFeedPost(feedPost).catch((err) => ctx.emitError(err));
+        continue;
       }
     }
   }
@@ -88857,6 +89817,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     }
     const bundle = await ctx.getPeerOmemoBundle(peerAddr, deviceId);
     const sessionBuilder = new omemo.SessionBuilder(store, remoteAddress);
+    const preKey = bundle.preKeys.length > 0 ? bundle.preKeys[Math.floor(Math.random() * bundle.preKeys.length)] : void 0;
     await sessionBuilder.processPreKey({
       registrationId: bundle.registrationId,
       identityKey: ctxToArrayBuffer(bundle.identityKey),
@@ -88865,9 +89826,9 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         publicKey: ctxToArrayBuffer(bundle.signedPreKey),
         signature: ctxToArrayBuffer(bundle.signedPreKeySignature)
       },
-      preKey: bundle.preKeys[0] ? {
-        keyId: bundle.preKeys[0].keyId,
-        publicKey: ctxToArrayBuffer(bundle.preKeys[0].publicKey)
+      preKey: preKey ? {
+        keyId: preKey.keyId,
+        publicKey: ctxToArrayBuffer(preKey.publicKey)
       } : void 0
     });
   }
@@ -88880,8 +89841,8 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     const peerId = xmppStream.remotePeer.toString();
     let armoredKey = ctx.getPeerOpenPgpArmoredKey(peerId);
     if (!armoredKey) {
-      const response = await fetchOpenPgpPublicKey(peerAddr, ctx);
-      armoredKey = response.publicKey;
+      const response2 = await fetchOpenPgpPublicKey(peerAddr, ctx);
+      armoredKey = response2.publicKey;
       ctx.cachePeerOpenPgpKey(peerId, armoredKey);
     }
     return await Za({ armoredKey });
@@ -88907,7 +89868,8 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         });
       }
     };
-    if (metadata.receipt?.type === "request" && element.attrs.id) {
+    const isP2pSender = fromJid.endsWith("@p2p") || !fromJid.includes("@");
+    if (metadata.receipt?.type === "request" && element.attrs.id && isP2pSender) {
       void ctx.getOrCreateStream(fromJid).then((stream) => {
         stream.send(
           xml(
@@ -89292,7 +90254,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     if (!id2) {
       throw new Error("IQ stanza missing id");
     }
-    return await new Promise((resolve2, reject) => {
+    return await new Promise((resolve6, reject) => {
       const timer = setTimeout(() => {
         ctx.pendingIq.delete(id2);
         reject(new Error(`Timed out waiting for IQ response ${id2}`));
@@ -89300,7 +90262,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       ctx.pendingIq.set(id2, {
         resolve: (element) => {
           clearTimeout(timer);
-          resolve2(element);
+          resolve6(element);
         },
         reject: (error) => {
           clearTimeout(timer);
@@ -89442,10 +90404,33 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       if (type2 === "get") {
         const node = query.attrs.node;
         if (node) {
-          void ctx.muc.handleIncomingMamQuery(element, peerId).catch(() => {
+          if (!ctx.muc) {
+            await sendIqError(ctx, peerId, element, "service-unavailable");
+            return;
+          }
+          ;
+          ctx.muc.handleIncomingMamQuery(element, peerId).catch((err) => {
+            void sendIqError(
+              ctx,
+              peerId,
+              element,
+              "internal-server-error",
+              "wait",
+              err instanceof Error ? err.message : "MAM query failed"
+            ).catch(() => {
+            });
           });
         } else {
-          void ctx.handleIncomingMamQuery(element, peerId).catch(() => {
+          ctx.handleIncomingMamQuery(element, peerId).catch((err) => {
+            void sendIqError(
+              ctx,
+              peerId,
+              element,
+              "internal-server-error",
+              "wait",
+              err instanceof Error ? err.message : "MAM query failed"
+            ).catch(() => {
+            });
           });
         }
         return;
@@ -89481,7 +90466,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
           await sendIqError(ctx, peerId, element, "bad-request", "modify", "Roster set request is missing an item");
           return;
         }
-        await sendIqResult(ctx, peerId, id2, ctx.buildRosterQuery());
+        await sendIqResult(ctx, peerId, id2);
         return;
       }
     }
@@ -91172,7 +92157,9 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     getMucHistory(room) {
       return Array.from(this.mucHistory.values()).filter((msg) => msg.room === room).sort((a2, b2) => a2.timestamp.localeCompare(b2.timestamp));
     }
-    close() {
+    async close() {
+      await this.mucSaveQueue;
+      await this.mucHistorySaveQueue;
       if (this.presenceInterval) {
         clearInterval(this.presenceInterval);
         this.presenceInterval = void 0;
@@ -91294,23 +92281,29 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       const authTag = cipher.getAuthTag();
       const payload = import_buffer.Buffer.concat([ciphertext, authTag]).toString("base64");
       const keysMap = /* @__PURE__ */ new Map();
-      for (const occupant of roomState.occupants.values()) {
-        const devices = await this.ctx.getPeerOmemoDevices(occupant.jid);
+      const addOmemoKey = async (targetJid) => {
+        if (targetJid === this.ctx.jid) {
+          return;
+        }
+        const devices = await this.ctx.getPeerOmemoDevices(targetJid);
         if (devices.length === 0) {
-          continue;
+          return;
         }
         const keys = [];
         for (const deviceId of devices) {
-          await ensureOmemoSession(this.ctx.getSecureContext(), occupant.jid, deviceId);
+          await ensureOmemoSession(this.ctx.getSecureContext(), targetJid, deviceId);
           const omemo = await loadOmemoModule();
-          const remoteAddress = new omemo.OMEMOAddress(occupant.jid, deviceId);
+          const remoteAddress = new omemo.OMEMOAddress(targetJid, deviceId);
           const sessionCipher = new omemo.SessionCipher(this.ctx.getOmemoStore(), remoteAddress);
           const encryptedKey = await sessionCipher.encrypt(payloadKeyBytes);
           keys.push(xml("key", { rid: String(deviceId) }, import_buffer.Buffer.from(encryptedKey.body, "binary").toString("base64")));
         }
         if (keys.length > 0) {
-          keysMap.set(occupant.jid, keys);
+          keysMap.set(targetJid, keys);
         }
+      };
+      for (const occupant of roomState.occupants.values()) {
+        await addOmemoKey(occupant.jid);
       }
       if (keysMap.size === 0 && roomState.occupants.size > 0) {
         throw new Error("No occupants have available OMEMO devices");
@@ -91762,21 +92755,27 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     jid;
     muc;
     uploads;
-    serverBridge;
+    clientBridge;
     ready;
+    resolveReady;
+    rejectReady;
     constructor(libp2p, storage2, options = {}) {
       super();
+      this.ready = new Promise((resolve6, reject) => {
+        this.resolveReady = resolve6;
+        this.rejectReady = reject;
+      });
       this.libp2p = libp2p;
       this.jid = `${this.libp2p.peerId.toString()}@p2p`;
       this.storage = storage2;
-      this.uploadHost = "127.0.0.1";
-      this.uploadPort = Number.parseInt("0", 10) || 0;
+      this.uploadHost = (typeof process !== "undefined" ? "127.0.0.1" : void 0) ?? "127.0.0.1";
+      this.uploadPort = Number.parseInt((typeof process !== "undefined" ? "0" : void 0) ?? "0", 10) || 0;
       this.omemoStateManager = new XmppOmemoStateManager(storage2, options.omemoModuleLoader);
       this.openPgpStateManager = new XmppOpenPgpStateManager(storage2, this.jid);
       this.muc = new XmppMucManager(this.getMucContext());
       this.uploads = new XmppUploadManager(this);
-      this.serverBridge = new XmppServerBridge(storage2);
-      this.forwardServerBridgeEvents();
+      this.clientBridge = new XmppClientBridge();
+      this.forwardClientBridgeEvents();
       this.chat = new XmppChatManager({
         libp2p: this.libp2p,
         storage: this.storage,
@@ -91790,13 +92789,13 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       });
       this.collectionManager = new XmppCollectionManager(this.getCollectionContext());
       this.discoveryManager = new XmppDiscoveryManager(this.getDiscoveryContext());
-      const self2 = this;
+      const rosterThis = this;
       this.rosterManager = new XmppRosterManager({
         jid: this.jid,
         libp2p: this.libp2p,
         storage: this.storage,
         get ready() {
-          return self2.ready;
+          return rosterThis.ready;
         },
         getOrCreateStream: this.getOrCreateStream.bind(this),
         getStreamByJid: this.getStreamByJid.bind(this),
@@ -91812,10 +92811,9 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         this.rosterManager.selfPresence.nickname = options.nickname;
         this.rosterManager.selfVCard.nickname = options.nickname;
       }
-      this.ready = this.rosterManager.initialize().then(() => this.feedManager.initialize()).then(() => this.collectionManager.initialize()).then(() => this.muc.initialize()).then(() => this.chat.initialize()).then(() => this.uploads.ensureUploadServer()).then(() => this.uploads.ensureUploadAnnouncementSubscription()).then(() => this.loadOmemoState()).then(() => this.openPgpStateManager.load()).then(() => this.initFederationSettings());
+      this.rosterManager.initialize().then(() => this.feedManager.initialize()).then(() => this.collectionManager.initialize()).then(() => this.muc.initialize()).then(() => this.chat.initialize()).then(() => this.uploads.ensureUploadServer()).then(() => this.uploads.ensureUploadAnnouncementSubscription()).then(() => this.loadOmemoState()).then(() => this.openPgpStateManager.load()).then(() => this.resolveReady()).catch((err) => this.rejectReady(err));
       this.libp2p.handle("/xmpp/1.0.0", (stream, connection) => {
-        const conn = connection || stream.connection;
-        const peerId = conn?.remotePeer?.toString() || "unknown";
+        const peerId = connection?.remotePeer?.toString() || "unknown";
         console.log(`[DEBUG] Inbound connection handler triggered from peer: ${peerId}`);
         const xmppStream = new XmppStream(stream, peerId);
         this.registerStream(peerId, xmppStream);
@@ -91829,7 +92827,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
           const xmlStr = new TextDecoder().decode(data);
           if (topic.startsWith("xmpp/muc/")) {
             const fromPeerId = evt.detail.from?.toString() || "unknown";
-            void this.muc.handleIncomingPayload(topic, fromPeerId, xmlStr).catch(() => {
+            void this.ready.then(() => this.muc.handleIncomingPayload(topic, fromPeerId, xmlStr)).catch(() => {
             });
           } else if (topic === UPLOAD_ANNOUNCEMENTS_TOPIC) {
             void this.handlePubSubPayload(topic, xmlStr).catch(() => {
@@ -92315,14 +93313,14 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
               const entryEl = itemEl.getChild("entry");
               const contentEl = entryEl?.getChild("content");
               const titleEl = entryEl?.getChild("title");
-              if (entryEl && entryEl.attrs.xmlns === ATOM_XMLNS2 && (contentEl || titleEl)) {
+              if (entryEl && entryEl.attrs.xmlns === ATOM_XMLNS && (contentEl || titleEl)) {
                 valid = true;
                 return;
               }
             }
             if (allowedKinds.has("collection")) {
               const entryEl = itemEl.getChild("entry");
-              if (entryEl && entryEl.attrs.xmlns === ATOM_XMLNS2 && itemEl.attrs.collectionId && itemEl.attrs.sourceTopic) {
+              if (entryEl && entryEl.attrs.xmlns === ATOM_XMLNS && itemEl.attrs.collectionId && itemEl.attrs.sourceTopic) {
                 valid = true;
                 return;
               }
@@ -92386,8 +93384,8 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
           "content-type": options.contentType ?? "application/octet-stream"
         })
       );
-      const response = await this.sendIqRequest(target, stanza);
-      const slot = response.getChild("slot");
+      const response2 = await this.sendIqRequest(target, stanza);
+      const slot = response2.getChild("slot");
       if (!slot) {
         throw new Error("Upload service did not return a slot");
       }
@@ -92529,11 +93527,12 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       if (existing) {
         return existing;
       }
-      if (!parsed.dialTarget) {
+      const dialTarget = parsed.dialTarget ?? this.peerAddrs.get(peerIdStr);
+      if (!dialTarget) {
         throw new Error(`Peer ${peerIdStr} is not connected; provide a multiaddr or establish a stream first`);
       }
-      this.peerAddrs.set(peerIdStr, parsed.dialTarget);
-      const stream = await this.libp2p.dialProtocol(parsed.dialTarget, ["/xmpp/1.0.0"]);
+      this.peerAddrs.set(peerIdStr, dialTarget);
+      const stream = await this.libp2p.dialProtocol(dialTarget, ["/xmpp/1.0.0"]);
       const xmppStream = new XmppStream(stream, peerIdStr);
       this.registerStream(peerIdStr, xmppStream);
       this.emit("stream", { peerId: peerIdStr, direction: "outbound", stream: xmppStream });
@@ -92588,7 +93587,8 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       const existing = this.streams.get(peerId);
       if (existing) {
         this.cancelReconnect(peerId);
-        existing.close();
+        void existing.close().catch(() => {
+        });
       }
       this.streams.set(peerId, xmppStream);
       xmppStream.on("element", (element) => {
@@ -92610,21 +93610,26 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
           this.streams.delete(peerId);
         }
         this.emit("stream-closed", peerId);
-        this.scheduleReconnect(peerId);
+        if (this.peerAddrs.has(peerId)) {
+          this.scheduleReconnect(peerId);
+        }
       });
-      const savedSession = this.reliabilityManager.getAndClearSession(peerId);
-      if (savedSession) {
-        xmppStream.sessionId = savedSession.sessionId;
-        xmppStream.outboundStanzaCount = savedSession.outboundStanzaCount;
-        xmppStream.inboundStanzaCount = savedSession.inboundStanzaCount;
-        xmppStream.unackedQueue = savedSession.unackedQueue;
-        xmppStream.send(xml("resume", {
-          xmlns: "urn:xmpp:sm:3",
-          previd: savedSession.sessionId,
-          h: String(savedSession.inboundStanzaCount)
-        }));
-      } else {
-        xmppStream.send(xml("enable", { xmlns: "urn:xmpp:sm:3", resume: "true" }));
+      const isOutbound = this.peerAddrs.has(peerId);
+      if (isOutbound) {
+        const savedSession = this.reliabilityManager.getAndClearSession(peerId);
+        if (savedSession) {
+          xmppStream.sessionId = savedSession.sessionId;
+          xmppStream.outboundStanzaCount = savedSession.outboundStanzaCount;
+          xmppStream.inboundStanzaCount = savedSession.inboundStanzaCount;
+          xmppStream.unackedQueue = savedSession.unackedQueue;
+          xmppStream.send(xml("resume", {
+            xmlns: "urn:xmpp:sm:3",
+            previd: savedSession.sessionId,
+            h: String(savedSession.inboundStanzaCount)
+          }));
+        } else {
+          xmppStream.send(xml("enable", { xmlns: "urn:xmpp:sm:3", resume: "true" }));
+        }
       }
       void this.rosterManager.flushRosterPresenceForPeer(peerId).catch((err) => this.emit("error", err));
       void this.rosterManager.sendCurrentPresenceToPeer(peerId).catch((err) => this.emit("error", err));
@@ -92681,8 +93686,18 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     // Send a chat message to a peer
     async sendMessage(peerAddr, body, options = {}) {
       const addrStr = peerAddr.toString();
-      if (this.serverBridge.isFederatedJid(addrStr)) {
-        return this.serverBridge.sendMessage(addrStr, body, { thread: options.thread }, this.peerLocalpart);
+      if (!addrStr) {
+        throw new Error("Cannot send message: peer address is empty");
+      }
+      const targetDomain = addrStr.includes("@") ? addrStr.split("@")[1] : "";
+      if (!addrStr.endsWith("@p2p") && addrStr.includes("@")) {
+        if (this.clientBridge.isConnected && targetDomain === this.clientBridge.connectionInfo.domain) {
+          return this.clientBridge.sendMessage(addrStr, body, { type: "chat", thread: options.thread });
+        }
+        if (!this.clientBridge.isConnected) {
+          throw new Error(`Server bridge is not connected \u2014 cannot send to ${addrStr}`);
+        }
+        throw new Error(`Cannot route to ${targetDomain}: bridge is connected to ${this.clientBridge.connectionInfo.domain}`);
       }
       const peerId = this.parsePeerReference(peerAddr).peerId;
       const toJid = this.jidFromPeerId(peerId);
@@ -93033,20 +94048,25 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     async getAttachmentSummaries(topic) {
       return await this.collectionManager.getAttachmentSummaries(topic);
     }
-    forwardServerBridgeEvents() {
-      this.serverBridge.on("message", (event) => {
-        this.emit("message", {
+    forwardClientBridgeEvents() {
+      this.clientBridge.on("message", (event) => {
+        const msg = {
           from: event.from,
           to: event.to,
-          body: event.body,
-          id: event.id,
-          type: event.type,
-          server: event.server,
+          body: event.body || "",
+          id: event.id || Math.random().toString(36).substring(2, 15),
+          type: event.type || "chat",
           thread: event.thread,
           delay: event.delay ? { stamp: event.delay.stamp, from: event.delay.from } : void 0
-        });
+        };
+        if (this.chat) {
+          this.chat.recordChatMessage(msg).catch((err) => this.emit("error", err));
+        } else {
+          console.warn("[XMPP] Chat manager not available \u2014 server message not recorded to history:", msg.id);
+        }
+        this.emit("message", { ...msg, server: event.server });
       });
-      this.serverBridge.on("presence", (event) => {
+      this.clientBridge.on("presence", (event) => {
         this.emit("presence", {
           from: event.from,
           type: event.type,
@@ -93055,7 +94075,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
           status: event.status
         });
       });
-      this.serverBridge.on("muc:message", (event) => {
+      this.clientBridge.on("muc:message", (event) => {
         this.emit("muc:message", {
           room: event.room,
           from: event.from,
@@ -93064,144 +94084,42 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
           server: event.server
         });
       });
-      this.serverBridge.on("connection", (info) => {
+      this.clientBridge.on("connection", (info) => {
         this.emit("server:connection", info);
       });
-      this.serverBridge.on("pubsub:event", (event) => {
+      this.clientBridge.on("pubsub:event", (event) => {
         this.emit("pubsub:message", {
           topic: event.node,
           from: event.from,
-          body: event.payload?.body || "",
+          body: event.payload?.entry?.text() || "",
           itemId: event.itemId,
           server: event.server
         });
       });
-      this.serverBridge.on("feed:bridge", (event) => {
-        this.emit("feed:post", {
-          id: event.itemId,
-          topic: event.feedTopic,
-          from: event.from,
-          body: event.body,
-          title: event.title,
-          publishedAt: (/* @__PURE__ */ new Date()).toISOString(),
-          updatedAt: (/* @__PURE__ */ new Date()).toISOString(),
-          receivedAt: (/* @__PURE__ */ new Date()).toISOString()
-        });
-      });
-      this.serverBridge.on("disco:info", (event) => {
-        this.emit("disco:info", event);
-      });
-      this.serverBridge.on("disco:items", (event) => {
-        this.emit("disco:items", event);
-      });
-      this.serverBridge.on("muc:bridge", (event) => {
-        this.emit("muc:message", {
-          room: event.p2pRoom,
-          from: event.from,
-          body: event.body,
-          id: event.id,
-          server: "bridge:" + event.serverRoom
-        });
-      });
-      this.on("feed:post", (post) => {
-        this.serverBridge.crossPostFeedToPubSub(post).catch(() => {
-        });
-      });
     }
-    isFederatedJid(target) {
-      return this.serverBridge.isFederatedJid(target);
+    async connectServer(credentials) {
+      await this.clientBridge.connect(credentials);
     }
-    async connectComponent(host, port, secret, domain) {
-      return this.serverBridge.connectComponent(host, port, secret, domain);
+    async registerServer(jid2, password, service2) {
+      const resolvedService = await this.clientBridge.register(service2, jid2.split("@")[0], password);
+      await this.clientBridge.connect({ jid: jid2, password, service: resolvedService });
     }
-    async disconnectComponent() {
-      return this.serverBridge.disconnectComponent();
+    async disconnectServer() {
+      await this.clientBridge.disconnect();
     }
-    isComponentConnected() {
-      return this.serverBridge.isComponentConnected();
+    isServerConnected() {
+      return this.clientBridge.isConnected;
     }
-    setFederationEnabled(enabled) {
-      this.serverBridge.setFederationEnabled(enabled);
-    }
-    isFederationEnabled() {
-      return this.serverBridge.isFederationEnabled();
-    }
-    async resolveComponentEndpoint(domain) {
-      return this.serverBridge.resolveComponentEndpoint(domain);
-    }
-    async initFederationSettings() {
-      await this.serverBridge.loadSettings();
-    }
-    setS2SDomain(domain) {
-      this.serverBridge.setS2SDomain(domain);
-    }
-    getS2SDomain() {
-      return this.serverBridge.getS2SDomain();
+    getServerStatus() {
+      return this.clientBridge.connectionInfo;
     }
     getServerConnections() {
-      return this.serverBridge.getConnectionInfo();
-    }
-    async joinServerMuc(roomJid, nick) {
-      return this.serverBridge.joinMuc(roomJid, nick, this.peerLocalpart);
-    }
-    async sendServerMucMessage(roomJid, body) {
-      return this.serverBridge.sendMucMessage(roomJid, body, this.peerLocalpart);
-    }
-    async leaveServerMuc(roomJid) {
-      return this.serverBridge.leaveMuc(roomJid, this.peerLocalpart);
-    }
-    // Phase 2: PubSub operations on federated servers
-    async pubsubSubscribe(nodeJid, node) {
-      return this.serverBridge.pubsubSubscribe(nodeJid, node, this.peerLocalpart);
-    }
-    async pubsubPublish(nodeJid, node, itemId, payload) {
-      return this.serverBridge.pubsubPublish(nodeJid, node, itemId, payload, this.peerLocalpart);
-    }
-    async pubsubGetItems(nodeJid, node, maxItems) {
-      return this.serverBridge.pubsubGetItems(nodeJid, node, maxItems, this.peerLocalpart);
-    }
-    async pubsubUnsubscribe(nodeJid, node) {
-      return this.serverBridge.pubsubUnsubscribe(nodeJid, node, this.peerLocalpart);
-    }
-    async pubsubCreateNode(nodeJid, node) {
-      return this.serverBridge.pubsubCreateNode(nodeJid, node, this.peerLocalpart);
-    }
-    // Phase 4: Service Discovery on federated servers
-    async serverDiscoInfo(jid2) {
-      return this.serverBridge.discoInfo(jid2, this.peerLocalpart);
-    }
-    async serverDiscoItems(jid2) {
-      return this.serverBridge.discoItems(jid2, this.peerLocalpart);
-    }
-    // Phase 3: Feed bridge management
-    async setFeedBridge(feedTopic, pubsubNode) {
-      return this.serverBridge.setFeedBridge(feedTopic, pubsubNode);
-    }
-    async removeFeedBridge(feedTopic) {
-      return this.serverBridge.removeFeedBridge(feedTopic);
-    }
-    getFeedBridge(feedTopic) {
-      return this.serverBridge.getFeedBridge(feedTopic);
-    }
-    getAllFeedBridges() {
-      return this.serverBridge.getAllFeedBridges();
-    }
-    // Phase 5: MUC bridge management
-    async setMucBridge(serverRoom, p2pRoom) {
-      return this.serverBridge.setMucBridge(serverRoom, p2pRoom);
-    }
-    async removeMucBridge(serverRoom) {
-      return this.serverBridge.removeMucBridge(serverRoom);
-    }
-    getMucBridge(serverRoom) {
-      return this.serverBridge.getMucBridge(serverRoom);
-    }
-    getAllMucBridges() {
-      return this.serverBridge.getAllMucBridges();
+      const info = this.clientBridge.connectionInfo;
+      return info.domain ? [info] : [];
     }
     async close() {
       await this.ready;
-      await this.serverBridge.disconnectAll().catch(() => {
+      await this.clientBridge.disconnect().catch(() => {
       });
       for (const pending of this.pendingIq.values()) {
         clearTimeout(pending.timer);
@@ -93235,6 +94153,8 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
   var omemoModulePromise2;
   async function loadOmemoModule2() {
     if (!omemoModulePromise2) {
+      ;
+      globalThis.__WASM_BASE__ = "/";
       omemoModulePromise2 = Promise.resolve().then(() => (init_libomemo_esm(), libomemo_esm_exports));
     }
     return await omemoModulePromise2;
@@ -93254,6 +94174,12 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     connectionListeners = /* @__PURE__ */ new Set();
     serverConnectionListeners = /* @__PURE__ */ new Set();
     chatStateListeners = /* @__PURE__ */ new Set();
+    mucMessageListeners = /* @__PURE__ */ new Set();
+    mucJoinListeners = /* @__PURE__ */ new Set();
+    mucLeaveListeners = /* @__PURE__ */ new Set();
+    mucChatStateListeners = /* @__PURE__ */ new Set();
+    mucMarkerListeners = /* @__PURE__ */ new Set();
+    activeConnections = /* @__PURE__ */ new Set();
     hookEvents() {
       this.xmppNode.on("message", (msg) => {
         if (msg.chatState && !msg.body) {
@@ -93273,9 +94199,14 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         }
       });
       this.xmppNode.on("presence", (presence) => {
+        const normalized = {
+          ...presence,
+          from: presence.from?.includes("@") ? presence.from : `${presence.from}@p2p`,
+          to: presence.to?.includes("@") ? presence.to : `${presence.to}@p2p`
+        };
         for (const cb of this.presenceListeners) {
           try {
-            cb(presence);
+            cb(normalized);
           } catch {
           }
         }
@@ -93292,6 +94223,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         }
       });
       this.xmppNode.on("stream", ({ peerId, direction }) => {
+        this.activeConnections.add(peerId);
         for (const cb of this.connectionListeners) {
           try {
             cb(peerId, true);
@@ -93300,6 +94232,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         }
       });
       this.xmppNode.on("stream-closed", (peerId) => {
+        this.activeConnections.delete(peerId);
         for (const cb of this.connectionListeners) {
           try {
             cb(peerId, false);
@@ -93311,6 +94244,46 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         for (const cb of this.serverConnectionListeners) {
           try {
             cb(info);
+          } catch {
+          }
+        }
+      });
+      this.xmppNode.on("muc:message", (event) => {
+        for (const cb of this.mucMessageListeners) {
+          try {
+            cb(event);
+          } catch {
+          }
+        }
+      });
+      this.xmppNode.on("muc:join", (event) => {
+        for (const cb of this.mucJoinListeners) {
+          try {
+            cb(event);
+          } catch {
+          }
+        }
+      });
+      this.xmppNode.on("muc:leave", (event) => {
+        for (const cb of this.mucLeaveListeners) {
+          try {
+            cb(event);
+          } catch {
+          }
+        }
+      });
+      this.xmppNode.on("muc:chatstate", (event) => {
+        for (const cb of this.mucChatStateListeners) {
+          try {
+            cb(event);
+          } catch {
+          }
+        }
+      });
+      this.xmppNode.on("muc:marker", (event) => {
+        for (const cb of this.mucMarkerListeners) {
+          try {
+            cb(event);
           } catch {
           }
         }
@@ -93348,6 +94321,26 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     onChatState(cb) {
       this.chatStateListeners.add(cb);
       return () => this.chatStateListeners.delete(cb);
+    }
+    onMucMessage(cb) {
+      this.mucMessageListeners.add(cb);
+      return () => this.mucMessageListeners.delete(cb);
+    }
+    onMucJoin(cb) {
+      this.mucJoinListeners.add(cb);
+      return () => this.mucJoinListeners.delete(cb);
+    }
+    onMucLeave(cb) {
+      this.mucLeaveListeners.add(cb);
+      return () => this.mucLeaveListeners.delete(cb);
+    }
+    onMucChatState(cb) {
+      this.mucChatStateListeners.add(cb);
+      return () => this.mucChatStateListeners.delete(cb);
+    }
+    onMucMarker(cb) {
+      this.mucMarkerListeners.add(cb);
+      return () => this.mucMarkerListeners.delete(cb);
     }
     async sendChatState(target, state) {
       await this.xmppNode.sendMessage(target, "", { chatState: state });
@@ -93433,45 +94426,74 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         requestReceipt: true
       });
     }
-    async connectComponent(host, port, secret, domain) {
-      return this.xmppNode.connectComponent(host, port, secret, domain);
+    async connectServer(jid2, password, service2) {
+      return this.xmppNode.connectServer({ jid: jid2, password, service: service2 });
     }
-    async disconnectComponent() {
-      return this.xmppNode.disconnectComponent();
+    async disconnectServer() {
+      return this.xmppNode.disconnectServer();
     }
-    isComponentConnected() {
-      return this.xmppNode.isComponentConnected();
+    async registerServer(jid2, password, service2) {
+      return this.xmppNode.registerServer(jid2, password, service2);
     }
-    setS2SDomain(domain) {
-      this.xmppNode.setS2SDomain(domain);
+    isServerConnected() {
+      return this.xmppNode.isServerConnected();
     }
-    getS2SDomain() {
-      return this.xmppNode.getS2SDomain();
-    }
-    setFederationEnabled(enabled) {
-      this.xmppNode.setFederationEnabled(enabled);
-    }
-    isFederationEnabled() {
-      return this.xmppNode.isFederationEnabled();
-    }
-    async resolveComponentEndpoint(domain) {
-      return this.xmppNode.resolveComponentEndpoint(domain);
+    getServerStatus() {
+      const info = this.xmppNode.getServerStatus();
+      return { online: info.status === "connected", connections: info.domain ? [info] : [] };
     }
     getServerConnections() {
       return this.xmppNode.getServerConnections();
     }
-    async joinServerMuc(roomJid, nick) {
-      return this.xmppNode.joinServerMuc(roomJid, nick);
-    }
-    async sendServerMucMessage(roomJid, body) {
-      return this.xmppNode.sendServerMucMessage(roomJid, body);
-    }
-    async leaveServerMuc(roomJid) {
-      return this.xmppNode.leaveServerMuc(roomJid);
-    }
     onServerConnection(cb) {
       this.serverConnectionListeners.add(cb);
       return () => this.serverConnectionListeners.delete(cb);
+    }
+    // ── Component/Federation methods ─────────────────────────────────────────
+    // XEP-0114 TCP components are not available in the browser. These are
+    // stubs that keep the bridge conformant with XmppRuntimeBridge.
+    async connectComponent(_host, _port, _secret, _domain) {
+      throw new Error("XEP-0114 TCP component connections are not supported in the browser runtime");
+    }
+    async disconnectComponent() {
+    }
+    isComponentConnected() {
+      return false;
+    }
+    _federationEnabled = true;
+    setFederationEnabled(enabled) {
+      this._federationEnabled = enabled;
+    }
+    isFederationEnabled() {
+      return this._federationEnabled;
+    }
+    // ── Saved component configs ───────────────────────────────────────────────
+    // Persisted in XmppNode's storage under a well-known namespace so configs
+    // survive page reloads.
+    async saveComponentConfig(domain, secret, host, port) {
+      const key = `component-config:${domain}`;
+      const value2 = JSON.stringify({ domain, host, port, secret, createdAt: (/* @__PURE__ */ new Date()).toISOString(), updatedAt: (/* @__PURE__ */ new Date()).toISOString() });
+      await this.xmppNode.storage.putRecord("component-configs", key, value2, (/* @__PURE__ */ new Date()).toISOString());
+    }
+    async listSavedComponentConfigs() {
+      try {
+        const records = await this.xmppNode.storage.listRecords("component-configs");
+        const configs = [];
+        for (const record of records) {
+          try {
+            const obj = JSON.parse(record.value);
+            configs.push({ domain: obj.domain, host: obj.host, port: obj.port, createdAt: obj.createdAt, updatedAt: obj.updatedAt });
+          } catch {
+          }
+        }
+        return configs;
+      } catch {
+        return [];
+      }
+    }
+    async removeComponentConfig(domain) {
+      const key = `component-config:${domain}`;
+      await this.xmppNode.storage.deleteRecord("component-configs", key);
     }
     async kickMucParticipant(roomJid, participantJid, reason) {
       const nick = participantJid.split("@")[0];
@@ -93507,63 +94529,22 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       );
       await this.xmppNode.sendIqRequest(roomJid, stanza);
     }
+    getConnectedPeers() {
+      return Array.from(this.activeConnections);
+    }
     async disconnect() {
       this.messageListeners.clear();
       this.presenceListeners.clear();
       this.feedPostListeners.clear();
       this.connectionListeners.clear();
       this.serverConnectionListeners.clear();
+      this.mucMessageListeners.clear();
+      this.mucJoinListeners.clear();
+      this.mucLeaveListeners.clear();
+      this.mucChatStateListeners.clear();
+      this.mucMarkerListeners.clear();
+      this.activeConnections.clear();
       await this.xmppNode.close();
-    }
-    async saveComponentConfig(domain, secret, host, port) {
-      return this.xmppNode.serverBridge.configStore.save(domain, secret, host, port);
-    }
-    async listSavedComponentConfigs() {
-      return this.xmppNode.serverBridge.configStore.list();
-    }
-    async removeComponentConfig(domain) {
-      return this.xmppNode.serverBridge.configStore.remove(domain);
-    }
-    // Phase 2: PubSub operations
-    async pubsubSubscribe(nodeJid, node) {
-      return this.xmppNode.pubsubSubscribe(nodeJid, node);
-    }
-    async pubsubPublish(nodeJid, node, itemId, body) {
-      const { xml: xml2 } = await Promise.resolve().then(() => (init_xml(), xml_exports));
-      const payload = xml2("body", {}, body);
-      return this.xmppNode.pubsubPublish(nodeJid, node, itemId, payload);
-    }
-    async pubsubGetItems(nodeJid, node, maxItems) {
-      return this.xmppNode.pubsubGetItems(nodeJid, node, maxItems);
-    }
-    async pubsubUnsubscribe(nodeJid, node) {
-      return this.xmppNode.pubsubUnsubscribe(nodeJid, node);
-    }
-    // Phase 4: Service Discovery
-    async serverDiscoInfo(jid2) {
-      return this.xmppNode.serverDiscoInfo(jid2);
-    }
-    async serverDiscoItems(jid2) {
-      return this.xmppNode.serverDiscoItems(jid2);
-    }
-    // Phase 3 & 5: Bridge management
-    async setFeedBridge(feedTopic, pubsubNode) {
-      return this.xmppNode.setFeedBridge(feedTopic, pubsubNode);
-    }
-    async removeFeedBridge(feedTopic) {
-      return this.xmppNode.removeFeedBridge(feedTopic);
-    }
-    getAllFeedBridges() {
-      return this.xmppNode.getAllFeedBridges();
-    }
-    async setMucBridge(serverRoom, p2pRoom) {
-      return this.xmppNode.setMucBridge(serverRoom, p2pRoom);
-    }
-    async removeMucBridge(serverRoom) {
-      return this.xmppNode.removeMucBridge(serverRoom);
-    }
-    getAllMucBridges() {
-      return this.xmppNode.getAllMucBridges();
     }
     async uploadFile(file, fileName, mimeType) {
       let data;

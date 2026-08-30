@@ -2,7 +2,7 @@ import * as React from 'react'
 import { useNavigate } from 'react-router'
 import { Check, Loader } from 'lucide-react'
 import { useIdentityBridge } from '../../bridge/identity/useIdentityBridge'
-import { getBrowserXmppBridge } from '../../bridge/runtime'
+import { getBootstrapAddrs, getBrowserXmppBridge } from '../../bridge/runtime'
 import ProgressDots from '../../components/onboarding/ProgressDots'
 
 declare global {
@@ -35,10 +35,8 @@ export default function ReadyPage() {
     try {
       const bridge = getBrowserXmppBridge()
       if (!bridge) {
-        const bootstrapAddrs = window.__XMPP_P2P_CONFIG__?.bootstrapAddrs
-          ?? (window as any).__XMPP_P2P_CONFIG__?.bootstrapAddrs
-          ?? []
         if (window.XmppP2P?.createBrowserXmppClient) {
+          const bootstrapAddrs = await getBootstrapAddrs()
           await window.XmppP2P.createBrowserXmppClient({
             bootstrapAddrs,
             dbName: 'xmpp-p2p',

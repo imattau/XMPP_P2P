@@ -11,35 +11,38 @@ export function useConnectionBridge(): ConnectionState {
   const peerSetRef = useRef(new Set<string>())
 
   useEffect(() => {
-    const runtime = getBrowserXmppBridge()
+    let unsubscribe: (() => void) | undefined
+    let poll: ReturnType<typeof setInterval> | undefined
 
-    // Initial scan: pick up any pre-existing connections before the hook mounted.
-    if (runtime?.getConnectedPeers) {
-      const existing = runtime.getConnectedPeers()
-      for (const peerId of existing) {
+    const attach = () => {
+      const runtime = getBrowserXmppBridge()
+      if (!runtime?.onConnectionChange || unsubscribe) return
+
+      // Initial scan: pick up connections established before this hook mounted.
+      for (const peerId of runtime.getConnectedPeers?.() ?? []) {
         peerSetRef.current.add(peerId)
       }
-      if (existing.length > 0) {
-        setState({ connected: true, connectedPeers: existing.length })
-      }
+      setState({
+        connected: peerSetRef.current.size > 0,
+        connectedPeers: peerSetRef.current.size
+      })
+
+      unsubscribe = runtime.onConnectionChange((peerId: string, connected: boolean) => {
+        const peerSet = peerSetRef.current
+        if (connected) peerSet.add(peerId)
+        else peerSet.delete(peerId)
+        setState({ connected: peerSet.size > 0, connectedPeers: peerSet.size })
+      })
+      if (poll) clearInterval(poll)
     }
 
-    if (!runtime?.onConnectionChange) return
+    attach()
+    if (!unsubscribe) poll = setInterval(attach, 100)
 
-    const unsub = runtime.onConnectionChange((peerId: string, connected: boolean) => {
-      const peerSet = peerSetRef.current
-      if (connected) {
-        peerSet.add(peerId)
-      } else {
-        peerSet.delete(peerId)
-      }
-      setState({
-        connected: peerSet.size > 0,
-        connectedPeers: peerSet.size
-      })
-    })
-
-    return unsub
+    return () => {
+      if (poll) clearInterval(poll)
+      unsubscribe?.()
+    }
   }, [])
 
   return state

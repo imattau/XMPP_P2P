@@ -22,15 +22,17 @@ async function runDhtMailboxTest() {
 
   let libp2p1: any
   let libp2p2: any
+  let xmpp1: XmppNode | undefined
+  let xmpp2: XmppNode | undefined
 
   try {
     libp2p1 = await createP2PNode(9801, { enableDht: true, enableMdns: false })
     await libp2p1.start()
-    const xmpp1 = new XmppNode(libp2p1, new NodeSqliteStorage(join(workDir, 'n1.sqlite')))
+    xmpp1 = new XmppNode(libp2p1, new NodeSqliteStorage(join(workDir, 'n1.sqlite')))
 
     libp2p2 = await createP2PNode(9802, { enableDht: true, enableMdns: false })
     await libp2p2.start()
-    const xmpp2 = new XmppNode(libp2p2, new NodeSqliteStorage(join(workDir, 'n2.sqlite')))
+    xmpp2 = new XmppNode(libp2p2, new NodeSqliteStorage(join(workDir, 'n2.sqlite')))
 
     await Promise.all([xmpp1.ready, xmpp2.ready])
 
@@ -68,6 +70,8 @@ async function runDhtMailboxTest() {
     console.log('\n>>> DHT MAILBOX VERIFICATION SUCCESSFUL! <<<')
     return
   } finally {
+    await xmpp1?.close().catch(() => {})
+    await xmpp2?.close().catch(() => {})
     await libp2p1?.stop().catch(() => {})
     await libp2p2?.stop().catch(() => {})
     await rm(workDir, { recursive: true, force: true }).catch(() => {})

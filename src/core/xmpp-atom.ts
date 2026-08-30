@@ -28,6 +28,7 @@ export interface XmppMicroblogPostOptions {
   links?: XmppAtomLink[]
   geoloc?: XmppAtomGeoloc
   alternateHref?: string
+  replyTo?: string
 }
 
 const XHTML_XMLNS = 'http://www.w3.org/1999/xhtml'
@@ -169,6 +170,7 @@ export function buildMicroblogEntry(post: XmppFeedPost, options: XmppMicroblogPo
       if (link.ref) attrs.ref = link.ref
       return xml('link', attrs)
     }),
+    options.replyTo ? xml('in-reply-to', { xmlns: 'urn:xmpp:feed:reply:0', ref: options.replyTo }) : null,
     options.geoloc
       ? xml(
           'geoloc',
@@ -208,6 +210,7 @@ export function parseMicroblogEntry(topic: string, itemEl: Element, from: string
   const authorEl = entryEl?.getChild('author')
   const publishedEl = entryEl?.getChild('published')
   const updatedEl = entryEl?.getChild('updated')
+  const replyEl = entryEl?.getChild('in-reply-to')
 
   const body = trimText(contentEl?.text() || bodyEl?.text() || summaryEl?.text() || titleEl?.text())
   if (!body && !titleEl?.text()) {
@@ -232,6 +235,7 @@ export function parseMicroblogEntry(topic: string, itemEl: Element, from: string
     summary: trimText(summaryEl?.text()) || undefined,
     author,
     contentType: contentEl?.attrs.type === 'xhtml' ? 'xhtml' : 'text',
+    replyTo: replyEl?.attrs.ref,
     categories: entryEl ? (entryEl.children as any[])
       .filter(child => child?.name === 'category')
       .map((category: Element) => category.attrs.term || category.attrs.label)

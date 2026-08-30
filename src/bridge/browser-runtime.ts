@@ -57,6 +57,12 @@ export class BrowserXmppRuntimeBridge {
       }
     })
 
+    this.xmppNode.on('feed:post', (post: XmppFeedPost) => {
+      for (const cb of this.feedPostListeners) {
+        try { cb(post) } catch { /* swallow */ }
+      }
+    })
+
     this.xmppNode.on('stream', ({ peerId, direction }: { peerId: string; direction: string }) => {
       this.activeConnections.add(peerId)
       for (const cb of this.connectionListeners) {
@@ -182,7 +188,7 @@ export class BrowserXmppRuntimeBridge {
     return this.xmppNode.getFeedPosts()
   }
 
-  publishFeed(body: string, options?: { topic?: string; itemId?: string; title?: string; summary?: string; categories?: string[]; author?: string }): Promise<string> {
+  publishFeed(body: string, options?: { topic?: string; itemId?: string; title?: string; summary?: string; categories?: string[]; author?: string; replyTo?: string }): Promise<string> {
     return this.xmppNode.publishFeed(body, options)
   }
 

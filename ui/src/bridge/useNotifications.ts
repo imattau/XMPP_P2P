@@ -10,28 +10,40 @@ export function useNotifications() {
   }, [])
 
   useEffect(() => {
-    const bridge = getBrowserXmppBridge()
-    if (!bridge?.onMessage) return
+    let unsubscribe: (() => void) | undefined
+    let poll: ReturnType<typeof setInterval> | undefined
 
-    const unsub = bridge.onMessage((msg) => {
-      if (typeof Notification === 'undefined') return
-      if (document.visibilityState === 'visible') return
-      if (Notification.permission !== 'granted') return
+    const attach = () => {
+      const bridge = getBrowserXmppBridge()
+      if (!bridge?.onMessage || unsubscribe) return
 
-      const sender = msg.from.split('@')[0] || msg.from
-      try {
-        const notification = new Notification(sender, {
-          body: msg.body || 'New message',
-          icon: '/favicon.ico',
-          silent: false,
-        })
-        setTimeout(() => notification.close(), 5000)
-      } catch {
-        // Notification may fail in some contexts
-      }
-    })
+      unsubscribe = bridge.onMessage((msg) => {
+        if (typeof Notification === 'undefined') return
+        if (document.visibilityState === 'visible') return
+        if (Notification.permission !== 'granted') return
 
-    return unsub
+        const sender = msg.from.split('@')[0] || msg.from
+        try {
+          const notification = new Notification(sender, {
+            body: msg.body || 'New message',
+            icon: '/favicon.ico',
+            silent: false,
+          })
+          setTimeout(() => notification.close(), 5000)
+        } catch {
+          // Notification may fail in some contexts
+        }
+      })
+      if (poll) clearInterval(poll)
+    }
+
+    attach()
+    if (!unsubscribe) poll = setInterval(attach, 100)
+
+    return () => {
+      if (poll) clearInterval(poll)
+      unsubscribe?.()
+    }
   }, [])
 }
 

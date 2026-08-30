@@ -17,10 +17,10 @@
     <div id="root"></div>
     <script src="/browser-bundle.js"></script>
     <script>
-      fetch('/bootstrap-config.json')
-        .then(function(r) { return r.json() })
-        .then(function(cfg) { window.__XMPP_P2P_CONFIG__ = cfg })
-        .catch(function() { window.__XMPP_P2P_CONFIG__ = { bootstrapAddrs: [] } })
+      window.__XMPP_P2P_CONFIG_READY__ = fetch('/bootstrap-config.json')
+        .then(function(r) { return r.ok ? r.json() : { bootstrapAddrs: [] } })
+        .catch(function() { return { bootstrapAddrs: [] } })
+        .then(function(cfg) { window.__XMPP_P2P_CONFIG__ = cfg; return cfg })
     </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>

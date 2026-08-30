@@ -1,7 +1,7 @@
 import { Suspense, useEffect, useState } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router'
 import { Home, Hash, PlusSquare, MessageCircle, User, Zap, FileText } from 'lucide-react'
-import { getBrowserXmppBridge } from '../bridge/runtime'
+import { getBootstrapAddrs, getBrowserXmppBridge } from '../bridge/runtime'
 import NavigationSidebar from '../components/NavigationSidebar'
 import { useConnectionBridge } from '../bridge/useConnectionBridge'
 import { identityController } from '../bridge/identity/controller'
@@ -57,10 +57,9 @@ export default function Root() {
     if (getBrowserXmppBridge()) return
 
     setInitializing(true)
-    const bootstrapAddrs = window.__XMPP_P2P_CONFIG__?.bootstrapAddrs ?? []
     const client = window.XmppP2P?.createBrowserXmppClient
     if (client) {
-      client({ bootstrapAddrs, dbName: 'xmpp-p2p' })
+      getBootstrapAddrs().then(bootstrapAddrs => client({ bootstrapAddrs, dbName: 'xmpp-p2p' }))
         .catch(() => {
           // Bridge initialization failed — federation features will show "Bridge not available"
         })

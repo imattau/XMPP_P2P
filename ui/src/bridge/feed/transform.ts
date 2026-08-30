@@ -9,6 +9,7 @@ export function mapRuntimePost(record: BridgeFeedPostRecord): FeedPost {
     id: record.id,
     type: community ? 'community' : topic ? 'topic' : 'post',
     sourceTopic: record.topic,
+    replyTo: record.replyTo,
     author: {
       name: record.author ?? record.from,
       handle: record.from.includes('@') ? record.from.split('@')[0] : record.from,

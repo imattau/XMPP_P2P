@@ -28,7 +28,10 @@ let omemoModulePromise: Promise<OmemoModule> | undefined
  */
 async function loadOmemoModule(): Promise<OmemoModule> {
   if (!omemoModulePromise) {
-    ;(self as any).__WASM_BASE__ = '/'
+    // `self` is available in a browser worker/window, but the smoke test also
+    // exercises this browser-targeted loader under Node. `globalThis` covers
+    // both environments without changing the browser behaviour.
+    ;(globalThis as any).__WASM_BASE__ = '/'
     omemoModulePromise = import('libomemo.js')
   }
   return await omemoModulePromise

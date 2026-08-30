@@ -6,6 +6,7 @@ import {
   Bookmark, Hash, Users, Globe, Lock, Shield, MoreHorizontal,
   Zap, Image, Smile, AtSign, Send, ChevronDown, Check, X,
 } from 'lucide-react'
+import { getBrowserXmppBridge } from '../bridge/runtime'
 import { useFeedBridge } from '../bridge/feed/useFeedBridge'
 import { emitToast } from '../lib/toast-events'
 
@@ -47,6 +48,7 @@ interface Post {
   bookmarked?: boolean
   privacy?: 'public' | 'followers' | 'community'
   media?: { url: string; alt: string }
+  sourceTopic?: string
 }
 
 const POSTS: Record<string, Post> = {
@@ -316,6 +318,7 @@ export default function PostPage() {
           topic: fp.topic,
           topicColor: fp.topicColor || '#3b82f6',
           privacy: fp.privacy,
+          sourceTopic: fp.sourceTopic,
         })
       }
     }
@@ -328,7 +331,30 @@ export default function PostPage() {
   const [reposted, setReposted] = useState(post.reposted ?? false)
   const [bookmarked, setBookmarked] = useState(post.bookmarked ?? false)
   const [replyText, setReplyText] = useState('')
-  const [replies, setReplies] = useState<Reply[]>(REPLIES[id ?? ''] ?? REPLIES['1'] ?? [])
+  // Feed replies are not persisted or transported by the current runtime.
+  // Never populate this from the static demo fixtures: doing so makes replies
+  // appear to come from the network and can attach post 1's replies to any
+  // unknown post.
+  const [replies, setReplies] = useState<Reply[]>([])
+
+  useEffect(() => {
+    if (!bridgePost) return
+    setReplies(feedPosts
+      .filter((feedPost) => feedPost.replyTo === bridgePost.id)
+      .map((feedPost) => ({
+        id: feedPost.id,
+        author: {
+          name: feedPost.author.name,
+          handle: feedPost.author.handle,
+          avatar: feedPost.author.avatar,
+          verified: feedPost.author.verified,
+          server: feedPost.author.server || ''
+        },
+        content: feedPost.content,
+        timestamp: feedPost.timestamp,
+        likes: feedPost.likes,
+      })))
+  }, [bridgePost, feedPosts])
 
   const handleLikeReply = (replyId: string) => {
     const toggle = (list: Reply[]): Reply[] =>
@@ -340,8 +366,21 @@ export default function PostPage() {
     setReplies((prev) => toggle(prev))
   }
 
-  const handleSubmitReply = () => {
+  const handleSubmitReply = async () => {
     if (!replyText.trim()) return
+    const runtime = getBrowserXmppBridge()
+    if (runtime && bridgePost?.sourceTopic) {
+      try {
+        await runtime.publishFeed(replyText.trim(), {
+          topic: bridgePost.sourceTopic,
+          replyTo: bridgePost.id,
+        })
+        setReplyText('')
+      } catch (err) {
+        emitToast(err instanceof Error ? err.message : 'Failed to publish reply', 'error')
+      }
+      return
+    }
     const newReply: Reply = {
       id: `new-${Date.now()}`, depth: 0,
       author: { name: 'You', handle: 'you', avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=48&h=48&fit=crop&auto=format', verified: true, server: 'jabber.de' },

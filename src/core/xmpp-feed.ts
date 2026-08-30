@@ -436,7 +436,7 @@ export class XmppFeedManager {
     await this.scheduleSubscriptionPersist()
   }
 
-  public async publishFeed(body: string, options: { topic?: string; itemId?: string; title?: string; summary?: string; categories?: string[]; author?: string } = {}): Promise<string> {
+  public async publishFeed(body: string, options: { topic?: string; itemId?: string; title?: string; summary?: string; categories?: string[]; author?: string; replyTo?: string } = {}): Promise<string> {
     const pubsub = this.ctx.getPubSubService()
     const topic = options.topic ?? feedTopicForPeer(this.ctx.libp2p.peerId.toString())
     this.ctx.ensureTopicValidator(topic, 'feed')
@@ -454,6 +454,7 @@ export class XmppFeedManager {
       updatedAt: publishedAt,
       receivedAt: publishedAt,
       title,
+      replyTo: options.replyTo,
       summary: options.summary,
       categories: options.categories,
       author: options.author
@@ -464,7 +465,8 @@ export class XmppFeedManager {
       author: options.author,
       publishedAt,
       updatedAt: publishedAt,
-      alternateHref: `xmpp:${this.ctx.jid}?;node=${encodeURIComponent(topic)};item=${encodeURIComponent(itemId)}`
+      alternateHref: `xmpp:${this.ctx.jid}?;node=${encodeURIComponent(topic)};item=${encodeURIComponent(itemId)}`,
+      replyTo: options.replyTo
     })
     const stanza = xml(
       'message',
@@ -506,6 +508,7 @@ export class XmppFeedManager {
       author: options.author ?? this.ctx.jid,
       contentType: 'text',
       categories: options.categories,
+      replyTo: options.replyTo,
       links: [{
         rel: 'alternate',
         href: `xmpp:${this.ctx.jid}?;node=${encodeURIComponent(topic)};item=${encodeURIComponent(itemId)}`

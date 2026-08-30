@@ -16,6 +16,7 @@ export type BridgeFeedPostRecord = {
   categories?: string[]
   links?: Array<{ rel: string; href: string; type?: string; title?: string; ref?: string }>
   geoloc?: { lat?: string; lon?: string; country?: string; countryCode?: string; region?: string }
+  replyTo?: string
 }
 
 export type BridgeFeedSubscriptionRecord = {
@@ -112,6 +113,7 @@ export interface XmppRuntimeBridge {
       summary?: string
       categories?: string[]
       author?: string
+      replyTo?: string
     }
   ): Promise<string>
   subscribeFeed(peerAddr: string, options?: { visibility?: BridgeVisibility }): Promise<BridgeFeedSubscriptionRecord>
@@ -207,7 +209,33 @@ export interface XmppRuntimeBridge {
 declare global {
   interface Window {
     __XMPP_P2P_BRIDGE__?: XmppRuntimeBridge
+    __XMPP_P2P_CONFIG__?: {
+      bootstrapAddrs: string[]
+    }
+    __XMPP_P2P_CONFIG_READY__?: Promise<{ bootstrapAddrs: string[] }>
   }
+}
+
+/**
+ * Wait for the deployment-provided bootstrap configuration. The HTML shell
+ * starts this fetch before React, but module evaluation and network timing are
+ * independent, so callers must not assume the config is already available.
+ */
+export async function getBootstrapAddrs(): Promise<string[]> {
+  if (typeof window === 'undefined') return []
+  if (window.__XMPP_P2P_CONFIG__) return window.__XMPP_P2P_CONFIG__.bootstrapAddrs ?? []
+
+  if (!window.__XMPP_P2P_CONFIG_READY__) {
+    window.__XMPP_P2P_CONFIG_READY__ = fetch('/bootstrap-config.json')
+      .then(response => response.ok ? response.json() : { bootstrapAddrs: [] })
+      .catch(() => ({ bootstrapAddrs: [] }))
+      .then(config => {
+        window.__XMPP_P2P_CONFIG__ = config
+        return config
+      })
+  }
+
+  return (await window.__XMPP_P2P_CONFIG_READY__).bootstrapAddrs ?? []
 }
 
 export function getBrowserXmppBridge(): XmppRuntimeBridge | undefined {

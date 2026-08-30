@@ -22,15 +22,19 @@ async function runReconnectTest() {
 
   let libp2p1: any
   let libp2p2: any
+  let xmpp1: XmppNode | undefined
+  let xmpp2: XmppNode | undefined
 
   try {
     libp2p1 = await createP2PNode(9901, { enableMdns: false, enableDht: true })
     await libp2p1.start()
-    const xmpp1 = new XmppNode(libp2p1, new NodeSqliteStorage(join(workDir, 'n1.sqlite')))
+    xmpp1 = new XmppNode(libp2p1, new NodeSqliteStorage(join(workDir, 'n1.sqlite')))
+    xmpp1.on('error', () => {})
 
     libp2p2 = await createP2PNode(9902, { enableMdns: false, enableDht: true })
     await libp2p2.start()
-    const xmpp2 = new XmppNode(libp2p2, new NodeSqliteStorage(join(workDir, 'n2.sqlite')))
+    xmpp2 = new XmppNode(libp2p2, new NodeSqliteStorage(join(workDir, 'n2.sqlite')))
+    xmpp2.on('error', () => {})
 
     await Promise.all([xmpp1.ready, xmpp2.ready])
 
@@ -38,7 +42,9 @@ async function runReconnectTest() {
     if (!addr1) throw new Error('No listen address for node 1')
 
     console.log('Test 1: Establish XMPP stream between two peers')
-    const stream = await xmpp2.getOrCreateStream(`${libp2p1.peerId.toString()}@p2p`)
+    const peerAddress = addr1.encapsulate(`/p2p/${libp2p1.peerId.toString()}`)
+    await libp2p2.dial(addr1)
+    const stream = await xmpp2.getOrCreateStream(peerAddress)
     if (!stream) throw new Error('Failed to create XMPP stream')
     console.log('  PASS')
 
@@ -77,6 +83,8 @@ async function runReconnectTest() {
 
     console.log('\n>>> RECONNECT VERIFICATION SUCCESSFUL! <<<')
   } finally {
+    await xmpp1?.close().catch(() => {})
+    await xmpp2?.close().catch(() => {})
     await libp2p1?.stop().catch(() => {})
     await libp2p2?.stop().catch(() => {})
     await rm(workDir, { recursive: true, force: true }).catch(() => {})

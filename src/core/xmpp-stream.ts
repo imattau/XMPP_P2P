@@ -23,7 +23,7 @@ export class XmppStream extends EventEmitter {
   private stream: any
   private parser: Parser
   private isClosed = false
-  /** Pushable source that feeds outbound bytes into stream.sink */
+  /** Queue that buffers outbound bytes until the underlying stream accepts them. */
   private readonly outbound: Pushable<Uint8Array>
   private sinkPromise: Promise<void> | undefined
   public readonly remotePeer: string
@@ -69,9 +69,10 @@ export class XmppStream extends EventEmitter {
       this.emit('error', err)
     })
 
-    // Create the pushable source for outbound data and wire it into stream.sink.
+    // Keep a pushable queue so send() remains synchronous, while supporting both
+    // the legacy source/sink duplex API and the current libp2p MessageStream API.
     this.outbound = pushable<Uint8Array>({ objectMode: false })
-    this.sinkPromise = this.stream.sink(this.outbound).catch((err: Error) => {
+    this.sinkPromise = this.writeOutbound().catch((err: Error) => {
       if (!this.isClosed) {
         this.emit('error', err)
       }
@@ -94,7 +95,8 @@ export class XmppStream extends EventEmitter {
    */
   private async readInbound(): Promise<void> {
     try {
-      for await (const chunk of this.stream.source) {
+      const source = this.stream.source ?? this.stream
+      for await (const chunk of source) {
         if (this.isClosed) break
         try {
           const array: Uint8Array = chunk instanceof Uint8Array ? chunk : chunk.subarray()
@@ -111,6 +113,23 @@ export class XmppStream extends EventEmitter {
         this.isClosed = true
         this.outbound.end()
         this.emit('close')
+      }
+    }
+  }
+
+  /** Drain queued bytes into either libp2p stream API. */
+  private async writeOutbound(): Promise<void> {
+    if (typeof this.stream.sink === 'function') {
+      await this.stream.sink(this.outbound)
+      return
+    }
+
+    for await (const chunk of this.outbound) {
+      while (!this.stream.send(chunk)) {
+        if (typeof this.stream.onDrain !== 'function') {
+          throw new Error('Underlying stream is not writable')
+        }
+        await this.stream.onDrain()
       }
     }
   }

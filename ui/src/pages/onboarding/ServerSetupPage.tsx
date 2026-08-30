@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router'
 import { ArrowLeft, Check, Loader, ExternalLink } from 'lucide-react'
 import ProgressDots from '../../components/onboarding/ProgressDots'
 import { useIdentityBridge } from '../../bridge/identity/useIdentityBridge'
-import { getBrowserXmppBridge } from '../../bridge/runtime'
+import { getBootstrapAddrs, getBrowserXmppBridge } from '../../bridge/runtime'
 import { fetchPublicServers, PublicServer } from '../../constants'
 
 type Tab = 'login' | 'register' | 'skip'
@@ -42,10 +42,10 @@ export default function ServerSetupPage() {
     if (getBrowserXmppBridge()) {
       setInitializing(false)
     } else {
-      const bootstrapAddrs = window.__XMPP_P2P_CONFIG__?.bootstrapAddrs ?? []
       const client = window.XmppP2P?.createBrowserXmppClient
       if (client) {
-        client({ bootstrapAddrs, dbName: 'xmpp-p2p', nickname: displayName })
+        getBootstrapAddrs()
+          .then(bootstrapAddrs => client({ bootstrapAddrs, dbName: 'xmpp-p2p', nickname: displayName }))
           .then(() => setInitializing(false))
           .catch((err: unknown) => {
             setInitError(err instanceof Error ? err.message : 'Failed to start P2P node')

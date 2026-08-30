@@ -118,6 +118,7 @@ export interface XmppFeedPost {
   categories?: string[]
   links?: XmppAtomLink[]
   geoloc?: XmppAtomGeoloc
+  replyTo?: string
 }
 
 export interface XmppFeedSubscription {
@@ -491,7 +492,8 @@ export function normalizeFeedPost(entry: Partial<XmppFeedPost> & { id: string; t
     contentType: entry.contentType,
     categories: entry.categories?.filter((c): c is string => typeof c === 'string' && c.trim().length > 0),
     links: entry.links?.filter((l): l is NonNullable<typeof l> => l != null && !!(l.rel || l.href)),
-    geoloc: entry.geoloc
+    geoloc: entry.geoloc,
+    replyTo: entry.replyTo
   }
 }
 

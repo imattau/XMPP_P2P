@@ -226,7 +226,7 @@ export interface XmppNodeOptions {
 export class XmppNode extends EventEmitter {
   private libp2p: Libp2p
   private streams = new Map<string, XmppStream>()
-  private peerAddrs = new Map<string, string | Multiaddr>()
+  private peerAddrs = new Map<string, Multiaddr>()
   private reconnectTimers = new Map<string, ReturnType<typeof setTimeout>>()
   private reconnectAttempts = new Map<string, number>()
   private readonly maxReconnectDelay = 30000
@@ -1238,12 +1238,13 @@ export class XmppNode extends EventEmitter {
       return existing
     }
 
-    if (!parsed.dialTarget) {
+    const dialTarget = parsed.dialTarget ?? this.peerAddrs.get(peerIdStr)
+    if (!dialTarget) {
       throw new Error(`Peer ${peerIdStr} is not connected; provide a multiaddr or establish a stream first`)
     }
 
-    this.peerAddrs.set(peerIdStr, parsed.dialTarget)
-    const stream = await this.libp2p.dialProtocol(parsed.dialTarget, ['/xmpp/1.0.0'])
+    this.peerAddrs.set(peerIdStr, dialTarget)
+    const stream = await this.libp2p.dialProtocol(dialTarget, ['/xmpp/1.0.0'])
     const xmppStream = new XmppStream(stream, peerIdStr)
     this.registerStream(peerIdStr, xmppStream)
     this.emit('stream', { peerId: peerIdStr, direction: 'outbound', stream: xmppStream })
@@ -1446,20 +1447,16 @@ export class XmppNode extends EventEmitter {
       throw new Error('Cannot send message: peer address is empty')
     }
 
-    // Route to the server bridge only when:
-    //   1. The target is a standard XMPP JID (contains '@' but not the '@p2p' sentinel)
-    //   2. The bridge is connected
-    //   3. The target domain matches the bridge's connected domain (prevents routing
-    //      e.g. user@other-server messages through a bridge connected to jabber.org)
-    const targetDomain = addrStr.includes('@') ? addrStr.split('@')[1] : ''
+    // Route standard XMPP JIDs through the connected home server. The home server
+    // may federate the stanza to another XMPP domain, so the target domain does
+    // not need to match the domain of the local client connection.
     if (!addrStr.endsWith('@p2p') && addrStr.includes('@')) {
-      if (this.clientBridge.isConnected && targetDomain === this.clientBridge.connectionInfo.domain) {
+      if (this.clientBridge.isConnected) {
         return this.clientBridge.sendMessage(addrStr, body, { type: 'chat', thread: options.thread })
       }
       if (!this.clientBridge.isConnected) {
         throw new Error(`Server bridge is not connected — cannot send to ${addrStr}`)
       }
-      throw new Error(`Cannot route to ${targetDomain}: bridge is connected to ${this.clientBridge.connectionInfo.domain}`)
     }
 
     const peerId = this.parsePeerReference(peerAddr).peerId
@@ -1813,7 +1810,7 @@ export class XmppNode extends EventEmitter {
     await this.feedManager.unsubscribeFeed(peerAddr)
   }
 
-  async publishFeed(body: string, options: { topic?: string; itemId?: string; title?: string; summary?: string; categories?: string[]; author?: string } = {}): Promise<string> {
+  async publishFeed(body: string, options: { topic?: string; itemId?: string; title?: string; summary?: string; categories?: string[]; author?: string; replyTo?: string } = {}): Promise<string> {
     return await this.feedManager.publishFeed(body, options)
   }
 

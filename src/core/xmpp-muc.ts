@@ -569,6 +569,13 @@ export class XmppMucManager {
     const keysMap = new Map<string, Element[]>()
 
     const addOmemoKey = async (targetJid: string) => {
+      // The local device does not need a network lookup. A sender can decrypt
+      // its own message from the plaintext payload it already has; attempting
+      // to resolve its own JID as a remote peer fails when no self-stream exists.
+      if (targetJid === this.ctx.jid) {
+        return
+      }
+
       const devices = await this.ctx.getPeerOmemoDevices(targetJid)
       if (devices.length === 0) {
         return
@@ -589,13 +596,10 @@ export class XmppMucManager {
       }
     }
 
-    // Encrypt for all occupants (including self for MAM history decryption)
+    // Encrypt for all remote occupants.
     for (const occupant of roomState.occupants.values()) {
       await addOmemoKey(occupant.jid)
     }
-    // Add self key so sender can decrypt own messages from MAM history
-    await addOmemoKey(this.ctx.jid)
-
     if (keysMap.size === 0 && roomState.occupants.size > 0) {
       throw new Error('No occupants have available OMEMO devices')
     }
