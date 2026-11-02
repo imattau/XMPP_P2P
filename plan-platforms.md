@@ -28,6 +28,7 @@
 | Android signing config | Done | `android/app/build.gradle` reads `android/keystore.properties` |
 | ZapStore listing | Done | `zapstore.yaml`, `assets/zapstore-icon.png` |
 | Release workflow | Done | `.github/workflows/release.yml`; `actionlint` passes |
+| GitHub Actions verification | Passed | run `41525774676`: web + Android signed APK + all three desktop OSes; run `41528275681` after artifact-name fix: Linux AppImage/deb/rpm/flatpak, Windows setup+portable, macOS dmg+zip (x64/arm64) |
 | Repository secrets | Done | All five secrets set on `imattau/XMPP_P2P` from `~/.config/nostr-release/signing.env`; keystore password + alias verified with `openssl pkcs12` (cert CN=Scrollstr) |
 | ZapStore `pubkey` | Done | `npub1khf5amw8mrupe649a5mhkk3d2d8wjj06urz6kwawpftk4f68tjlstdmd3q` added to `zapstore.yaml` |
 
