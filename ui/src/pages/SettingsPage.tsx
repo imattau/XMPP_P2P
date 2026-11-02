@@ -17,6 +17,8 @@ import { requestNotificationPermission } from '../bridge/useNotifications'
 import { getOptionalWebSocketUrl, normalizeXmppJid } from '../lib/xmpp-input'
 import { normalizeBootstrapAddress } from '../lib/bootstrap-address'
 import { normalizeNostrBootstrapConfig, normalizeNostrRelayUrl } from '../../../src/core/nostr-bootstrap.js'
+import { isElectronShell } from '../native-shell'
+import { isAndroidNative } from '../../../src/core/native-platform.js'
 
 export default function SettingsPage() {
   const navigate = useNavigate()
@@ -64,7 +66,7 @@ export default function SettingsPage() {
     setAddError('')
     try {
       const { jid: normalizedJid } = normalizeXmppJid(jid)
-      await connectServer(normalizedJid, password, getOptionalWebSocketUrl(serviceUrl))
+      await connectServer(normalizedJid, password, getOptionalWebSocketUrl(serviceUrl, isElectronShell()))
       setShowAddForm(false)
       setJid('')
       setPassword('')
@@ -118,10 +120,13 @@ export default function SettingsPage() {
   }
 
   const isServerConnected = connections.some(c => c.status === 'connected')
-  const normalizedBootstrapAddress = normalizeBootstrapAddress(bootstrapAddress)
+  const nativeTcpAvailable = isAndroidNative() || isElectronShell()
+  const normalizedBootstrapAddress = normalizeBootstrapAddress(bootstrapAddress, nativeTcpAvailable)
   const validBootstrapAddress = Boolean(normalizedBootstrapAddress)
   const bootstrapAddressError = bootstrapAddress.trim() && !validBootstrapAddress
-    ? 'Enter a valid root WebSocket address ending in /p2p/peer-id. Use wss:// for remote relays.'
+    ? nativeTcpAvailable
+      ? 'Enter a valid root TCP or WebSocket address ending in /p2p/peer-id.'
+      : 'Enter a valid root WebSocket address ending in /p2p/peer-id. Use wss:// for remote relays.'
     : ''
 
   useEffect(() => {
@@ -223,7 +228,7 @@ export default function SettingsPage() {
 
         <form onSubmit={handleSaveBootstrap} className="border-b border-border bg-card px-4 py-3 space-y-3">
           <div className="flex items-center gap-2 text-sm font-medium"><Globe size={15} className="text-primary" /> Peer network relay</div>
-          <p className="text-xs leading-relaxed text-muted-foreground">Use a root WebSocket multiaddress from your network operator. Addresses with an HTTP path such as /ws cannot route WebRTC peer connections. Saving restarts the browser network bridge, disconnects any active XMPP session, and requires you to reconnect that account.</p>
+          <p className="text-xs leading-relaxed text-muted-foreground">{nativeTcpAvailable ? 'Use a root TCP or WebSocket multiaddress from your network operator. Native transports can dial TCP peers directly; WebSocket addresses also support browser clients.' : 'Use a root WebSocket multiaddress from your network operator. Addresses with an HTTP path such as /ws cannot route WebRTC peer connections.'} Saving restarts the peer network; active XMPP sessions may need to reconnect.</p>
           <input value={bootstrapAddress} onChange={(event) => { setBootstrapAddress(event.target.value); setBootstrapSaved(false) }}
             type="text" autoComplete="off" spellCheck={false} placeholder="/dns4/relay.example/tcp/443/wss/p2p/…" aria-label="Peer network relay address"
             className="w-full rounded-lg border border-border bg-background px-3 py-2.5 font-mono text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50" />
@@ -243,7 +248,7 @@ export default function SettingsPage() {
           {nostrConfigHasInvalidEntries && <p role="status" className="text-[11px] text-destructive">Use secure wss:// relay URLs (ws:// is allowed only on localhost).</p>}
           <div className="flex items-center justify-between gap-3">
             <p className="text-[11px] text-muted-foreground">{nostrSaved ? 'Saved. Reconnecting to the peer network…' : `${normalizedNostrConfig.relayUrls.length} relay(s) · any publisher using the Nexus bootstrap identifier`}</p>
-            <button type="submit" disabled={nostrSaved || nostrConfigHasInvalidEntries} className="min-h-11 shrink-0 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40">Save and reconnect</button>
+            <button type="submit" disabled={nostrSaved || nostrConfigHasInvalidEntries} className="min-h-11 shrink-0 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40">Save Nostr relays</button>
           </div>
         </form>
 
@@ -328,7 +333,7 @@ export default function SettingsPage() {
                   <input
                     type="text"
                     aria-label="XMPP server WebSocket URL (optional)"
-                    placeholder="Server URL (optional, e.g. wss://example.com:5443/ws)"
+                    placeholder={isElectronShell() ? 'Server URL (wss://…, xmpp://… or xmpps://…)' : 'Server URL (optional, e.g. wss://example.com:5443/ws)'}
                     value={serviceUrl}
                     onChange={e => setServiceUrl(e.target.value)}
                     className="w-full px-3 py-3 text-sm rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"

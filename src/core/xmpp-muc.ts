@@ -4,9 +4,9 @@
  */
 
 import { xml, Element, Parser } from '@xmpp/xml'
-import { randomBytes, createCipheriv } from 'crypto'
 import { loadOmemoModule } from './omemo-runtime.js'
 import { decryptOmemoKey, decryptOmemoPayload, ensureOmemoSession } from './xmpp-secure.js'
+import { encryptAesGcm, secureRandomBytes } from './xmpp-crypto.js'
 import { TopicValidatorResult } from '@libp2p/gossipsub'
 import { Multiaddr } from '@multiformats/multiaddr'
 import { XmppStream } from './xmpp-stream.js'
@@ -567,13 +567,11 @@ export class XmppMucManager {
     }
 
     const id = messageId || Math.random().toString(36).substring(2, 11)
-    const payloadKeyBytes = randomBytes(16)
-    const iv = randomBytes(12)
-
-    const cipher = createCipheriv('aes-128-gcm', payloadKeyBytes, iv)
-    const ciphertext = Buffer.concat([cipher.update(body, 'utf8'), cipher.final()])
-    const authTag = cipher.getAuthTag()
-    const payload = Buffer.concat([ciphertext, authTag]).toString('base64')
+    const payloadKeyBytes = secureRandomBytes(16)
+    const iv = secureRandomBytes(12)
+    const plaintext = new TextEncoder().encode(body)
+    const ciphertext = await encryptAesGcm(payloadKeyBytes, iv, plaintext)
+    const payload = Buffer.from(ciphertext).toString('base64')
 
     const keysMap = new Map<string, Element[]>()
 
@@ -625,7 +623,7 @@ export class XmppMucManager {
         'header',
         { sid: String(this.ctx.getOmemoDeviceIdOrThrow()) },
         ...keysElements,
-        xml('iv', {}, iv.toString('base64'))
+        xml('iv', {}, Buffer.from(iv).toString('base64'))
       ),
       xml('payload', {}, payload)
     )
@@ -984,7 +982,7 @@ export class XmppMucManager {
             const remoteAddress = new omemo.OMEMOAddress(senderJid, sid)
             const encryptedKey = keyEl.text().trim()
             const payloadKey = await decryptOmemoKey(this.ctx as any, remoteAddress, encryptedKey)
-            const body = decryptOmemoPayload(payload, payloadKey, iv)
+            const body = await decryptOmemoPayload(payload, payloadKey, iv)
             const msgId = element.attrs.id || Math.random().toString(36).substring(2, 11)
             const reply = parseReplyElement(element)
             const thread = parseThreadElement(element)

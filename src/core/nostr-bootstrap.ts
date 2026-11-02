@@ -110,13 +110,22 @@ function isValidBootstrapAddress(value: string, expectedPeerId: string): boolean
   try {
     const address = multiaddr(value)
     const components = address.getComponents()
-    if (components.length !== 4) return false
-    const [hostComponent, portComponent, websocketComponent, peerComponent] = components
+    if (components.length !== 3 && components.length !== 4) return false
+    const [hostComponent, portComponent] = components
     if (!['dns', 'dns4', 'dns6', 'ip4', 'ip6'].includes(hostComponent.name)) return false
     if (portComponent.name !== 'tcp') return false
-    if (websocketComponent.name !== 'ws' && websocketComponent.name !== 'wss') return false
+    if (components.length === 3) {
+      const [,, peerComponent] = components
+      return peerComponent.name === 'p2p' && peerComponent.value === expectedPeerId
+    }
+    const transportComponent = components[2]
+    const peerComponent = components[3]
     if (peerComponent.name !== 'p2p' || peerComponent.value !== expectedPeerId) return false
-    if (websocketComponent.name === 'ws' && !isLoopbackHost(hostComponent.value ?? '')) return false
+    // Native clients can dial raw TCP peers; Web browsers require WebSockets.
+    // Noise encryption is negotiated by libp2p after either transport connects.
+    if (transportComponent.name === 'tcp') return true
+    if (transportComponent.name !== 'ws' && transportComponent.name !== 'wss') return false
+    if (transportComponent.name === 'ws' && !isLoopbackHost(hostComponent.value ?? '')) return false
     return true
   } catch {
     return false
@@ -174,7 +183,7 @@ export function createNostrBootstrapEvent(
     throw new Error('Nostr bootstrap announcement lifetime must be between one minute and seven days')
   }
   if (bootstrapAddrs.some((address) => !isValidBootstrapAddress(address, peerId))) {
-    throw new Error('Nostr bootstrap addresses must be root WebSocket multiaddresses for the announced peer')
+    throw new Error('Nostr bootstrap addresses must be root WebSocket or direct TCP multiaddresses for the announced peer')
   }
 
   const expiresAt = nowSeconds + ttlSeconds

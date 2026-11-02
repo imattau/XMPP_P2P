@@ -1,8 +1,7 @@
 /**
- * @packageDocumentation Browser-targeted libp2p node factory. Uses websockets and WebRTC
- * for transport (no tcp, no mdns — neither is available in a browser sandbox) and
- * relies on KadDHT, bootstrapped from at least one known Node peer's /ws multiaddr,
- * for peer discovery.
+ * @packageDocumentation Browser-targeted libp2p node factory. Uses WebSockets and WebRTC
+ * in browsers, with an Android native TCP dial transport added by the Capacitor plugin.
+ * It relies on KadDHT bootstrapped from known peer multiaddresses for discovery.
  */
 
 import { createLibp2p, type Libp2p } from 'libp2p'
@@ -16,6 +15,7 @@ import { noise } from '@libp2p/noise'
 import { yamux } from '@libp2p/yamux'
 import { bootstrap } from '@libp2p/bootstrap'
 import { createBaseLibp2pServices } from './p2p-base.js'
+import { nativeTcpAndroid } from './native-tcp-transport.js'
 
 export interface CreateBrowserP2PNodeOptions {
   bootstrapAddrs: string[]
@@ -35,10 +35,15 @@ export async function createBrowserP2PNode(options: CreateBrowserP2PNodeOptions)
     throw new Error('Browser relay addresses must use the root WebSocket endpoint; URL paths cannot be used for WebRTC peer routes')
   }
 
+  const nativeTcpTransport = nativeTcpAndroid()
+  const bootstrapAddrs = options.bootstrapAddrs.filter((address) =>
+    address.includes('/ws/') || address.includes('/wss/') || Boolean(nativeTcpTransport && /\/tcp\//.test(address))
+  )
+
   const services = createBaseLibp2pServices({ enableDht: true, dhtClientMode: options.dhtClientMode === true })
 
-  const peerDiscovery = options.bootstrapAddrs.length > 0
-    ? [bootstrap({ list: options.bootstrapAddrs })]
+  const peerDiscovery = bootstrapAddrs.length > 0
+    ? [bootstrap({ list: bootstrapAddrs })]
     : []
 
   const node = await createLibp2p({
@@ -47,16 +52,19 @@ export async function createBrowserP2PNode(options: CreateBrowserP2PNodeOptions)
     // Some bootstrap peers are ordinary WebSocket nodes, though, so their
     // failed HOP reservation must not prevent direct WebSocket startup.
     addresses: {
-      listen: options.bootstrapAddrs.map((address) =>
+      // The Android TCP transport is outbound-only. Only WebSocket bootstrap
+      // peers can be used as relay paths for this node's advertised address.
+      listen: bootstrapAddrs.filter((address) => /\/ws(?:\/|$)|\/wss(?:\/|$)/.test(address)).map((address) =>
         address.includes('/p2p-circuit') ? address : `${address}/p2p-circuit`
       )
     },
     transportManager: { faultTolerance: FaultTolerance.NO_FATAL },
     transports: [
+      nativeTcpTransport,
       webSockets(),
       webRTC(),
       circuitRelayTransport()
-    ],
+    ].filter(Boolean) as any[],
     connectionEncrypters: [noise()],
     streamMuxers: [yamux()],
     peerDiscovery,
@@ -67,7 +75,7 @@ export async function createBrowserP2PNode(options: CreateBrowserP2PNodeOptions)
     connectionGater: {
       denyDialMultiaddr: (address) => {
         const value = address.toString()
-        if (options.bootstrapAddrs.some((bootstrapAddr) =>
+        if (bootstrapAddrs.some((bootstrapAddr) =>
           value === bootstrapAddr || value.startsWith(`${bootstrapAddr}/p2p-circuit`)
         )) return false
         return WebSockets.matches(address) || isPrivate(address) === true

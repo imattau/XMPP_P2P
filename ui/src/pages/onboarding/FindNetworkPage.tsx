@@ -7,6 +7,8 @@ import { useRosterBridge } from '../../bridge/useRosterBridge'
 import { canonicalDirectChatId } from '../../bridge/direct-chat-history'
 import { normalizeXmppJid } from '../../lib/xmpp-input'
 import { normalizeBootstrapAddress } from '../../lib/bootstrap-address'
+import { isAndroidNative } from '../../../../src/core/native-platform.js'
+import { isElectronShell } from '../../native-shell'
 import { createGroupChatSession, getGroupChatSession, removeGroupChatSession } from '../chat-session'
 
 export default function FindNetworkPage() {
@@ -40,10 +42,13 @@ export default function FindNetworkPage() {
     const term = query.trim().toLowerCase()
     return !term || [contact.name, contact.nickname, contact.jid].some((value) => value?.toLowerCase().includes(term))
   })
-  const normalizedBootstrapAddress = normalizeBootstrapAddress(bootstrapAddress)
+  const nativeTcpAvailable = isAndroidNative() || isElectronShell()
+  const normalizedBootstrapAddress = normalizeBootstrapAddress(bootstrapAddress, nativeTcpAvailable)
   const validBootstrapAddress = Boolean(normalizedBootstrapAddress)
   const bootstrapAddressError = bootstrapAddress.trim() && !validBootstrapAddress
-    ? 'Enter a valid root WebSocket address ending in /p2p/peer-id. Use wss:// for remote relays.'
+    ? nativeTcpAvailable
+      ? 'Enter a valid root TCP or WebSocket address ending in /p2p/peer-id.'
+      : 'Enter a valid root WebSocket address ending in /p2p/peer-id. Use wss:// for remote relays.'
     : ''
 
   const handleSaveBootstrap = (event: React.FormEvent) => {
@@ -126,7 +131,7 @@ export default function FindNetworkPage() {
         </p>
         <form onSubmit={handleSaveBootstrap} className="rounded-xl border border-border bg-card p-4 space-y-3">
           <div className="flex items-center gap-2 text-sm font-semibold text-foreground"><Globe size={16} className="text-primary" /> Peer network relay</div>
-          <p className="text-xs leading-relaxed text-muted-foreground">A relay address connects this browser to the P2P network and gives peers a route back to you. Ask your operator for a root WebSocket multiaddress; addresses with an HTTP path such as /ws cannot route WebRTC peer connections.</p>
+          <p className="text-xs leading-relaxed text-muted-foreground">{nativeTcpAvailable ? 'A TCP or WebSocket address bootstraps the peer network. Native builds can dial root TCP addresses directly; browser clients need WebSockets.' : 'A relay address connects this browser to the P2P network and gives peers a route back to you. Ask your operator for a root WebSocket multiaddress; addresses with an HTTP path such as /ws cannot route WebRTC peer connections.'}</p>
           <input value={bootstrapAddress} onChange={(event) => { setBootstrapAddress(event.target.value); setBootstrapSaved(false) }}
             type="text" autoComplete="off" spellCheck={false} placeholder="/dns4/relay.example/tcp/443/wss/p2p/…" aria-label="Peer network relay address"
             className="w-full rounded-lg border border-border bg-secondary px-3 py-2.5 font-mono text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50" />

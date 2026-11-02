@@ -8,6 +8,7 @@ import { useIdentityBridge } from '../../bridge/identity/useIdentityBridge'
 import { ensureBrowserXmppClient, getBootstrapAddrs, getBrowserXmppBridge } from '../../bridge/runtime'
 import { fetchPublicServers, PublicServer } from '../../constants'
 import { getOptionalWebSocketUrl, normalizeXmppJid } from '../../lib/xmpp-input'
+import { isElectronShell } from '../../native-shell'
 
 type Tab = 'login' | 'register' | 'skip'
 
@@ -92,7 +93,7 @@ export default function ServerSetupPage() {
       const { jid: normalizedJid, domain: jidDomain } = normalizeXmppJid(jid)
       const bridge = getBrowserXmppBridge()
       if (!bridge?.connectServer) throw new Error('Bridge not available')
-      await bridge.connectServer(normalizedJid, password, getOptionalWebSocketUrl(serviceUrl))
+      await bridge.connectServer(normalizedJid, password, getOptionalWebSocketUrl(serviceUrl, isElectronShell()))
       setConnectedDomain(jidDomain)
       setConnected(true)
     } catch (err) {
@@ -301,14 +302,14 @@ export default function ServerSetupPage() {
                   <input
                     type="text"
                     aria-label="XMPP server WebSocket URL (optional)"
-                    placeholder="Server URL (optional, e.g. wss://example.com:5443/ws)"
+                    placeholder={isElectronShell() ? 'Server URL (wss://…, xmpp://… or xmpps://…)' : 'Server URL (optional, e.g. wss://example.com:5443/ws)'}
                     value={serviceUrl}
                     disabled={connecting}
                     onChange={e => { setServiceUrl(e.target.value); setError('') }}
                     className="w-full px-3 py-3 text-sm rounded-xl border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
                   />
                   <p className="-mt-1 text-xs leading-relaxed text-muted-foreground">
-                    If discovery fails, enter the server’s secure XMPP WebSocket address (wss://). Native XMPP ports such as 5222 or 5223 cannot be used by a browser.
+                    If discovery fails, enter the server’s secure XMPP endpoint. Electron supports xmpp:// (STARTTLS) and xmpps:// (direct TLS); browsers require wss://.
                   </p>
                   {error && <XmppConnectionError message={error} />}
                   <button

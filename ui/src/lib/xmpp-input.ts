@@ -11,11 +11,16 @@ export function normalizeXmppJid(value: string): { jid: string; domain: string }
   return { jid, domain }
 }
 
-export function getOptionalWebSocketUrl(value: string): string | undefined {
+export function getOptionalWebSocketUrl(value: string, allowNativeTcp = false): string | undefined {
   const endpoint = value.trim()
   if (!endpoint) return undefined
   try {
     const parsed = new URL(endpoint)
+    const nativeTcp = parsed.protocol === 'xmpp:' || parsed.protocol === 'xmpps:'
+    if (nativeTcp && allowNativeTcp && parsed.hostname && !parsed.username && !parsed.password
+      && (parsed.pathname === '' || parsed.pathname === '/') && !parsed.search && !parsed.hash) {
+      return parsed.toString()
+    }
     const hostname = parsed.hostname.toLowerCase()
     const ipv4Parts = hostname.split('.')
     const isLoopback = hostname === 'localhost'
@@ -33,5 +38,7 @@ export function getOptionalWebSocketUrl(value: string): string | undefined {
   } catch {
     // Return a focused validation message for malformed custom endpoints.
   }
-  throw new Error('Server URL must use wss://. ws:// is only allowed for a localhost development server served over http://.')
+  throw new Error(allowNativeTcp
+    ? 'Server URL must use wss://, xmpp:// or xmpps://. ws:// is only allowed for localhost development.'
+    : 'Server URL must use wss://. ws:// is only allowed for a localhost development server served over http://.')
 }

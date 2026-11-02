@@ -1,18 +1,23 @@
 import { multiaddr } from '@multiformats/multiaddr'
 
 /** Return a canonical root WebSocket relay address, or undefined if invalid. */
-export function normalizeBootstrapAddress(value: string): string | undefined {
+export function normalizeBootstrapAddress(value: string, allowNativeTcp = false): string | undefined {
   const candidate = value.trim().replace(/\/$/, '')
   if (!candidate || candidate.includes('/http-path/')) return undefined
 
   try {
     const address = multiaddr(candidate)
     const components = address.getComponents()
-    const peerComponent = components.at(-1)
-    const websocketIndex = components.findIndex(({ name }) => name === 'ws' || name === 'wss')
-    if (websocketIndex < 0 || websocketIndex !== components.length - 2 || peerComponent?.name !== 'p2p') {
+    if (!['dns', 'dns4', 'dns6', 'ip4', 'ip6'].includes(components[0]?.name ?? '') || components[1]?.name !== 'tcp') {
       return undefined
     }
+    const peerComponent = components.at(-1)
+    const tcpIndex = components.findIndex(({ name }) => name === 'tcp')
+    const websocketIndex = components.findIndex(({ name }) => name === 'ws' || name === 'wss')
+    if (websocketIndex < 0 || websocketIndex !== components.length - 2 || peerComponent?.name !== 'p2p') {
+      if (!allowNativeTcp || tcpIndex !== components.length - 2 || peerComponent?.name !== 'p2p') return undefined
+    }
+    if (websocketIndex < 0) return address.toString()
     if (components[websocketIndex].name === 'ws') {
       const host = components.find(({ name }) => ['dns', 'dns4', 'dns6', 'ip4', 'ip6'].includes(name))?.value ?? ''
       const isLoopback = host === 'localhost' || host.endsWith('.localhost') || host === '::1'
