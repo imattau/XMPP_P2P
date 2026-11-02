@@ -1,7 +1,10 @@
 import { XmppNode } from '../core/xmpp-node.js'
+import { MAX_PEER_UPLOAD_BYTES } from '../core/xmpp-uploads.js'
 import type { XmppMessage, XmppFeedPost, XmppPresence } from '../core/xmpp-records.js'
+import type { XmppCollectionPost } from '../core/xmpp-records.js'
+import type { XmppAttachment, XmppAttachmentSummary } from '../core/xmpp-records.js'
 import { jidFromPeerId } from '../core/xmpp-records.js'
-import type { ServerConnectionInfo, ServerDiscoInfoResult, ServerDiscoItemsResult } from '../core/xmpp-client-bridge.js'
+import type { ServerConnectionInfo, ServerDiscoInfoResult, ServerDiscoItemsResult, ServerMucRoomInfo } from '../core/xmpp-client-bridge.js'
 
 type Listener<Args extends unknown[]> = (...args: Args) => void
 
@@ -9,22 +12,37 @@ export class BrowserXmppRuntimeBridge {
   private messageListeners = new Set<Listener<[XmppMessage]>>()
   private presenceListeners = new Set<Listener<[XmppPresence]>>()
   private feedPostListeners = new Set<Listener<[XmppFeedPost]>>()
+  private collectionPostListeners = new Set<Listener<[XmppCollectionPost]>>()
+  private attachmentSummaryListeners = new Set<Listener<[XmppAttachmentSummary]>>()
   private connectionListeners = new Set<Listener<[string, boolean]>>()
   private serverConnectionListeners = new Set<Listener<[ServerConnectionInfo]>>()
+  private serverRosterListeners = new Set<Listener<[]>>()
+  private serverPresenceRequestListeners = new Set<Listener<[{ jid: string; server: string }]>>()
+  private pendingServerPresenceRequests = new Map<string, { jid: string; server: string }>()
   private chatStateListeners = new Set<Listener<[{ from: string; state: string }]>>()
   private mucMessageListeners = new Set<Listener<[any]>>()
   private mucJoinListeners = new Set<Listener<[any]>>()
   private mucLeaveListeners = new Set<Listener<[any]>>()
+  private mucErrorListeners = new Set<Listener<[any]>>()
   private mucChatStateListeners = new Set<Listener<[any]>>()
   private mucMarkerListeners = new Set<Listener<[any]>>()
 
   private activeConnections = new Set<string>()
 
-  constructor(private readonly xmppNode: XmppNode) {
+  constructor(
+    private readonly xmppNode: XmppNode,
+    private readonly stopNetwork: () => Promise<void> = async () => {}
+  ) {
     this.hookEvents()
   }
 
   private hookEvents() {
+    this.xmppNode.on('upload:available', (cid: string) => {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('xmpp-p2p:upload-available', { detail: cid }))
+      }
+    })
+
     this.xmppNode.on('message', (msg: XmppMessage) => {
       if (msg.chatState && !msg.body) {
         for (const cb of this.chatStateListeners) {
@@ -41,7 +59,7 @@ export class BrowserXmppRuntimeBridge {
       const normalized: XmppPresence = {
         ...presence,
         from: presence.from?.includes('@') ? presence.from : `${presence.from}@p2p`,
-        to: presence.to?.includes('@') ? presence.to : `${presence.to}@p2p`,
+        to: !presence.to ? '' : presence.to.includes('@') ? presence.to : `${presence.to}@p2p`,
       }
       for (const cb of this.presenceListeners) {
         try { cb(normalized) } catch { /* swallow */ }
@@ -60,6 +78,18 @@ export class BrowserXmppRuntimeBridge {
     this.xmppNode.on('feed:post', (post: XmppFeedPost) => {
       for (const cb of this.feedPostListeners) {
         try { cb(post) } catch { /* swallow */ }
+      }
+    })
+
+    this.xmppNode.on('collection:post', (post: XmppCollectionPost) => {
+      for (const cb of this.collectionPostListeners) {
+        try { cb(post) } catch { /* swallow */ }
+      }
+    })
+
+    this.xmppNode.on('attachment:summary', (summary: XmppAttachmentSummary) => {
+      for (const cb of this.attachmentSummaryListeners) {
+        try { cb(summary) } catch { /* swallow */ }
       }
     })
 
@@ -83,6 +113,20 @@ export class BrowserXmppRuntimeBridge {
       }
     })
 
+    this.xmppNode.on('server:roster', () => {
+      for (const cb of this.serverRosterListeners) {
+        try { cb() } catch { /* swallow */ }
+      }
+    })
+
+    this.xmppNode.on('server:presence-subscription-request', (request: { from: string; server: string }) => {
+      const normalized = { jid: request.from.split('/')[0].toLowerCase(), server: request.server }
+      this.pendingServerPresenceRequests.set(normalized.jid, normalized)
+      for (const cb of this.serverPresenceRequestListeners) {
+        try { cb(normalized) } catch { /* swallow */ }
+      }
+    })
+
     this.xmppNode.on('muc:message', (event: any) => {
       for (const cb of this.mucMessageListeners) {
         try { cb(event) } catch { /* swallow */ }
@@ -97,6 +141,12 @@ export class BrowserXmppRuntimeBridge {
 
     this.xmppNode.on('muc:leave', (event: any) => {
       for (const cb of this.mucLeaveListeners) {
+        try { cb(event) } catch { /* swallow */ }
+      }
+    })
+
+    this.xmppNode.on('muc:error', (event: any) => {
+      for (const cb of this.mucErrorListeners) {
         try { cb(event) } catch { /* swallow */ }
       }
     })
@@ -145,6 +195,20 @@ export class BrowserXmppRuntimeBridge {
     return () => this.feedPostListeners.delete(cb)
   }
 
+  onCollectionPost(cb: Listener<[XmppCollectionPost]>): () => void {
+    this.collectionPostListeners.add(cb)
+    return () => this.collectionPostListeners.delete(cb)
+  }
+
+  onAttachmentSummary(cb: Listener<[XmppAttachmentSummary]>): () => void {
+    this.attachmentSummaryListeners.add(cb)
+    return () => this.attachmentSummaryListeners.delete(cb)
+  }
+
+  getAttachments(topic?: string, targetId?: string): Promise<XmppAttachment[]> {
+    return this.xmppNode.getAttachments(topic, targetId)
+  }
+
   onConnectionChange(cb: Listener<[string, boolean]>): () => void {
     this.connectionListeners.add(cb)
     return () => this.connectionListeners.delete(cb)
@@ -170,6 +234,11 @@ export class BrowserXmppRuntimeBridge {
     return () => this.mucLeaveListeners.delete(cb)
   }
 
+  onMucError(cb: Listener<[any]>): () => void {
+    this.mucErrorListeners.add(cb)
+    return () => this.mucErrorListeners.delete(cb)
+  }
+
   onMucChatState(cb: Listener<[any]>): () => void {
     this.mucChatStateListeners.add(cb)
     return () => this.mucChatStateListeners.delete(cb)
@@ -184,11 +253,68 @@ export class BrowserXmppRuntimeBridge {
     await this.xmppNode.sendMessage(target, '', { chatState: state })
   }
 
+  async sendMucChatState(roomName: string, state: 'composing' | 'paused' | 'active'): Promise<void> {
+    if (roomName.includes('@') && !roomName.toLowerCase().endsWith('@muc.p2p')) {
+      return this.xmppNode.sendServerMucChatState(roomName, state)
+    }
+    await this.xmppNode.muc.sendGroupChatState(roomName.replace(/@muc\.p2p$/, ''), state)
+  }
+
+  async getMucHistory(roomName: string) {
+    await this.xmppNode.ready
+    return this.xmppNode.getMucHistory(roomName.replace(/@muc\.p2p$/, ''))
+  }
+
+  getMucParticipants(roomName: string) {
+    const state = this.xmppNode.muc.getRoomState(roomName.replace(/@muc\.p2p$/, ''))
+    return state ? [...state.occupants.values()] : []
+  }
+
+  async queryChatHistory(targetPeerJid: string, withJid?: string): Promise<string> {
+    await this.xmppNode.ready
+    return this.xmppNode.queryChatHistory(targetPeerJid, withJid)
+  }
+
+  async queryServerChatHistory(withJid: string, before?: string): Promise<{ before?: string; hasMore: boolean }> {
+    await this.xmppNode.ready
+    return this.xmppNode.queryServerChatHistory(withJid, before)
+  }
+
+  async queryServerMucHistory(roomJid: string, before?: string): Promise<{ before?: string; hasMore: boolean }> {
+    await this.xmppNode.ready
+    return this.xmppNode.queryServerMucHistory(roomJid, before)
+  }
+
+  async discoverServerMucRooms(): Promise<ServerMucRoomInfo[]> {
+    await this.xmppNode.ready
+    return this.xmppNode.discoverServerMucRooms()
+  }
+
+  async subscribeServerMicroblog(jid: string): Promise<'subscribed' | 'pending' | 'unconfigured'> {
+    await this.xmppNode.ready
+    return this.xmppNode.subscribeServerMicroblog(jid)
+  }
+
+  async unsubscribeServerMicroblog(jid: string): Promise<void> {
+    await this.xmppNode.ready
+    return this.xmppNode.unsubscribeServerMicroblog(jid)
+  }
+
+  async refreshServerMicroblog(jid: string): Promise<number> {
+    await this.xmppNode.ready
+    return this.xmppNode.refreshServerMicroblog(jid)
+  }
+
+  async publishServerMicroblog(body: string, options?: { itemId?: string; title?: string; summary?: string; categories?: string[]; author?: string; displayContent?: string; articlePayload?: string }): Promise<string> {
+    await this.xmppNode.ready
+    return this.xmppNode.publishServerMicroblog(body, options)
+  }
+
   getFeedPosts(): Promise<XmppFeedPost[]> {
     return this.xmppNode.getFeedPosts()
   }
 
-  publishFeed(body: string, options?: { topic?: string; itemId?: string; title?: string; summary?: string; categories?: string[]; author?: string; replyTo?: string }): Promise<string> {
+  publishFeed(body: string, options?: { topic?: string; itemId?: string; title?: string; summary?: string; categories?: string[]; author?: string; replyTo?: string; links?: Array<{ rel: string; href: string; type?: string; title?: string; ref?: string }> }): Promise<string> {
     return this.xmppNode.publishFeed(body, options)
   }
 
@@ -224,6 +350,18 @@ export class BrowserXmppRuntimeBridge {
     return this.xmppNode.getCollections()
   }
 
+  createCollection(id: string, name?: string): Promise<any> {
+    return this.xmppNode.createCollection(id, name)
+  }
+
+  subscribeCollection(id: string): Promise<any> {
+    return this.xmppNode.subscribeCollection(id)
+  }
+
+  unsubscribeCollection(id: string): Promise<void> {
+    return this.xmppNode.unsubscribeCollection(id)
+  }
+
   getCollectionPosts(collectionId?: string): Promise<any[]> {
     return this.xmppNode.getCollectionPosts(collectionId)
   }
@@ -248,12 +386,23 @@ export class BrowserXmppRuntimeBridge {
     return this.xmppNode.setVCard(profile)
   }
 
-  broadcastPresence(type?: string, status?: string, show?: string, nickname?: string): Promise<void> {
-    return this.xmppNode.broadcastPresence(type, status, show, nickname)
+  async broadcastPresence(type?: string, status?: string, show?: string, nickname?: string): Promise<void> {
+    await this.xmppNode.broadcastPresence(type, status, show, nickname)
+    if (this.xmppNode.clientBridge.connectionInfo.status === 'connected') {
+      await this.xmppNode.clientBridge.sendPresence(type, status, show)
+    }
   }
 
-  getRosterEntries(): Promise<Array<{ jid: string; name?: string; nickname?: string; updatedAt: string }>> {
+  getRosterEntries(): Promise<Array<{ jid: string; name?: string; nickname?: string; updatedAt: string; subscription?: string }>> {
     return this.xmppNode.getRosterEntries()
+  }
+
+  addRosterEntry(jid: string, name?: string): Promise<{ jid: string; name?: string; nickname?: string; updatedAt: string }> {
+    return this.xmppNode.addRosterEntry(jid, name)
+  }
+
+  removeRosterEntry(jid: string): Promise<void> {
+    return this.xmppNode.removeRosterEntry(jid)
   }
 
   async createPrivateMucRoom(
@@ -264,9 +413,26 @@ export class BrowserXmppRuntimeBridge {
       communityId?: string
       autoJoin?: boolean
       archived?: boolean
+      defaultMode?: 'secure' | 'open'
     }
   ): Promise<{ roomName: string; roomJid: string }> {
     return this.xmppNode.createPrivateMucRoom(roomName, options)
+  }
+
+  async joinMucRoom(roomName: string, nick?: string): Promise<void> {
+    return this.xmppNode.joinMucRoom(roomName, nick ?? this.xmppNode.jid.split('@')[0])
+  }
+
+  async leaveMucRoom(roomName: string): Promise<void> {
+    return this.xmppNode.muc.leaveRoom(roomName.replace(/@muc\.p2p$/, ''))
+  }
+
+  async joinServerMuc(roomJid: string, nick: string): Promise<void> {
+    return this.xmppNode.joinServerMuc(roomJid, nick)
+  }
+
+  async leaveServerMuc(roomJid: string, nick: string): Promise<void> {
+    return this.xmppNode.leaveServerMuc(roomJid, nick)
   }
 
   async getMucRoomSettings(roomName: string): Promise<any> {
@@ -278,9 +444,10 @@ export class BrowserXmppRuntimeBridge {
   }
 
   async sendChatMessage(
-    target: { id: string; type: string; name: string; handle?: string; server?: string },
+    target: { id: string; type: string; name: string; handle?: string; peerAddress?: string; server?: string; encrypted?: boolean },
     body: string,
     options?: {
+      originId?: string
       attachments?: Array<{ id: string; url: string; alt: string; kind: string }>
       replyTo?: string
       reply?: { id: string; to?: string }
@@ -288,11 +455,18 @@ export class BrowserXmppRuntimeBridge {
       replace?: string
     }
   ): Promise<string> {
-    const peerAddr = target.handle || `${target.id}@p2p`
+    const directAddress = target.handle || target.id
+    const isExternalXmppDirect = target.type === 'direct'
+      && directAddress.includes('@')
+      && !directAddress.toLowerCase().split('/')[0].endsWith('@p2p')
+    if (isExternalXmppDirect && options?.attachments?.some((attachment) => /^(?:upload|p2p-upload):\/\//i.test(attachment.url))) {
+      throw new Error('This file is stored on the P2P network and cannot be opened by a standard XMPP contact. Send a public HTTPS link instead.')
+    }
+
     let messageBody = body
     if (options?.attachments && options.attachments.length > 0) {
       const attachmentRefs = options.attachments
-        .map((a) => a.url.startsWith('upload://') ? a.url : `[${a.alt}](${a.url})`)
+        .map((a) => `${a.kind === 'image' ? '!' : ''}[${a.alt.replace(/[\[\]\r\n]/g, ' ')}](${a.url})`)
         .join('\n')
       if (messageBody) {
         messageBody += '\n' + attachmentRefs
@@ -300,11 +474,46 @@ export class BrowserXmppRuntimeBridge {
         messageBody = attachmentRefs
       }
     }
+    if (target.type === 'group' || target.type === 'muc') {
+      const roomJid = target.handle || target.id
+      if (roomJid.includes('@') && !roomJid.toLowerCase().endsWith('@muc.p2p')) {
+        if (options?.attachments?.some((attachment) => /^(?:upload|p2p-upload):\/\//i.test(attachment.url))) {
+          throw new Error('This file is stored on the P2P network and cannot be opened by a standard XMPP room. Send a public HTTPS link instead.')
+        }
+        return this.xmppNode.sendServerMucMessage(roomJid, messageBody, {
+          originId: options?.originId,
+          thread: options?.thread,
+          replace: options?.replace,
+          reply: options?.reply,
+        })
+      }
+      const roomName = target.id.replace(/@muc\.p2p$/, '')
+      const sendGroupMessage = target.encrypted
+        ? this.xmppNode.muc.sendGroupMessageSecure.bind(this.xmppNode.muc)
+        : this.xmppNode.muc.sendGroupMessage.bind(this.xmppNode.muc)
+      return sendGroupMessage(roomName, messageBody, options?.replace, options?.originId, options?.reply, options?.thread)
+    }
+    const peerAddr = target.peerAddress || target.handle || `${target.id}@p2p`
+    if (target.encrypted) {
+      const peerJid = target.handle || `${target.id}@p2p`
+      if (!peerJid.split('/')[0].toLowerCase().endsWith('@p2p')) {
+        throw new Error('OMEMO direct messaging is currently supported only for P2P contacts.')
+      }
+      return this.xmppNode.sendEncryptedMessage(peerAddr, messageBody, {
+        originId: options?.originId,
+        reply: options?.reply,
+        thread: options?.thread,
+        replace: options?.replace,
+        requestReceipt: true
+      })
+    }
     return this.xmppNode.sendMessage(peerAddr, messageBody, {
+      originId: options?.originId,
       reply: options?.reply,
       thread: options?.thread,
       replace: options?.replace,
-      requestReceipt: true
+      requestReceipt: true,
+      attachments: options?.attachments?.map((attachment) => ({ url: attachment.url, desc: attachment.alt })),
     })
   }
 
@@ -316,8 +525,8 @@ export class BrowserXmppRuntimeBridge {
     return this.xmppNode.disconnectServer()
   }
 
-  async registerServer(jid: string, password: string, service: string): Promise<void> {
-    return this.xmppNode.registerServer(jid, password, service)
+  async registerServer(jid: string, password: string, service: string, registrationFields?: Record<string, string>): Promise<void> {
+    return this.xmppNode.registerServer(jid, password, service, registrationFields)
   }
 
   isServerConnected(): boolean {
@@ -338,6 +547,29 @@ export class BrowserXmppRuntimeBridge {
     return () => this.serverConnectionListeners.delete(cb)
   }
 
+  onServerRosterChange(cb: Listener<[]>): () => void {
+    this.serverRosterListeners.add(cb)
+    return () => this.serverRosterListeners.delete(cb)
+  }
+
+  onServerPresenceSubscriptionRequest(cb: Listener<[{ jid: string; server: string }]>): () => void {
+    this.serverPresenceRequestListeners.add(cb)
+    for (const request of this.pendingServerPresenceRequests.values()) {
+      try { cb(request) } catch { /* swallow */ }
+    }
+    return () => this.serverPresenceRequestListeners.delete(cb)
+  }
+
+  async approveServerPresenceSubscription(jid: string): Promise<void> {
+    await this.xmppNode.approveServerPresenceSubscription(jid)
+    this.pendingServerPresenceRequests.delete(jid.trim().split('/')[0].toLowerCase())
+  }
+
+  async denyServerPresenceSubscription(jid: string): Promise<void> {
+    await this.xmppNode.denyServerPresenceSubscription(jid)
+    this.pendingServerPresenceRequests.delete(jid.trim().split('/')[0].toLowerCase())
+  }
+
   // ── Component/Federation methods ─────────────────────────────────────────
   // XEP-0114 TCP components are not available in the browser. These are
   // stubs that keep the bridge conformant with XmppRuntimeBridge.
@@ -352,16 +584,6 @@ export class BrowserXmppRuntimeBridge {
 
   isComponentConnected(): boolean {
     return false
-  }
-
-  private _federationEnabled = true
-
-  setFederationEnabled(enabled: boolean): void {
-    this._federationEnabled = enabled
-  }
-
-  isFederationEnabled(): boolean {
-    return this._federationEnabled
   }
 
   // ── Saved component configs ───────────────────────────────────────────────
@@ -427,22 +649,54 @@ export class BrowserXmppRuntimeBridge {
     return Array.from(this.activeConnections)
   }
 
+  getLocalJid(): string {
+    return this.xmppNode.jid
+  }
+
+  getServerJid(): string | undefined {
+    return this.xmppNode.getServerJid()
+  }
+
+  getLocalPeerAddresses(): string[] {
+    return this.xmppNode.getLocalPeerAddresses()
+  }
+
   async disconnect(): Promise<void> {
     this.messageListeners.clear()
     this.presenceListeners.clear()
     this.feedPostListeners.clear()
+    this.attachmentSummaryListeners.clear()
     this.connectionListeners.clear()
     this.serverConnectionListeners.clear()
+    this.serverRosterListeners.clear()
+    this.serverPresenceRequestListeners.clear()
+    this.pendingServerPresenceRequests.clear()
     this.mucMessageListeners.clear()
     this.mucJoinListeners.clear()
     this.mucLeaveListeners.clear()
+    this.mucErrorListeners.clear()
     this.mucChatStateListeners.clear()
     this.mucMarkerListeners.clear()
     this.activeConnections.clear()
-    await this.xmppNode.close()
+    try {
+      await this.xmppNode.close()
+    } finally {
+      try {
+        await this.stopNetwork()
+      } finally {
+        if (typeof window !== 'undefined' && (window as any).__XMPP_P2P_BRIDGE__ === this) {
+          delete (window as any).__XMPP_P2P_BRIDGE__
+          window.dispatchEvent(new Event('xmpp-p2p:bridge-disconnected'))
+        }
+      }
+    }
   }
 
-  async uploadFile(file: File | Uint8Array, fileName?: string, mimeType?: string): Promise<{ url: string; alt: string; kind: 'image' | 'file' }> {
+  async uploadFile(file: File | Uint8Array, recipient?: string, fileName?: string, mimeType?: string): Promise<{ url: string; alt: string; kind: 'image' | 'file' }> {
+    const fileSize = file instanceof File ? file.size : file.byteLength
+    if (fileSize > MAX_PEER_UPLOAD_BYTES) {
+      throw new Error('Attachments are limited to 50 MiB per file.')
+    }
     let data: Uint8Array
     let name: string
     let mime: string
@@ -458,10 +712,13 @@ export class BrowserXmppRuntimeBridge {
       mime = mimeType || 'application/octet-stream'
     }
 
-    const result = await this.xmppNode.storeFile(data, name, mime)
+    const isExternalXmppRecipient = Boolean(recipient?.includes('@') && !recipient.toLowerCase().split('/')[0].endsWith('@p2p'))
+    const url = isExternalXmppRecipient
+      ? await this.xmppNode.uploadFileToServer(data, name, mime)
+      : (await this.xmppNode.storeFile(data, name, mime)).url
     const kind = mime.startsWith('image/') ? 'image' : 'file'
 
-    return { url: result.url, alt: name, kind }
+    return { url, alt: name, kind }
   }
 
   async getOmemoFingerprint(): Promise<string | undefined> {
@@ -497,7 +754,19 @@ export class BrowserXmppRuntimeBridge {
     const cid = match[1]
     const blob = await this.xmppNode.storage.getBlob('uploads', cid)
     if (!blob) return undefined
-    const mimeType = 'application/octet-stream'
+    let mimeType = 'application/octet-stream'
+    try {
+      const rawMetadata = await this.xmppNode.storage.getRecord('uploads_meta', cid)
+      const metadata = rawMetadata ? JSON.parse(rawMetadata) as { contentType?: string } : undefined
+      if (metadata?.contentType) mimeType = metadata.contentType
+    } catch { /* use generic type when metadata is unavailable */ }
+    // The native (Electron) host has no DOM URL factory. A data URL keeps the
+    // attachment viewable in the renderer without exposing main-process blobs.
+    if (typeof window === 'undefined') {
+      let binary = ''
+      for (const byte of blob) binary += String.fromCharCode(byte)
+      return `data:${mimeType};base64,${btoa(binary)}`
+    }
     return URL.createObjectURL(new Blob([blob as BlobPart], { type: mimeType }))
   }
 }

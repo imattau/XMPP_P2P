@@ -1,5 +1,6 @@
-import { Bookmark } from 'lucide-react'
+import { Bookmark, Image as ImageIcon } from 'lucide-react'
 import type { Article } from '../../bridge/article/types'
+import { useResolvedUploadUrl } from '../../bridge/useResolvedUploadUrl'
 
 interface ArticleCardProps {
   article: Article
@@ -9,6 +10,7 @@ interface ArticleCardProps {
 }
 
 export default function ArticleCard({ article, variant = 'compact', onBookmark, onClick }: ArticleCardProps) {
+  const coverImage = useResolvedUploadUrl(article.coverImage)
   const handleClick = () => onClick?.(article.id)
   const handleBookmark = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -18,12 +20,13 @@ export default function ArticleCard({ article, variant = 'compact', onBookmark, 
   if (variant === 'feature') {
     return (
       <div
-        onClick={handleClick}
-        className="bg-card rounded-2xl border border-border overflow-hidden cursor-pointer hover:bg-white/[0.03] transition-colors"
+        className="bg-card rounded-2xl border border-border overflow-hidden"
       >
         {article.coverImage ? (
           <div className="h-[126px] bg-secondary overflow-hidden">
-            <img src={article.coverImage} alt={article.title} className="w-full h-full object-cover" />
+            {coverImage.url
+              ? <img src={coverImage.url} alt={article.title} className="w-full h-full object-cover" />
+              : <CoverPlaceholder loading={coverImage.loading} feature />}
           </div>
         ) : (
           <div className="h-[126px] bg-secondary" />
@@ -32,15 +35,16 @@ export default function ArticleCard({ article, variant = 'compact', onBookmark, 
           {article.topic && (
             <span className="text-[10px] font-semibold text-primary uppercase tracking-wide">#{article.topic}</span>
           )}
-          <h3 className="text-xl font-semibold text-foreground mt-1 leading-tight line-clamp-2">{article.title}</h3>
+          <h3 className="mt-1 leading-tight line-clamp-2"><button type="button" onClick={handleClick} className="min-h-11 text-left text-xl font-semibold text-foreground hover:text-primary focus-visible:outline-none focus-visible:underline">{article.title || 'Read article'}</button></h3>
           {article.subtitle && (
             <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{article.subtitle}</p>
           )}
           <div className="flex items-center justify-between mt-3">
             <span className="text-[11px] text-muted-foreground">
-              {article.author.name} · {article.readTime}
+              {article.author.name}{article.settings.showReadingTime ? ` · ${article.readTime}` : ''}
             </span>
-            <button onClick={handleBookmark} className="text-muted-foreground hover:text-primary transition-colors">
+            <button type="button" onClick={handleBookmark} aria-label={article.bookmarked ? 'Remove bookmark' : 'Bookmark article'} aria-pressed={article.bookmarked}
+              className="flex h-11 w-11 items-center justify-center text-muted-foreground hover:text-primary transition-colors">
               <Bookmark size={18} fill={article.bookmarked ? 'currentColor' : 'none'} />
             </button>
           </div>
@@ -52,13 +56,14 @@ export default function ArticleCard({ article, variant = 'compact', onBookmark, 
   if (variant === 'feed') {
     return (
       <div
-        onClick={handleClick}
-        className="border-b border-border hover:bg-white/[0.02] transition-colors cursor-pointer"
+        className="border-b border-border"
       >
         <div className="flex gap-4 px-4 py-3">
           {article.coverImage && (
             <div className="w-20 h-20 rounded-xl overflow-hidden bg-secondary flex-shrink-0">
-              <img src={article.coverImage} alt="" className="w-full h-full object-cover" />
+              {coverImage.url
+                ? <img src={coverImage.url} alt="" className="w-full h-full object-cover" />
+                : <CoverPlaceholder loading={coverImage.loading} />}
             </div>
           )}
           <div className="flex-1 min-w-0">
@@ -68,15 +73,16 @@ export default function ArticleCard({ article, variant = 'compact', onBookmark, 
                 <span className="text-[10px] font-mono text-muted-foreground">#{article.topic}</span>
               )}
             </div>
-            <h4 className="text-sm font-semibold text-foreground leading-snug line-clamp-2">{article.title}</h4>
+            <h4 className="text-sm font-semibold text-foreground leading-snug line-clamp-2"><button type="button" onClick={handleClick} className="min-h-11 text-left hover:text-primary focus-visible:outline-none focus-visible:underline">{article.title || 'Read article'}</button></h4>
             <p className="text-[12px] text-muted-foreground mt-0.5 line-clamp-1">{article.subtitle}</p>
             <div className="flex items-center gap-2 mt-1.5">
               <span className="text-[10px] font-mono text-muted-foreground">{article.author.name}</span>
               <span className="text-muted-foreground/30">·</span>
-              <span className="text-[10px] font-mono text-muted-foreground">{article.readTime}</span>
+              {article.settings.showReadingTime && <span className="text-[10px] font-mono text-muted-foreground">{article.readTime}</span>}
             </div>
           </div>
-          <button onClick={handleBookmark} className="self-start mt-1 text-muted-foreground hover:text-primary transition-colors flex-shrink-0">
+          <button type="button" onClick={handleBookmark} aria-label={article.bookmarked ? 'Remove bookmark' : 'Bookmark article'} aria-pressed={article.bookmarked}
+            className="self-start flex h-11 w-11 items-center justify-center text-muted-foreground hover:text-primary transition-colors flex-shrink-0">
             <Bookmark size={14} fill={article.bookmarked ? 'currentColor' : 'none'} />
           </button>
         </div>
@@ -86,26 +92,40 @@ export default function ArticleCard({ article, variant = 'compact', onBookmark, 
 
   return (
     <div
-      onClick={handleClick}
-      className="bg-card rounded-2xl border border-border overflow-hidden cursor-pointer hover:bg-white/[0.03] transition-colors"
+      className="bg-card rounded-2xl border border-border overflow-hidden"
     >
       <div className="p-4">
         {article.topic && (
           <span className="text-[10px] font-semibold text-primary uppercase tracking-wide">#{article.topic}</span>
         )}
-        <h3 className="text-base font-semibold text-foreground mt-1 leading-tight line-clamp-2">{article.title}</h3>
+        <h3 className="mt-1 leading-tight line-clamp-2"><button type="button" onClick={handleClick} className="min-h-11 text-left text-base font-semibold text-foreground hover:text-primary focus-visible:outline-none focus-visible:underline">{article.title || 'Read article'}</button></h3>
         {article.subtitle && (
           <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{article.subtitle}</p>
         )}
         <div className="flex items-center justify-between mt-3">
           <span className="text-[11px] text-muted-foreground">
-            {article.author.name} · {article.readTime}
+            {article.author.name}{article.settings.showReadingTime ? ` · ${article.readTime}` : ''}
           </span>
-          <button onClick={handleBookmark} className="text-muted-foreground hover:text-primary transition-colors">
+          <button type="button" onClick={handleBookmark} aria-label={article.bookmarked ? 'Remove bookmark' : 'Bookmark article'} aria-pressed={article.bookmarked}
+            className="flex h-11 w-11 items-center justify-center text-muted-foreground hover:text-primary transition-colors">
             <Bookmark size={18} fill={article.bookmarked ? 'currentColor' : 'none'} />
           </button>
         </div>
       </div>
+    </div>
+  )
+}
+
+function CoverPlaceholder({ loading, feature = false }: { loading: boolean; feature?: boolean }) {
+  return (
+    <div
+      role={loading ? 'status' : undefined}
+      aria-label={loading ? 'Loading article cover image' : undefined}
+      className={`flex h-full w-full items-center justify-center text-muted-foreground/70 ${loading ? 'animate-pulse' : ''}`}
+    >
+      <ImageIcon size={feature ? 24 : 20} aria-hidden="true" />
+      {feature && !loading && <span className="ml-2 text-xs">Cover image unavailable</span>}
+      {feature && loading && <span className="sr-only">Loading cover image…</span>}
     </div>
   )
 }

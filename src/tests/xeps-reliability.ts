@@ -23,14 +23,29 @@ async function runXepsReliabilityTest() {
   const workDir = await mkdtemp(join(tmpdir(), 'xmpp-p2p-reliability-'))
   let libp2p1 = await createP2PNode(9801, { enableDht: true, enableMdns: false, host: '127.0.0.1' })
   let libp2p2 = await createP2PNode(9802, { enableDht: true, enableMdns: false, host: '127.0.0.1' })
+  const dhtBootstrap = await createP2PNode(9803, { enableDht: true, enableMdns: false, host: '127.0.0.1' })
 
   await libp2p1.start()
   await libp2p2.start()
+  await dhtBootstrap.start()
+
+  const node2Address = libp2p2.getMultiaddrs().find((ma: any) => ma.toString().includes('127.0.0.1')) || libp2p2.getMultiaddrs()[0]
+  const bootstrapAddress = dhtBootstrap.getMultiaddrs().find((ma: any) => ma.toString().includes('127.0.0.1')) || dhtBootstrap.getMultiaddrs()[0]
+  console.log('Connecting both XMPP nodes to a third DHT peer...')
+  await Promise.all([libp2p1.dial(bootstrapAddress), libp2p2.dial(bootstrapAddress)])
+
+  await waitFor(async () => {
+    try {
+      const peer = await libp2p1.peerRouting.findPeer(libp2p2.peerId)
+      return peer.multiaddrs.length > 0
+    } catch {
+      return false
+    }
+  }, 15000, 'Timed out waiting for Node 1 to discover Node 2 through the DHT')
 
   const xmppNode1 = new XmppNode(libp2p1, new NodeSqliteStorage(join(workDir, 'node1-state.sqlite')))
   const xmppNode2 = new XmppNode(libp2p2, new NodeSqliteStorage(join(workDir, 'node2-state.sqlite')))
 
-  const node2Address = libp2p2.getMultiaddrs().find((ma: any) => ma.toString().includes('127.0.0.1')) || libp2p2.getMultiaddrs()[0]
   console.log(`Connecting Node 1 -> Node 2 via: ${node2Address.toString()}...`)
   await libp2p1.dial(node2Address)
   console.log('Nodes connected!\n')
@@ -39,8 +54,7 @@ async function runXepsReliabilityTest() {
   await Promise.all([xmppNode1.ready, xmppNode2.ready])
   console.log('XMPP nodes ready!\n')
 
-  console.log('Waiting 3 seconds for DHT routing tables to stabilize...')
-  await new Promise(resolve => setTimeout(resolve, 3000))
+  console.log('DHT route is available; running reliability tests...')
   console.log('DHT stabilized, running tests...\n')
 
   // 1. Verify XEP-0359 Stanza IDs
@@ -119,6 +133,7 @@ async function runXepsReliabilityTest() {
   await xmppNode2.close()
   await libp2p1.stop()
   await libp2p2.stop()
+  await dhtBootstrap.stop()
   await rm(workDir, { recursive: true, force: true })
 
   console.log('>>> ALL RELIABILITY TESTS PASSED SUCCESSFULY! <<<')

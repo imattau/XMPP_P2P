@@ -22,7 +22,7 @@ export default function WelcomePage() {
         <div className="w-full mt-8 space-y-3">
           {[
             { icon: Key, title: 'Own your identity', desc: 'Your address and keys are created locally.' },
-            { icon: Shield, title: 'End-to-end encrypted', desc: 'OMEMO protects direct and group conversations.' },
+            { icon: Shield, title: 'Optional OMEMO encryption', desc: 'Enable OMEMO for direct chats and secure rooms. Secure sends never fall back to plaintext.' },
             { icon: Rss, title: 'Feeds and communities', desc: 'Follow topics and join group discussions.' },
           ].map(({ icon: Icon, title, desc }) => (
             <div key={title} className="bg-card rounded-xl p-4 flex items-start gap-3">
@@ -40,7 +40,7 @@ export default function WelcomePage() {
         <div className="w-full mt-auto pt-8 space-y-3">
           <button
             onClick={() => navigate('/onboarding/create')}
-            className="w-full bg-primary text-white rounded-xl h-[50px] font-semibold text-sm transition-opacity hover:opacity-90"
+            className="w-full bg-primary text-primary-foreground rounded-xl h-[50px] font-semibold text-sm transition-opacity hover:opacity-90"
           >
             Create new identity
           </button>

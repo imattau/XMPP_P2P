@@ -12,6 +12,7 @@ import {
   XmppFeedFollower,
   XmppFollowerWatch,
   XmppFeedVisibility,
+  XmppAtomLink,
   feedTopicForPeer,
   followerTopicForPeer,
   jidFromPeerId,
@@ -39,6 +40,7 @@ import { XmppStorage } from './storage/types.js'
 
 const FEED_HISTORY_LIMIT = 50
 const SUBSCRIPTION_HISTORY_LIMIT = 200
+const FEED_HISTORY_XMLNS = 'urn:xmpp:p2p:feed-history:1'
 
 /**
  * Dependencies required by the feed manager.
@@ -188,11 +190,19 @@ export class XmppFeedManager {
   }
 
   public async restoreFeedSubscriptions() {
+    const pubsub = this.ctx.getPubSubService()
     for (const subscription of this.feedSubscriptions.values()) {
-      if (subscription.visibility === 'public') {
-        await this.publishSubscriptionDeclaration(subscription, 'upsert')
+      try {
+        this.ctx.ensureTopicValidator(subscription.topic, 'feed')
+        this.ctx.ensureTopicValidator(subscription.topic, 'attachment')
+        await pubsub.subscribe(subscription.topic)
+        if (subscription.visibility === 'public') {
+          await this.publishSubscriptionDeclaration(subscription, 'upsert')
+        }
+        await this.watchFollowerTopic(subscription.peerId)
+      } catch (error) {
+        console.error(`[XMPP] Failed to restore feed subscription ${subscription.topic}:`, error)
       }
-      await this.watchFollowerTopic(subscription.peerId)
     }
   }
 
@@ -276,12 +286,20 @@ export class XmppFeedManager {
     }
   }
 
-  public async recordFeedPost(post: XmppFeedPost): Promise<boolean> {
+  public async recordFeedPost(post: XmppFeedPost, options: { propagateToCollections?: boolean; updateExisting?: boolean } = {}): Promise<boolean> {
     await this.ctx.ready
     const normalized = normalizeFeedPost(post)
     const key = feedHistoryKey(normalized.topic, normalized.id)
-    if (this.feedHistory.has(key)) {
-      return false
+    const existing = this.feedHistory.get(key)
+    if (existing) {
+      if (options.updateExisting !== true) return false
+      // PubSub item IDs are stable across edits. Replace changed server items
+      // in place so the timeline reflects the latest published entry.
+      if (JSON.stringify(existing) === JSON.stringify(normalized)) return false
+      this.feedHistory.set(key, normalized)
+      await this.scheduleFeedPersist()
+      this.ctx.emit('feed:post', normalized)
+      return true
     }
 
     this.feedHistory.set(key, normalized)
@@ -296,7 +314,9 @@ export class XmppFeedManager {
 
     await this.scheduleFeedPersist()
     this.ctx.emit('feed:post', normalized)
-    await this.ctx.propagateFeedToCollections(normalized)
+    if (options.propagateToCollections !== false) {
+      await this.ctx.propagateFeedToCollections(normalized)
+    }
     return true
   }
 
@@ -376,8 +396,9 @@ export class XmppFeedManager {
   }
 
   public async subscribeFeed(peerAddr: string | Multiaddr, options: { visibility?: XmppFeedVisibility } = {}): Promise<XmppFeedSubscriptionRecord> {
-    const xmppStream = await this.ctx.getOrCreateStream(peerAddr)
-    const peerId = xmppStream.remotePeer.toString()
+    const peerReference = parsePeerReference(peerAddr)
+    const peerId = peerReference.peerId || peerIdFromJid(peerAddr.toString())
+    if (!peerId) throw new Error('A peer address is required to follow a feed')
     const topic = feedTopicForPeer(peerId)
     const pubsub = this.ctx.getPubSubService()
     this.ctx.ensureTopicValidator(topic, 'feed')
@@ -393,6 +414,13 @@ export class XmppFeedManager {
     })
     await this.recordFeedSubscription(subscription)
     await this.watchFollowerTopic(peerId)
+    try {
+      await this.syncFeedHistory(peerAddr, peerId, topic)
+    } catch (error) {
+      // Live gossip follow does not depend on a direct XMPP stream. History sync
+      // can be retried when a peer route becomes available.
+      console.warn(`[XMPP] Could not sync recent feed history for ${peerId}:`, error)
+    }
     if (subscription.visibility === 'public') {
       await this.publishSubscriptionDeclaration(subscription, 'upsert')
     }
@@ -400,8 +428,9 @@ export class XmppFeedManager {
   }
 
   public async setFeedSubscriptionVisibility(peerAddr: string | Multiaddr, visibility: XmppFeedVisibility): Promise<XmppFeedSubscriptionRecord> {
-    const xmppStream = await this.ctx.getOrCreateStream(peerAddr)
-    const peerId = xmppStream.remotePeer.toString()
+    const peerReference = parsePeerReference(peerAddr)
+    const peerId = peerReference.peerId || peerIdFromJid(peerAddr.toString())
+    if (!peerId) throw new Error('A peer address is required to update feed visibility')
     const topic = feedTopicForPeer(peerId)
     const existing = this.feedSubscriptions.get(topic)
     if (!existing) {
@@ -414,6 +443,12 @@ export class XmppFeedManager {
       updatedAt: new Date().toISOString()
     })
     await this.recordFeedSubscription(next)
+    try {
+      await this.ctx.getOrCreateStream(peerAddr)
+    } catch {
+      // A direct XMPP stream improves delivery to the feed owner, but visibility
+      // updates still propagate through PubSub when the peer is not dialable.
+    }
     if (visibility === 'public') {
       await this.publishSubscriptionDeclaration(next, 'upsert')
     } else {
@@ -423,20 +458,29 @@ export class XmppFeedManager {
   }
 
   public async unsubscribeFeed(peerAddr: string | Multiaddr): Promise<void> {
-    const xmppStream = await this.ctx.getOrCreateStream(peerAddr)
-    const peerId = xmppStream.remotePeer.toString()
+    const peerReference = parsePeerReference(peerAddr)
+    const peerId = peerReference.peerId || peerIdFromJid(peerAddr.toString())
+    if (!peerId) throw new Error('A peer address is required to unfollow a feed')
     const topic = feedTopicForPeer(peerId)
     const pubsub = this.ctx.getPubSubService()
     const existing = this.feedSubscriptions.get(topic)
+    let declarationError: unknown
     if (existing && existing.visibility === 'public') {
-      await this.publishSubscriptionDeclaration(existing, 'remove')
+      try {
+        await this.publishSubscriptionDeclaration(existing, 'remove')
+      } catch (error) {
+        declarationError = error
+      }
     }
     await pubsub.unsubscribe(topic)
     this.feedSubscriptions.delete(topic)
     await this.scheduleSubscriptionPersist()
+    if (declarationError) {
+      throw new Error(`Feed unfollowed locally, but the removal could not be announced: ${declarationError instanceof Error ? declarationError.message : 'network error'}`)
+    }
   }
 
-  public async publishFeed(body: string, options: { topic?: string; itemId?: string; title?: string; summary?: string; categories?: string[]; author?: string; replyTo?: string } = {}): Promise<string> {
+  public async publishFeed(body: string, options: { topic?: string; itemId?: string; title?: string; summary?: string; categories?: string[]; author?: string; replyTo?: string; links?: XmppAtomLink[] } = {}): Promise<string> {
     const pubsub = this.ctx.getPubSubService()
     const topic = options.topic ?? feedTopicForPeer(this.ctx.libp2p.peerId.toString())
     this.ctx.ensureTopicValidator(topic, 'feed')
@@ -466,7 +510,8 @@ export class XmppFeedManager {
       publishedAt,
       updatedAt: publishedAt,
       alternateHref: `xmpp:${this.ctx.jid}?;node=${encodeURIComponent(topic)};item=${encodeURIComponent(itemId)}`,
-      replyTo: options.replyTo
+      replyTo: options.replyTo,
+      links: options.links
     })
     const stanza = xml(
       'message',
@@ -512,7 +557,7 @@ export class XmppFeedManager {
       links: [{
         rel: 'alternate',
         href: `xmpp:${this.ctx.jid}?;node=${encodeURIComponent(topic)};item=${encodeURIComponent(itemId)}`
-      }]
+      }, ...(options.links ?? [])]
     })
 
     return itemId
@@ -521,6 +566,41 @@ export class XmppFeedManager {
   public async getFeedPosts(): Promise<XmppFeedPost[]> {
     await this.ctx.ready
     return Array.from(this.feedHistory.values()).sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
+  }
+
+  public async getFeedPostsForPeer(peerId: string): Promise<XmppFeedPost[]> {
+    await this.ctx.ready
+    const topic = feedTopicForPeer(peerId)
+    return Array.from(this.feedHistory.values())
+      .filter(post => post.topic === topic && post.from === jidFromPeerId(peerId))
+      .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
+      .slice(0, FEED_HISTORY_LIMIT)
+  }
+
+  private async syncFeedHistory(peerAddr: string | Multiaddr, peerId: string, topic: string): Promise<void> {
+    const id = `feed-history-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    const request = xml('iq', {
+      type: 'get',
+      id,
+      to: jidFromPeerId(peerId),
+      from: this.ctx.jid
+    }, xml('query', { xmlns: FEED_HISTORY_XMLNS }))
+    const response = await this.ctx.sendIqRequest(peerAddr, request)
+    const result = response.getChild('query')
+    if (!result || result.attrs.xmlns !== FEED_HISTORY_XMLNS) {
+      throw new Error('Peer returned an invalid feed history response')
+    }
+    const entries = (result.children as any[]).filter((child): child is Element => child?.name === 'post')
+    for (const entry of entries) {
+      try {
+        const post = JSON.parse(entry.text()) as XmppFeedPost
+        if (post.topic !== topic || post.from !== jidFromPeerId(peerId)
+          || typeof post.id !== 'string' || typeof post.body !== 'string') continue
+        await this.recordFeedPost(post)
+      } catch {
+        // Ignore malformed history entries and retain the valid entries already received.
+      }
+    }
   }
 
   public async getFeedSubscriptions(): Promise<XmppFeedSubscriptionRecord[]> {

@@ -1,21 +1,22 @@
 import { useCallback, useEffect, useState } from 'react'
-import { getBrowserXmppBridge, type BridgeServerConnectionInfo, type BridgeStoredComponentConfig } from './runtime'
+import { getBrowserXmppBridge, useBrowserXmppBridge, type BridgeServerConnectionInfo, type BridgeStoredComponentConfig } from './runtime'
 
 export interface ServerBridgeState {
   connections: BridgeServerConnectionInfo[]
   savedConfigs: BridgeStoredComponentConfig[]
   connecting: boolean
-  federationEnabled: boolean
+  disconnecting: boolean
   gatewayOnline: boolean
   gatewayConnections: BridgeServerConnectionInfo[]
 }
 
 export function useServerBridge() {
+  const runtime = useBrowserXmppBridge()
   const [state, setState] = useState<ServerBridgeState>({
     connections: [],
     savedConfigs: [],
     connecting: false,
-    federationEnabled: true,
+    disconnecting: false,
     gatewayOnline: false,
     gatewayConnections: [],
   })
@@ -38,13 +39,6 @@ export function useServerBridge() {
     setState(prev => ({ ...prev, connections }))
   }, [])
 
-  const refreshFederationEnabled = useCallback(() => {
-    const runtime = getBrowserXmppBridge()
-    if (!runtime?.isFederationEnabled) return
-    const enabled = runtime.isFederationEnabled()
-    setState(prev => ({ ...prev, federationEnabled: enabled }))
-  }, [])
-
   const refreshGatewayStatus = useCallback(async () => {
     const runtime = getBrowserXmppBridge()
     if (!runtime?.getServerStatus) return
@@ -57,10 +51,19 @@ export function useServerBridge() {
   }, [])
 
   useEffect(() => {
-    const runtime = getBrowserXmppBridge()
+    if (!runtime) {
+      setState({
+        connections: [],
+        savedConfigs: [],
+        connecting: false,
+        disconnecting: false,
+        gatewayOnline: false,
+        gatewayConnections: [],
+      })
+      return
+    }
 
     refreshConnections()
-    refreshFederationEnabled()
     void refreshSavedConfigs()
     void refreshGatewayStatus()
 
@@ -72,13 +75,14 @@ export function useServerBridge() {
 
     const unsub = runtime.onServerConnection(() => {
       refreshConnections()
+      void refreshGatewayStatus()
     })
 
     return () => {
       unsub()
       clearInterval(interval)
     }
-  }, [refreshConnections, refreshSavedConfigs, refreshFederationEnabled, refreshGatewayStatus])
+  }, [runtime, refreshConnections, refreshSavedConfigs, refreshGatewayStatus])
 
   const connectComponent = useCallback(async (host: string, port: number, secret: string, domain: string): Promise<void> => {
     const runtime = getBrowserXmppBridge()
@@ -131,20 +135,20 @@ export function useServerBridge() {
   const disconnectServer = useCallback(async (): Promise<void> => {
     const runtime = getBrowserXmppBridge()
     if (!runtime?.disconnectServer) throw new Error('Bridge not available')
-    await runtime.disconnectServer()
-  }, [])
+    setState(prev => ({ ...prev, disconnecting: true }))
+    try {
+      await runtime.disconnectServer()
+    } finally {
+      setState(prev => ({ ...prev, disconnecting: false }))
+      refreshConnections()
+      await refreshGatewayStatus()
+    }
+  }, [refreshConnections, refreshGatewayStatus])
 
   const isServerConnected = useCallback((): boolean => {
     const runtime = getBrowserXmppBridge()
     return runtime?.isServerConnected?.() ?? false
   }, [])
-
-  const setFederationEnabled = useCallback((enabled: boolean): void => {
-    const runtime = getBrowserXmppBridge()
-    runtime?.setFederationEnabled?.(enabled)
-    setState(prev => ({ ...prev, federationEnabled: enabled }))
-    refreshConnections()
-  }, [refreshConnections])
 
   const saveComponentConfig = useCallback(async (domain: string, secret: string, host: string, port: number): Promise<void> => {
     const runtime = getBrowserXmppBridge()
@@ -169,7 +173,6 @@ export function useServerBridge() {
     connectServer,
     disconnectServer,
     isServerConnected,
-    setFederationEnabled,
     saveComponentConfig,
     removeComponentConfig,
     refreshSavedConfigs,

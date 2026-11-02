@@ -2,9 +2,9 @@ export interface IdentityState {
   displayName: string
   handle: string
   jid: string
-  recoveryPasscode?: string
   publicProfile: boolean
   recoveryPhrase: string[]
+  recoveryPhraseKeyed?: boolean
   recoveryPhraseSaved: boolean
   createdAt: string
 }

@@ -227,7 +227,7 @@ export async function handleSecureMessageStanza(
   // Calling getOrCreateStream() with a standard server JID like 'user@jabber.org'
   // causes parsePeerReference to treat the full JID as a peer ID, which then tries
   // to dial it as a multiaddr and throws — surfacing as a confusing emitError call.
-  const isP2pSender = fromJid.endsWith('@p2p') || !fromJid.includes('@')
+  const isP2pSender = fromJid.toLowerCase().endsWith('@p2p') || !fromJid.includes('@')
   if (metadata.receipt?.type === 'request' && element.attrs.id && isP2pSender) {
     void ctx.getOrCreateStream(fromJid).then(stream => {
       stream.send(
@@ -375,6 +375,7 @@ export async function sendEncryptedMessage(
   body: string,
   ctx: XmppSecureContext,
   options: {
+    originId?: string
     replace?: string
     reply?: { id: string; to?: string }
     thread?: string
@@ -389,7 +390,7 @@ export async function sendEncryptedMessage(
   const xmppStream = await ctx.getOrCreateStream(peerAddr)
   const peerId = xmppStream.remotePeer.toString()
   const toJid = jidFromPeerId(peerId)
-  const itemId = Math.random().toString(36).substring(2, 15)
+  const itemId = options.originId || Math.random().toString(36).substring(2, 15)
   const devices = await ctx.getPeerOmemoDevices(peerAddr)
   if (devices.length === 0) {
     throw new Error(`No OMEMO devices available for ${toJid}`)

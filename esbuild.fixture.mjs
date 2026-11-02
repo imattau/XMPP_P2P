@@ -7,6 +7,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const nodeShims = {
   crypto: 'shims/crypto.ts',
   'node:crypto': 'shims/crypto.ts',
+  'node:dns': 'shims/dns-promises.ts',
   events: 'shims/events.ts',
   fs: 'shims/fs.ts',
   'fs/promises': 'shims/fs.ts',

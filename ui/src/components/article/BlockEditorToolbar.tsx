@@ -20,8 +20,10 @@ export default function BlockEditorToolbar({ onInsertBlock }: BlockEditorToolbar
       {TOOLS.map((tool) => (
         <button
           key={tool.type}
+          type="button"
+          aria-label={`Insert ${tool.type} block`}
           onClick={() => onInsertBlock?.(tool.type)}
-          className="w-[42px] h-[32px] lg:w-[66px] lg:h-[32px] flex items-center justify-center bg-secondary rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors text-[11px] font-mono font-semibold flex-shrink-0"
+          className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg bg-secondary text-[11px] font-mono font-semibold text-muted-foreground transition-colors hover:bg-secondary/80 hover:text-foreground lg:w-[66px]"
           title={`Insert ${tool.type}`}
         >
           {tool.label}

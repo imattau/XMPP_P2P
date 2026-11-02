@@ -5,6 +5,8 @@
 
 import { promises as fs } from 'fs'
 import { join, dirname } from 'path'
+import { createHash } from 'crypto'
+import { tmpdir } from 'os'
 import { createRequire } from 'module'
 import { fileURLToPath } from 'url'
 import type {
@@ -79,7 +81,6 @@ function installOmemoFetchShim(distDir: string) {
 async function loadOmemoModule(): Promise<OmemoModule> {
   if (!omemoModulePromise) {
     const distDir = fileURLToPath(new URL('../../node_modules/libomemo.js/dist/', import.meta.url))
-    const patchedPath = join(distDir, 'libomemo.node.cjs')
     const requireShim = createRequire(import.meta.url)
     // Assign synchronously before any await so concurrent callers
     // see the pending promise and don't race on file patching.
@@ -88,12 +89,24 @@ async function loadOmemoModule(): Promise<OmemoModule> {
         const sourcePath = join(distDir, 'libomemo.umd.js')
         const source = await fs.readFile(sourcePath, 'utf8')
         installOmemoFetchShim(distDir)
+        // Tell libomemo.js where its WASM binary lives. Without this the UMD
+        // glue resolves a bare `curve25519_compiled.wasm` against the process
+        // CWD, which fails in Electron's main process.
+        ;(globalThis as typeof globalThis & { __WASM_BASE__?: string }).__WASM_BASE__ =
+          distDir.endsWith('/') || distDir.endsWith('\\') ? distDir : `${distDir}/`
+
+        // The patched UMD is written to the OS temp directory rather than
+        // node_modules: inside an Electron asar archive, node_modules is
+        // read-only.
+        const sourceHash = createHash('sha256').update(source).digest('hex').slice(0, 16)
+        const patchedPath = join(tmpdir(), 'xmpp-p2p-libomemo', `libomemo-${sourceHash}.cjs`)
         const patchedExists = await fs.stat(patchedPath).then(() => true).catch(() => false)
         if (!patchedExists) {
           const patchedSource = source.replace(
             "var _scriptDir = (typeof document === 'undefined' && typeof location === 'undefined' ? require('u' + 'rl').pathToFileURL(__filename).href : typeof document === 'undefined' ? location.href : (_documentCurrentScript && _documentCurrentScript.tagName.toUpperCase() === 'SCRIPT' && _documentCurrentScript.src || new URL('libomemo.umd.js', document.baseURI).href));",
             "var _scriptDir = require('path').dirname(__filename) + '/';"
           )
+          await fs.mkdir(dirname(patchedPath), { recursive: true })
           await fs.writeFile(patchedPath, patchedSource, 'utf8')
         }
         return requireShim(patchedPath) as OmemoModule

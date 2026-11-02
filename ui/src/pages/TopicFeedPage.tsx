@@ -16,12 +16,14 @@ const TOPIC_DESCRIPTIONS: Record<string, string> = {
 export default function TopicFeedPage() {
   const { tag } = useParams<{ tag: string }>()
   const navigate = useNavigate()
-  const { toggleBookmark, articles } = useArticleBridge()
-  const [following, setFollowing] = useState(true)
+  const { toggleBookmark, articles, getFollowedTopics, toggleFollowedTopic, loading, loadError, refresh } = useArticleBridge()
+  const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
   const topicTag = tag ?? ''
   const topicDescription = TOPIC_DESCRIPTIONS[topicTag] ?? 'Long-form writing and discussion'
+  const following = getFollowedTopics().some((topic) => topic.toLowerCase() === topicTag.toLowerCase())
+  const toggleFollowing = () => toggleFollowedTopic(topicTag)
 
   const topicArticles = articles.filter(
     (a) => a.topic.toLowerCase() === topicTag.toLowerCase() && a.status === 'published'
@@ -35,7 +37,9 @@ export default function TopicFeedPage() {
         const q = searchQuery.toLowerCase()
         return (
           a.title.toLowerCase().includes(q) ||
-          (a.subtitle && a.subtitle.toLowerCase().includes(q))
+          (a.subtitle && a.subtitle.toLowerCase().includes(q)) ||
+          (a.summary && a.summary.toLowerCase().includes(q)) ||
+          a.blocks.some((block) => block.content.toLowerCase().includes(q))
         )
       })
     : topicArticles
@@ -46,7 +50,7 @@ export default function TopicFeedPage() {
     <div className="flex flex-col flex-1 overflow-hidden">
       <header className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border flex-shrink-0">
         <div className="flex items-center gap-2 px-4 py-2.5">
-          <button onClick={() => navigate(-1)} className="p-1.5 -ml-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors flex-shrink-0">
+          <button onClick={() => navigate(-1)} aria-label="Go back" className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
             <ArrowLeft size={18} />
           </button>
           <div className="flex-1 min-w-0">
@@ -54,16 +58,25 @@ export default function TopicFeedPage() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setSearchQuery(searchQuery ? '' : ' ')}
-              className={`p-2 rounded-lg transition-colors ${
-                searchQuery ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
+              onClick={() => {
+                const nextOpen = !searchOpen
+                setSearchOpen(nextOpen)
+                if (!nextOpen) setSearchQuery('')
+              }}
+              aria-label={searchOpen ? 'Close topic search' : `Search #${topicTag}`}
+              aria-expanded={searchOpen}
+              className={`flex h-11 w-11 items-center justify-center rounded-lg transition-colors ${
+                searchOpen ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
               }`}
             >
               <Search size={16} />
             </button>
             <button
-              onClick={() => setFollowing(!following)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+              type="button"
+              aria-pressed={following}
+              aria-label={`${following ? 'Unfollow' : 'Follow'} #${topicTag}`}
+              onClick={toggleFollowing}
+              className={`min-h-11 px-3 rounded-lg text-xs font-semibold transition-colors ${
                 following
                   ? 'bg-blue2 text-primary'
                   : 'bg-secondary text-muted-foreground hover:text-foreground'
@@ -74,19 +87,20 @@ export default function TopicFeedPage() {
           </div>
         </div>
 
-        {searchQuery && (
+        {searchOpen && (
           <div className="px-4 pb-3">
             <div className="flex items-center gap-2 bg-secondary rounded-lg px-3 py-2">
               <Search size={14} className="text-muted-foreground flex-shrink-0" />
               <input
                 autoFocus
+                aria-label={`Search #${topicTag}`}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={`Search in #${topicTag}…`}
                 className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
               />
               {searchQuery && (
-                <button onClick={() => setSearchQuery('')} className="text-muted-foreground hover:text-foreground text-xs">
+                <button onClick={() => setSearchQuery('')} aria-label="Clear topic search" className="min-h-11 min-w-11 text-muted-foreground hover:text-foreground text-xs">
                   Clear
                 </button>
               )}
@@ -99,25 +113,33 @@ export default function TopicFeedPage() {
         <div className="mx-4 mt-4 p-5 rounded-2xl bg-blue2">
           <h2 className="text-[28px] font-bold text-primary">{topicTag}</h2>
           <p className="text-sm text-foreground/80 mt-1 max-w-xs">{topicDescription}</p>
-          <button
-            onClick={() => setFollowing(!following)}
-            className="mt-4 px-4 py-1.5 rounded-lg bg-blue2 border border-primary/30 text-primary text-xs font-semibold"
-          >
-            {following ? 'Following' : 'Follow'}
-          </button>
         </div>
 
         <div className="px-4 py-4 space-y-4">
-          {filtered.length === 0 ? (
+          {loading && topicArticles.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-3" role="status">
+              <span className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+              <p className="text-sm text-muted-foreground">Loading articles…</p>
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
               <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
                 <Search size={20} className="text-muted-foreground" />
               </div>
-              <p className="text-sm text-muted-foreground">
-                {searchQuery
-                  ? `No articles matching "${searchQuery}"`
-                  : 'No articles in this topic yet'}
-              </p>
+              {loadError ? (
+                <>
+                  <p className="text-sm text-destructive text-center" role="alert">{loadError}</p>
+                  <button onClick={() => void refresh()} className="min-h-11 rounded-lg bg-secondary px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary/80">
+                    Try again
+                  </button>
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  {searchQuery
+                    ? `No articles matching "${searchQuery}"`
+                    : 'No articles in this topic yet'}
+                </p>
+              )}
             </div>
           ) : (
             <>
@@ -130,7 +152,7 @@ export default function TopicFeedPage() {
                       article={article}
                       variant="feature"
                       onBookmark={handleBookmark}
-                      onClick={(id) => navigate(`/article/${id}`)}
+                      onClick={(id) => navigate(`/article/${encodeURIComponent(id)}`)}
                     />
                   ))}
                 </section>
@@ -145,7 +167,7 @@ export default function TopicFeedPage() {
                         article={article}
                         variant="compact"
                         onBookmark={handleBookmark}
-                        onClick={(id) => navigate(`/article/${id}`)}
+                      onClick={(id) => navigate(`/article/${encodeURIComponent(id)}`)}
                       />
                     ))}
                   </div>
@@ -161,7 +183,7 @@ export default function TopicFeedPage() {
                         article={article}
                         variant="compact"
                         onBookmark={handleBookmark}
-                        onClick={(id) => navigate(`/article/${id}`)}
+                      onClick={(id) => navigate(`/article/${encodeURIComponent(id)}`)}
                       />
                     ))}
                   </div>

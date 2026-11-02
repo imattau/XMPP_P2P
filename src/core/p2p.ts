@@ -4,6 +4,7 @@
  */
 
 import { createLibp2p, type ConnectionManagerInit } from 'libp2p'
+import type { PrivateKey } from '@libp2p/interface'
 import { tcp } from '@libp2p/tcp'
 import { webSockets } from '@libp2p/websockets'
 import { webRTC } from '@libp2p/webrtc'
@@ -24,6 +25,7 @@ export interface CreateP2PNodeOptions {
   host?: string
   maxConnections?: number
   maxParallelDials?: number
+  privateKey?: PrivateKey
 }
 
 /**
@@ -84,6 +86,7 @@ export async function createP2PNode(port?: number, options: CreateP2PNodeOptions
   }
 
   const node = await createLibp2p({
+    privateKey: options.privateKey,
     addresses: {
       listen: listenAddresses
     },

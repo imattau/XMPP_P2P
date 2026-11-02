@@ -112,6 +112,20 @@ export class IndexedDbStorage implements XmppStorage {
     this.dbPromise = undefined
   }
 
+  /** Copy all records and blobs to another IndexedDB namespace during account migration. */
+  async copyAllTo(target: IndexedDbStorage): Promise<void> {
+    if (target === this || target.dbName === this.dbName) return
+    const [sourceDb, targetDb] = await Promise.all([this.open(), target.open()])
+    const [records, blobs] = await Promise.all([
+      this.getAll<RecordRow>(sourceDb, RECORDS_STORE),
+      this.getAll<BlobRow>(sourceDb, BLOBS_STORE),
+    ])
+    await Promise.all([
+      target.putAll(targetDb, RECORDS_STORE, records),
+      target.putAll(targetDb, BLOBS_STORE, blobs),
+    ])
+  }
+
   /**
    * Opens the database and creates stores on first use.
    */
@@ -183,6 +197,26 @@ export class IndexedDbStorage implements XmppStorage {
         cursor.continue()
       }
       request.onerror = () => reject(request.error)
+    })
+  }
+
+  private getAll<T>(db: IDBDatabase, storeName: string): Promise<T[]> {
+    return new Promise((resolve, reject) => {
+      const request = db.transaction(storeName, 'readonly').objectStore(storeName).getAll()
+      request.onsuccess = () => resolve(request.result as T[])
+      request.onerror = () => reject(request.error)
+    })
+  }
+
+  private putAll<T>(db: IDBDatabase, storeName: string, values: T[]): Promise<void> {
+    if (values.length === 0) return Promise.resolve()
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(storeName, 'readwrite')
+      const store = transaction.objectStore(storeName)
+      for (const value of values) store.put(value)
+      transaction.oncomplete = () => resolve()
+      transaction.onerror = () => reject(transaction.error)
+      transaction.onabort = () => reject(transaction.error ?? new Error('IndexedDB copy transaction was aborted'))
     })
   }
 }

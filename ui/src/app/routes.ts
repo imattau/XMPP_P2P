@@ -10,6 +10,7 @@ const ComposePage = lazy(() => import('../pages/ComposePage'))
 const ProfilePage = lazy(() => import('../pages/ProfilePage'))
 const SettingsPage = lazy(() => import('../pages/SettingsPage'))
 const CreateCommunityPage = lazy(() => import('../pages/CreateCommunityPage'))
+const JoinCommunityPage = lazy(() => import('../pages/JoinCommunityPage'))
 const PostPage = lazy(() => import('../pages/PostPage'))
 const ArticleReaderPage = lazy(() => import('../pages/ArticleReaderPage'))
 const DraftsPage = lazy(() => import('../pages/DraftsPage'))
@@ -17,6 +18,7 @@ const ChatThreadPage = lazy(() => import('../pages/ChatThreadPage'))
 const NewChatPage = lazy(() => import('../pages/NewChatPage'))
 const ContactsPage = lazy(() => import('../pages/ContactsPage'))
 const SearchPage = lazy(() => import('../pages/SearchPage'))
+const NotFoundPage = lazy(() => import('../pages/NotFoundPage'))
 const WelcomePage = lazy(() => import('../pages/onboarding/WelcomePage'))
 const CreateIdentityPage = lazy(() => import('../pages/onboarding/CreateIdentityPage'))
 const ImportIdentityPage = lazy(() => import('../pages/onboarding/ImportIdentityPage'))
@@ -25,6 +27,7 @@ const PermissionsPage = lazy(() => import('../pages/onboarding/PermissionsPage')
 const ServerSetupPage = lazy(() => import('../pages/onboarding/ServerSetupPage'))
 const PreferencesPage = lazy(() => import('../pages/onboarding/PreferencesPage'))
 const ReadyPage = lazy(() => import('../pages/onboarding/ReadyPage'))
+const FindNetworkPage = lazy(() => import('../pages/onboarding/FindNetworkPage'))
 
 export const router = createBrowserRouter([
   {
@@ -41,6 +44,7 @@ export const router = createBrowserRouter([
       { path: 'compose/:id', Component: ComposePage },
       { path: 'drafts', Component: DraftsPage },
       { path: 'communities/new', Component: CreateCommunityPage },
+      { path: 'communities/join', Component: JoinCommunityPage },
       { path: 'search', Component: SearchPage },
       { path: 'contacts', Component: ContactsPage },
       { path: 'chats', Component: ChatsPage },
@@ -49,12 +53,15 @@ export const router = createBrowserRouter([
       { path: 'chat', Component: ChatThreadPage },
       { path: 'profile', Component: ProfilePage },
       { path: 'settings', Component: SettingsPage },
+      { path: 'settings/recovery', Component: RecoveryPage },
+      { path: '*', Component: NotFoundPage },
       { path: 'onboarding', Component: WelcomePage },
       { path: 'onboarding/create', Component: CreateIdentityPage },
       { path: 'onboarding/import', Component: ImportIdentityPage },
       { path: 'onboarding/recovery', Component: RecoveryPage },
       { path: 'onboarding/permissions', Component: PermissionsPage },
       { path: 'onboarding/network', Component: ServerSetupPage },
+      { path: 'onboarding/find-network', Component: FindNetworkPage },
       { path: 'onboarding/preferences', Component: PreferencesPage },
       { path: 'onboarding/ready', Component: ReadyPage }
     ]

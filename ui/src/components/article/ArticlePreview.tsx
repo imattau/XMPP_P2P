@@ -1,6 +1,7 @@
 import { ArrowLeft } from 'lucide-react'
 import type { Article } from '../../bridge/article/types'
 import ArticleBlocks from './ArticleBlocks'
+import { useResolvedUploadUrl } from '../../bridge/useResolvedUploadUrl'
 
 interface ArticlePreviewProps {
   article: Article
@@ -9,12 +10,13 @@ interface ArticlePreviewProps {
 }
 
 export default function ArticlePreview({ article, onEdit, onPublish }: ArticlePreviewProps) {
+  const coverImage = useResolvedUploadUrl(article.coverImage)
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
       <header className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border flex-shrink-0">
         <div className="flex items-center justify-between px-4 py-2.5">
           <div className="flex items-center gap-3">
-            <button onClick={onEdit} className="p-1 -ml-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
+            <button onClick={onEdit} aria-label="Back to edit" className="flex h-11 w-11 -ml-1 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-white/5 hover:text-foreground">
               <ArrowLeft size={18} />
             </button>
             <span className="font-semibold text-sm">Preview</span>
@@ -37,12 +39,14 @@ export default function ArticlePreview({ article, onEdit, onPublish }: ArticlePr
         )}
 
         <p className="text-xs text-muted-foreground mb-6">
-          {article.author.name} · {article.readTime}
+          {article.author.name}{article.settings.showReadingTime ? ` · ${article.readTime}` : ''}
         </p>
 
         {article.coverImage && (
           <div className="mb-6 rounded-xl overflow-hidden bg-secondary">
-            <img src={article.coverImage} alt={article.title} className="w-full h-48 object-cover" />
+            {coverImage.url
+              ? <img src={coverImage.url} alt={article.title} className="w-full h-48 object-cover" />
+              : <div className="h-48 flex items-center justify-center text-sm text-muted-foreground">{coverImage.loading ? <span role="status">Loading cover image…</span> : <button type="button" onClick={coverImage.retry} className="hover:text-foreground">Cover image unavailable · Retry</button>}</div>}
           </div>
         )}
 
@@ -57,7 +61,7 @@ export default function ArticlePreview({ article, onEdit, onPublish }: ArticlePr
           </button>
           <button
             onClick={onPublish}
-            className="flex-1 py-3 rounded-xl bg-primary text-white font-semibold text-sm hover:bg-primary/90 transition-colors"
+            className="flex-1 py-3 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-colors"
           >
             Publish
           </button>

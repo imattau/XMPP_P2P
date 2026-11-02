@@ -143,7 +143,8 @@ export function getDiscoveryIdentities(
 
 export function getDiscoveryFeatures(
   collections: ReadonlyMap<string, XmppDiscoveryCollection>,
-  node?: string
+  node?: string,
+  httpUploadAvailable = true
 ): string[] {
   const features = new Set<string>([
     DISCO_INFO_XMLNS,
@@ -154,7 +155,6 @@ export function getDiscoveryFeatures(
     MICROBLOG_XMLNS,
     COLLECTION_XMLNS,
     ATTACHMENT_XMLNS,
-    HTTP_UPLOAD_XMLNS,
     OMEMO_FEATURE,
     OMEMO_PTE_FEATURE,
     OPENPGP_FEATURE,
@@ -170,6 +170,7 @@ export function getDiscoveryFeatures(
     REPLY_XMLNS,
     CARBONS_XMLNS
   ])
+  if (httpUploadAvailable) features.add(HTTP_UPLOAD_XMLNS)
 
   if (findCollection(collections, node)) {
     features.add(COLLECTION_XMLNS)
@@ -196,10 +197,11 @@ export function computeDiscoveryVer(identities: XmppDiscoIdentity[], features: s
 export function buildCapsElement(
   discoveryNode: string,
   discoveryIdentity: XmppDiscoIdentity,
-  collections: ReadonlyMap<string, XmppDiscoveryCollection>
+  collections: ReadonlyMap<string, XmppDiscoveryCollection>,
+  httpUploadAvailable = true
 ): Element {
   const identities = getDiscoveryIdentities(discoveryIdentity, collections)
-  const features = getDiscoveryFeatures(collections)
+  const features = getDiscoveryFeatures(collections, undefined, httpUploadAvailable)
   const ver = computeDiscoveryVer(identities, features)
   return xml('c', {
     xmlns: CAPS_XMLNS,
@@ -212,10 +214,11 @@ export function buildCapsElement(
 export function buildDiscoInfoQuery(
   discoveryIdentity: XmppDiscoIdentity,
   collections: ReadonlyMap<string, XmppDiscoveryCollection>,
-  node?: string
+  node?: string,
+  httpUploadAvailable = true
 ): Element {
   const identities = getDiscoveryIdentities(discoveryIdentity, collections, node)
-  const features = getDiscoveryFeatures(collections, node)
+  const features = getDiscoveryFeatures(collections, node, httpUploadAvailable)
   const queryAttrs: Record<string, string> = { xmlns: DISCO_INFO_XMLNS }
   if (node) {
     queryAttrs.node = node
@@ -337,6 +340,7 @@ export interface XmppDiscoveryContext {
   discoveryNode: string
   discoveryIdentity: XmppDiscoIdentity
   libp2p: any
+  httpUploadAvailable?: boolean
   getCollections(): Map<string, any>
   getCollectionSubscriptions(): Map<string, any>
   getOrCreateStream(peerAddr: string | Multiaddr): Promise<XmppStream>
@@ -464,7 +468,7 @@ export class XmppDiscoveryManager {
     const parsed = parsePeerReference(peerAddr)
     const peerId = parsed.peerId || this.peerIdFromJid(peerAddr.toString())
     if (peerId === this.ctx.libp2p.peerId.toString()) {
-      return parseDiscoInfoQuery(buildDiscoInfoQuery(this.ctx.discoveryIdentity, this.ctx.getCollections(), node ?? this.ctx.discoveryNode))
+      return parseDiscoInfoQuery(buildDiscoInfoQuery(this.ctx.discoveryIdentity, this.ctx.getCollections(), node ?? this.ctx.discoveryNode, this.ctx.httpUploadAvailable !== false))
     }
     return await this.queryDiscoInfo(peerAddr, node)
   }
@@ -484,7 +488,7 @@ export class XmppDiscoveryManager {
     const parsed = parsePeerReference(peerAddr)
     const peerId = parsed.peerId || this.peerIdFromJid(peerAddr.toString())
     if (peerId === this.ctx.libp2p.peerId.toString()) {
-      const info = parseDiscoInfoQuery(buildDiscoInfoQuery(this.ctx.discoveryIdentity, this.ctx.getCollections()))
+      const info = parseDiscoInfoQuery(buildDiscoInfoQuery(this.ctx.discoveryIdentity, this.ctx.getCollections(), undefined, this.ctx.httpUploadAvailable !== false))
       return {
         peerId,
         jid: this.ctx.jid,

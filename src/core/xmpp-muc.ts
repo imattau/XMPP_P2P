@@ -369,13 +369,14 @@ export class XmppMucManager {
   }
 
   public async updateMucRoomSettings(roomName: string, settings: { topic?: string; defaultMode?: 'secure' | 'open'; autoJoin?: boolean; communityId?: string; archived?: boolean }): Promise<void> {
+    const existing = await this.ensureMucRoomSettings(roomName)
     const normalized = normalizeMucRoomSettings({
       roomName,
-      topic: settings.topic,
-      defaultMode: settings.defaultMode,
-      autoJoin: settings.autoJoin,
-      communityId: settings.communityId,
-      archived: settings.archived,
+      topic: settings.topic ?? existing?.topic,
+      defaultMode: settings.defaultMode ?? (existing?.defaultSecure === false ? 'open' : 'secure'),
+      autoJoin: settings.autoJoin ?? existing?.autoJoin ?? true,
+      communityId: settings.communityId ?? existing?.communityId,
+      archived: settings.archived ?? existing?.archived,
       updatedAt: new Date().toISOString()
     })
 
@@ -396,6 +397,13 @@ export class XmppMucManager {
      const key = `${normalized.room}:${normalized.id}`
      if (this.mucHistory.has(key)) {
        return false
+     }
+     if ([...this.mucHistory.values()].some((entry) => entry.room === normalized.room && entry.replace === normalized.id)) {
+       return false
+     }
+
+     if (normalized.replace) {
+       this.mucHistory.delete(`${normalized.room}:${normalized.replace}`)
      }
 
      this.mucHistory.set(key, normalized)
@@ -544,6 +552,7 @@ export class XmppMucManager {
       fromPeerId: this.ctx.jid.split('@')[0],
       body,
       timestamp: new Date().toISOString(),
+      replace: replaceId,
       reply,
       thread
     })
@@ -600,7 +609,7 @@ export class XmppMucManager {
     for (const occupant of roomState.occupants.values()) {
       await addOmemoKey(occupant.jid)
     }
-    if (keysMap.size === 0 && roomState.occupants.size > 0) {
+    if (keysMap.size === 0) {
       throw new Error('No occupants have available OMEMO devices')
     }
 
@@ -651,6 +660,7 @@ export class XmppMucManager {
       timestamp: new Date().toISOString(),
       encrypted: true,
       encryption: 'omemo',
+      replace: replaceId,
       reply,
       thread
     })
@@ -723,6 +733,9 @@ export class XmppMucManager {
         }
         msgEl.children.push(xml('reply', replyAttrs))
       }
+      if (msg.replace) {
+        msgEl.children.push(xml('replace', { xmlns: 'urn:xmpp:message-correct:0', id: msg.replace }))
+      }
       if (msg.thread) {
         msgEl.children.push(xml('thread', {}, msg.thread))
       }
@@ -777,6 +790,8 @@ export class XmppMucManager {
       const msgId = innerMsg.attrs.id || resultEl.attrs.id
       const reply = parseReplyElement(innerMsg)
       const thread = parseThreadElement(innerMsg)
+      const replaceEl = innerMsg.getChild('replace')
+      const replace = replaceEl?.attrs.xmlns === 'urn:xmpp:message-correct:0' ? replaceEl.attrs.id : undefined
 
       if (body) {
         const mamMsg = {
@@ -786,6 +801,7 @@ export class XmppMucManager {
           fromPeerId: peerId,
           body,
           timestamp: delayStamp || new Date().toISOString(),
+          replace,
           reply,
           thread
         }
@@ -802,6 +818,7 @@ export class XmppMucManager {
           timestamp: delayStamp || new Date().toISOString(),
           id: msgId,
           mam: true,
+          replace,
           reply,
           thread,
           queryId
@@ -971,6 +988,8 @@ export class XmppMucManager {
             const msgId = element.attrs.id || Math.random().toString(36).substring(2, 11)
             const reply = parseReplyElement(element)
             const thread = parseThreadElement(element)
+            const replaceEl = element.getChild('replace')
+            const replace = replaceEl?.attrs.xmlns === 'urn:xmpp:message-correct:0' ? replaceEl.attrs.id : undefined
 
             await this.recordMucMessage({
               id: msgId,
@@ -981,12 +1000,10 @@ export class XmppMucManager {
               timestamp: new Date().toISOString(),
               encrypted: true,
               encryption: 'omemo',
+              replace,
               reply,
               thread
             })
-
-            const replaceEl = element.getChild('replace')
-            const replace = replaceEl?.attrs.xmlns === 'urn:xmpp:message-correct:0' ? replaceEl.attrs.id : undefined
 
             this.ctx.emit('muc:message', {
               room: roomName,
@@ -1014,6 +1031,8 @@ export class XmppMucManager {
           const msgId = element.attrs.id || Math.random().toString(36).substring(2, 11)
           const reply = parseReplyElement(element)
           const thread = parseThreadElement(element)
+          const replaceEl = element.getChild('replace')
+          const replace = replaceEl?.attrs.xmlns === 'urn:xmpp:message-correct:0' ? replaceEl.attrs.id : undefined
           await this.recordMucMessage({
             id: msgId,
             room: roomName,
@@ -1021,12 +1040,10 @@ export class XmppMucManager {
             fromPeerId,
             body,
             timestamp: new Date().toISOString(),
+            replace,
             reply,
             thread
           })
-
-          const replaceEl = element.getChild('replace')
-          const replace = replaceEl?.attrs.xmlns === 'urn:xmpp:message-correct:0' ? replaceEl.attrs.id : undefined
 
           this.ctx.emit('muc:message', {
             room: roomName,

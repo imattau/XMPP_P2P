@@ -17,6 +17,7 @@ import type { XmppStorage } from './storage/types.js'
  * Pubsub topic used to broadcast upload manifests.
  */
 export const UPLOAD_ANNOUNCEMENTS_TOPIC = 'xmpp-upload:announcements'
+export const MAX_PEER_UPLOAD_BYTES = 50 * 1024 * 1024
 
 /**
  * Runtime dependencies for the upload manager.
@@ -29,6 +30,7 @@ export interface XmppUploadContext {
   uploadHost: string
   getPubSubService(): any
   emit(event: string, ...args: any[]): boolean
+  fetchUploadFromPeer?(peerId: string, cid: string): Promise<Uint8Array | undefined>
 }
 
 /**
@@ -110,7 +112,10 @@ export class XmppUploadManager {
   }
 
   private normalizeUploadProviders(manifest: XmppUploadManifest): XmppUploadProvider[] {
-    const providers = [...(manifest.providers ?? []), { url: manifest.getUrl, jid: manifest.from }]
+    const providers = [...(manifest.providers ?? [])]
+    if (/^(?:https?:\/\/|p2p-upload:\/\/)/i.test(manifest.getUrl)) {
+      providers.push({ url: manifest.getUrl, jid: manifest.from })
+    }
     const merged = new Map<string, XmppUploadProvider>()
 
     for (const provider of providers) {
@@ -142,6 +147,11 @@ export class XmppUploadManager {
   private buildUploadProviders(manifest: XmppUploadManifest): XmppUploadProvider[] {
     const providers = this.normalizeUploadProviders(manifest)
     const localUrl = this.getLocalUploadProviderUrl(manifest.cid)
+    const peerId = this.context.jid.split('@')[0]
+    const peerUrl = `p2p-upload://peer/${encodeURIComponent(peerId)}/${encodeURIComponent(manifest.cid)}`
+    if (peerId && !providers.some(provider => provider.url === peerUrl)) {
+      providers.unshift({ url: peerUrl, jid: this.context.jid })
+    }
     if (localUrl && !providers.some(provider => provider.url === localUrl)) {
       providers.unshift({
         url: localUrl,
@@ -163,7 +173,49 @@ export class XmppUploadManager {
     return `${this.uploadBaseUrl}/ipfs/${encodeURIComponent(cid)}`
   }
 
-  private async announceUploadManifest(manifest: XmppUploadManifest): Promise<void> {
+  public async handlePeerUploadRequest(stream: any): Promise<void> {
+    const send = async (data: Uint8Array) => {
+      for (let offset = 0; offset < data.length; offset += 64 * 1024) {
+        if (!stream.send(data.subarray(offset, Math.min(offset + 64 * 1024, data.length)))) {
+          await stream.onDrain()
+        }
+      }
+    }
+
+    try {
+      const requestChunks: Uint8Array[] = []
+      let requestSize = 0
+      for await (const item of stream) {
+        const chunk = item instanceof Uint8Array ? item : item.subarray()
+        requestSize += chunk.length
+        if (requestSize > 2048) throw new Error('Upload request is too large')
+        requestChunks.push(chunk)
+      }
+      const requestBytes = new Uint8Array(requestSize)
+      let offset = 0
+      for (const chunk of requestChunks) {
+        requestBytes.set(chunk, offset)
+        offset += chunk.length
+      }
+      const requestText = new TextDecoder().decode(requestBytes).trim()
+      const request = JSON.parse(requestText) as { cid?: string }
+      const cid = typeof request.cid === 'string' && /^[a-f0-9]{64}$/i.test(request.cid) ? request.cid : ''
+      const blob = cid ? await this.context.storage.getBlob('uploads', cid) : undefined
+      const payload = blob ? new Uint8Array(blob as Uint8Array) : undefined
+      const metadataRaw = cid ? await this.context.storage.getRecord('uploads_meta', cid) : undefined
+      const metadata = metadataRaw ? JSON.parse(metadataRaw) as { contentType?: string; filename?: string; size?: number } : undefined
+      const header = payload && payload.length <= MAX_PEER_UPLOAD_BYTES
+        ? { ok: true, cid, size: payload.length, contentType: metadata?.contentType ?? 'application/octet-stream', filename: metadata?.filename ?? cid }
+        : { ok: false, cid, size: 0 }
+      await send(new TextEncoder().encode(`${JSON.stringify(header)}\n`))
+      if (header.ok && payload) await send(payload)
+      await stream.close()
+    } catch (error) {
+      stream.abort(error instanceof Error ? error : new Error('Upload transfer failed'))
+    }
+  }
+
+  public async announceUploadManifest(manifest: XmppUploadManifest): Promise<void> {
     const providers = this.buildUploadProviders(manifest)
     const pubsub = this.context.getPubSubService()
     const stanza = xml(
@@ -249,6 +301,18 @@ export class XmppUploadManager {
   }
 
   private async fetchUploadFromProvider(url: string): Promise<Buffer | undefined> {
+    if (url.startsWith('p2p-upload://')) {
+      try {
+        const parsed = new URL(url)
+        const [peerId, cid] = parsed.pathname.split('/').filter(Boolean).map(decodeURIComponent)
+        if (!peerId || !cid || !this.context.fetchUploadFromPeer) return undefined
+        const data = await this.context.fetchUploadFromPeer(peerId, cid)
+        return data ? Buffer.from(data) : undefined
+      } catch {
+        return undefined
+      }
+    }
+
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 5000)
     try {
@@ -356,6 +420,10 @@ export class XmppUploadManager {
       this.uploadPrefetches.set(
         normalized.cid,
         this.fetchAndCacheUpload(merged)
+          .then((available) => {
+            if (available) this.context.emit('upload:available', normalized.cid)
+            return available
+          })
           .catch(err => this.context.emit('error', err))
           .finally(() => {
             this.uploadPrefetches.delete(normalized.cid)

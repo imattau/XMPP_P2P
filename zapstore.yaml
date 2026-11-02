@@ -1,0 +1,26 @@
+# ZapStore publisher config (https://zapstore.dev/docs/publish)
+# Tool: zsp — https://github.com/zapstore/zsp
+#
+# Published automatically on `v*` tags by .github/workflows/release.yml:
+# the signed APK is attached to the GitHub Release first, then
+# `SIGN_WITH=$ZAPSTORE_NSEC zsp publish --quiet --skip-preview zapstore.yaml`
+# broadcasts it. The publisher identity is the shared
+# imattau/scrollstr + Mangatsu + Noteds identity.
+
+repository: https://github.com/imattau/XMPP_P2P
+name: Nexus
+summary: Decentralized, serverless messaging over XMPP P2P
+description: |
+  Nexus is a peer-to-peer XMPP client. Messages, presence, group chats and
+  feeds are routed directly between peers over libp2p, with no home server.
+  It supports OMEMO end-to-end encryption, decentralized MUC rooms and
+  DHT-backed offline mailboxes.
+
+  This is the Android build of the Nexus web client, wrapped with Capacitor.
+license: LGPL-2.1-or-later
+website: https://github.com/imattau/XMPP_P2P
+icon: assets/zapstore-icon.png
+release_source: https://github.com/imattau/XMPP_P2P
+pubkey: npub1khf5amw8mrupe649a5mhkk3d2d8wjj06urz6kwawpftk4f68tjlstdmd3q
+metadata_sources: []
+tags: [messaging, chat, xmpp, p2p, decentralized]

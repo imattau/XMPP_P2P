@@ -1,11 +1,17 @@
 import * as React from 'react'
-import { useState } from 'react'
+import { multiaddr } from '@multiformats/multiaddr'
+import { useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { useNavigate } from 'react-router'
 import { getBrowserXmppBridge } from '../bridge'
-import { createGroupChatSession } from './chat-session'
+import { createGroupChatSession, createPrivateGroupRoomName, getGroupChatSession } from './chat-session'
+import { useRosterBridge } from '../bridge/useRosterBridge'
+import { canonicalDirectChatId } from '../bridge/direct-chat-history'
+import { normalizeXmppJid } from '../lib/xmpp-input'
+import { savePeerAddress } from '../lib/peer-addresses'
+import { emitToast } from '../lib/toast-events'
 import {
-  ArrowLeft, Search, User, Users, Hash, X, Plus, Check,
-  Shield, Zap, ChevronRight, AlertCircle,
+  ArrowLeft, Search, User, Users, Hash, X, Plus, Check, UserPlus,
+  Shield, Zap, ChevronRight,
 } from 'lucide-react'
 
 type FlowType = 'direct' | 'group' | 'muc'
@@ -20,28 +26,9 @@ interface Contact {
   verified?: boolean
 }
 
-const RECENT_CONTACTS: Contact[] = [
-  { id: 'maren', name: 'Maren Holdt', handle: 'maren@social.coop', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=48&h=48&fit=crop&auto=format', server: 'social.coop', online: true, verified: true },
-  { id: 'felix', name: 'Felix Bergström', handle: 'felixb@chaos.social', avatar: 'https://images.unsplash.com/photo-1463453091185-61582044d556?w=48&h=48&fit=crop&auto=format', server: 'chaos.social', online: false },
-  { id: 'ingrid', name: 'Ingrid Larsen', handle: 'ingridl@sigmoid.social', avatar: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=48&h=48&fit=crop&auto=format', server: 'sigmoid.social', online: true },
-  { id: 'kaspar', name: 'Kaspar Vold', handle: 'kvold@fosstodon.org', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=48&h=48&fit=crop&auto=format', server: 'fosstodon.org', online: false, verified: true },
-  { id: 'theo', name: 'Theo Nakashima', handle: 'theo_n@hachyderm.io', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=48&h=48&fit=crop&auto=format', server: 'hachyderm.io', online: true },
-  { id: 'yuki', name: 'Yuki Tanaka', handle: 'yukitan@infosec.exchange', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=48&h=48&fit=crop&auto=format', server: 'infosec.exchange', online: false },
-  { id: 'elif', name: 'Elif Şahin', handle: 'elif_dev@mastodon.social', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=48&h=48&fit=crop&auto=format', server: 'mastodon.social', online: true },
-  { id: 'amara', name: 'Amara Diallo', handle: 'amara_d@blacktwitter.io', avatar: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=48&h=48&fit=crop&auto=format', server: 'blacktwitter.io', online: false },
-]
-
-const KNOWN_MUCS = [
-  { jid: 'fedidev@conference.fosstodon.org', name: '#fedidev', members: 341, description: 'Federated dev community' },
-  { jid: 'opensourcedev@muc.hachyderm.io', name: '#opensourcedev', members: 1204, description: 'Open source development' },
-  { jid: 'privacy@conference.infosec.exchange', name: '#privacy', members: 892, description: 'Privacy, security & digital rights' },
-  { jid: 'xmpp@conference.jabber.org', name: '#xmpp', members: 2341, description: 'Official XMPP community room' },
-  { jid: 'prosody@conference.prosody.im', name: '#prosody', members: 188, description: 'Prosody XMPP server support' },
-]
-
-function ContactRow({ contact, selected, onToggle }: { contact: Contact; selected?: boolean; onToggle?: () => void }) {
+function ContactRow({ contact, onOpen }: { contact: Contact; onOpen: () => void }) {
   return (
-    <button onClick={onToggle} className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-secondary transition-colors text-left border-b border-border last:border-0">
+    <button onClick={onOpen} className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-secondary transition-colors text-left border-b border-border last:border-0">
       <div className="relative flex-shrink-0">
         <div className="w-9 h-9 rounded-full overflow-hidden bg-secondary border border-border">
           {contact.avatar
@@ -49,7 +36,7 @@ function ContactRow({ contact, selected, onToggle }: { contact: Contact; selecte
             : <div className="w-full h-full flex items-center justify-center text-sm font-semibold text-foreground">{contact.name[0]}</div>
           }
         </div>
-        <span className={`absolute -bottom-px -right-px w-2.5 h-2.5 rounded-full border-2 border-background ${contact.online ? 'bg-accent' : 'bg-muted-foreground/30'}`} />
+        <span aria-hidden="true" className={`absolute -bottom-px -right-px w-2.5 h-2.5 rounded-full border-2 border-background ${contact.online ? 'bg-accent' : 'bg-muted-foreground/40'}`} />
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1">
@@ -57,53 +44,124 @@ function ContactRow({ contact, selected, onToggle }: { contact: Contact; selecte
           {contact.verified && <Shield size={11} className="text-primary flex-shrink-0" />}
         </div>
         <span className="font-mono text-[10px] text-muted-foreground truncate block">{contact.handle}</span>
+        <span className="sr-only">{contact.online ? 'Online' : 'Offline'}</span>
       </div>
-      {onToggle && (
-        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${selected ? 'bg-primary border-primary' : 'border-border'}`}>
-          {selected && <Check size={11} className="text-white" />}
-        </div>
-      )}
-      {!onToggle && <ChevronRight size={14} className="text-muted-foreground/40 flex-shrink-0" />}
+      <ChevronRight size={14} aria-hidden="true" className="text-muted-foreground/40 flex-shrink-0" />
     </button>
   )
 }
 
 function DirectFlow() {
   const navigate = useNavigate()
+  const { contacts, addContact, serverConnected } = useRosterBridge()
   const [query, setQuery] = useState('')
+  const [addingContact, setAddingContact] = useState(false)
+  const recentContacts: Contact[] = contacts.map((contact) => ({
+    id: contact.jid,
+    name: contact.nickname || contact.name || contact.jid.split('@')[0],
+    handle: contact.jid,
+    server: contact.jid.split('@')[1] || 'p2p',
+    online: contact.online,
+  }))
 
-  const filtered = RECENT_CONTACTS.filter((c) =>
+  const filtered = recentContacts.filter((c) =>
     !query || c.name.toLowerCase().includes(query.toLowerCase()) || c.handle.toLowerCase().includes(query.toLowerCase())
   )
 
-  const isJid = query.includes('@') && query.split('@').length === 2 && query.split('@')[1].includes('.')
+  const normalizedQuery = query.trim()
+  let bareJid = ''
+  try {
+    bareJid = normalizeXmppJid(normalizedQuery).jid.split('/')[0]
+  } catch { /* invalid JIDs remain ordinary search text */ }
+  let peerAddressPeerId: string | undefined
+  if (normalizedQuery.startsWith('/')) {
+    try {
+      multiaddr(normalizedQuery)
+      peerAddressPeerId = normalizedQuery.match(/\/p2p\/([^/]+)$/)?.[1]
+    } catch { /* malformed multiaddresses stay in the search field */ }
+  }
+  const isPeerAddress = Boolean(peerAddressPeerId)
+  const isJid = Boolean(bareJid)
+  const isServerJid = isJid && !bareJid.toLowerCase().endsWith('@p2p')
+  const canStartChat = !isServerJid || serverConnected
+  const canAddContact = !isServerJid || serverConnected
+  const isContact = contacts.some((contact) => canonicalDirectChatId(contact.jid) === canonicalDirectChatId(bareJid))
+
+  const handleAddContact = async () => {
+    if (!isJid || isContact || addingContact) return
+    setAddingContact(true)
+    try {
+      await addContact(bareJid, bareJid.split('@')[0])
+      const isP2pContact = bareJid.toLowerCase().endsWith('@p2p')
+      emitToast(isP2pContact || serverConnected
+        ? 'Contact added'
+        : 'Contact saved. Connect an XMPP server in Settings to message this JID.', isP2pContact || serverConnected ? 'success' : 'info')
+    } catch (error) {
+      emitToast(error instanceof Error ? error.message : 'Could not add contact', 'error')
+    } finally {
+      setAddingContact(false)
+    }
+  }
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
       <div className="px-4 py-3 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-2 bg-secondary rounded-lg px-3 py-2">
           <Search size={14} className="text-muted-foreground flex-shrink-0" />
-          <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by name or enter JID (user@server.tld)…"
+          <input autoFocus aria-label="Search contacts, enter a JID, or paste a peer address" value={query} onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search contacts, enter a JID, or paste a peer address…"
             className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none" />
-          {query && <button onClick={() => setQuery('')} className="text-muted-foreground hover:text-foreground"><X size={13} /></button>}
+          {query && <button onClick={() => setQuery('')} aria-label="Clear contact search" className="text-muted-foreground hover:text-foreground"><X size={13} /></button>}
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {isJid && (
-          <div className="px-4 py-3 border-b border-border">
-            <button onClick={() => navigate(`/chat/${encodeURIComponent(query)}`)}
+        {isPeerAddress && peerAddressPeerId && (
+          <div className="px-4 py-3 border-b border-border space-y-2">
+            <button type="button" onClick={() => {
+              savePeerAddress(peerAddressPeerId, normalizedQuery)
+              navigate(`/chat/${encodeURIComponent(`${peerAddressPeerId}@p2p`)}?address=${encodeURIComponent(normalizedQuery)}`)
+            }}
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary/5 border border-primary/30 hover:bg-primary/10 transition-colors text-left">
+              <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center border border-primary/20 flex-shrink-0"><User size={16} className="text-primary" /></div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-foreground">Start peer conversation</p>
+                <p className="font-mono text-[10px] text-muted-foreground truncate">{peerAddressPeerId}</p>
+              </div>
+              <ChevronRight size={14} className="text-primary flex-shrink-0" />
+            </button>
+            <p className="px-1 text-[11px] leading-relaxed text-muted-foreground">This address is used for the first connection. Encrypted messaging may require the peer’s P2P ID contact first.</p>
+          </div>
+        )}
+        {isJid && (
+          <div className="px-4 py-3 border-b border-border space-y-2">
+            <button type="button" disabled={!canStartChat} onClick={() => navigate(`/chat/${encodeURIComponent(bareJid)}`)}
+              aria-describedby={!canStartChat ? 'server-jid-connection-hint' : undefined}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary/5 border border-primary/30 hover:bg-primary/10 transition-colors text-left disabled:cursor-not-allowed disabled:opacity-50">
               <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center border border-primary/20 flex-shrink-0">
                 <User size={16} className="text-primary" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground">{query}</p>
-                <p className="font-mono text-[10px] text-muted-foreground">Start conversation with this JID</p>
+                <p className="text-sm font-medium text-foreground">{bareJid}</p>
+                <p className="font-mono text-[10px] text-muted-foreground">{canStartChat ? 'Start conversation with this JID' : 'Connect an XMPP server to message this JID'}</p>
               </div>
               <ChevronRight size={14} className="text-primary flex-shrink-0" />
             </button>
+            {!canStartChat && <p id="server-jid-connection-hint" className="sr-only">Connect an XMPP server in Settings to start this conversation.</p>}
+            {isContact ? (
+              <div className="flex items-center gap-1.5 px-1 text-xs text-accent" role="status">
+                <Check size={14} /> Already in your contacts
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => canAddContact ? void handleAddContact() : navigate('/settings')}
+                disabled={addingContact}
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground disabled:cursor-wait disabled:opacity-50"
+              >
+                <UserPlus size={14} /> {addingContact ? 'Adding contact…' : canAddContact ? 'Add to contacts' : 'Connect XMPP in Settings'}
+              </button>
+            )}
           </div>
         )}
 
@@ -114,12 +172,16 @@ function DirectFlow() {
             </span>
           </div>
           {filtered.map((c) => (
-            <ContactRow key={c.id} contact={c} onToggle={() => navigate(`/chat/${c.id}`)} />
+            <ContactRow key={c.id} contact={c} onOpen={() => navigate(`/chat/${encodeURIComponent(c.handle)}`)} />
           ))}
           {filtered.length === 0 && (
             <div className="px-4 py-8 text-center">
               <p className="text-sm text-muted-foreground">No contacts found.</p>
-              <p className="font-mono text-[11px] text-muted-foreground/60 mt-1">Enter a full JID to start a new conversation.</p>
+              <p className="font-mono text-[11px] text-muted-foreground mt-1">
+                {serverConnected
+                  ? 'Enter a full JID or paste a peer address to start a conversation.'
+                  : 'Enter a full JID or paste a peer address. Connect an XMPP server in Settings to message server contacts.'}
+              </p>
             </div>
           )}
         </div>
@@ -131,94 +193,56 @@ function DirectFlow() {
 function GroupFlow() {
   const navigate = useNavigate()
   const [groupName, setGroupName] = useState('')
-  const [query, setQuery] = useState('')
-  const [selected, setSelected] = useState<Contact[]>([])
-
-  const toggle = (c: Contact) =>
-    setSelected((prev) => prev.find((p) => p.id === c.id) ? prev.filter((p) => p.id !== c.id) : [...prev, c])
-
-  const filtered = RECENT_CONTACTS.filter((c) =>
-    !query || c.name.toLowerCase().includes(query.toLowerCase()) || c.handle.toLowerCase().includes(query.toLowerCase())
-  )
-
-  const canCreate = groupName.trim().length > 0 && selected.length >= 1
+  const [creating, setCreating] = useState(false)
+  const canCreate = groupName.trim().length > 0 && !creating
   const handleCreate = async () => {
-    if (!canCreate) {
+    if (!canCreate) return
+
+    const bridge = getBrowserXmppBridge()
+    if (!bridge?.createPrivateMucRoom) {
+      emitToast('Connect to the peer network before creating a group', 'error')
       return
     }
-
-    const session = createGroupChatSession(groupName.trim(), selected)
-    const bridge = getBrowserXmppBridge()
-    if (bridge?.createPrivateMucRoom) {
-      try {
-        await bridge.createPrivateMucRoom(session.chat.id, {
-          topic: session.chat.subject,
-          nick: 'You',
-        })
-      } catch {
-        // Ignore backend bridge failures and keep the local room available.
-      }
+    const localJid = bridge.getLocalJid()
+    setCreating(true)
+    const sessionId = createPrivateGroupRoomName(groupName)
+    try {
+      const subject = 'P2P group room · 1 member'
+      await bridge.createPrivateMucRoom(sessionId, {
+        topic: subject,
+        nick: localJid.split('@')[0],
+        communityId: sessionId,
+        defaultMode: 'secure',
+      })
+      const session = createGroupChatSession(groupName.trim(), [], sessionId, { encrypted: true, localJid, role: 'owner' })
+      emitToast(`Room ready to share: ${session.chat.id}@muc.p2p`, 'success')
+      navigate(`/chat/${encodeURIComponent(session.chat.id)}`)
+    } catch (error) {
+      emitToast(error instanceof Error ? error.message : 'Could not create the group', 'error')
+    } finally {
+      setCreating(false)
     }
-
-    navigate(`/chat/${session.chat.id}`)
   }
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
-      <div className="px-4 py-3 border-b border-border flex-shrink-0">
+      <div className="px-4 py-4 border-b border-border flex-shrink-0">
         <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Group name</p>
-        <input value={groupName} onChange={(e) => setGroupName(e.target.value)}
+        <input aria-label="Group name" value={groupName} onChange={(e) => setGroupName(e.target.value)}
           placeholder="e.g. Protocol Working Group"
           className="w-full bg-secondary border border-border rounded-lg px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 transition-colors" />
       </div>
-
-      {selected.length > 0 && (
-        <div className="px-4 py-2.5 border-b border-border flex-shrink-0 flex flex-wrap gap-1.5">
-          {selected.map((c) => (
-            <span key={c.id} className="flex items-center gap-1 bg-primary/10 border border-primary/30 text-primary text-[11px] font-mono px-2 py-1 rounded-full">
-              {c.name.split(' ')[0]}
-              <button onClick={() => toggle(c)} className="hover:text-primary/60 transition-colors"><X size={10} /></button>
-            </span>
-          ))}
-        </div>
-      )}
-
-      <div className="px-4 py-2.5 border-b border-border flex-shrink-0">
-        <div className="flex items-center gap-2 bg-secondary rounded-lg px-3 py-2">
-          <Search size={14} className="text-muted-foreground flex-shrink-0" />
-          <input value={query} onChange={(e) => setQuery(e.target.value)}
-            placeholder="Add participants…"
-            className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none" />
-          {query && <button onClick={() => setQuery('')} className="text-muted-foreground hover:text-foreground"><X size={13} /></button>}
+      <div className="flex-1 px-4 py-5">
+        <div className="rounded-xl border border-border bg-card p-4">
+          <div className="flex items-center gap-2 text-sm font-medium text-foreground"><Users size={16} className="text-primary" /> P2P group room</div>
+          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">Create the room first, then share its room ID with people you want to join. Anyone who learns the ID can try to join; the network does not support invitations or private membership lists.</p>
+          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">Secure mode is on by default. It encrypts messages but does not restrict who can join. Sending requires a joined member to have an OMEMO device, and members without one cannot read secure messages.</p>
         </div>
       </div>
-
-      <div className="flex-1 overflow-y-auto">
-        <div className="px-4 py-2">
-          <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-            Contacts · {selected.length} selected
-          </span>
-        </div>
-        {filtered.map((c) => (
-          <ContactRow key={c.id} contact={c} selected={!!selected.find((s) => s.id === c.id)} onToggle={() => toggle(c)} />
-        ))}
-      </div>
-
       <div className="px-4 py-3 border-t border-border flex-shrink-0">
-        {!canCreate && (
-          <div className="flex items-center gap-2 mb-3 p-2.5 rounded-lg bg-amber-500/5 border border-amber-500/20">
-            <AlertCircle size={12} className="text-amber-400 flex-shrink-0" />
-            <span className="text-[11px] text-amber-400">
-              {!groupName.trim() ? 'Add a group name' : 'Add at least one participant'}
-            </span>
-          </div>
-        )}
-        <button
-          disabled={!canCreate}
-          onClick={() => void handleCreate()}
-          className={`w-full py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2 ${canCreate ? 'bg-primary text-white hover:bg-primary/90' : 'bg-primary/20 text-primary/40 cursor-not-allowed'}`}>
-          <Users size={15} />
-          Create group · {selected.length + 1} members
+        <button disabled={!canCreate} onClick={() => void handleCreate()}
+          className="w-full py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed">
+          <Users size={15} /> {creating ? 'Creating…' : 'Create group room'}
         </button>
       </div>
     </div>
@@ -227,87 +251,155 @@ function GroupFlow() {
 
 function MucFlow() {
   const navigate = useNavigate()
-  const [jidInput, setJidInput] = useState('')
-  const [query, setQuery] = useState('')
+  const [roomInput, setRoomInput] = useState('')
+  const [joining, setJoining] = useState(false)
+  const [discoveringRooms, setDiscoveringRooms] = useState(false)
+  const [serverRooms, setServerRooms] = useState<Array<{ roomJid: string; name: string; serviceJid: string }>>([])
+  const [browseMessage, setBrowseMessage] = useState('')
+  const [error, setError] = useState('')
+  const input = roomInput.trim()
+  const roomId = input.replace(/@muc\.p2p$/i, '').toLowerCase()
+  let serverRoomJid = ''
+  try {
+    const normalized = normalizeXmppJid(input).jid
+    if (!normalized.toLowerCase().endsWith('@p2p') && !normalized.toLowerCase().endsWith('@muc.p2p')) {
+      serverRoomJid = normalized.toLowerCase()
+    }
+  } catch { /* input can still be a P2P room ID */ }
+  const isValidRoom = Boolean(serverRoomJid) || /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,99}$/.test(roomId)
 
-  const isValidJid = jidInput.includes('@') && jidInput.split('@')[1]?.includes('.')
+  const handleJoin = async (serverRoomOverride?: string) => {
+    if ((!serverRoomOverride && !isValidRoom) || joining) return
+    const bridge = getBrowserXmppBridge()
+    if (!bridge) {
+      setError('Connect to the peer network before joining a room.')
+      return
+    }
+    setJoining(true)
+    setError('')
+    try {
+      const targetServerRoomJid = serverRoomOverride ?? serverRoomJid
+      if (targetServerRoomJid) {
+        if (!bridge.isServerConnected()) {
+          setError('Connect your XMPP server in Settings before joining this room.')
+          return
+        }
+        if (!bridge.joinServerMuc) {
+          setError('XMPP room support is unavailable in this browser.')
+          return
+        }
+        const accountJid = bridge.getServerJid?.()
+        const session = getGroupChatSession(targetServerRoomJid) ?? createGroupChatSession(targetServerRoomJid.split('@')[0], [], targetServerRoomJid, {
+          encrypted: false,
+          localJid: accountJid ?? bridge.getLocalJid(),
+          type: 'muc',
+          roomJid: targetServerRoomJid,
+          systemMessage: 'Joined XMPP room',
+        })
+        navigate(`/chat/${encodeURIComponent(session.chat.id)}`)
+        return
+      }
+      let room = getGroupChatSession(roomId)
+      await bridge.joinMucRoom(roomId, bridge.getLocalJid().split('@')[0])
+      if (!room) {
+        const settings = await bridge.getMucRoomSettings(roomId)
+        room = createGroupChatSession(roomId, [], roomId, {
+          encrypted: settings?.defaultSecure ?? true,
+          localJid: bridge.getLocalJid(),
+          type: 'muc',
+        })
+      }
+      navigate(`/chat/${encodeURIComponent(room.chat.id)}`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not join this room.')
+    } finally {
+      setJoining(false)
+    }
+  }
 
-  const filtered = KNOWN_MUCS.filter((m) =>
-    !query || m.name.toLowerCase().includes(query.toLowerCase()) || m.jid.toLowerCase().includes(query.toLowerCase()) || m.description.toLowerCase().includes(query.toLowerCase())
-  )
+  const handleBrowseRooms = async () => {
+    const bridge = getBrowserXmppBridge()
+    if (!bridge?.isServerConnected()) {
+      setBrowseMessage('Connect an XMPP server account in Settings to browse its rooms.')
+      return
+    }
+    if (!bridge.discoverServerMucRooms) {
+      setBrowseMessage('XMPP room discovery is unavailable in this browser.')
+      return
+    }
+    setDiscoveringRooms(true)
+    setBrowseMessage('')
+    try {
+      const rooms = await bridge.discoverServerMucRooms()
+      setServerRooms(rooms.slice(0, 50))
+      setBrowseMessage(rooms.length ? '' : 'No public rooms were listed by this server. You can still enter a full room JID above.')
+    } catch (browseError) {
+      setBrowseMessage(browseError instanceof Error ? browseError.message : 'Could not browse XMPP rooms.')
+      setServerRooms([])
+    } finally {
+      setDiscoveringRooms(false)
+    }
+  }
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden">
-      <div className="px-4 py-3 border-b border-border flex-shrink-0">
-        <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Join by room JID</p>
+    <div className="flex flex-col flex-1 overflow-y-auto">
+      <form className="px-4 py-5 border-b border-border" onSubmit={(event) => { event.preventDefault(); void handleJoin() }}>
+        <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Join a room</p>
+        <p className="text-xs text-muted-foreground mb-3">Enter a P2P room ID, or a full XMPP room JID such as <span className="font-mono">room@conference.example.org</span>. XMPP rooms require a connected server account.</p>
         <div className="flex gap-2">
           <div className="flex-1 flex items-center bg-secondary border border-border rounded-lg overflow-hidden focus-within:border-primary/50 transition-colors">
             <Hash size={13} className="ml-3 text-muted-foreground flex-shrink-0" />
-            <input value={jidInput} onChange={(e) => setJidInput(e.target.value)}
-              placeholder="room@conference.server.tld"
+            <input value={roomInput} onChange={(event) => setRoomInput(event.target.value.toLowerCase())}
+              placeholder="room-id or room-id@muc.p2p"
+              aria-label="P2P room ID or XMPP room JID"
               className="flex-1 bg-transparent px-2 py-2.5 text-sm font-mono text-foreground placeholder:text-muted-foreground outline-none" />
           </div>
-          <button
-            disabled={!isValidJid}
-            onClick={() => navigate(`/chat/${encodeURIComponent(jidInput)}`)}
-            className={`px-3 py-2 rounded-lg text-sm font-semibold transition-all flex-shrink-0 ${isValidJid ? 'bg-primary text-white hover:bg-primary/90' : 'bg-secondary text-muted-foreground cursor-not-allowed'}`}>
-            Join
+          <button type="submit" disabled={!isValidRoom || joining}
+            className="px-4 py-2 rounded-lg text-sm font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+            {joining ? 'Joining…' : 'Join'}
           </button>
         </div>
-        {jidInput && !isValidJid && (
-          <p className="font-mono text-[10px] text-muted-foreground/60 mt-1.5">Format: roomname@conference.server.tld</p>
+        {error && <p role="alert" className="text-xs text-destructive mt-2">{error}</p>}
+      </form>
+      <div className="space-y-3 px-4 py-5">
+        <button type="button" onClick={() => void handleBrowseRooms()} disabled={discoveringRooms || joining}
+          className="w-full flex items-center gap-3 px-3 py-3 rounded-lg border border-border bg-card hover:bg-secondary transition-all text-left disabled:cursor-wait disabled:opacity-60">
+          <div className="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0">
+            <Search size={15} className="text-muted-foreground" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-foreground">{discoveringRooms ? 'Browsing XMPP rooms…' : 'Browse XMPP rooms'}</p>
+            <p className="font-mono text-[10px] text-muted-foreground">Find public rooms on your connected server</p>
+          </div>
+          <ChevronRight size={14} className="text-muted-foreground/50 flex-shrink-0" />
+        </button>
+        {browseMessage && <p role="status" className="px-1 text-xs leading-relaxed text-muted-foreground">{browseMessage}</p>}
+        {serverRooms.length > 0 && (
+          <div className="overflow-hidden rounded-lg border border-border" aria-label="XMPP rooms">
+            {serverRooms.map((room) => (
+              <button key={`${room.serviceJid}:${room.roomJid}`} type="button" onClick={() => { setRoomInput(room.roomJid); void handleJoin(room.roomJid) }} disabled={joining}
+                className="flex w-full items-center gap-3 border-b border-border px-3 py-2.5 text-left last:border-b-0 hover:bg-secondary disabled:cursor-wait disabled:opacity-60">
+                <Hash size={14} className="text-primary flex-shrink-0" />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium text-foreground">{room.name}</span>
+                  <span className="block truncate font-mono text-[10px] text-muted-foreground">{room.roomJid}</span>
+                </span>
+                <ChevronRight size={14} className="text-muted-foreground/50 flex-shrink-0" />
+              </button>
+            ))}
+          </div>
         )}
-      </div>
-
-      <div className="px-4 py-2.5 border-b border-border flex-shrink-0">
         <button onClick={() => navigate('/communities/new')}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border border-dashed border-border hover:border-primary/40 hover:bg-primary/5 transition-all text-left group">
-          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center border border-primary/20 flex-shrink-0">
-            <Plus size={14} className="text-primary" />
+          className="w-full flex items-center gap-3 px-3 py-3 rounded-lg border border-dashed border-border hover:border-primary/40 hover:bg-primary/5 transition-all text-left group">
+          <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center border border-primary/20 flex-shrink-0">
+            <Plus size={15} className="text-primary" />
           </div>
           <div>
-            <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">Create a new channel</p>
-            <p className="font-mono text-[10px] text-muted-foreground">Configure a new MUC room on your server</p>
+            <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">Create a room</p>
+            <p className="font-mono text-[10px] text-muted-foreground">Create a room on the peer network</p>
           </div>
           <ChevronRight size={14} className="ml-auto text-muted-foreground/40 group-hover:text-primary transition-colors" />
         </button>
-      </div>
-
-      <div className="flex-1 overflow-y-auto">
-        <div className="px-4 py-2.5 border-b border-border flex-shrink-0">
-          <div className="flex items-center gap-2 bg-secondary rounded-lg px-3 py-2">
-            <Search size={14} className="text-muted-foreground flex-shrink-0" />
-            <input value={query} onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search channel directory…"
-              className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none" />
-            {query && <button onClick={() => setQuery('')} className="text-muted-foreground hover:text-foreground"><X size={13} /></button>}
-          </div>
-        </div>
-
-        <div className="px-4 py-2">
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Public channels</span>
-            <span className="font-mono text-[10px] text-muted-foreground/50">· via jabber.de</span>
-          </div>
-        </div>
-
-        {filtered.map((m) => (
-          <button key={m.jid} onClick={() => navigate(`/chat/${encodeURIComponent(m.jid)}`)}
-            className="w-full flex items-center gap-3 px-4 py-3 border-b border-border hover:bg-secondary transition-colors text-left">
-            <div className="w-9 h-9 rounded-lg bg-primary/15 flex items-center justify-center border border-primary/20 flex-shrink-0">
-              <Hash size={15} className="text-primary" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-foreground">{m.name}</p>
-              <p className="font-mono text-[10px] text-muted-foreground truncate">{m.description}</p>
-              <p className="font-mono text-[10px] text-muted-foreground/50 truncate">{m.jid}</p>
-            </div>
-            <div className="flex flex-col items-end gap-1 flex-shrink-0">
-              <span className="font-mono text-[10px] text-muted-foreground">{m.members.toLocaleString()}</span>
-              <span className="font-mono text-[9px] text-muted-foreground/50">members</span>
-            </div>
-          </button>
-        ))}
       </div>
     </div>
   )
@@ -321,29 +413,48 @@ const FLOWS: { id: FlowType; label: string; icon: React.ComponentType<{ size?: n
 
 export default function NewChatPage() {
   const navigate = useNavigate()
-  const [flow, setFlow] = useState<FlowType>('direct')
+  const initialFlow = new URLSearchParams(window.location.search).get('flow')
+  const [flow, setFlow] = useState<FlowType>(initialFlow === 'group' || initialFlow === 'muc' ? initialFlow : 'direct')
+  const flowTabRefs = useRef<Record<FlowType, HTMLButtonElement | null>>({ direct: null, group: null, muc: null })
+
+  const handleFlowKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>, current: FlowType) => {
+    const tabs: FlowType[] = ['direct', 'group', 'muc']
+    const currentIndex = tabs.indexOf(current)
+    let nextIndex: number | undefined
+    if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % tabs.length
+    if (event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + tabs.length) % tabs.length
+    if (event.key === 'Home') nextIndex = 0
+    if (event.key === 'End') nextIndex = tabs.length - 1
+    if (nextIndex === undefined) return
+    event.preventDefault()
+    const nextTab = tabs[nextIndex]
+    setFlow(nextTab)
+    flowTabRefs.current[nextTab]?.focus()
+  }
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
       <header className="flex items-center gap-3 px-4 py-2.5 border-b border-border flex-shrink-0">
-        <button onClick={() => navigate(-1)} className="p-1.5 -ml-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
+        <button onClick={() => navigate(-1)} aria-label="Go back" className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
           <ArrowLeft size={18} />
         </button>
         <div className="flex items-center gap-2">
           <div className="w-6 h-6 rounded bg-primary flex items-center justify-center">
             <Zap size={12} className="text-white" />
           </div>
-          <span className="font-semibold text-sm">New conversation</span>
+          <h1 className="font-semibold text-sm">New conversation</h1>
         </div>
       </header>
 
-      <div className="flex border-b border-border flex-shrink-0">
+      <div role="tablist" aria-label="Conversation type" className="flex border-b border-border flex-shrink-0">
         {FLOWS.map((f) => {
           const Icon = f.icon
           const active = flow === f.id
           return (
-            <button key={f.id} onClick={() => setFlow(f.id)}
-              className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium transition-colors relative ${active ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
+            <button key={f.id} ref={(element) => { flowTabRefs.current[f.id] = element }} id={`new-chat-tab-${f.id}`}
+              type="button" role="tab" aria-selected={active} aria-controls="new-chat-panel" tabIndex={active ? 0 : -1}
+              onClick={() => setFlow(f.id)} onKeyDown={(event) => handleFlowKeyDown(event, f.id)}
+              className={`min-h-11 flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium transition-colors relative ${active ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
               <Icon size={15} />
               {f.label}
               {active && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-primary rounded-t-full" />}
@@ -352,9 +463,11 @@ export default function NewChatPage() {
         })}
       </div>
 
-      {flow === 'direct' && <DirectFlow />}
-      {flow === 'group' && <GroupFlow />}
-      {flow === 'muc' && <MucFlow />}
+      <div id="new-chat-panel" role="tabpanel" aria-labelledby={`new-chat-tab-${flow}`} tabIndex={0} className="flex flex-1 min-h-0 flex-col">
+        {flow === 'direct' && <DirectFlow />}
+        {flow === 'group' && <GroupFlow />}
+        {flow === 'muc' && <MucFlow />}
+      </div>
     </div>
   )
 }

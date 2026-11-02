@@ -1,18 +1,22 @@
 import * as React from 'react'
 import { useState, useRef, useEffect, useMemo } from 'react'
-import { useNavigate, useParams } from 'react-router'
+import { useLocation, useNavigate, useParams } from 'react-router'
 import { getBrowserXmppBridge, useChatBridge, useChatThreadBridge, type ChatAttachment as BridgeChatAttachment, type ChatMessage as BridgeChatMessage, type ChatMessageReply as BridgeChatMessageReply, type ChatThread as BridgeChatThread } from '../bridge'
 import { useRosterBridge } from '../bridge/useRosterBridge'
-import { removeGroupChatSession, updateGroupChatSession } from './chat-session'
+import { useIdentityBridge } from '../bridge/identity/useIdentityBridge'
+import { removeGroupChatSession, setActiveGroupChat, updateGroupChatSession } from './chat-session'
+import { canonicalDirectChatId, clearDirectChatHistory, setDirectChatEncryptionEnabled, setDirectChatMuted, supportsDirectChatOmemo } from '../bridge/direct-chat-history'
+import { getPendingMessages } from '../lib/message-queue'
+import { getPeerAddress } from '../lib/peer-addresses'
 import MediaViewer from '../components/MediaViewer'
 import { emitToast } from '../lib/toast-events'
 import {
-  ArrowLeft, Phone, Video, Info, X, Send, Smile, Paperclip,
+  ArrowLeft, Info, X, Send, Smile, Paperclip,
   Mic, Shield, Lock, BellOff, Bell, Trash2, LogOut, Users,
-  Hash, Globe, EyeOff, UserPlus, UserMinus, Settings,
+  Hash, Globe, EyeOff, UserMinus,
   CheckCheck, Check, Image, FileText, MoreHorizontal,
   MessageSquare, Key, Archive, ChevronRight, Crown, Gavel, CornerUpLeft,
-  Zap, Copy, Star, AlertTriangle, Upload, ImagePlus, AtSign,
+  Zap, Copy, AlertTriangle, Upload, ImagePlus, AtSign, RotateCcw, Square, Loader2, Clock3,
 } from 'lucide-react'
 
 type ChatType = 'direct' | 'group' | 'muc'
@@ -36,7 +40,9 @@ interface Message {
   timestamp: string
   kind?: 'text' | 'image' | 'file' | 'audio' | 'system'
   delivered?: boolean
+  receiptReceived?: boolean
   read?: boolean
+  encrypted?: boolean
   reactions?: { emoji: string; count: number; mine?: boolean }[]
   replyTo?: BridgeChatMessageReply
   thread?: string
@@ -49,6 +55,7 @@ interface ChatData {
   type: ChatType
   name: string
   handle?: string
+  peerAddress?: string
   avatar?: string
   server?: string
   subject?: string
@@ -68,7 +75,8 @@ interface ChatData {
 
 const ME = 'me'
 
-const MAX_IMAGES = 4
+const MAX_ATTACHMENTS = 4
+const MAX_VOICE_SECONDS = 120
 
 const EMOJI_CATEGORIES: { id: string; label: string; icon: string; emojis: string[] }[] = [
   { id: 'recent', label: 'Recent', icon: '🕐', emojis: ['👍', '❤️', '😂', '🔥', '✅', '🚀', '👀', '💯', '🙏', '😎', '🤔', '⚡'] },
@@ -82,26 +90,16 @@ const EMOJI_CATEGORIES: { id: string; label: string; icon: string; emojis: strin
   { id: 'symbols', label: 'Symbols', icon: '❤️', emojis: ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❤️‍🔥', '❤️‍🩹', '💯', '💢', '💥', '💫', '💦', '💨', '🕳', '💬', '💭', '💤', '♈', '♉', '♊', '♋', '♌', '♍', '♎', '♏', '♐', '♑', '♒', '♓', '✅', '❌', '⭕', '🔴', '🟠', '🟡', '🟢', '🔵', '🟣', '⚫', '⚪', '🟤', '🔺', '🔻', '🔷', '🔶', '🔹', '🔸', '▶️', '⏩', '⏪', '⏫', '⏬', '⏭', '⏮', '🔀', '🔁', '🔂', '▶️', '⏸', '⏹', '⏺', '🎦', '🔅', '🔆', '📶', '📳', '📴', '📵', '📳'] },
 ]
 
-const GALLERY_PHOTOS = [
-  { id: 'g1', url: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=200&h=200&fit=crop&auto=format', alt: 'Circuit board' },
-  { id: 'g2', url: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=200&h=200&fit=crop&auto=format', alt: 'Server rack' },
-  { id: 'g3', url: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=200&h=200&fit=crop&auto=format', alt: 'Office workspace' },
-  { id: 'g4', url: 'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=200&h=200&fit=crop&auto=format', alt: 'Code on monitor' },
-  { id: 'g5', url: 'https://images.unsplash.com/photo-1555949963-ff9fe0c870eb?w=200&h=200&fit=crop&auto=format', alt: 'Developer at laptop' },
-  { id: 'g6', url: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=200&h=200&fit=crop&auto=format', alt: 'Matrix digital rain' },
-  { id: 'g7', url: 'https://images.unsplash.com/photo-1531297484001-80022131f5a1?w=200&h=200&fit=crop&auto=format', alt: 'Laptop on desk' },
-  { id: 'g8', url: 'https://images.unsplash.com/photo-1509395176047-4a66953fd231?w=200&h=200&fit=crop&auto=format', alt: 'Network cables' },
-]
-
 function MessageStatus({ msg }: { msg: Message }) {
   if (msg.senderId !== ME) return null
-  if (msg.read) return <CheckCheck size={12} className="text-primary" />
-  if (msg.delivered) return <CheckCheck size={12} className="text-muted-foreground" />
-  return <Check size={12} className="text-muted-foreground" />
+  if (msg.read) return <CheckCheck size={12} aria-label="Read" className="text-primary" />
+  if (msg.receiptReceived) return <CheckCheck size={12} aria-label="Delivered" className="text-muted-foreground" />
+  if (msg.delivered) return <Check size={12} aria-label="Sent" className="text-muted-foreground" />
+  return <Check size={12} aria-label="Not sent" className="text-muted-foreground" />
 }
 
 function RoleIcon({ role }: { role?: string }) {
-  if (role === 'owner') return <Crown size={11} className="text-amber-400" />
+  if (role === 'owner') return <Crown size={11} className="text-warn" />
   if (role === 'admin') return <Shield size={11} className="text-primary" />
   if (role === 'moderator') return <Gavel size={11} className="text-accent" />
   return null
@@ -132,6 +130,100 @@ function splitQuotedBody(content: string) {
   }
 }
 
+function useResolvedAttachmentUrl(sourceUrl: string) {
+  const [resolvedUrl, setResolvedUrl] = useState(sourceUrl.startsWith('upload://') ? '' : sourceUrl)
+  const [loading, setLoading] = useState(sourceUrl.startsWith('upload://'))
+  const [attempt, setAttempt] = useState(0)
+
+  useEffect(() => {
+    if (!sourceUrl.startsWith('upload://')) {
+      setResolvedUrl(sourceUrl)
+      setLoading(false)
+      return
+    }
+
+    let cancelled = false
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let objectUrl: string | undefined
+    let retries = 0
+    setResolvedUrl('')
+    setLoading(true)
+
+    const resolve = async () => {
+      try {
+        const resolved = await getBrowserXmppBridge()?.resolveUploadUrl(sourceUrl)
+        if (resolved) {
+          objectUrl = resolved
+          if (!cancelled) {
+            setResolvedUrl(resolved)
+            setLoading(false)
+          }
+          return
+        }
+      } catch { /* the upload may still be arriving */ }
+
+      retries += 1
+      if (!cancelled && retries < 10) {
+        timer = setTimeout(() => { void resolve() }, 700)
+      } else if (!cancelled) {
+        setLoading(false)
+      }
+    }
+
+    void resolve()
+    return () => {
+      cancelled = true
+      if (timer) clearTimeout(timer)
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [sourceUrl, attempt])
+
+  return { url: resolvedUrl, loading, retry: () => { setAttempt((value) => value + 1) } }
+}
+
+function ImageAttachment({ attachment, onOpen }: { attachment: BridgeChatAttachment; onOpen?: (url: string, alt: string) => void }) {
+  const { url, loading, retry } = useResolvedAttachmentUrl(attachment.url)
+  if (!url) {
+    return (
+      <button type="button" onClick={retry} disabled={loading} aria-label={loading ? `Loading ${attachment.alt}` : `Retry loading ${attachment.alt}`} className="flex aspect-video w-full items-center justify-center rounded-xl bg-secondary text-xs text-muted-foreground disabled:cursor-wait">
+        {loading ? 'Loading image…' : 'Image unavailable · Retry'}
+      </button>
+    )
+  }
+  return (
+    <button type="button" onClick={() => onOpen?.(url, attachment.alt)} aria-label={`Open image: ${attachment.alt}`} className="block w-full overflow-hidden rounded-xl border border-border bg-black/10 text-left">
+      <img src={url} alt={attachment.alt} className="block max-h-72 h-full w-full object-cover" />
+    </button>
+  )
+}
+
+function FileAttachment({ attachment, isMine }: { attachment: BridgeChatAttachment; isMine: boolean }) {
+  const { url, loading, retry } = useResolvedAttachmentUrl(attachment.url)
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-border bg-background/40 px-2.5 py-2">
+      <FileText size={13} className={isMine ? 'text-white/80' : 'text-muted-foreground'} />
+      {url ? (
+        <a href={url} download={attachment.alt} target={url.startsWith('http') ? '_blank' : undefined} rel="noreferrer" className="min-w-0 truncate font-mono text-[12px] underline decoration-current/30 underline-offset-2 hover:decoration-current">
+          {attachment.alt || 'Download file'}
+        </a>
+      ) : loading ? (
+        <span className="font-mono text-[11px] text-muted-foreground">Preparing {attachment.alt}…</span>
+      ) : (
+        <button type="button" onClick={retry} className="font-mono text-[11px] text-primary hover:underline">Retry {attachment.alt}</button>
+      )}
+    </div>
+  )
+}
+
+function AudioAttachment({ attachment }: { attachment: BridgeChatAttachment }) {
+  const { url, loading, retry } = useResolvedAttachmentUrl(attachment.url)
+  if (url) {
+    return <audio controls preload="metadata" src={url} aria-label={`Voice message: ${attachment.alt}`} className="w-64 max-w-full" />
+  }
+  if (loading) return <span className="font-mono text-[11px] text-muted-foreground">Preparing voice message…</span>
+  return <button type="button" onClick={retry} className="font-mono text-[11px] text-primary hover:underline">Retry voice message</button>
+}
+
 function Bubble({
   msg,
   isMine,
@@ -139,6 +231,9 @@ function Bubble({
   type,
   onReply,
   onEdit,
+  onRetry,
+  queued = false,
+  queueConnectionName = 'peer network connection',
   onImageClick,
   replyPreview,
 }: {
@@ -148,6 +243,9 @@ function Bubble({
   type: ChatType
   onReply: (message: Message) => void
   onEdit?: (messageId: string) => void
+  onRetry?: (messageId: string) => void
+  queued?: boolean
+  queueConnectionName?: string
   onImageClick?: (url: string, alt: string) => void
   replyPreview?: { senderName: string; content: string }
 }) {
@@ -194,49 +292,41 @@ function Bubble({
 
         <div className={`px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${
           isMine
-            ? 'bg-primary text-white rounded-tr-sm'
+            ? 'bg-primary text-primary-foreground rounded-tr-sm'
             : 'bg-secondary text-foreground rounded-tl-sm'
         } ${msg.kind === 'audio' ? 'flex items-center gap-2' : ''}`}>
           {imageAttachments.length > 0 ? (
             <div className="space-y-2">
               <div className={`grid gap-2 ${imageAttachments.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
                 {imageAttachments.map((attachment) => (
-                  <button
+                  <ImageAttachment
                     key={attachment.id}
-                    onClick={() => onImageClick?.(attachment.url, attachment.alt)}
-                    className="block overflow-hidden rounded-xl border border-border bg-black/10 w-full text-left"
-                  >
-                    <img
-                      src={attachment.url}
-                      alt={attachment.alt}
-                      className="block w-full h-full max-h-72 object-cover"
-                    />
-                  </button>
+                    attachment={attachment}
+                    onOpen={onImageClick}
+                  />
                 ))}
               </div>
               {parsedBody?.body ? <p className="whitespace-pre-wrap">{parsedBody.body}</p> : null}
             </div>
           ) : msg.kind === 'audio' ? (
             <>
-              <Mic size={14} className={isMine ? 'text-white/80' : 'text-muted-foreground'} />
-              <span className="font-mono text-[12px]">{msg.fileName || msg.content}</span>
+              {msg.attachments?.find((attachment) => attachment.kind === 'file')
+                ? <AudioAttachment attachment={msg.attachments.find((attachment) => attachment.kind === 'file')!} />
+                : <><Mic size={14} className={isMine ? 'text-white/80' : 'text-muted-foreground'} /><span className="font-mono text-[12px]">{msg.fileName || msg.content}</span></>}
             </>
           ) : msg.kind === 'file' || fileAttachments.length > 0 ? (
             <div className="space-y-2">
               {msg.content ? <p className="whitespace-pre-wrap">{msg.content}</p> : null}
               <div className="space-y-2">
                 {(msg.attachments ?? []).filter((attachment) => attachment.kind === 'file').map((attachment) => (
-                  <div key={attachment.id} className="flex items-center gap-2 rounded-lg border border-border bg-background/40 px-2.5 py-2">
-                    <FileText size={13} className={isMine ? 'text-white/80' : 'text-muted-foreground'} />
-                    <span className="font-mono text-[12px] truncate">{attachment.alt}</span>
-                  </div>
+                  <FileAttachment key={attachment.id} attachment={attachment} isMine={isMine} />
                 ))}
               </div>
             </div>
           ) : (
             <div className="space-y-2">
               {parsedBody?.quote && (
-                <div className={`rounded-lg border-l-2 px-2.5 py-1.5 text-[11px] leading-relaxed ${isMine ? 'border-white/40 bg-white/10 text-white/85' : 'border-primary bg-primary/5 text-muted-foreground'}`}>
+                <div className={`rounded-lg border-l-2 px-2.5 py-1.5 text-[11px] leading-relaxed ${isMine ? 'border-white/40 bg-white/10 text-primary-foreground/85' : 'border-primary bg-primary/5 text-muted-foreground'}`}>
                   <p className="font-mono mb-1 opacity-80">Quoted</p>
                   <p className="whitespace-pre-wrap">{parsedBody.quote}</p>
                 </div>
@@ -263,12 +353,22 @@ function Bubble({
         <div className={`flex items-center gap-1 mt-0.5 px-0.5 ${isMine ? 'flex-row-reverse' : ''}`}>
           <span className="font-mono text-[9px] text-muted-foreground">{msg.timestamp}</span>
           <MessageStatus msg={msg} />
+          {isMine && msg.delivered === false && queued && (
+            <span role="status" title={`Waiting for your ${queueConnectionName}`} className="inline-flex items-center gap-1 font-mono text-[9px] text-muted-foreground" aria-label={`Message queued until your ${queueConnectionName} is available`}>
+              <Clock3 size={10} /> Queued
+            </span>
+          )}
+          {isMine && msg.delivered === false && !queued && onRetry && (
+            <button onClick={() => onRetry(msg.id)} className="inline-flex min-h-10 items-center gap-1 rounded-md px-2 font-mono text-xs text-destructive hover:bg-destructive/10 hover:text-destructive/80" aria-label="Retry sending message">
+              <RotateCcw size={10} /> Retry
+            </button>
+          )}
         </div>
 
         <div className={`flex items-center gap-2 mt-1 ${isMine ? 'flex-row-reverse' : ''}`}>
           <button
             onClick={() => onReply(msg)}
-            className="inline-flex items-center gap-1 font-mono text-[10px] text-muted-foreground hover:text-primary transition-colors"
+            className="inline-flex min-h-10 items-center gap-1 rounded-md px-2 font-mono text-xs text-muted-foreground hover:bg-secondary hover:text-primary transition-colors"
           >
             <CornerUpLeft size={10} />
             Reply
@@ -276,7 +376,7 @@ function Bubble({
           {isMine && onEdit && (
             <button
               onClick={() => onEdit(msg.id)}
-              className="inline-flex items-center gap-1 font-mono text-[10px] text-muted-foreground hover:text-primary transition-colors"
+              className="inline-flex min-h-10 items-center gap-1 rounded-md px-2 font-mono text-xs text-muted-foreground hover:bg-secondary hover:text-primary transition-colors"
             >
               <Zap size={10} />
               Edit
@@ -290,16 +390,108 @@ function Bubble({
 
 function DirectSettings({ chat }: { chat: ChatData }) {
   const [muted, setMuted] = useState(chat.muted ?? false)
+  const omemoSupported = supportsDirectChatOmemo(chat.handle || chat.id)
+  const [encrypted, setEncrypted] = useState(omemoSupported && chat.encrypted)
   const [fingerprint, setFingerprint] = useState<string | null>(null)
+  const [fingerprintState, setFingerprintState] = useState<'checking' | 'available' | 'unavailable'>('checking')
+  const [confirmClearHistory, setConfirmClearHistory] = useState(false)
+  const [clearHistoryError, setClearHistoryError] = useState('')
+  const clearHistoryTriggerRef = useRef<HTMLButtonElement>(null)
+  const clearHistoryDialogWasOpen = useRef(false)
   const other = chat.participants.find((p) => p.id !== ME)!
 
   useEffect(() => {
+    if (confirmClearHistory) {
+      clearHistoryDialogWasOpen.current = true
+      const previousOverflow = document.body.style.overflow
+      document.body.style.overflow = 'hidden'
+      return () => { document.body.style.overflow = previousOverflow }
+    }
+    if (clearHistoryDialogWasOpen.current) {
+      clearHistoryDialogWasOpen.current = false
+      clearHistoryTriggerRef.current?.focus()
+    }
+  }, [confirmClearHistory])
+
+  const copyJid = async () => {
+    try {
+      await navigator.clipboard.writeText(chat.handle || chat.id)
+      emitToast('JID copied', 'success')
+    } catch {
+      emitToast('Could not copy the JID', 'error')
+    }
+  }
+
+  const clearHistory = () => {
+    if (!clearDirectChatHistory(chat.handle || chat.id)) {
+      setClearHistoryError('Could not clear message history from this device. Check browser storage and try again.')
+      return
+    }
+    setConfirmClearHistory(false)
+    setClearHistoryError('')
+    emitToast('Conversation history cleared', 'success')
+  }
+
+  const handleClearHistoryDialogKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      setConfirmClearHistory(false)
+      return
+    }
+    if (event.key !== 'Tab') return
+    const controls = event.currentTarget.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')
+    const first = controls[0]
+    const last = controls[controls.length - 1]
+    if (!first || !last) return
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault()
+      last.focus()
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault()
+      first.focus()
+    }
+  }
+
+  useEffect(() => {
+    setEncrypted(omemoSupported && chat.encrypted)
+  }, [chat.id, chat.encrypted, omemoSupported])
+
+  useEffect(() => {
+    let cancelled = false
+    setFingerprint(null)
+    if (!omemoSupported) {
+      setFingerprintState('unavailable')
+      return
+    }
+    setFingerprintState('checking')
     const bridge = getBrowserXmppBridge()
-    if (!bridge?.getPeerOmemoFingerprint || !other.handle) return
+    if (!bridge?.getPeerOmemoFingerprint || !other.handle) {
+      setFingerprintState('unavailable')
+      return
+    }
     void bridge.getPeerOmemoFingerprint(other.handle).then((fp) => {
-      if (fp) setFingerprint(fp)
+      if (!cancelled) {
+        setFingerprint(fp ?? null)
+        setFingerprintState(fp ? 'available' : 'unavailable')
+      }
+    }).catch(() => {
+      if (!cancelled) {
+        setFingerprint(null)
+        setFingerprintState('unavailable')
+      }
     })
-  }, [other.handle])
+    return () => { cancelled = true }
+  }, [other.handle, omemoSupported])
+
+  const toggleEncryption = () => {
+    if (!omemoSupported) return
+    const next = !encrypted
+    setEncrypted(next)
+    setDirectChatEncryptionEnabled(chat.handle || chat.id, next)
+    emitToast(next
+      ? 'Secure mode on. Messages require OMEMO and will not fall back to plaintext.'
+      : 'Secure mode off. New messages may be sent without encryption.', next ? 'success' : 'info')
+  }
 
   return (
     <div className="overflow-y-auto flex-1">
@@ -310,7 +502,7 @@ function DirectSettings({ chat }: { chat: ChatData }) {
         <div className="text-center">
           <p className="font-semibold text-sm text-foreground">{chat.name}</p>
           <p className="font-mono text-[11px] text-muted-foreground">{chat.handle}</p>
-          <p className="font-mono text-[10px] text-muted-foreground/60">{other.server}</p>
+          <p className="font-mono text-[10px] text-muted-foreground">{other.server}</p>
         </div>
         <div className="flex items-center gap-1.5">
           <span className={`w-2 h-2 rounded-full ${chat.online ? 'bg-accent' : 'bg-muted-foreground/40'}`} />
@@ -320,28 +512,38 @@ function DirectSettings({ chat }: { chat: ChatData }) {
 
       <div className="px-4 py-3 border-b border-border">
         <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-3">Encryption</p>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <Lock size={14} className="text-accent" />
+            <Lock size={14} className={encrypted ? 'text-accent' : 'text-muted-foreground'} />
             <span className="text-sm text-foreground">OMEMO E2EE</span>
           </div>
-          <span className={`font-mono text-[10px] px-2 py-0.5 rounded ${chat.encrypted ? 'text-accent bg-accent/10' : 'text-muted-foreground bg-secondary'}`}>
-            {chat.encrypted ? 'Active' : 'Inactive'}
-          </span>
+          <button type="button" role="switch" aria-checked={encrypted} aria-disabled={!omemoSupported} disabled={!omemoSupported} aria-label="Require OMEMO encryption for direct messages" onClick={toggleEncryption}
+            className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg">
+            <span aria-hidden="true" className={`relative w-10 h-5 rounded-full transition-colors ${encrypted ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
+              <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${encrypted ? 'translate-x-5' : 'translate-x-0'}`} />
+            </span>
+          </button>
         </div>
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          {!omemoSupported ? 'OMEMO direct messaging is currently supported for P2P contacts. This XMPP server contact uses the connected server transport.' : encrypted ? 'New messages require OMEMO. If this contact has no OMEMO device, sending will fail without plaintext fallback.' : 'New messages are sent without OMEMO. Turn this on to require end-to-end encryption.'}
+        </p>
         {fingerprint && (
           <div className="mt-2">
-            <p className="font-mono text-[9px] text-muted-foreground mb-0.5">Fingerprint (SHA-256)</p>
-            <p className="font-mono text-[8px] text-foreground/50 leading-relaxed break-all select-all">{fingerprint}</p>
+            <p className="font-mono text-[10px] text-muted-foreground mb-0.5">Fingerprint (SHA-256)</p>
+            <p className="font-mono text-[10px] text-foreground/80 leading-relaxed break-all select-all">{fingerprint}</p>
           </div>
         )}
+        {!fingerprint && omemoSupported && <p className="mt-2 text-[10px] text-muted-foreground">{fingerprintState === 'checking' ? 'Checking for an OMEMO device…' : 'No OMEMO fingerprint is currently available for this contact.'}</p>}
       </div>
 
       <div className="border-b border-border">
         {[
-          { icon: muted ? Bell : BellOff, label: muted ? 'Unmute notifications' : 'Mute notifications', action: () => setMuted((v) => !v) },
-          { icon: Archive, label: 'Archive conversation' },
-          { icon: Copy, label: 'Copy JID' },
+          { icon: muted ? Bell : BellOff, label: muted ? 'Unmute notifications' : 'Mute notifications', action: () => setMuted((current) => {
+            const next = !current
+            setDirectChatMuted(chat.handle || chat.id, next)
+            return next
+          }) },
+          { icon: Copy, label: 'Copy JID', action: () => { void copyJid() } },
         ].map(({ icon: Icon, label, action }) => (
           <button key={label} onClick={action} className="w-full flex items-center gap-3 px-4 py-3 border-b border-border last:border-0 hover:bg-secondary transition-colors text-left text-foreground/80">
             <Icon size={15} /><span className="text-sm">{label}</span>
@@ -350,15 +552,49 @@ function DirectSettings({ chat }: { chat: ChatData }) {
       </div>
 
       <div className="border-b border-border">
-        {[
-          { icon: Trash2, label: 'Clear message history', danger: false },
-          { icon: AlertTriangle, label: 'Block contact', danger: true },
-        ].map(({ icon: Icon, label, danger }) => (
-          <button key={label} className={`w-full flex items-center gap-3 px-4 py-3 border-b border-border last:border-0 hover:bg-secondary transition-colors text-left ${danger ? 'text-destructive' : 'text-foreground/80'}`}>
-            <Icon size={15} /><span className="text-sm">{label}</span>
-          </button>
-        ))}
+        <button ref={clearHistoryTriggerRef} onClick={() => { setClearHistoryError(''); setConfirmClearHistory(true) }} className="w-full flex items-center gap-3 px-4 py-3 border-b border-border hover:bg-secondary transition-colors text-left text-foreground/80">
+          <Trash2 size={15} /><span className="text-sm">Clear message history</span>
+        </button>
+        <div className="flex items-center gap-3 px-4 py-3 text-muted-foreground">
+          <AlertTriangle size={15} /><span className="text-sm">Contact blocking isn’t supported yet</span>
+        </div>
       </div>
+
+      {confirmClearHistory && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="clear-chat-history-title"
+            aria-describedby="clear-chat-history-description"
+            onKeyDown={handleClearHistoryDialogKeyDown}
+            className="w-full max-w-md rounded-2xl border border-border bg-card p-5 shadow-2xl"
+          >
+            <h2 id="clear-chat-history-title" className="text-base font-semibold text-foreground">Clear message history?</h2>
+            <p id="clear-chat-history-description" className="mt-1 text-sm leading-relaxed text-muted-foreground">
+              This permanently removes the messages saved on this device. It does not delete messages from the other person’s device.
+            </p>
+            {clearHistoryError && <p role="alert" className="mt-3 text-sm text-destructive">{clearHistoryError}</p>}
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                autoFocus
+                onClick={() => setConfirmClearHistory(false)}
+                className="rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={clearHistory}
+                className="rounded-lg bg-destructive px-3 py-2 text-sm font-semibold text-white hover:bg-destructive/90"
+              >
+                Clear history
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -379,7 +615,7 @@ function GroupSettings({
       <div className="px-4 py-4 border-b border-border">
         <p className="font-semibold text-sm text-foreground mb-0.5">{chat.name}</p>
         {chat.subject && <p className="text-[12px] text-muted-foreground leading-relaxed">{chat.subject}</p>}
-        <p className="font-mono text-[10px] text-muted-foreground/60 mt-1">{chat.memberCount} members · {chat.server}</p>
+        <p className="font-mono text-[10px] text-muted-foreground mt-1">{chat.memberCount} {chat.memberCount === 1 ? 'member' : 'members'} · {chat.server}</p>
       </div>
 
       <div className="px-4 py-3 border-b border-border">
@@ -398,8 +634,15 @@ function GroupSettings({
       <div className="px-4 py-3 border-b border-border">
         <div className="flex items-center justify-between mb-2">
           <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Members</p>
-          <button className="flex items-center gap-1 text-[11px] font-mono text-primary hover:underline">
-            <UserPlus size={11} />Invite
+          <button onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(chat.handle || chat.id)
+              emitToast('Room ID copied. Share it with people you want to join.', 'success')
+            } catch {
+              emitToast('Could not copy the room ID', 'error')
+            }
+          }} className="flex items-center gap-1 text-[11px] font-mono text-primary hover:underline">
+            <Copy size={11} />Copy room ID
           </button>
         </div>
         <div className="flex flex-col gap-0">
@@ -415,9 +658,10 @@ function GroupSettings({
                   <RoleIcon role={p.role} />
                 </div>
                 <span className="font-mono text-[10px] text-muted-foreground truncate">{p.handle}</span>
+                <span className="sr-only">{p.online ? 'Online' : 'Offline'}</span>
               </div>
               <div className="flex items-center gap-1">
-                <span className={`w-1.5 h-1.5 rounded-full ${p.online ? 'bg-accent' : 'bg-muted-foreground/30'}`} />
+                <span aria-hidden="true" className={`w-1.5 h-1.5 rounded-full ${p.online ? 'bg-accent' : 'bg-muted-foreground/40'}`} />
               </div>
             </div>
           ))}
@@ -441,8 +685,7 @@ function GroupSettings({
   )
 }
 
-function MucSettings({ chat, onKick, onBan, onConfig }: { chat: ChatData; onKick?: (jid: string) => void; onBan?: (jid: string) => void; onConfig?: () => void }) {
-  const [muted, setMuted] = useState(chat.muted ?? false)
+function MucSettings({ chat, onKick, onBan, onToggleMute, onLeave }: { chat: ChatData; onKick?: (jid: string) => void; onBan?: (jid: string) => void; onToggleMute: () => void; onLeave: () => void }) {
   const [showActionPicker, setShowActionPicker] = useState<{ type: 'kick' | 'ban' } | null>(null)
   const myRole = chat.participants.find((p) => p.id === ME)?.role
   const canModerate = myRole === 'owner' || myRole === 'admin' || myRole === 'moderator'
@@ -466,7 +709,7 @@ function MucSettings({ chat, onKick, onBan, onConfig }: { chat: ChatData; onKick
         <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-3">Room properties</p>
         <div className="space-y-2">
           {[
-            { label: 'Members', value: `${chat.memberCount?.toLocaleString() ?? '—'} online` },
+            { label: 'Members', value: chat.memberCount?.toLocaleString() ?? '—' },
             { label: 'Persistent', value: chat.persistent ? 'Yes' : 'No' },
             { label: 'Moderated', value: chat.moderated ? 'Yes' : 'No' },
             { label: 'Anonymous', value: chat.anonymous ? 'Semi-anon' : 'Non-anon' },
@@ -499,25 +742,18 @@ function MucSettings({ chat, onKick, onBan, onConfig }: { chat: ChatData; onKick
         ))}
       </div>
 
-      <div className="border-b border-border">
-        {[
-          { icon: muted ? Bell : BellOff, label: muted ? 'Unmute' : 'Mute notifications', action: () => setMuted((v) => !v) },
-          { icon: Star, label: 'Bookmark room (XEP-0048)' },
-          { icon: Copy, label: 'Copy room JID' },
-        ].map(({ icon: Icon, label, action }) => (
-          <button key={label} onClick={action} className="w-full flex items-center gap-3 px-4 py-3 border-b border-border last:border-0 hover:bg-secondary transition-colors text-left text-foreground/80">
-            <Icon size={15} /><span className="text-sm">{label}</span>
-          </button>
-        ))}
+      <div className="border-b border-border px-4 py-3 text-xs text-muted-foreground">
+        Room configuration is managed by the peer network and is not available here.
       </div>
+
+      <button onClick={onToggleMute} aria-pressed={chat.muted ?? false} className="w-full flex items-center gap-3 px-4 py-3 border-b border-border hover:bg-secondary transition-colors text-left text-foreground/80">
+        {chat.muted ? <Bell size={15} /> : <BellOff size={15} />}
+        <span className="text-sm">{chat.muted ? 'Unmute notifications' : 'Mute notifications'}</span>
+      </button>
 
       {canModerate && (
         <div className="border-b border-border">
           <p className="px-4 py-2 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Moderation</p>
-          <button onClick={onConfig} className="w-full flex items-center gap-3 px-4 py-3 border-b border-border hover:bg-secondary transition-colors text-left text-foreground/80">
-            <Settings size={15} /><span className="text-sm">Room configuration</span>
-            <ChevronRight size={13} className="ml-auto text-muted-foreground/40" />
-          </button>
           <button onClick={() => setShowActionPicker({ type: 'kick' })} className="w-full flex items-center gap-3 px-4 py-3 border-b border-border hover:bg-secondary transition-colors text-left text-foreground/80">
             <UserMinus size={15} /><span className="text-sm">Kick participant</span>
             <ChevronRight size={13} className="ml-auto text-muted-foreground/40" />
@@ -555,7 +791,7 @@ function MucSettings({ chat, onKick, onBan, onConfig }: { chat: ChatData; onKick
           </button>
         </div>
       )}
-      <button className="w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary transition-colors text-left text-destructive">
+      <button onClick={onLeave} className="w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary transition-colors text-left text-destructive">
         <LogOut size={15} /><span className="text-sm">Leave channel</span>
       </button>
     </div>
@@ -565,32 +801,141 @@ function MucSettings({ chat, onKick, onBan, onConfig }: { chat: ChatData; onKick
 export default function ChatThreadPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const thread = useChatThreadBridge(id)
+  if (!thread.chat) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
+        <p className="text-sm font-medium text-foreground">Conversation not found</p>
+        <p className="max-w-xs text-xs text-muted-foreground">This conversation is not in your contacts or saved chats.</p>
+        <div className="flex flex-wrap justify-center gap-2">
+          <button type="button" onClick={() => navigate('/chats')} className="rounded-lg border border-border px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground">Conversations</button>
+          <button type="button" onClick={() => navigate('/chats/new')} className="rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90">Start a conversation</button>
+        </div>
+      </div>
+    )
+  }
+  return <ChatThreadContent
+    id={id}
+    resolvedChat={thread.chat}
+    initialMessages={thread.messages}
+    historyLoading={thread.historyLoading}
+    historyError={thread.historyError}
+    refreshHistory={thread.refreshHistory}
+    hasOlderHistory={thread.hasOlderHistory}
+    loadingOlderHistory={thread.loadingOlderHistory}
+    loadOlderHistory={thread.loadOlderHistory}
+    historyErrorIsOlder={thread.historyErrorIsOlder}
+  />
+}
+
+function ChatThreadContent({ id, resolvedChat, initialMessages, historyLoading, historyError, refreshHistory, hasOlderHistory, loadingOlderHistory, loadOlderHistory, historyErrorIsOlder }: {
+  id: string
+  resolvedChat: BridgeChatThread
+  initialMessages: BridgeChatMessage[]
+  historyLoading: boolean
+  historyError?: string
+  refreshHistory: () => void
+  hasOlderHistory: boolean
+  loadingOlderHistory: boolean
+  loadOlderHistory: () => void
+  historyErrorIsOlder: boolean
+}) {
+  const navigate = useNavigate()
+  const location = useLocation()
   const { onlinePeers } = useRosterBridge()
-  const { chat: resolvedChat, messages: initialMessages } = useChatThreadBridge(id)
+  const { permissions } = useIdentityBridge()
   const chat = useMemo(() => {
     const c = { ...resolvedChat } as ChatData
-    if (c.handle && onlinePeers.has(c.handle)) {
+    const chatPeerId = c.id.toLowerCase().endsWith('@p2p') ? c.id.slice(0, -4) : c.id
+    const routeAddress = new URLSearchParams(location.search).get('address')
+    const routeAddressId = routeAddress?.match(/\/p2p\/([^/]+)$/)?.[1]
+    const peerAddress = routeAddress?.startsWith('/') && routeAddressId === chatPeerId
+      ? routeAddress
+      : getPeerAddress(chatPeerId)
+    if (c.type === 'direct' && peerAddress) {
+      c.peerAddress = peerAddress
+    }
+    if (c.handle && onlinePeers.has(canonicalDirectChatId(c.handle))) {
       c.online = true
     }
     if (c.participants) {
       c.participants = c.participants.map((p: any) => ({
         ...p,
-        online: onlinePeers.has(p.handle) || onlinePeers.has(`${p.handle}@${p.server}`) || p.online
+        online: onlinePeers.has(canonicalDirectChatId(p.handle)) || onlinePeers.has(canonicalDirectChatId(`${p.handle}@${p.server}`)) || p.online
       }))
     }
     return c
-  }, [resolvedChat, onlinePeers])
+  }, [resolvedChat, onlinePeers, location.search])
+  const historyLabel = chat.type === 'direct' ? 'conversation' : 'room'
+  useEffect(() => {
+    const activeChatId = chat.type === 'direct' ? chat.handle || chat.id : null
+    window.dispatchEvent(new CustomEvent('xmpp-p2p:active-direct-chat', { detail: activeChatId }))
+    setActiveGroupChat(chat.type === 'direct' ? undefined : chat.id)
+    return () => {
+      window.dispatchEvent(new CustomEvent('xmpp-p2p:active-direct-chat', { detail: null }))
+      setActiveGroupChat(undefined)
+    }
+  }, [chat.type, chat.handle, chat.id])
+  useEffect(() => {
+    if (chat.type !== 'muc' || chat.server === 'muc.p2p') return
+    const bridge = getBrowserXmppBridge()
+    const joinServerMuc = bridge?.joinServerMuc
+    if (!bridge || !joinServerMuc) return
+    const roomJid = (chat.handle || chat.id).split('/')[0].toLowerCase()
+    const unsubscribeError = bridge.onMucError?.((event: any) => {
+      if (String(event.room ?? event.roomJid ?? '').split('/')[0].toLowerCase() !== roomJid) return
+      const reason = event.stanzaError?.text || event.stanzaError?.condition
+      emitToast(reason ? `Could not join XMPP room: ${reason}` : 'The XMPP server rejected the room join.', 'error')
+    })
+    const join = () => {
+      if (!bridge.isServerConnected()) return
+      const nick = bridge.getServerJid?.()?.split('@')[0] || bridge.getLocalJid().split('@')[0]
+      void joinServerMuc.call(bridge, roomJid, nick).catch((error) => {
+        emitToast(error instanceof Error ? error.message : 'Could not join the XMPP room', 'error')
+      })
+    }
+    join()
+    const unsubscribeConnection = bridge.onServerConnection?.((info) => {
+      if (info.status === 'connected') join()
+    })
+    return () => {
+      unsubscribeError?.()
+      unsubscribeConnection?.()
+    }
+  }, [chat.type, chat.server, chat.handle, chat.id])
   const [groupMuted, setGroupMuted] = useState(chat.muted ?? false)
+  const isExternalXmppDirect = chat.type === 'direct'
+    && Boolean((chat.handle || chat.id).includes('@'))
+    && !(chat.handle || chat.id).toLowerCase().split('/')[0].endsWith('@p2p')
   const [groupArchived, setGroupArchived] = useState(chat.archived ?? false)
   const [showInfo, setShowInfo] = useState(false)
+  const [activeMentionIndex, setActiveMentionIndex] = useState(0)
   const [mediaViewer, setMediaViewer] = useState<{ items: Array<{ url: string; alt: string }>; index: number } | null>(null)
+  const [highlightedMessageId, setHighlightedMessageId] = useState('')
   const [modAction, setModAction] = useState<{ type: 'kick' | 'ban'; target: string } | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const historyScrollRef = useRef<HTMLElement>(null)
+  const pendingOlderScrollRef = useRef<{ top: number; height: number; messageCount: number } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const recorderRef = useRef<MediaRecorder | null>(null)
+  const recorderStreamRef = useRef<MediaStream | null>(null)
+  const voiceComponentMountedRef = useRef(true)
+  const startingVoiceRef = useRef(false)
+  const audioChunksRef = useRef<Blob[]>([])
+  const recordingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const recordingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const discardRecordingRef = useRef(false)
+  const [recordingVoice, setRecordingVoice] = useState(false)
+  const [startingVoice, setStartingVoice] = useState(false)
+  const [uploadingVoice, setUploadingVoice] = useState(false)
+  const [uploadingAttachments, setUploadingAttachments] = useState(false)
+  const uploadingAttachmentsRef = useRef(false)
+  const [recordingSeconds, setRecordingSeconds] = useState(0)
   const {
     messages,
     input,
+    sending,
     showImagePicker,
     showEmojiPicker,
     showMentionPicker,
@@ -614,6 +959,7 @@ export default function ChatThreadPage() {
     setEmojiSearch,
     setReplyTo,
     sendMessage,
+    retryMessage,
     editingMessageId,
     startEdit,
     cancelEdit,
@@ -621,8 +967,168 @@ export default function ChatThreadPage() {
   } = useChatBridge(chat as BridgeChatThread, initialMessages as BridgeChatMessage[])
 
   useEffect(() => {
+    setActiveMentionIndex(0)
+  }, [mentionQuery])
+
+  const selectMention = (participant: Participant) => {
+    const caret = insertMention(participant, textareaRef.current?.selectionStart ?? input.length)
+    requestAnimationFrame(() => {
+      textareaRef.current?.focus()
+      if (caret !== undefined) textareaRef.current?.setSelectionRange(caret, caret)
+    })
+  }
+
+  const stopVoiceRecording = (discard = false) => {
+    const recorder = recorderRef.current
+    if (!recorder || recorder.state !== 'recording') return
+    discardRecordingRef.current = discard
+    recorder.stop()
+  }
+
+  const startVoiceRecording = async () => {
+    if (recordingVoice || uploadingVoice || startingVoiceRef.current) return
+    if (!permissions.photosAndFiles) {
+      emitToast('Enable Photos and files in Settings to send a voice message.', 'info')
+      return
+    }
+    if (typeof MediaRecorder === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+      emitToast('Voice recording is not supported by this browser.', 'error')
+      return
+    }
+
+    startingVoiceRef.current = true
+    setStartingVoice(true)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      if (!voiceComponentMountedRef.current) {
+        stream.getTracks().forEach((track) => track.stop())
+        return
+      }
+      recorderStreamRef.current = stream
+      const mimeType = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/mp4']
+        .find((candidate) => MediaRecorder.isTypeSupported(candidate))
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
+      recorderRef.current = recorder
+      audioChunksRef.current = []
+      discardRecordingRef.current = false
+      setRecordingSeconds(0)
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) audioChunksRef.current.push(event.data)
+      }
+      recorder.onstop = async () => {
+        const discarded = discardRecordingRef.current
+        discardRecordingRef.current = false
+        recorderStreamRef.current?.getTracks().forEach((track) => track.stop())
+        recorderStreamRef.current = null
+        recorderRef.current = null
+        if (recordingIntervalRef.current) clearInterval(recordingIntervalRef.current)
+        if (recordingTimeoutRef.current) clearTimeout(recordingTimeoutRef.current)
+        recordingIntervalRef.current = null
+        recordingTimeoutRef.current = null
+        setRecordingVoice(false)
+        if (discarded) {
+          audioChunksRef.current = []
+          return
+        }
+
+        const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || 'audio/webm' })
+        audioChunksRef.current = []
+        if (blob.size === 0) {
+          emitToast('No audio was captured. Try recording again.', 'error')
+          return
+        }
+
+        const extension = blob.type.includes('ogg') ? 'ogg' : blob.type.includes('mp4') ? 'm4a' : 'webm'
+        const file = new File([blob], `voice-message-${Date.now()}.${extension}`, { type: blob.type || 'audio/webm' })
+        const bridge = getBrowserXmppBridge()
+        if (!bridge?.uploadFile) {
+          emitToast('Reconnect to the peer network before adding a voice message.', 'error')
+          return
+        }
+        setUploadingVoice(true)
+        try {
+          const attachment = await bridge.uploadFile(file, chat.handle || chat.id)
+          toggleAttachment({ id: attachment.url, url: attachment.url, alt: attachment.alt, kind: 'file' })
+          emitToast('Voice message ready to send', 'success')
+        } catch (error) {
+          emitToast(error instanceof Error ? `Could not prepare voice message: ${error.message}` : 'Could not prepare voice message', 'error')
+        } finally {
+          setUploadingVoice(false)
+        }
+      }
+      recorder.start(500)
+      setRecordingVoice(true)
+      recordingIntervalRef.current = setInterval(() => setRecordingSeconds((seconds) => Math.min(seconds + 1, MAX_VOICE_SECONDS)), 1000)
+      recordingTimeoutRef.current = setTimeout(() => {
+        if (recorder.state === 'recording') recorder.stop()
+        emitToast('Voice recording stopped at 2 minutes', 'info')
+      }, MAX_VOICE_SECONDS * 1000)
+    } catch (error) {
+      recorderStreamRef.current?.getTracks().forEach((track) => track.stop())
+      recorderStreamRef.current = null
+      if (!voiceComponentMountedRef.current) return
+      emitToast(error instanceof Error && error.name === 'NotAllowedError'
+        ? 'Microphone access was denied. Allow microphone access in your browser to record.'
+        : error instanceof Error ? error.message : 'Could not access the microphone', 'error')
+    } finally {
+      startingVoiceRef.current = false
+      if (voiceComponentMountedRef.current) setStartingVoice(false)
+    }
+  }
+
+  useEffect(() => {
+    voiceComponentMountedRef.current = true
+    return () => {
+      voiceComponentMountedRef.current = false
+      discardRecordingRef.current = true
+      if (recordingIntervalRef.current) clearInterval(recordingIntervalRef.current)
+      if (recordingTimeoutRef.current) clearTimeout(recordingTimeoutRef.current)
+      if (recorderRef.current?.state === 'recording') recorderRef.current.stop()
+      recorderStreamRef.current?.getTracks().forEach((track) => track.stop())
+    }
+  }, [])
+
+  const beginOlderHistoryLoad = () => {
+    const container = historyScrollRef.current
+    if (container) {
+      pendingOlderScrollRef.current = {
+        top: container.scrollTop,
+        height: container.scrollHeight,
+        messageCount: messages.length,
+      }
+    }
+    loadOlderHistory()
+  }
+
+  const messageRangeKey = `${messages.length}:${messages[0]?.id ?? ''}:${messages[messages.length - 1]?.id ?? ''}`
+
+  useEffect(() => {
+    const targetId = new URLSearchParams(location.search).get('message')
+    const target = targetId ? document.getElementById(`message-${encodeURIComponent(targetId)}`) : null
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      setHighlightedMessageId(targetId!)
+      const timeout = window.setTimeout(() => setHighlightedMessageId(''), 1800)
+      return () => window.clearTimeout(timeout)
+    }
+    const pendingOlderScroll = pendingOlderScrollRef.current
+    if (pendingOlderScroll) {
+      const container = historyScrollRef.current
+      if (container && messages.length > pendingOlderScroll.messageCount) {
+        container.scrollTop = pendingOlderScroll.top + container.scrollHeight - pendingOlderScroll.height
+        pendingOlderScrollRef.current = null
+      }
+      return
+    }
     bottomRef.current?.scrollIntoView()
-  }, [messages])
+  }, [messageRangeKey, location.search])
+
+  useEffect(() => {
+    const pendingOlderScroll = pendingOlderScrollRef.current
+    if (pendingOlderScroll && !loadingOlderHistory && messages.length <= pendingOlderScroll.messageCount) {
+      pendingOlderScrollRef.current = null
+    }
+  }, [loadingOlderHistory, messages.length])
 
   useEffect(() => {
     if (chat.type !== 'group') {
@@ -679,6 +1185,7 @@ export default function ChatThreadPage() {
   }, [modAction, chat.handle])
 
   const isMine = (msg: Message) => msg.senderId === ME
+  const queuedMessageIds = new Set(getPendingMessages().map((message) => message.id))
   const showAvatar = (i: number) => {
     const cur = messages[i]
     const next = messages[i + 1]
@@ -706,15 +1213,14 @@ export default function ChatThreadPage() {
     }
   }
 
-  const isPrivateGroupChat = chat.type === 'group'
-  const groupChatState = isPrivateGroupChat
+  const groupChatState = chat.type !== 'direct'
     ? { ...chat, muted: groupMuted, archived: groupArchived }
     : chat
 
   const handleToggleGroupMute = () => {
     setGroupMuted((nextMuted) => {
       const updatedMuted = !nextMuted
-      if (chat.type === 'group') {
+      if (chat.type === 'group' || chat.type === 'muc') {
         updateGroupChatSession(chat.id, (session) => ({
           ...session,
           chat: {
@@ -743,9 +1249,6 @@ export default function ChatThreadPage() {
     const bridge = getBrowserXmppBridge()
     if (bridge?.updateMucRoomSettings && chat.type === 'group') {
       void bridge.updateMucRoomSettings(chat.id, {
-        topic: groupChatState.subject,
-        defaultSecure: true,
-        autoJoin: true,
         archived: nextArchived
       }).catch(() => {})
     }
@@ -754,10 +1257,23 @@ export default function ChatThreadPage() {
     navigate('/chats')
   }
 
-  const handleLeaveGroup = () => {
-    if (chat.type === 'group') {
-      removeGroupChatSession(chat.id)
+  const handleLeaveGroup = async () => {
+    const bridge = getBrowserXmppBridge()
+    try {
+      if (chat.type === 'muc' && chat.server !== 'muc.p2p') {
+        if (!bridge?.leaveServerMuc) throw new Error('XMPP room support is unavailable in this browser.')
+        const roomJid = chat.handle || chat.id
+        const nick = bridge.getServerJid?.()?.split('@')[0] || bridge.getLocalJid().split('@')[0]
+        await bridge.leaveServerMuc(roomJid, nick)
+      } else {
+        await bridge?.updateMucRoomSettings(chat.id, { autoJoin: false })
+        await bridge?.leaveMucRoom(chat.id)
+      }
+    } catch (error) {
+      emitToast(error instanceof Error ? error.message : 'Could not leave the room', 'error')
+      return
     }
+    removeGroupChatSession(chat.id.replace(/@muc\.p2p$/, ''))
     setShowInfo(false)
     navigate('/chats')
   }
@@ -810,7 +1326,7 @@ export default function ChatThreadPage() {
               <span className="font-semibold text-sm text-foreground truncate">{groupChatState.name}</span>
               {groupChatState.encrypted && <Lock size={9} className="text-accent flex-shrink-0" />}
             </div>
-            <span className="font-mono text-[10px] text-muted-foreground">{groupChatState.memberCount} members</span>
+            <span className="font-mono text-[10px] text-muted-foreground">{groupChatState.memberCount} {groupChatState.memberCount === 1 ? 'member' : 'members'}</span>
           </div>
         </div>
       )
@@ -822,7 +1338,7 @@ export default function ChatThreadPage() {
         </div>
         <div className="min-w-0">
           <span className="font-semibold text-sm text-foreground truncate block">{groupChatState.name}</span>
-          <span className="font-mono text-[10px] text-muted-foreground">{groupChatState.memberCount?.toLocaleString()} members</span>
+          <span className="font-mono text-[10px] text-muted-foreground">{groupChatState.memberCount?.toLocaleString()} {groupChatState.memberCount === 1 ? 'member' : 'members'}</span>
         </div>
       </div>
     )
@@ -832,25 +1348,15 @@ export default function ChatThreadPage() {
     <div className="flex flex-col flex-1 overflow-hidden">
       <header className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border flex-shrink-0">
         <div className="flex items-center gap-2 px-3 py-2.5">
-          <button onClick={() => navigate(-1)} className="p-1.5 -ml-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors flex-shrink-0">
+          <button onClick={() => navigate(-1)} aria-label="Go back" className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
             <ArrowLeft size={18} />
           </button>
 
           {renderHeader()}
 
           <div className="flex items-center gap-0.5 flex-shrink-0">
-            {chat.type === 'direct' && (
-              <>
-                <button className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
-                  <Phone size={16} />
-                </button>
-                <button className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
-                  <Video size={16} />
-                </button>
-              </>
-            )}
-            <button onClick={() => setShowInfo((v) => !v)}
-              className={`p-2 rounded-lg transition-colors ${showInfo ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-white/5'}`}>
+            <button onClick={() => setShowInfo((v) => !v)} aria-label={showInfo ? 'Close conversation details' : 'Conversation details'} aria-expanded={showInfo}
+              className={`flex h-11 w-11 items-center justify-center rounded-lg transition-colors ${showInfo ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-white/5'}`}>
               {showInfo ? <X size={16} /> : <Info size={16} />}
             </button>
           </div>
@@ -864,34 +1370,63 @@ export default function ChatThreadPage() {
       </header>
 
       <div className="flex flex-1 overflow-hidden">
-        <main className={`flex-1 overflow-y-auto px-3 py-3 flex flex-col gap-0.5 ${showInfo ? 'hidden' : ''}`}>
+        <main ref={historyScrollRef} className={`flex-1 overflow-y-auto px-3 py-3 flex flex-col gap-0.5 ${showInfo ? 'hidden' : ''}`}>
+          {historyError && (
+            <div role="alert" className="mb-2 flex items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2.5">
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-destructive">Could not load {historyLabel} history.</p>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">Showing messages saved on this device where available. {historyError}</p>
+              </div>
+              <button onClick={historyErrorIsOlder ? beginOlderHistoryLoad : refreshHistory} aria-label={historyErrorIsOlder ? 'Retry loading older messages' : `Retry loading ${historyLabel} history`} className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-md border border-destructive/30 text-destructive hover:bg-destructive/10">
+                <RotateCcw size={14} />
+              </button>
+            </div>
+          )}
+          {historyLoading && (
+            <div role="status" className="flex items-center justify-center gap-2 py-8 text-xs text-muted-foreground">
+              <Loader2 size={14} className="animate-spin" /> {messages.length === 0 ? `Loading ${historyLabel} history…` : `Checking for newer ${historyLabel} messages…`}
+            </div>
+          )}
+          {hasOlderHistory && (
+            <div className="flex justify-center py-2">
+              <button type="button" onClick={beginOlderHistoryLoad} disabled={loadingOlderHistory}
+                className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-border px-4 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground disabled:cursor-wait disabled:opacity-60">
+                {loadingOlderHistory && <Loader2 size={14} className="animate-spin" />}
+                {loadingOlderHistory ? 'Loading older messages…' : 'Load older messages'}
+              </button>
+            </div>
+          )}
           {messages.map((msg, i) => (
-            <Bubble
-              key={msg.id}
-              msg={msg}
-              isMine={isMine(msg)}
-              showAvatar={showAvatar(i)}
-              type={groupChatState.type}
-              onReply={(message) => {
-                setReplyTo({
-                  messageId: message.id,
-                  senderName: message.senderName,
-                  content: message.content,
-                  to: groupChatState.handle
-                })
-                setTimeout(() => textareaRef.current?.focus(), 0)
-              }}
-              onEdit={(messageId) => {
-                startEdit(messageId)
-                setTimeout(() => textareaRef.current?.focus(), 0)
-              }}
-              onImageClick={(url, alt) => {
-                const allImages = messages.flatMap((m) => m.attachments?.filter((a) => a.kind === 'image') ?? [])
-                const index = allImages.findIndex((img) => img.url === url)
-                setMediaViewer({ items: allImages, index: index >= 0 ? index : 0 })
-              }}
-              replyPreview={resolveReplyPreview(msg)}
-            />
+            <div key={msg.id} id={`message-${encodeURIComponent(msg.id)}`} className={`rounded-2xl transition-shadow ${highlightedMessageId === msg.id ? 'ring-2 ring-primary/60' : ''}`}>
+              <Bubble
+                msg={msg}
+                isMine={isMine(msg)}
+                showAvatar={showAvatar(i)}
+                type={groupChatState.type}
+                queued={queuedMessageIds.has(msg.id)}
+                queueConnectionName={isExternalXmppDirect ? 'XMPP server connection' : 'peer network connection'}
+                onReply={(message) => {
+                  setReplyTo({
+                    messageId: message.id,
+                    senderName: message.senderName,
+                    content: message.content,
+                    to: groupChatState.handle
+                  })
+                  setTimeout(() => textareaRef.current?.focus(), 0)
+                }}
+                onEdit={(messageId) => {
+                  startEdit(messageId)
+                  setTimeout(() => textareaRef.current?.focus(), 0)
+                }}
+                onRetry={(messageId) => { void retryMessage(messageId) }}
+                onImageClick={(url, alt) => {
+                  const allImages = messages.flatMap((m) => m.attachments?.filter((a) => a.kind === 'image') ?? [])
+                  const index = allImages.findIndex((img) => img.url === url)
+                  setMediaViewer({ items: allImages, index: index >= 0 ? index : 0 })
+                }}
+                replyPreview={resolveReplyPreview(msg)}
+              />
+            </div>
           ))}
           <div ref={bottomRef} />
         </main>
@@ -909,7 +1444,7 @@ export default function ChatThreadPage() {
                 chat={groupChatState}
                 onToggleMute={handleToggleGroupMute}
                 onArchive={handleArchiveGroup}
-                onLeave={handleLeaveGroup}
+                onLeave={() => { void handleLeaveGroup() }}
               />
             )}
             {groupChatState.type === 'muc' && (
@@ -917,7 +1452,8 @@ export default function ChatThreadPage() {
                 chat={groupChatState}
                 onKick={(jid) => setModAction({ type: 'kick', target: jid })}
                 onBan={(jid) => setModAction({ type: 'ban', target: jid })}
-                onConfig={() => navigate('/settings')}
+                onToggleMute={handleToggleGroupMute}
+                onLeave={() => { void handleLeaveGroup() }}
               />
             )}
           </div>
@@ -939,7 +1475,7 @@ export default function ChatThreadPage() {
               </div>
               <button
                 onClick={() => cancelEdit()}
-                className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors flex-shrink-0"
+                className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
                 aria-label="Cancel editing"
               >
                 <X size={14} />
@@ -960,7 +1496,7 @@ export default function ChatThreadPage() {
               </div>
               <button
                 onClick={() => setReplyTo(undefined)}
-                className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors flex-shrink-0"
+                className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
                 aria-label="Cancel reply"
               >
                 <X size={14} />
@@ -969,20 +1505,21 @@ export default function ChatThreadPage() {
           )}
 
           {showMentionPicker && (
-            <div className="border-t border-border bg-background">
+            <div id="chat-mention-options" role="listbox" aria-label="Mention suggestions" className="border-t border-border bg-background">
               <div className="px-3 py-1.5 border-b border-border flex items-center gap-1.5">
                 <span className="font-mono text-[10px] text-primary">@mention</span>
                 <span className="font-mono text-[10px] text-muted-foreground">· {filteredMentions.length} member{filteredMentions.length !== 1 ? 's' : ''}</span>
                 {mentionQuery && <span className="font-mono text-[10px] text-muted-foreground">for "{mentionQuery}"</span>}
               </div>
-              {filteredMentions.length > 0 ? filteredMentions.map((p) => (
+              {filteredMentions.length > 0 ? filteredMentions.map((p, index) => (
                 <button
                   key={p.id}
-                  onClick={() => {
-                    insertMention(p, textareaRef.current?.selectionStart ?? input.length)
-                    setTimeout(() => textareaRef.current?.focus(), 0)
-                  }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-secondary transition-colors text-left border-b border-border last:border-0"
+                  id={`chat-mention-option-${index}`}
+                  type="button"
+                  role="option"
+                  aria-selected={index === activeMentionIndex}
+                  onClick={() => selectMention(p)}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 transition-colors text-left border-b border-border last:border-0 ${index === activeMentionIndex ? 'bg-secondary' : 'hover:bg-secondary'}`}
                 >
                   <div className="relative flex-shrink-0">
                     <div className="w-7 h-7 rounded-full overflow-hidden bg-secondary border border-border">
@@ -990,7 +1527,7 @@ export default function ChatThreadPage() {
                         ? <img src={p.avatar} alt={p.name} className="w-full h-full object-cover" />
                         : <div className="w-full h-full flex items-center justify-center text-[10px] font-semibold text-foreground">{p.name[0]}</div>}
                     </div>
-                    <span className={`absolute -bottom-px -right-px w-2 h-2 rounded-full border border-background ${p.online ? 'bg-accent' : 'bg-muted-foreground/30'}`} />
+                    <span aria-hidden="true" className={`absolute -bottom-px -right-px w-2 h-2 rounded-full border border-background ${p.online ? 'bg-accent' : 'bg-muted-foreground/40'}`} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1">
@@ -998,6 +1535,7 @@ export default function ChatThreadPage() {
                       <RoleIcon role={p.role} />
                     </div>
                     <span className="font-mono text-[10px] text-muted-foreground truncate block">{p.handle}</span>
+                    <span className="sr-only">{p.online ? 'Online' : 'Offline'}</span>
                   </div>
                   <span className="font-mono text-[10px] text-primary flex-shrink-0">
                     @{chat.type === 'muc' ? p.handle.split('@')[0] : p.name.split(' ')[0]}
@@ -1016,6 +1554,7 @@ export default function ChatThreadPage() {
                   <span className="text-[13px]">🔍</span>
                   <input
                     autoFocus
+                    aria-label="Search emoji"
                     value={emojiSearch}
                     onChange={(e) => {
                       setEmojiSearch(e.target.value)
@@ -1025,13 +1564,13 @@ export default function ChatThreadPage() {
                     className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
                   />
                   {emojiSearch && (
-                    <button onClick={() => { setEmojiSearch(''); setEmojiCategory('recent') }} className="text-muted-foreground hover:text-foreground">
+                    <button onClick={() => { setEmojiSearch(''); setEmojiCategory('recent') }} aria-label="Clear emoji search" className="text-muted-foreground hover:text-foreground">
                       <X size={12} />
                     </button>
                   )}
                 </div>
-                <button onClick={() => { setShowEmojiPicker(false); setEmojiSearch('') }}
-                  className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
+                <button onClick={() => { setShowEmojiPicker(false); setEmojiSearch('') }} aria-label="Close emoji picker"
+                  className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
                   <X size={15} />
                 </button>
               </div>
@@ -1042,6 +1581,8 @@ export default function ChatThreadPage() {
                       <button
                         key={cat.id}
                         onClick={() => setEmojiCategory(cat.id)}
+                        aria-label={`${cat.label} emoji`}
+                        aria-pressed={emojiCategory === cat.id}
                         className={`flex-shrink-0 px-3 py-2 text-base transition-colors relative ${emojiCategory === cat.id ? 'opacity-100' : 'opacity-50 hover:opacity-75'}`}
                         title={cat.label}
                     >
@@ -1064,6 +1605,7 @@ export default function ChatThreadPage() {
                       {emojis.map((emoji, i) => (
                         <button key={`${emoji}-${i}`}
                           onClick={() => insertEmoji(emoji)}
+                          aria-label={`Insert ${emoji}`}
                           className="text-xl p-1.5 rounded hover:bg-secondary transition-colors leading-none aspect-square flex items-center justify-center">
                           {emoji}
                         </button>
@@ -1083,97 +1625,110 @@ export default function ChatThreadPage() {
               <div className="flex items-center justify-between px-4 py-2.5 border-b border-border">
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Attach files</span>
-                  <span className={`font-mono text-[10px] px-1.5 py-0.5 rounded ${selectedAttachments.length >= MAX_IMAGES ? 'bg-amber-500/10 text-amber-400' : 'bg-secondary text-muted-foreground'}`}>
-                    {selectedAttachments.length}/{MAX_IMAGES}
+                  <span className={`font-mono text-[10px] px-1.5 py-0.5 rounded ${selectedAttachments.length >= MAX_ATTACHMENTS ? 'bg-warn/10 text-warn' : 'bg-secondary text-muted-foreground'}`}>
+                    {selectedAttachments.length}/{MAX_ATTACHMENTS}
                   </span>
                 </div>
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-mono text-muted-foreground hover:text-foreground bg-secondary hover:bg-secondary/80 transition-colors"
+                    disabled={!permissions.photosAndFiles || uploadingAttachments || uploadingVoice}
+                    title={!permissions.photosAndFiles ? 'Enable Photos and files in Settings to attach files' : undefined}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-mono text-muted-foreground hover:text-foreground bg-secondary hover:bg-secondary/80 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    <Upload size={12} />
-                    Upload
+                    {uploadingAttachments ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+                    {uploadingAttachments ? 'Uploading…' : 'Choose files'}
                   </button>
-                  <button onClick={() => setShowImagePicker(false)}
+                  <button onClick={() => setShowImagePicker(false)} aria-label="Close attachment picker"
+                    disabled={uploadingAttachments}
                     className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
                     <X size={15} />
                   </button>
                 </div>
               </div>
+              <p className="px-4 py-2 text-[10px] text-muted-foreground">
+                Choose up to {MAX_ATTACHMENTS} photos or files from your device. Each file can be up to 50 MiB.
+                {isExternalXmppDirect
+                  ? ' Files use your XMPP server’s upload service. Anyone with the download link may access them; file contents are not end-to-end encrypted.'
+                  : ' Files are uploaded to the peer network when you choose them.'}
+              </p>
 
               <input
                 ref={fileInputRef}
+                aria-label="Choose attachments"
                 type="file"
-                accept="image/*,.pdf,.txt,.doc,.docx"
+                disabled={!permissions.photosAndFiles || uploadingAttachments || uploadingVoice}
                 multiple
                 className="hidden"
                 onChange={async (e) => {
                   const files = Array.from(e.target.files ?? [])
+                  if (uploadingAttachmentsRef.current) {
+                    e.target.value = ''
+                    return
+                  }
+                  const availableSlots = Math.max(0, MAX_ATTACHMENTS - selectedAttachments.length)
+                  const filesToUpload = files.slice(0, availableSlots)
+                  if (files.length > filesToUpload.length) {
+                    emitToast(availableSlots === 0
+                      ? `You can attach up to ${MAX_ATTACHMENTS} files to a message.`
+                      : `Only ${availableSlots} more file${availableSlots === 1 ? '' : 's'} can be attached.`, 'info')
+                  }
+                  if (filesToUpload.length === 0) {
+                    e.target.value = ''
+                    return
+                  }
                   const bridge = getBrowserXmppBridge()
-                  for (let i = 0; i < Math.min(files.length, MAX_IMAGES - selectedAttachments.length); i++) {
-                    const file = files[i]
-                    if (bridge?.uploadFile) {
+                  if (!bridge?.uploadFile) {
+                    emitToast('File uploads are unavailable while the peer network is offline', 'error')
+                    e.target.value = ''
+                    return
+                  }
+                  uploadingAttachmentsRef.current = true
+                  setUploadingAttachments(true)
+                  try {
+                    for (const file of filesToUpload) {
                       try {
-                        const result = await bridge.uploadFile(file)
+                        const result = await bridge.uploadFile(file, chat.handle || chat.id)
                         toggleAttachment({
                           id: result.url,
                           url: result.url,
                           alt: result.alt,
                           kind: result.kind,
                         })
-                      } catch {
-                        toggleAttachment({
-                          id: `upload-${Date.now()}-${i}`,
-                          url: URL.createObjectURL(file),
-                          alt: file.name,
-                          kind: file.type.startsWith('image/') ? 'image' : 'file',
-                        })
+                      } catch (error) {
+                        emitToast(error instanceof Error ? `Could not upload ${file.name}: ${error.message}` : `Could not upload ${file.name}`, 'error')
                       }
-                    } else {
-                      toggleAttachment({
-                        id: `upload-${Date.now()}-${i}`,
-                        url: URL.createObjectURL(file),
-                        alt: file.name,
-                        kind: file.type.startsWith('image/') ? 'image' : 'file',
-                      })
                     }
+                  } finally {
+                    uploadingAttachmentsRef.current = false
+                    setUploadingAttachments(false)
+                    e.target.value = ''
                   }
-                  e.target.value = ''
                 }}
               />
 
-              <div className="grid grid-cols-4 gap-0.5 p-0.5 max-h-52 overflow-y-auto">
-                {GALLERY_PHOTOS.map((photo) => {
-                  const isSelected = !!selectedAttachments.find((s) => s.id === photo.id)
-                  const isDisabled = !isSelected && selectedAttachments.length >= MAX_IMAGES
-                  return (
-                    <button
-                      key={photo.id}
-                      onClick={() => !isDisabled && toggleAttachment({ ...photo, kind: 'image' })}
-                      className={`relative aspect-square overflow-hidden rounded transition-all ${isDisabled ? 'opacity-30 cursor-not-allowed' : 'hover:ring-2 hover:ring-primary/60'} ${isSelected ? 'ring-2 ring-primary' : ''}`}
-                    >
-                      <img src={photo.url} alt={photo.alt} className="w-full h-full object-cover" />
-                      {isSelected && (
-                        <div className="absolute inset-0 bg-primary/20 flex items-end justify-end p-1">
-                          <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center">
-                            <span className="text-white text-[10px] font-bold">
-                              {selectedAttachments.findIndex((s) => s.id === photo.id) + 1}
-                            </span>
-                          </div>
-                        </div>
-                      )}
-                    </button>
-                  )
-                })}
-              </div>
+              {uploadingAttachments && <p role="status" aria-live="polite" className="px-4 pb-2 text-[11px] text-muted-foreground">Uploading files… Sending is available when the upload finishes.</p>}
+
+              {selectedAttachments.length === 0 && (
+                <div className="mx-3 mb-3 rounded-lg border border-dashed border-border px-4 py-5 text-center">
+                  <Image size={18} className="mx-auto text-muted-foreground" />
+                  <p className="mt-2 text-xs font-medium text-foreground">Your selected files will appear here</p>
+                  <p className="mt-1 text-[10px] text-muted-foreground">
+                    {isExternalXmppDirect
+                      ? 'Files use your XMPP server’s upload service. Anyone with the download link may access them; file contents are not end-to-end encrypted.'
+                      : 'They are uploaded to the peer network when you choose them.'}
+                  </p>
+                </div>
+              )}
 
               {selectedAttachments.length > 0 && (
                 <div className="px-4 py-2.5 border-t border-border flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
                   {selectedAttachments.map((asset) => (
-                    <div key={asset.id} className="relative flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border border-border bg-secondary group">
+                    <div key={asset.id} className={`relative flex-shrink-0 rounded-lg border border-border bg-secondary group ${asset.kind === 'file' && /\.(aac|m4a|mp3|oga|ogg|opus|wav|webm)$/i.test(asset.alt) ? 'w-64 min-h-16 p-2' : 'w-20 h-20 overflow-hidden'}`}>
                       {asset.kind === 'image' ? (
                         <img src={asset.url} alt={asset.alt} className="w-full h-full object-cover" />
+                      ) : /\.(aac|m4a|mp3|oga|ogg|opus|wav|webm)$/i.test(asset.alt) ? (
+                        <AudioAttachment attachment={asset} />
                       ) : (
                         <div className="w-full h-full flex flex-col items-center justify-center gap-1 px-2 text-center">
                           <FileText size={18} className="text-muted-foreground" />
@@ -1182,6 +1737,7 @@ export default function ChatThreadPage() {
                       )}
                       <button
                         onClick={() => removeAttachment(asset.id)}
+                        aria-label={`Remove ${asset.alt}`}
                         className="absolute top-1 right-1 w-5 h-5 rounded-full bg-background/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                       >
                         <X size={10} className="text-foreground" />
@@ -1193,10 +1749,39 @@ export default function ChatThreadPage() {
             </div>
           )}
 
+          {recordingVoice && (
+            <div role="status" className="flex items-center gap-2 border-t border-border bg-card px-3 py-2">
+              <span className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
+              <span className="flex-1 text-xs font-mono text-foreground">Recording voice message · {String(Math.floor(recordingSeconds / 60)).padStart(2, '0')}:{String(recordingSeconds % 60).padStart(2, '0')} / 02:00</span>
+              <button type="button" onClick={() => stopVoiceRecording(true)} aria-label="Discard voice recording" className="flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground">
+                <X size={15} />
+              </button>
+              <button type="button" onClick={() => stopVoiceRecording()} aria-label="Finish voice recording" className="flex min-h-11 items-center gap-1 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground hover:bg-primary/90">
+                <Square size={12} /> Stop
+              </button>
+            </div>
+          )}
+          {uploadingVoice && <div role="status" className="border-t border-border px-4 py-2 text-xs text-muted-foreground">Preparing voice message…</div>}
           <div className="border-t border-border bg-background/95 backdrop-blur flex-shrink-0 px-3 py-2.5 flex items-end gap-2">
+            {!recordingVoice && (
+              <button
+                type="button"
+                onClick={() => void startVoiceRecording()}
+                disabled={!permissions.photosAndFiles || uploadingVoice || startingVoice}
+                aria-label={startingVoice ? 'Requesting microphone access' : 'Record voice message'}
+                title={!permissions.photosAndFiles ? 'Enable Photos and files in Settings to send voice messages' : 'Record voice message (microphone permission is requested when you start)'}
+                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors flex-shrink-0 disabled:opacity-50 disabled:cursor-wait"
+              >
+                {uploadingVoice || startingVoice ? <Loader2 size={18} className="animate-spin" /> : <Mic size={18} />}
+              </button>
+            )}
             <button
               onClick={() => toggleImagePicker()}
-              className={`p-2 rounded-lg transition-colors flex-shrink-0 ${showImagePicker ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-white/5'}`}
+              aria-label={showImagePicker ? 'Close attachment picker' : 'Attach files'}
+              aria-expanded={showImagePicker}
+              disabled={!permissions.photosAndFiles || uploadingAttachments || uploadingVoice}
+              title={!permissions.photosAndFiles ? 'Enable Photos and files in Settings to attach files' : 'Attach files'}
+              className={`p-2 rounded-lg transition-colors flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed ${showImagePicker ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-white/5'}`}
             >
               <Paperclip size={18} />
             </button>
@@ -1204,6 +1789,11 @@ export default function ChatThreadPage() {
             <div className="flex-1 min-w-0 bg-secondary rounded-2xl px-3 py-2 flex items-end gap-2">
               <textarea
                 ref={textareaRef}
+                aria-label={chat.type === 'muc' ? `Message ${chat.name}` : `Message ${chat.name.split(' ')[0]}`}
+                aria-autocomplete="list"
+                aria-expanded={showMentionPicker}
+                aria-controls={showMentionPicker ? 'chat-mention-options' : undefined}
+                aria-activedescendant={showMentionPicker && filteredMentions.length > 0 ? `chat-mention-option-${Math.min(activeMentionIndex, filteredMentions.length - 1)}` : undefined}
                 value={input}
                 onChange={(e) => handleInputChange(e.target.value)}
                 onKeyDown={(e) => {
@@ -1211,18 +1801,38 @@ export default function ChatThreadPage() {
                     setShowMentionPicker(false)
                     return
                   }
+                  if (showMentionPicker && filteredMentions.length > 0) {
+                    if (e.key === 'ArrowDown') {
+                      e.preventDefault()
+                      setActiveMentionIndex((index) => (index + 1) % filteredMentions.length)
+                      return
+                    }
+                    if (e.key === 'ArrowUp') {
+                      e.preventDefault()
+                      setActiveMentionIndex((index) => (index - 1 + filteredMentions.length) % filteredMentions.length)
+                      return
+                    }
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault()
+                      selectMention(filteredMentions[Math.min(activeMentionIndex, filteredMentions.length - 1)])
+                      return
+                    }
+                  }
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault()
-                    void sendMessage()
+                    if (!sending && !uploadingAttachments && !uploadingVoice) void sendMessage()
                   }
                 }}
                 placeholder={chat.type === 'muc' ? `Message ${chat.name}…` : `Message ${chat.name.split(' ')[0]}…`}
                 rows={1}
-                className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none resize-none leading-relaxed max-h-28"
+                disabled={sending}
+                className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none resize-none leading-relaxed max-h-28 disabled:opacity-60"
                 style={{ overflowY: input.split('\n').length > 3 ? 'auto' : 'hidden' }}
               />
               <button
                 onClick={() => toggleEmojiPicker()}
+                aria-label={showEmojiPicker ? 'Close emoji picker' : 'Open emoji picker'}
+                aria-expanded={showEmojiPicker}
                 className={`text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 pb-0.5 ${showEmojiPicker ? 'text-primary' : ''}`}
               >
                 <Smile size={17} />
@@ -1231,10 +1841,11 @@ export default function ChatThreadPage() {
 
             <button
               onClick={() => void sendMessage()}
-              disabled={!input.trim() && selectedAttachments.length === 0}
-              className={`p-2.5 rounded-full flex-shrink-0 transition-all ${input.trim() || selectedAttachments.length > 0 ? 'bg-primary text-white hover:bg-primary/90' : 'bg-secondary text-muted-foreground'}`}
+                aria-label={sending ? 'Sending message' : uploadingAttachments || uploadingVoice ? 'Preparing attachments' : 'Send message'}
+                disabled={sending || uploadingAttachments || uploadingVoice || (!input.trim() && selectedAttachments.length === 0)}
+              className={`p-2.5 rounded-full flex-shrink-0 transition-all disabled:opacity-50 disabled:cursor-wait ${input.trim() || selectedAttachments.length > 0 ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'bg-secondary text-muted-foreground'}`}
             >
-              {input.trim() || selectedAttachments.length > 0 ? <Send size={16} /> : <Mic size={16} />}
+              {uploadingAttachments || uploadingVoice ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
             </button>
           </div>
         </>

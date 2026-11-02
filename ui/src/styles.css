@@ -14,6 +14,9 @@
   --color-accent: #3ed7ad;
   --color-destructive: #ff6b81;
   --color-warn: #f59e0b;
+  --color-interaction: #60a5fa;
+  --color-success: #34d399;
+  --color-liked: #fb7185;
   --color-muted-foreground: #8b94aa;
   --color-blue2: #172849;
   --color-green2: #10302b;
@@ -59,6 +62,12 @@
     font: inherit;
   }
 
+  input:not([type='checkbox']):not([type='radio']),
+  select,
+  textarea {
+    min-height: 44px;
+  }
+
   ::selection {
     background: rgba(119, 160, 255, 0.35);
     color: #fff;
@@ -67,6 +76,35 @@
   :focus-visible {
     outline: 2px solid rgba(119, 160, 255, 0.75);
     outline-offset: 2px;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  html[data-theme='system'] {
+    color-scheme: light;
+    --color-background: #f5f7fb;
+    --color-foreground: #172033;
+    --color-card: #ffffff;
+    --color-popover: #ffffff;
+    --color-secondary: #e9edf5;
+    --color-muted: #e2e7f0;
+    --color-border: rgba(24, 38, 63, 0.12);
+    --color-primary: #315fca;
+    --color-primary-foreground: #ffffff;
+    --color-accent: #147b63;
+    --color-destructive: #c63650;
+    --color-warn: #8f5200;
+    --color-interaction: #1d4ed8;
+    --color-success: #087443;
+    --color-liked: #be123c;
+    --color-muted-foreground: #5e687b;
+    --color-blue2: #e4ecff;
+    --color-green2: #ddf4ed;
+  }
+
+  html[data-theme='system'] body {
+    background: linear-gradient(180deg, #f5f7fb 0%, #edf1f7 100%);
+    color: var(--color-foreground);
   }
 }
 
@@ -83,6 +121,18 @@
   display: none;
 }
 
+@media (pointer: coarse) {
+  button {
+    min-height: 44px;
+  }
+
+  button[aria-label],
+  a[aria-label] {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -92,4 +142,12 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* Keep keyboard focus visible on form controls that use Tailwind outline-none. */
+input.outline-none:focus-visible,
+textarea.outline-none:focus-visible,
+select.outline-none:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }

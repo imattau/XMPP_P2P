@@ -1,5 +1,17 @@
 import { XmppClientBridge } from '../core/xmpp-client-bridge.js'
 import { xml } from '@xmpp/xml'
+import { createRequire } from 'node:module'
+
+type ProbeWebSocket = {
+  on(event: 'open', listener: () => void): void
+  on(event: 'message', listener: (data: unknown) => void): void
+  on(event: 'error', listener: (error: Error & { code?: string }) => void): void
+  on(event: 'close', listener: () => void): void
+  send(data: string): void
+  close(): void
+  terminate(): void
+}
+const WebSocket = createRequire(import.meta.url)('ws') as new (url: string, protocols?: string[]) => ProbeWebSocket
 
 function assert(condition: boolean, message: string): void {
   if (!condition) throw new Error(`ASSERTION FAILED: ${message}`)
@@ -18,53 +30,17 @@ async function waitFor(
   throw new Error(`TIMEOUT: ${message}`)
 }
 
-// Domains known to have working XMPP WebSocket endpoints (verified).
+// Public endpoints used for optional, read-only integration checks.
 const TEST_SERVERS: Array<{ domain: string; wsUrl: string; label: string }> = [
+  { domain: 'chatterboxtown.us', wsUrl: 'wss://chatterboxtown.us:5443/ws/', label: 'chatterboxtown.us' },
   { domain: 'jabber.hot-chilli.net', wsUrl: 'wss://jabber.hot-chilli.net:443/xmpp-websocket', label: 'hot-chilli.net' },
   { domain: 'jabberfr.org', wsUrl: 'wss://ws.jabberfr.org/', label: 'jabberfr.org' },
   { domain: 'sure.im', wsUrl: 'wss://sure.im:5291/', label: 'sure.im' },
   { domain: 'movim.eu', wsUrl: 'wss://movim.eu/xmpp', label: 'movim.eu' },
 ]
 
-// Test accounts to try. Credentials from env vars take precedence.
-function getTestCredentials(): Array<{ jid: string; password: string; service?: string; label: string }> {
-  const envJid = process.env.XMPP_TEST_JID
-  const envPassword = process.env.XMPP_TEST_PASSWORD
-  const envService = process.env.XMPP_TEST_SERVICE
-  const creds: Array<{ jid: string; password: string; service?: string; label: string }> = []
-
-  if (envJid && envPassword) {
-    creds.push({ jid: envJid, password: envPassword, service: envService, label: `env:${envJid}` })
-  }
-
-  // Try creating an account on accessible servers.
-  // Many public XMPP servers accept in-band registration (XEP-0077).
-  // We try registering at test time if no env credentials are set.
-  return creds
-}
-
-async function tryRegisterAccount(
-  service: string,
-  domain: string,
-  prefix: string
-): Promise<{ jid: string; password: string } | null> {
-  const username = `${prefix}-${Date.now().toString(36)}`
-  const password = Math.random().toString(36).slice(2, 12)
-  try {
-    const bridge = new XmppClientBridge()
-    console.log(`    Attempting in-band registration on ${domain} as ${username}...`)
-    await bridge.register(domain, username, password)
-    console.log(`    ✓ Registered ${username}@${domain} on ${service}`)
-    return { jid: `${username}@${domain}`, password }
-  } catch (err: any) {
-    console.log(`    ✗ Registration failed on ${domain}: ${err.message.slice(0, 80)}`)
-    return null
-  }
-}
-
-async function testDnsDiscovery() {
-  console.log('\n=== Test 1: XEP-0156 DNS TXT WebSocket Discovery ===\n')
-  let discoveredAny = false
+async function testHostMetaDiscovery() {
+  console.log('\n=== Test 1: XEP-0156 HTTPS Host-Meta WebSocket Discovery ===\n')
 
   for (const server of TEST_SERVERS) {
     try {
@@ -72,21 +48,20 @@ async function testDnsDiscovery() {
       const wsUrl = await bridge.discoverWebSocketUrl(server.domain)
       if (wsUrl) {
         console.log(`  ✓ ${server.label} (${server.domain}) → ${wsUrl}`)
-        discoveredAny = true
+        assert(new URL(wsUrl).protocol === 'wss:', `${server.label} discovery must return a secure WebSocket URL`)
       } else {
-        console.log(`  ✗ ${server.label} (${server.domain}) → No WebSocket URL discovered`)
+        console.log(`  • ${server.label} (${server.domain}) → No host-meta endpoint; direct server URL can still be configured`)
       }
     } catch (err: any) {
-      console.log(`  ✗ ${server.label} (${server.domain}) → DNS lookup failed: ${err.message}`)
+      console.log(`  • ${server.label} (${server.domain}) → Host-meta unavailable: ${err.message}`)
     }
   }
 
-  assert(discoveredAny, 'No XMPP WebSocket URLs could be discovered via DNS TXT records')
-  console.log('\n  ✓ DNS discovery: PASS')
+  console.log('\n  ✓ Host-meta discovery check: PASS')
 }
 
 async function testDirectWebSocketConnection() {
-  console.log('\n=== Test 2: Direct WebSocket Connection to Known Endpoints ===\n')
+  console.log('\n=== Test 2: Unauthenticated XMPP Stream Handshake ===\n')
   let connectedAny = false
 
   for (const server of TEST_SERVERS) {
@@ -94,29 +69,65 @@ async function testDirectWebSocketConnection() {
     try {
       const ws = new WebSocket(server.wsUrl, ['xmpp'])
       await new Promise<void>((resolve, reject) => {
+        let settled = false
+        let buffer = ''
+        let closeTimer: ReturnType<typeof setTimeout> | undefined
+        let finishError: Error | undefined
+        const finishAfterClose = (error?: Error) => {
+          if (error) reject(error)
+          else resolve()
+        }
+        const finish = (error?: Error) => {
+          if (settled) return
+          settled = true
+          finishError = error
+          clearTimeout(timer)
+          try {
+            ws.close()
+            closeTimer = setTimeout(() => {
+              ws.terminate()
+              finishAfterClose(error)
+            }, 1000)
+          } catch {
+            finishAfterClose(error)
+          }
+        }
         const timer = setTimeout(() => {
-          ws.close()
-          reject(new Error('Connection timed out'))
-        }, 5000)
-        ws.onopen = () => {
-          clearTimeout(timer)
-          ws.close()
-          resolve()
-        }
-        ws.onerror = () => {
-          clearTimeout(timer)
-          reject(new Error('WebSocket error'))
-        }
+          finish(new Error('Timed out before the server advertised stream features'))
+        }, 8000)
+        ws.on('open', () => {
+          ws.send(`<open xmlns='urn:ietf:params:xml:ns:xmpp-framing' to='${server.domain}' version='1.0'/>`)
+        })
+        ws.on('message', (data) => {
+          buffer += typeof data === 'string' ? data : String(data)
+          if (/<(?:[\w.-]+:)?features\b/i.test(buffer) && /<\/(?:[\w.-]+:)?features\s*>/i.test(buffer)) {
+            finish()
+          }
+        })
+        ws.on('error', (error) => {
+          const details = [error.message, error.code].filter(Boolean).join(' / ')
+          finish(new Error(`WebSocket transport failed${details ? ` (${details})` : ''}`))
+        })
+        ws.on('close', () => {
+          if (!settled) {
+            settled = true
+            clearTimeout(timer)
+            finishAfterClose(new Error('Server closed before advertising stream features'))
+          } else {
+            if (closeTimer) clearTimeout(closeTimer)
+            finishAfterClose(finishError)
+          }
+        })
       })
-      console.log(`    ✓ WebSocket connection established`)
+      console.log(`    ✓ XMPP stream features received without authentication`)
       connectedAny = true
     } catch (err: any) {
       console.log(`    ✗ ${err.message}`)
     }
   }
 
-  assert(connectedAny, 'Could not establish a raw WebSocket connection to any server')
-  console.log('\n  ✓ Direct WebSocket connection: PASS')
+  assert(connectedAny, 'Could not complete an unauthenticated XMPP stream handshake with any server')
+  console.log('\n  ✓ XMPP stream handshake: PASS')
 }
 
 async function testXmppLogin(
@@ -272,6 +283,8 @@ async function testErrorHandling() {
     assert(false, 'Should have thrown for non-existent server')
   } catch (err: any) {
     console.log(`  ✓ Correctly rejected non-existent server: ${err.message.slice(0, 80)}`)
+  } finally {
+    try { await bridge.disconnect() } catch {}
   }
 
   console.log('\n  ✓ Error handling: PASS')
@@ -334,12 +347,12 @@ async function runServerBridgeRealTest() {
   let failed = 0
   let skipped = 0
 
-  // ─── Test 1: DNS Discovery ───
+  // ─── Test 1: HTTPS Host-Meta Discovery ───
   try {
-    await testDnsDiscovery()
+    await testHostMetaDiscovery()
     passed++
   } catch (err: any) {
-    console.log(`\n  ✗ DNS discovery FAILED: ${err.message}`)
+    console.log(`\n  ✗ Host-meta discovery FAILED: ${err.message}`)
     failed++
   }
 
@@ -385,32 +398,13 @@ async function runServerBridgeRealTest() {
     })
   }
 
-  // Try registering on working servers
-  console.log('\n──────────────────────────────────────────────')
-  console.log('  Attempting in-band registrations on accessible servers...')
-  console.log('  (Set XMPP_TEST_JID and XMPP_TEST_PASSWORD env vars to skip this)')
-  console.log('──────────────────────────────────────────────\n')
-
-  for (const server of TEST_SERVERS) {
-    if (credsConfigs.length > 0) break
-    const account = await tryRegisterAccount(server.wsUrl, server.domain, 'xmppp2p')
-    if (account) {
-      credsConfigs.push({
-        jid: account.jid,
-        password: account.password,
-        service: server.wsUrl,
-        domain: server.domain,
-        label: account.jid,
-      })
-    }
-  }
-
   if (credsConfigs.length === 0) {
     console.log('\n  No credentials available — skipping connection lifecycle tests.')
     console.log('  To run full tests, set:')
     console.log('    export XMPP_TEST_JID="user@example.com"')
     console.log('    export XMPP_TEST_PASSWORD="hunter2"')
     console.log('    export XMPP_TEST_SERVICE="wss://example.com:5443/xmpp-websocket"')
+    console.log('  Credentials must belong to a test account you control; this test never creates public accounts.')
     skipped++
   } else {
     for (const config of credsConfigs) {

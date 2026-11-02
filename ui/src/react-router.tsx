@@ -14,9 +14,11 @@ type Router = {
 
 type RouterState = {
   pathname: string
+  search: string
+  hash: string
   params: Record<string, string>
   outlet: ReactNode
-  navigate: (to: string | number) => void
+  navigate: (to: string | number, options?: { replace?: boolean }) => void
 }
 
 const RouterContext = createContext<RouterState | null>(null)
@@ -34,6 +36,36 @@ function normalizePath(pathname: string) {
 
 function splitPath(pathname: string) {
   return normalizePath(pathname).replace(/\/+$/, '') || '/'
+}
+
+function backFallback(pathname: string) {
+  const path = splitPath(pathname)
+  if (path.startsWith('/onboarding/')) {
+    const previousStep: Record<string, string> = {
+      '/onboarding/create': '/onboarding',
+      '/onboarding/import': '/onboarding',
+      '/onboarding/recovery': '/onboarding/create',
+      '/onboarding/permissions': '/onboarding/recovery',
+      '/onboarding/network': '/onboarding/recovery',
+      '/onboarding/find-network': '/onboarding/network',
+      '/onboarding/preferences': '/onboarding/find-network',
+      '/onboarding/ready': '/onboarding/preferences',
+    }
+    return previousStep[path] ?? '/onboarding'
+  }
+  if (path === '/chats/new') return '/chats'
+  if (path.startsWith('/chat/')) return '/chats'
+  if (path === '/communities/new') return '/chats/new'
+  if (path.startsWith('/article/')) return '/topics'
+  if (path.startsWith('/topics/')) return '/topics'
+  return '/'
+}
+
+function historyDepth(): number {
+  const state = window.history.state as { __nexusHistoryDepth?: unknown } | null
+  return Number.isSafeInteger(state?.__nexusHistoryDepth) && (state?.__nexusHistoryDepth as number) >= 0
+    ? state?.__nexusHistoryDepth as number
+    : 0
 }
 
 function matchPattern(pattern: string | undefined, pathname: string) {
@@ -62,7 +94,11 @@ function matchPattern(pattern: string | undefined, pathname: string) {
     const pathPart = pathParts[i]
 
     if (patternPart.startsWith(':')) {
-      params[patternPart.slice(1)] = decodeURIComponent(pathPart)
+      try {
+        params[patternPart.slice(1)] = decodeURIComponent(pathPart)
+      } catch {
+        return null
+      }
       continue
     }
 
@@ -90,7 +126,7 @@ function matchChildRoute(routes: RouteObject[], pathname: string) {
   }
 
   for (const route of childRoutes) {
-    if (route.index) {
+    if (route.index || route.path === '*') {
       continue
     }
 
@@ -100,43 +136,76 @@ function matchChildRoute(routes: RouteObject[], pathname: string) {
     }
   }
 
-  const fallback = childRoutes.find(route => route.index) ?? childRoutes[0]
-  return fallback ? { route: fallback, params: {} } : null
+  const notFound = childRoutes.find(route => route.path === '*')
+  return notFound ? { route: notFound, params: {} } : null
 }
 
 export function RouterProvider({ router }: { router: Router }) {
-  const [pathname, setPathname] = useState(() => splitPath(window.location.pathname))
+  const [location, setLocation] = useState(() => ({
+    pathname: splitPath(window.location.pathname),
+    search: window.location.search,
+    hash: window.location.hash,
+  }))
 
   useEffect(() => {
-    const onPopState = () => setPathname(splitPath(window.location.pathname))
+    const state = window.history.state
+    if (!Number.isSafeInteger(state?.__nexusHistoryDepth)) {
+      window.history.replaceState({ ...(state && typeof state === 'object' ? state : {}), __nexusHistoryDepth: 0 }, '')
+    }
+  }, [])
+
+  useEffect(() => {
+    const onPopState = () => setLocation({
+      pathname: splitPath(window.location.pathname),
+      search: window.location.search,
+      hash: window.location.hash,
+    })
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
 
-  const navigate = (to: string | number) => {
+  const navigate = (to: string | number, options?: { replace?: boolean }) => {
     if (typeof to === 'number') {
+      if (to < 0 && historyDepth() < Math.abs(to)) {
+        const path = backFallback(location.pathname)
+        const fallback = new URL(path, window.location.origin)
+        const state = window.history.state
+        window.history.replaceState({ ...(state && typeof state === 'object' ? state : {}), __nexusHistoryDepth: 0 }, '', path)
+        setLocation({ pathname: splitPath(fallback.pathname), search: fallback.search, hash: fallback.hash })
+        return
+      }
       window.history.go(to)
       return
     }
 
-    const nextPath = splitPath(to)
-    window.history.pushState({}, '', nextPath)
-    setPathname(nextPath)
+    const next = new URL(to, window.location.origin)
+    const nextLocation = {
+      pathname: splitPath(next.pathname),
+      search: next.search,
+      hash: next.hash,
+    }
+    const nextUrl = `${nextLocation.pathname}${nextLocation.search}${nextLocation.hash}`
+    if (options?.replace) {
+      window.history.replaceState(window.history.state, '', nextUrl)
+    } else {
+      window.history.pushState({ __nexusHistoryDepth: historyDepth() + 1 }, '', nextUrl)
+    }
+    setLocation(nextLocation)
     window.dispatchEvent(new PopStateEvent('popstate'))
   }
 
   const rootRoute = router.routes[0]
-  const childMatch = matchChildRoute(router.routes, pathname)
+  const childMatch = matchChildRoute(router.routes, location.pathname)
   const outlet = childMatch ? React.createElement(childMatch.route.Component) : null
   const params = childMatch?.params ?? {}
   const rootElement = rootRoute ? React.createElement(rootRoute.Component) : null
 
   const value = useMemo<RouterState>(() => ({
-    pathname,
+    ...location,
     params,
     outlet,
     navigate
-  }), [pathname, params, outlet])
+  }), [location, params, outlet])
 
   return (
     <RouterContext.Provider value={value}>
@@ -166,14 +235,22 @@ export function useParams<T extends Record<string, string> = Record<string, stri
   return context.params as T
 }
 
-type NavLinkProps = {
+export function useLocation() {
+  const context = useContext(RouterContext)
+  if (!context) {
+    throw new Error('useLocation must be used inside RouterProvider')
+  }
+  return { pathname: context.pathname, search: context.search, hash: context.hash }
+}
+
+type NavLinkProps = Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, 'href' | 'className' | 'onClick'> & {
   to: string
   end?: boolean
   className?: string | ((props: { isActive: boolean }) => string)
-  children: ReactNode
+  onClick?: React.MouseEventHandler<HTMLAnchorElement>
 }
 
-export function NavLink({ to, end = false, className, children }: NavLinkProps) {
+export function NavLink({ to, end = false, className, onClick, children, target, ...anchorProps }: NavLinkProps) {
   const context = useContext(RouterContext)
   if (!context) {
     throw new Error('NavLink must be used inside RouterProvider')
@@ -185,7 +262,13 @@ export function NavLink({ to, end = false, className, children }: NavLinkProps) 
   return (
     <a
       href={splitPath(to)}
+      target={target}
+      {...anchorProps}
       onClick={(event) => {
+        onClick?.(event)
+        if (event.defaultPrevented) return
+        if (target && target !== '_self') return
+        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
         event.preventDefault()
         context.navigate(to)
       }}

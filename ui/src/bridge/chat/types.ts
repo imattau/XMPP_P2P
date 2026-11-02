@@ -37,9 +37,12 @@ export interface ChatMessage {
   senderAvatar?: string
   content: string
   timestamp: string
+  activityAt?: string
   kind?: 'text' | 'image' | 'file' | 'audio' | 'system'
   delivered?: boolean
+  receiptReceived?: boolean
   read?: boolean
+  encrypted?: boolean
   reactions?: ChatMessageReaction[]
   replyTo?: ChatMessageReply
   thread?: string
@@ -59,6 +62,7 @@ export interface ChatThread {
   type: ChatType
   name: string
   handle?: string
+  peerAddress?: string
   avatar?: string
   server?: string
   subject?: string
@@ -79,6 +83,7 @@ export interface ChatThread {
 export interface ChatComposerState {
   messages: ChatMessage[]
   input: string
+  sending: boolean
   replyTo?: ChatMessageReply
   thread?: string
   editingMessageId?: string
@@ -95,4 +100,5 @@ export type ChatBridgeTarget = Pick<ChatThread, 'id' | 'type' | 'name'> & {
   handle?: string
   server?: string
   subject?: string
+  encrypted?: boolean
 }

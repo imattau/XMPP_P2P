@@ -1,0 +1,178 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      release:
+        description: 'Build a signed Android release (APK)'
+        type: boolean
+        default: false
+      publish_to_zapstore:
+        description: 'Broadcast an existing release to ZapStore'
+        type: boolean
+        default: false
+      overwrite_zapstore_release:
+        description: 'Overwrite an existing ZapStore release event'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  web:
+    name: Build web bundle
+    runs-on: ubuntu-latest
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci --legacy-peer-deps
+      - run: npm ci --prefix ui --legacy-peer-deps
+      - run: VITE_TARGET=web npm run build:web
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: ui/dist
+          if-no-files-found: error
+
+  desktop:
+    name: Desktop (${{ matrix.os }})
+    needs: web
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-26]
+    runs-on: ${{ matrix.os }}
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci --legacy-peer-deps
+      - run: npm ci --prefix ui --legacy-peer-deps
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-dist
+          path: ui/dist
+      - run: npm run build:electron
+      - name: Install Linux packaging tools
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder elfutils zstd rpm
+          flatpak remote-add --if-not-exists --user flathub https://flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user -y flathub \
+            org.freedesktop.Platform//25.08 \
+            org.freedesktop.Platform.GL.default//25.08 \
+            org.freedesktop.Platform.GL.default//25.08-extra \
+            org.freedesktop.Sdk//25.08 \
+            org.electronjs.Electron2.BaseApp//25.08
+      - run: npx electron-builder --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.os }}
+          path: release/*
+          if-no-files-found: error
+      - name: Attach desktop installers to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
+
+  android:
+    name: Android + ZapStore
+    needs: web
+    if: startsWith(github.ref, 'refs/tags/v') || inputs.release == true || inputs.publish_to_zapstore == true
+    runs-on: ubuntu-latest
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Add Android cmdline-tools to PATH
+        run: |
+          CMDLINE_TOOLS_BIN=$(dirname "$(find "$ANDROID_HOME/cmdline-tools" -maxdepth 3 -name sdkmanager | sort -V | tail -1)")
+          echo "$CMDLINE_TOOLS_BIN" >> "$GITHUB_PATH"
+      - name: Accept Android SDK licenses
+        run: yes | sdkmanager --licenses > /dev/null
+      - run: npm ci --legacy-peer-deps
+      - run: npm ci --prefix ui --legacy-peer-deps
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-dist
+          path: ui/dist
+      - name: Write signing config
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          KEYSTORE_PATH="$RUNNER_TEMP/release.keystore"
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$KEYSTORE_PATH"
+          cat > android/keystore.properties <<EOF
+          storeFile=$KEYSTORE_PATH
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          keyPassword=$ANDROID_KEY_PASSWORD
+          EOF
+      - run: node scripts/sync-version.mjs
+      - run: npx cap sync android
+      - name: Build signed APK
+        run: cd android && ./gradlew assembleRelease
+      - name: Verify APK signature
+        run: |
+          APK=$(find android/app/build/outputs/apk/release -name '*.apk' | head -1)
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1)
+          "$APKSIGNER" verify --print-certs "$APK"
+      - name: Rename APK
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          cp android/app/build/outputs/apk/release/app-release.apk "android/app/build/outputs/apk/release/nexus-v${VERSION}.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: android/app/build/outputs/apk/release/nexus-*.apk
+          if-no-files-found: error
+      - name: Attach APK to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: android/app/build/outputs/apk/release/nexus-*.apk
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: Install zsp
+        run: go install github.com/zapstore/zsp/cmd/zsp@latest
+      - name: Publish to ZapStore
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.publish_to_zapstore == true
+        env:
+          SIGN_WITH: ${{ secrets.ZAPSTORE_NSEC }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          export PATH="$(go env GOPATH)/bin:$PATH"
+          if [ "${{ inputs.overwrite_zapstore_release }}" = "true" ]; then
+            zsp publish --quiet --skip-preview --overwrite-release zapstore.yaml
+          else
+            zsp publish --quiet --skip-preview zapstore.yaml
+          fi

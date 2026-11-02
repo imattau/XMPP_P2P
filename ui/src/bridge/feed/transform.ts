@@ -1,23 +1,38 @@
 import type { BridgeFeedPostRecord } from '../runtime'
 import type { FeedFilterType, FeedPost } from './types'
+import { getArticleFeedPreview } from '../article/serialization'
 
 export function mapRuntimePost(record: BridgeFeedPostRecord): FeedPost {
   const topic = record.categories?.[0]
   const community = record.topic.startsWith('xmpp-collection:') ? record.topic.replace('xmpp-collection:', '') : undefined
+  const repostLink = record.links?.find((link) => link.rel === 'related' && link.title === 'Repost of')
+  const repostItem = repostLink?.href.match(/[?;&]item=([^;&]+)/)?.[1]
+  const repostTopic = repostLink?.href.match(/[?;&]node=([^;&]+)/)?.[1]
+  let repostOf: FeedPost['repostOf']
+  if (repostItem && repostTopic) {
+    try {
+      repostOf = { id: decodeURIComponent(repostItem), topic: decodeURIComponent(repostTopic) }
+    } catch {
+      repostOf = undefined
+    }
+  }
 
   return {
     id: record.id,
+    sourceProtocol: record.topic.startsWith('xmpp-pep:') ? 'xmpp' : 'p2p',
     type: community ? 'community' : topic ? 'topic' : 'post',
     sourceTopic: record.topic,
     replyTo: record.replyTo,
+    repostOf,
     author: {
       name: record.author ?? record.from,
       handle: record.from.includes('@') ? record.from.split('@')[0] : record.from,
       avatar: `https://api.dicebear.com/9.x/thumbs/svg?seed=${encodeURIComponent(record.from)}`,
       server: record.from.includes('@') ? record.from.split('@')[1] : 'p2p'
     },
-    content: record.body,
+    content: getArticleFeedPreview(record.body) ?? record.body,
     timestamp: formatRelativeTime(record.publishedAt),
+    publishedAt: record.publishedAt,
     topic,
     topicColor: topic ? pickTopicColor(topic) : undefined,
     community,
@@ -42,6 +57,8 @@ export function filterFeedPosts(posts: FeedPost[], activeFilter: FeedFilterType,
       || post.content.toLowerCase().includes(normalized)
       || post.author.name.toLowerCase().includes(normalized)
       || post.author.handle.toLowerCase().includes(normalized)
+      || (post.topic ?? '').toLowerCase().includes(normalized)
+      || (post.community ?? '').toLowerCase().includes(normalized)
     return typeMatch && searchMatch
   })
 }

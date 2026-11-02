@@ -1,19 +1,17 @@
 import * as React from 'react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
-import { ArrowLeft, AlertCircle } from 'lucide-react'
+import { ArrowLeft, AlertCircle, UserRound } from 'lucide-react'
 import { useIdentityBridge } from '../../bridge/identity/useIdentityBridge'
 import ProgressDots from '../../components/onboarding/ProgressDots'
-import Toggle from '../../components/onboarding/Toggle'
 
 export default function CreateIdentityPage() {
   const navigate = useNavigate()
   const { identity, createIdentity } = useIdentityBridge()
   const [displayName, setDisplayName] = useState(identity?.displayName ?? '')
   const [handle, setHandle] = useState(identity?.handle ?? '')
-  const [passcode, setPasscode] = useState('')
-  const [publicProfile, setPublicProfile] = useState(identity?.publicProfile ?? true)
   const [errors, setErrors] = useState<{ displayName?: string; handle?: string }>({})
+  const [saveError, setSaveError] = useState('')
 
   const validate = (): boolean => {
     const next: typeof errors = {}
@@ -28,14 +26,23 @@ export default function CreateIdentityPage() {
 
   const handleCreate = () => {
     if (!validate()) return
-    createIdentity(displayName.trim(), handle.trim(), passcode || undefined, publicProfile)
+    setSaveError('')
+    try {
+      if (!createIdentity(displayName.trim(), handle.trim())) {
+        setSaveError('Could not save your identity in this browser. Check available storage and try again.')
+        return
+      }
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'Could not securely generate your recovery phrase.')
+      return
+    }
     navigate('/onboarding/recovery')
   }
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden h-full">
+    <div className="mx-auto flex h-full w-full max-w-2xl flex-1 flex-col overflow-hidden">
       <header className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border flex-shrink-0 px-4 py-2.5">
-        <button onClick={() => navigate(-1)} className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
+        <button onClick={() => navigate(-1)} aria-label="Go back" className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
           <ArrowLeft size={18} />
         </button>
         <div className="mt-1">
@@ -47,39 +54,39 @@ export default function CreateIdentityPage() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto px-4 pb-4">
-        <form className="space-y-5" onSubmit={(e) => { e.preventDefault(); handleCreate() }}>
+      <main className="flex-1 overflow-y-auto px-4 pt-5">
+        <form noValidate className="space-y-5" onSubmit={(e) => { e.preventDefault(); handleCreate() }}>
+        {saveError && <p role="alert" className="text-sm text-destructive">{saveError}</p>}
         <div>
-          <label className="text-[12px] font-medium text-muted-foreground block mb-1.5">Display name</label>
+          <label htmlFor="identity-display-name" className="text-[12px] font-medium text-muted-foreground block mb-1.5">Display name <span className="text-destructive" aria-hidden="true">*</span></label>
           <input
+            id="identity-display-name"
+            required
+            aria-invalid={Boolean(errors.displayName)}
+            aria-describedby={errors.displayName ? 'identity-display-name-error' : undefined}
             value={displayName}
             onChange={(e) => { setDisplayName(e.target.value); if (errors.displayName) setErrors((prev) => ({ ...prev, displayName: undefined })) }}
-            className={`w-full bg-secondary rounded-xl h-[50px] px-4 text-foreground text-body outline-none focus:ring-2 ${errors.displayName ? 'focus:ring-destructive ring-2 ring-destructive/50' : 'focus:ring-primary/50'}`}
+            placeholder="Your public name"
+            className={`w-full bg-secondary rounded-xl h-[50px] px-4 text-foreground text-body outline-none placeholder:text-muted-foreground focus:ring-2 ${errors.displayName ? 'focus:ring-destructive ring-2 ring-destructive/50' : 'focus:ring-primary/50'}`}
           />
-          {errors.displayName && <p className="flex items-center gap-1 mt-1 text-[11px] text-destructive"><AlertCircle size={11} />{errors.displayName}</p>}
+          {errors.displayName && <p id="identity-display-name-error" role="alert" className="flex items-center gap-1 mt-1 text-[11px] text-destructive"><AlertCircle size={11} />{errors.displayName}</p>}
         </div>
 
         <div>
-          <label className="text-[12px] font-medium text-muted-foreground block mb-1.5">Handle</label>
+          <label htmlFor="identity-handle" className="text-[12px] font-medium text-muted-foreground block mb-1.5">Handle <span className="text-destructive" aria-hidden="true">*</span></label>
           <input
+            id="identity-handle"
+            required
+            aria-invalid={Boolean(errors.handle)}
+            aria-describedby={errors.handle ? 'identity-handle-error' : undefined}
             value={handle}
             onChange={(e) => { setHandle(e.target.value); if (errors.handle) setErrors((prev) => ({ ...prev, handle: undefined })) }}
             autoComplete="username"
-            className={`w-full bg-secondary rounded-xl h-[50px] px-4 text-foreground text-body outline-none focus:ring-2 ${errors.handle ? 'focus:ring-destructive ring-2 ring-destructive/50' : 'focus:ring-primary/50'}`}
+            placeholder="e.g. alex_42"
+            className={`w-full bg-secondary rounded-xl h-[50px] px-4 text-foreground text-body outline-none placeholder:text-muted-foreground focus:ring-2 ${errors.handle ? 'focus:ring-destructive ring-2 ring-destructive/50' : 'focus:ring-primary/50'}`}
           />
-          {errors.handle && <p className="flex items-center gap-1 mt-1 text-[11px] text-destructive"><AlertCircle size={11} />{errors.handle}</p>}
-        </div>
-
-        <div>
-          <label className="text-[12px] font-medium text-muted-foreground block mb-1.5">Recovery passcode</label>
-          <input
-            type="password"
-            value={passcode}
-            onChange={(e) => setPasscode(e.target.value)}
-            placeholder="Enter recovery passcode"
-            autoComplete="new-password"
-            className="w-full bg-secondary rounded-xl h-[50px] px-4 text-foreground text-body outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/50"
-          />
+          {!errors.handle && <p className="mt-1 text-[11px] text-muted-foreground">Use 2 or more letters, numbers, or underscores.</p>}
+          {errors.handle && <p id="identity-handle-error" role="alert" className="flex items-center gap-1 mt-1 text-[11px] text-destructive"><AlertCircle size={11} />{errors.handle}</p>}
         </div>
 
         <div>
@@ -87,13 +94,16 @@ export default function CreateIdentityPage() {
           <div className="bg-card rounded-xl p-5">
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 bg-blue2 rounded-full flex items-center justify-center flex-shrink-0">
-                <span className="text-2xl font-bold text-primary">{displayName.charAt(0).toUpperCase() || '?'}</span>
+                {displayName.trim()
+                  ? <span aria-hidden="true" className="text-2xl font-bold text-primary">{displayName.trim().charAt(0).toUpperCase()}</span>
+                  : <UserRound aria-hidden="true" size={26} className="text-primary/70" />}
               </div>
               <div>
                 <div className="text-base font-semibold text-foreground">{displayName || 'Your name'}</div>
                 <div className="text-[12px] text-muted-foreground font-mono mt-0.5">
-                  {handle ? `${handle}@peer` : 'handle@peer'}
+                  @{handle || 'handle'}
                 </div>
+                <div className="text-[11px] text-muted-foreground mt-1">Profile handle · peer address created when Nexus opens</div>
                 <div className="text-[11px] text-accent bg-green2/20 px-2 py-0.5 rounded inline-block mt-1.5">
                   Generated locally
                 </div>
@@ -102,21 +112,19 @@ export default function CreateIdentityPage() {
           </div>
         </div>
 
-        <div className="bg-card rounded-xl px-4 py-4 flex items-center justify-between">
-          <div>
-            <div className="text-sm font-semibold text-foreground">Public profile</div>
-            <div className="text-[11px] text-muted-foreground mt-0.5">Allow discovery by handle</div>
-          </div>
-          <Toggle checked={publicProfile} onChange={setPublicProfile} />
+        <div className="bg-card rounded-xl px-4 py-4">
+          <div className="text-sm font-semibold text-foreground">How people find you</div>
+          <p className="text-xs leading-relaxed text-muted-foreground mt-1">Your handle is a profile label, not a network address. Open Nexus at the end of setup to create your peer address, then copy it from your profile to share with contacts. Nexus has no public handle directory.</p>
         </div>
 
-        <button
-          type="submit"
-          disabled={!displayName.trim() || !handle.trim()}
-          className="w-full bg-primary text-white rounded-xl h-[50px] font-semibold text-sm transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          Create identity
-        </button>
+        <div className="sticky bottom-0 z-10 -mx-4 bg-background/95 px-4 pb-4 pt-3 backdrop-blur">
+          <button
+            type="submit"
+            className="w-full bg-primary text-primary-foreground rounded-xl h-[50px] font-semibold text-sm transition-colors hover:bg-primary/90"
+          >
+            Create identity
+          </button>
+        </div>
         </form>
       </main>
     </div>

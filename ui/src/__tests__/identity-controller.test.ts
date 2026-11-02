@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { IdentityController } from '../bridge/identity/controller'
+import { IdentityController, WORD_LIST } from '../bridge/identity/controller'
 
 describe('IdentityController', () => {
   let controller: IdentityController
@@ -25,14 +25,15 @@ describe('IdentityController', () => {
   })
 
   it('imports identity via phrase', () => {
-    controller.importIdentity('phrase', {
+    const phrase = WORD_LIST.slice(0, 12)
+    expect(controller.importIdentity('phrase', {
       displayName: 'Imported User',
       handle: 'imported',
-      phrase: ['word1', 'word2'],
-    })
+      phrase,
+    })).toBe(true)
     const state = controller.getState()
     expect(state.identity?.displayName).toBe('Imported User')
-    expect(state.identity?.recoveryPhrase).toEqual(['word1', 'word2'])
+    expect(state.identity?.recoveryPhrase).toEqual(phrase)
   })
 
   it('sets recovery phrase saved', () => {
@@ -70,7 +71,7 @@ describe('IdentityController', () => {
     const state = controller.getState()
     expect(state.identity).toBeNull()
     expect(state.onboarding.completed).toBe(false)
-    expect(state.permissions.notifications).toBe(true)
+    expect(state.permissions.notifications).toBe(false)
     expect(state.preferences.theme).toBe('system')
   })
 

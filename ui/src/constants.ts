@@ -12,11 +12,14 @@ let cachedServers: PublicServer[] | null = null
 export async function fetchPublicServers(): Promise<PublicServer[]> {
   if (cachedServers) return cachedServers
   try {
-    const resp = await fetch('https://data.xmpp.net/providers/v2/providers-B.json')
+    const resp = await fetch('https://data.xmpp.net/providers/v2/providers-B.json', {
+      signal: AbortSignal.timeout(8000),
+      headers: { Accept: 'application/json' },
+    })
     if (resp.ok) {
       const providers: any[] = await resp.json()
       cachedServers = providers
-        .filter((p: any) => p.inBandRegistration !== false)
+        .filter((p: any) => typeof p.jid === 'string' && p.jid.trim().length > 0)
         .map((p: any) => ({
           domain: p.jid,
           label: p.jid,
@@ -32,7 +35,7 @@ export async function fetchPublicServers(): Promise<PublicServer[]> {
     { domain: 'jabber.org', label: 'jabber.org', wsUrl: 'wss://jabber.org:5443/xmpp-websocket', registerUrl: 'https://register.jabber.org', supportsInBandRegistration: true },
     { domain: 'conversations.im', label: 'conversations.im', wsUrl: 'wss://conversations.im:5443/xmpp-websocket', registerUrl: 'https://account.conversations.im', supportsInBandRegistration: true },
     { domain: 'sure.im', label: 'sure.im', wsUrl: 'wss://sure.im:5291/', registerUrl: 'https://sure.im/register', supportsInBandRegistration: true },
-    { domain: 'jabber.hot-chilli.net', label: 'jabber.hot-chilli.net', wsUrl: 'wss://jabber.hot-chilli.net:443/xmpp-websocket', registerUrl: 'https://jabber.hot-chilli.net/register', supportsInBandRegistration: true },
+    { domain: 'jabber.hot-chilli.net', label: 'jabber.hot-chilli.net', wsUrl: 'wss://jabber.hot-chilli.net:443/xmpp-websocket', registerUrl: 'https://jabber.hot-chilli.net/forms/create/', supportsInBandRegistration: false },
     { domain: 'jabberfr.org', label: 'jabberfr.org', wsUrl: 'wss://ws.jabberfr.org/', supportsInBandRegistration: true },
     { domain: 'movim.eu', label: 'movim.eu', wsUrl: 'wss://movim.eu/xmpp', supportsInBandRegistration: true },
   ]

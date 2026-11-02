@@ -49,7 +49,9 @@ export interface ArticleViewState {
   articles: Article[]
   drafts: Article[]
   bookmarkedIds: string[]
+  followedTopics: string[]
   loading: boolean
+  loadError?: string
   activeTopic: string | null
 }
 

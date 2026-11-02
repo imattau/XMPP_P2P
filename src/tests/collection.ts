@@ -80,6 +80,10 @@ async function runCollectionTest() {
 
     console.log('Subscribing Node 4 to the community collection...')
     await xmppNode4.subscribeCollection(collectionId)
+    const subscribedCollections = await xmppNode4.getCollections()
+    if (!subscribedCollections.some(collection => collection.id === collectionId)) {
+      throw new Error('A joined community was not added to the subscribed community list')
+    }
 
     const pubsub1 = (libp2p1.services as any).pubsub
     const pubsub2 = (libp2p2.services as any).pubsub

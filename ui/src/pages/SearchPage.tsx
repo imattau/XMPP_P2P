@@ -1,22 +1,105 @@
-import { useState, useMemo } from 'react'
-import { useNavigate } from 'react-router'
+import { useState, useMemo, useEffect } from 'react'
+import { NavLink, useNavigate } from 'react-router'
 import { Search, ArrowLeft, MessageCircle, Hash, X, ChevronRight } from 'lucide-react'
 import { listGroupChatSessions } from './chat-session'
 import { useChatListBridge } from '../bridge/useChatListBridge'
+import { listDirectChatHistories } from '../bridge/direct-chat-history'
+import { useBrowserXmppBridge } from '../bridge/runtime'
+import { parseAttachmentReferences, parseMessageAttachments } from '../bridge/chat/attachments'
 
 interface SearchResult {
   id: string
+  messageId?: string
   chatId: string
   chatName: string
   senderName: string
   content: string
   timestamp: string
+  kind?: 'text' | 'image' | 'file' | 'audio' | 'system'
 }
 
 export default function SearchPage() {
   const navigate = useNavigate()
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState(() => new URLSearchParams(window.location.search).get('q') ?? '')
   const { chats } = useChatListBridge()
+  const runtime = useBrowserXmppBridge()
+  const [mucHistory, setMucHistory] = useState<Record<string, SearchResult[]>>({})
+  const [historyLoading, setHistoryLoading] = useState(true)
+  const [historyError, setHistoryError] = useState('')
+  const [historyRetry, setHistoryRetry] = useState(0)
+
+  useEffect(() => {
+    let cancelled = false
+    const refreshHistory = async () => {
+      const sessions = listGroupChatSessions()
+      if (!runtime?.getMucHistory) {
+        setHistoryLoading(false)
+        setHistoryError(sessions.length > 0
+          ? 'Group history is unavailable. Search may only include messages saved on this device.'
+          : '')
+        return
+      }
+      setHistoryLoading(true)
+      setHistoryError('')
+      const histories = await Promise.all(sessions.map(async (session) => {
+        const roomId = session.chat.id.replace(/@muc\.p2p$/, '')
+        try {
+          const messages = await runtime.getMucHistory(roomId)
+          return [roomId, messages.map((message) => {
+            const parsed = parseAttachmentReferences(message.body)
+            return {
+              id: message.id,
+              chatId: session.chat.id,
+              chatName: session.chat.name,
+              senderName: message.from,
+              content: parsed.content || parsed.attachments.map((attachment) => attachment.alt).join(', '),
+              timestamp: new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            }
+          }), false] as const
+        } catch {
+          return [roomId, [] as SearchResult[], true] as const
+        }
+      }))
+      if (!cancelled) {
+        setMucHistory(Object.fromEntries(histories.map(([roomId, messages]) => [roomId, messages])))
+        const failedRooms = histories.filter(([, , failed]) => failed).length
+        setHistoryError(failedRooms > 0
+          ? `Could not load group history for ${failedRooms} room${failedRooms === 1 ? '' : 's'}. Search results may be incomplete.`
+          : '')
+        setHistoryLoading(false)
+      }
+    }
+
+    const addLiveMessage = (event: any) => {
+      const roomId = String(event.room ?? event.roomJid ?? '').replace(/@muc\.p2p$/, '')
+      const session = listGroupChatSessions().find((entry) => entry.chat.id === roomId)
+      if (!roomId || !session || !event.id || !event.body) return
+      const result: SearchResult = {
+        id: event.id,
+        chatId: session.chat.id,
+        chatName: session.chat.name,
+        senderName: event.from ?? 'Participant',
+        content: (() => {
+          const parsed = parseAttachmentReferences(event.body)
+          return parsed.content || parsed.attachments.map((attachment) => attachment.alt).join(', ')
+        })(),
+        timestamp: new Date(event.timestamp ?? Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      }
+      setMucHistory((current) => ({
+        ...current,
+        [roomId]: [...(current[roomId] ?? []).filter((message) => message.id !== result.id), result],
+      }))
+    }
+
+    void refreshHistory()
+    const unsubscribe = runtime?.onMucMessage?.(addLiveMessage)
+    window.addEventListener('xmpp-p2p:group-session-updated', refreshHistory)
+    return () => {
+      cancelled = true
+      unsubscribe?.()
+      window.removeEventListener('xmpp-p2p:group-session-updated', refreshHistory)
+    }
+  }, [runtime, historyRetry])
 
   const results = useMemo(() => {
     if (!query.trim()) return []
@@ -26,11 +109,27 @@ export default function SearchPage() {
 
     const sessions = listGroupChatSessions()
     for (const session of sessions) {
-      for (const msg of session.messages) {
+      const roomId = session.chat.id.replace(/@muc\.p2p$/, '')
+      const messagesById = new Map<string, SearchResult>()
+      for (const message of session.messages) {
+        const parsed = parseMessageAttachments(message)
+        messagesById.set(message.id, {
+          id: message.id,
+          chatId: session.chat.id,
+          chatName: session.chat.name,
+          senderName: message.senderName,
+          content: parsed.content || parsed.fileName || parsed.attachments?.map((attachment) => attachment.alt).join(', ') || '',
+          timestamp: message.timestamp,
+          kind: message.kind,
+        })
+      }
+      for (const message of mucHistory[roomId] ?? []) messagesById.set(message.id, message)
+      for (const msg of messagesById.values()) {
         if (msg.kind === 'system') continue
         if (msg.content.toLowerCase().includes(q)) {
           hits.push({
             id: msg.id,
+            messageId: msg.id,
             chatId: session.chat.id,
             chatName: session.chat.name,
             senderName: msg.senderName,
@@ -38,6 +137,26 @@ export default function SearchPage() {
             timestamp: msg.timestamp,
           })
         }
+      }
+    }
+
+    const chatsById = new Map(chats.map((chat) => [chat.id, chat]))
+    for (const history of listDirectChatHistories()) {
+      const chat = chatsById.get(history.chatId)
+      if (!chat) continue
+      for (const rawMessage of history.messages) {
+        const msg = parseMessageAttachments(rawMessage)
+        const searchableContent = msg.content || msg.fileName || msg.attachments?.map((attachment) => attachment.alt).join(', ') || ''
+        if (msg.kind === 'system' || !searchableContent.toLowerCase().includes(q)) continue
+        hits.push({
+          id: msg.id,
+          messageId: msg.id,
+          chatId: chat.id,
+          chatName: chat.name,
+          senderName: msg.senderName,
+          content: searchableContent,
+          timestamp: msg.timestamp,
+        })
       }
     }
 
@@ -55,29 +174,47 @@ export default function SearchPage() {
     }
 
     return hits.slice(0, 50)
-  }, [query, chats])
+  }, [query, chats, mucHistory])
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
       <header className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border flex-shrink-0">
         <div className="flex items-center gap-2 px-3 py-2.5">
-          <button onClick={() => navigate(-1)} className="p-1.5 -ml-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
+          <button onClick={() => navigate(-1)} aria-label="Go back" className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
             <ArrowLeft size={18} />
           </button>
+          <h1 className="sr-only">Search</h1>
           <div className="flex-1 flex items-center gap-2 bg-secondary rounded-lg px-3 py-2">
             <Search size={14} className="text-muted-foreground flex-shrink-0" />
-            <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)}
+            <input autoFocus aria-label="Search messages and conversations" value={query} onChange={(e) => setQuery(e.target.value)}
               placeholder="Search messages and conversations…"
               className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none" />
             {query && (
-              <button onClick={() => setQuery('')} className="text-muted-foreground hover:text-foreground"><X size={14} /></button>
+              <button onClick={() => setQuery('')} aria-label="Clear message search" className="text-muted-foreground hover:text-foreground"><X size={14} /></button>
             )}
           </div>
         </div>
+        <p className="px-4 pb-2 text-[11px] text-muted-foreground">
+          Direct message search includes messages saved on this device.
+        </p>
       </header>
 
       <main className="flex-1 overflow-y-auto">
-        {query && results.length === 0 ? (
+        {query && historyError && (
+          <div role="alert" className="mx-4 mt-4 flex items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2.5">
+            <p className="text-xs text-destructive">{historyError}</p>
+            <button type="button" onClick={() => setHistoryRetry((count) => count + 1)} disabled={historyLoading}
+              className="shrink-0 rounded-md border border-current/20 px-2.5 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50">
+              {historyLoading ? 'Retrying…' : 'Retry'}
+            </button>
+          </div>
+        )}
+        {query && historyLoading && results.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-3" role="status">
+            <span className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+            <p className="text-sm text-muted-foreground">Searching message history…</p>
+          </div>
+        ) : query && results.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
             <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
               <Search size={20} className="text-muted-foreground" />
@@ -86,9 +223,9 @@ export default function SearchPage() {
           </div>
         ) : (
           results.map((r) => (
-            <div key={r.id}
-              onClick={() => navigate(`/chat/${r.chatId}`)}
-              className="flex items-center gap-3 px-4 py-3 border-b border-border hover:bg-white/[0.02] transition-colors cursor-pointer"
+            <NavLink key={r.id}
+              to={`/chat/${encodeURIComponent(r.chatId)}${r.messageId ? `?message=${encodeURIComponent(r.messageId)}` : ''}`}
+              className="flex items-center gap-3 px-4 py-3 border-b border-border hover:bg-white/[0.02] transition-colors"
             >
               <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
                 <MessageCircle size={14} className="text-primary" />
@@ -104,7 +241,7 @@ export default function SearchPage() {
                 <span className="font-mono text-[10px] text-muted-foreground">{r.timestamp}</span>
                 <ChevronRight size={14} className="text-muted-foreground/40" />
               </div>
-            </div>
+            </NavLink>
           ))
         )}
       </main>

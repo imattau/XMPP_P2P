@@ -9,6 +9,10 @@ on:
 permissions:
   contents: write # Required for deploying to the gh-pages branch
 
+env:
+  # CI does not launch Electron; skip the ~100 MB binary download.
+  ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest

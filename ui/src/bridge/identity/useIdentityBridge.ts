@@ -14,9 +14,10 @@ export function useIdentityBridge() {
     ...state,
     createIdentity: (displayName: string, handle: string, passcode?: string, publicProfile?: boolean) =>
       identityController.createIdentity(displayName, handle, passcode, publicProfile),
-    importIdentity: (method: 'qr' | 'phrase' | 'backup' | 'paste', data: { displayName: string; handle: string; jid?: string; phrase?: string[]; publicProfile?: boolean }) =>
+    importIdentity: (method: 'phrase' | 'backup' | 'paste', data: { displayName: string; handle: string; jid?: string; phrase?: string[]; publicProfile?: boolean }) =>
       identityController.importIdentity(method, data),
     setPhraseSaved: () => identityController.setPhraseSaved(),
+    clearRecoveryPhrase: () => identityController.clearRecoveryPhrase(),
     completeOnboarding: () => identityController.completeOnboarding(),
     setPermissions: (p: Partial<PermissionsState>) => identityController.setPermissions(p),
     setPreferences: (p: Partial<PreferencesState>) => identityController.setPreferences(p),

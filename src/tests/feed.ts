@@ -71,6 +71,29 @@ function verifyAtomMicroblogHelpers() {
   const microblogEntry = xml('entry', { xmlns: MICROBLOG_XMLNS }, xml('title', {}, 'Microblog'))
   const microblogParsed = parseMicroblogEntry(post.topic, xml('item', { id: 'microblog' }, microblogEntry), post.from)
   assert.equal(microblogParsed, undefined)
+
+  const xhtmlEntry = xml('entry', { xmlns: ATOM_XMLNS },
+    xml('content', { type: 'xhtml' },
+      xml('div', { xmlns: 'http://www.w3.org/1999/xhtml' },
+        xml('p', {}, 'First ', xml('strong', {}, 'bold')),
+        xml('p', {}, 'Second paragraph')
+      )
+    )
+  )
+  const xhtmlParsed = parseMicroblogEntry(post.topic, xml('item', { id: 'xhtml-post' }, xhtmlEntry), post.from)
+  assert.equal(xhtmlParsed?.body, 'First bold\nSecond paragraph')
+
+  const articlePayload = 'nexus-article:v1\n{"version":1,"id":"article-1"}'
+  const articleEntry = buildMicroblogEntry({ ...post, body: articlePayload }, {
+    title: 'An article for XMPP followers',
+    summary: 'A concise article preview',
+    displayContent: 'An article for XMPP followers\n\nThe readable first paragraph.',
+    articlePayload,
+  })
+  assert.match(articleEntry.toString(), /<content type="text">An article for XMPP followers/)
+  assert.match(articleEntry.toString(), /<article xmlns="urn:nexus:article:1">nexus-article:v1/)
+  const articleParsed = parseMicroblogEntry(post.topic, xml('item', { id: 'article-1' }, articleEntry), post.from)
+  assert.equal(articleParsed?.body, articlePayload)
 }
 
 /**
@@ -99,6 +122,23 @@ async function runFeedTest() {
 
     await xmppNode1.ready
     await xmppNode2.ready
+
+    const serverPost = {
+      id: 'alice@server.example:item-1',
+      topic: 'xmpp-pep:alice@server.example',
+      from: 'alice@server.example',
+      body: 'Original server post',
+      publishedAt: new Date().toISOString(),
+      receivedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      title: 'Original server post',
+      contentType: 'text' as const,
+    }
+    const feedManager = (xmppNode1 as any).feedManager
+    assert.equal(await feedManager.recordFeedPost(serverPost, { propagateToCollections: false, updateExisting: true }), true)
+    assert.equal(await feedManager.recordFeedPost({ ...serverPost, body: 'Edited server post', title: 'Edited server post' }, { propagateToCollections: false, updateExisting: true }), true)
+    assert.equal((await xmppNode1.getFeedPosts()).find(post => post.id === serverPost.id)?.body, 'Edited server post')
+    assert.equal(await feedManager.recordFeedPost({ ...serverPost, body: 'Ignored duplicate' }, { propagateToCollections: false }), false)
 
     const node2Address = libp2p2.getMultiaddrs().find((ma: any) => ma.toString().includes('127.0.0.1')) || libp2p2.getMultiaddrs()[0]
     if (!node2Address) {

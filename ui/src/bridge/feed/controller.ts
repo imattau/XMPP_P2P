@@ -1,44 +1,140 @@
-import type { XmppRuntimeBridge, BridgeVisibility } from '../runtime'
+import type { XmppRuntimeBridge, BridgeVisibility, BridgeAttachmentRecord } from '../runtime'
 import type { FeedFilterType, FeedPost, FeedSortOrder, FeedViewState, TrendingTopic } from './types'
 import {
   filterFeedPosts,
   mapRuntimePost,
-  markRepost,
-  toggleBookmark,
-  toggleLike
+  toggleBookmark
 } from './transform'
 import { emitToast } from '../../lib/toast-events'
-import { SEED_POSTS, TRENDING_TOPICS } from './seed'
+import { getActiveAccountStorageId, getAccountScopedStorageKey } from '../../lib/account-storage'
 
 type Listener = (state: FeedViewState) => void
+const BOOKMARKS_KEY = 'xmpp-p2p:feed-bookmarks'
+const bookmarksStorageKey = () => getAccountScopedStorageKey(BOOKMARKS_KEY)
+
+function readBookmarkedIds(): string[] {
+  try {
+    const raw = localStorage.getItem(bookmarksStorageKey())
+    return raw ? JSON.parse(raw) as string[] : []
+  } catch { return [] }
+}
 
 export class FeedBridgeController {
   private state: FeedViewState
   private listeners = new Set<Listener>()
   private runtime?: XmppRuntimeBridge
-  private loading = false
+  private refreshRevision = 0
+  private removeFeedListener?: () => void
+  private removeCollectionListener?: () => void
+  private removeAttachmentListener?: () => void
+  private bookmarkedIds = readBookmarkedIds()
+  private attachmentRecords: BridgeAttachmentRecord[] = []
+  private visiblePostCount = 20
+  private accountId = getActiveAccountStorageId()
 
   constructor(runtime?: XmppRuntimeBridge) {
     this.runtime = runtime
     this.state = {
-      posts: runtime ? [] : SEED_POSTS,
-      trendingTopics: runtime ? [] : TRENDING_TOPICS,
+      posts: [],
+      trendingTopics: [],
       activeFilter: 'all',
       searchOpen: false,
       searchQuery: '',
       loading: false,
       sortBy: 'recent',
-      hasMore: !!runtime,
+      hasMore: false,
     }
 
-    if (runtime?.onFeedPost) {
-      runtime.onFeedPost((post) => {
-        this.state = {
-          ...this.state,
-          posts: [mapRuntimePost(post as any), ...this.state.posts]
-        }
-        this.emit()
-      })
+    if (runtime) this.attachRuntime(runtime)
+  }
+
+  private attachRuntime(runtime: XmppRuntimeBridge) {
+    this.runtime = runtime
+    this.removeFeedListener = runtime.onFeedPost?.((post) => {
+      if (this.runtime === runtime) this.upsertPost(mapRuntimePost(post))
+    })
+    this.removeCollectionListener = runtime.onCollectionPost?.((post) => {
+      if (this.runtime === runtime) this.upsertPost(mapRuntimePost(post))
+    })
+    this.removeAttachmentListener = runtime.onAttachmentSummary?.((summary) => {
+      if (this.runtime !== runtime) return
+      void this.refreshAttachmentMetrics(summary.topic, summary.targetId)
+    })
+    void this.refresh()
+  }
+
+  setRuntime(runtime?: XmppRuntimeBridge) {
+    const nextAccountId = getActiveAccountStorageId()
+    const accountChanged = nextAccountId !== this.accountId
+    if (runtime === this.runtime && !accountChanged) return
+    this.refreshRevision += 1
+    this.removeFeedListener?.()
+    this.removeCollectionListener?.()
+    this.removeAttachmentListener?.()
+    this.removeFeedListener = undefined
+    this.removeCollectionListener = undefined
+    this.removeAttachmentListener = undefined
+    this.attachmentRecords = []
+    this.runtime = undefined
+    if (accountChanged) {
+      this.accountId = nextAccountId
+      this.bookmarkedIds = readBookmarkedIds()
+    }
+    this.state = {
+      ...this.state,
+      posts: [],
+      trendingTopics: [],
+      loading: false,
+      loadError: undefined,
+    }
+    if (!runtime) {
+      this.emit()
+      return
+    }
+    this.visiblePostCount = 20
+    this.attachRuntime(runtime)
+  }
+
+  private upsertPost(post: FeedPost) {
+    post.bookmarked = this.bookmarkedIds.includes(post.id)
+    const posts = [post, ...this.state.posts.filter((existing) => existing.id !== post.id)]
+    const enriched = posts.map((entry) => this.enrichPost(entry, posts))
+    this.state = { ...this.state, posts: enriched }
+    this.emit()
+  }
+
+  private enrichPost(post: FeedPost, allPosts: FeedPost[] = this.state.posts): FeedPost {
+    const reactions = this.attachmentRecords.filter((attachment) =>
+      attachment.topic === post.sourceTopic && attachment.targetId === post.id && attachment.kind === 'reaction'
+    )
+    const localJid = this.runtime?.getLocalJid?.()
+    const repostedAuthors = new Set(allPosts
+      .filter((entry) => entry.repostOf?.topic === post.sourceTopic && entry.repostOf?.id === post.id)
+      .map((entry) => `${entry.author.handle}@${entry.author.server || 'p2p'}`))
+    return {
+      ...post,
+      likes: reactions.filter((attachment) => attachment.value === '❤️').length,
+      liked: reactions.some((attachment) => attachment.from === localJid && attachment.value === '❤️'),
+      comments: allPosts.filter((entry) => entry.replyTo === post.id).length,
+      reposts: repostedAuthors.size,
+      reposted: Boolean(localJid && repostedAuthors.has(localJid)),
+    }
+  }
+
+  private async refreshAttachmentMetrics(topic: string, targetId: string) {
+    const runtime = this.runtime
+    if (!runtime?.getAttachments) return
+    try {
+      const latest = await runtime.getAttachments(topic, targetId)
+      if (runtime !== this.runtime) return
+      this.attachmentRecords = [
+        ...this.attachmentRecords.filter((attachment) => attachment.topic !== topic || attachment.targetId !== targetId),
+        ...latest,
+      ]
+      this.state = { ...this.state, posts: this.state.posts.map((post) => this.enrichPost(post)) }
+      this.emit()
+    } catch {
+      // Keep the last known counts if attachment refresh temporarily fails.
     }
   }
 
@@ -73,77 +169,69 @@ export class FeedBridgeController {
   }
 
   async refresh() {
-    if (this.loading) return
-    this.loading = true
-    this.state = { ...this.state, loading: true }
+    const requestRevision = ++this.refreshRevision
+    const runtime = this.runtime
+    this.state = { ...this.state, loading: true, loadError: undefined }
     this.emit()
     try {
-      if (!this.runtime) {
+      if (!runtime) {
+        if (requestRevision !== this.refreshRevision) return
         this.state = { ...this.state, loading: false }
         this.emit()
         return
       }
-      const [feedPosts, subscriptions, collections] = await Promise.all([
-        this.runtime.getFeedPosts(),
-        this.runtime.getPublicFeedSubscriptions().catch(() => []),
-        this.runtime.getCollections().catch(() => [])
+      const [feedPosts, collectionPosts, attachments] = await Promise.all([
+        runtime.getFeedPosts(),
+        runtime.getCollectionPosts().catch(() => []),
+        runtime.getAttachments?.().catch(() => []) ?? Promise.resolve([]),
       ])
-      const mappedPosts = feedPosts.map(mapRuntimePost)
-      const topicCounts = buildTrendingTopics(mappedPosts, subscriptions.length, collections.length)
+      if (requestRevision !== this.refreshRevision || runtime !== this.runtime) return
+      this.attachmentRecords = attachments
+      const basePosts = [...feedPosts, ...collectionPosts].map((record) => {
+        const post = mapRuntimePost(record)
+        post.bookmarked = this.bookmarkedIds.includes(post.id)
+        return post
+      })
+      const mappedPosts = basePosts.map((post) => this.enrichPost(post, basePosts))
+      const topicCounts = buildTrendingTopics(mappedPosts)
+      const nextPosts = [...mappedPosts, ...this.state.posts.filter((post) => !mappedPosts.some((fresh) => fresh.id === post.id))]
       this.state = {
         ...this.state,
-        posts: mappedPosts,
+        posts: nextPosts.map((post) => this.enrichPost(post, nextPosts)),
         trendingTopics: topicCounts,
-        loading: false
+        loading: false,
+        loadError: undefined,
       }
       this.emit()
-    } catch {
-      this.state = { ...this.state, loading: false }
+    } catch (error) {
+      if (requestRevision !== this.refreshRevision || runtime !== this.runtime) return
+      this.state = {
+        ...this.state,
+        loading: false,
+        loadError: error instanceof Error ? error.message : 'Could not load your feed',
+      }
       this.emit()
     } finally {
-      this.loading = false
+      if (requestRevision === this.refreshRevision) {
+        this.state = { ...this.state, loading: false }
+        this.emit()
+      }
     }
   }
 
-  async loadMore() {
-    if (this.loading || !this.state.hasMore) return
-    this.loading = true
-    this.state = { ...this.state, loading: true }
+  loadMore() {
+    if (!this.hasMore()) return
+    this.visiblePostCount += 20
+    this.state = { ...this.state }
     this.emit()
-    try {
-      if (this.runtime) {
-        const allPosts = await this.runtime.getFeedPosts()
-        const oldestTimestamp = this.state.posts.length > 0
-          ? this.state.posts[this.state.posts.length - 1].timestamp
-          : undefined
-        const older = oldestTimestamp
-          ? allPosts.filter(p => p.publishedAt < oldestTimestamp)
-          : allPosts
-        const mapped = older.slice(-10).map(mapRuntimePost)
-        const existingIds = new Set(this.state.posts.map((p) => p.id))
-        const newPosts = mapped.filter((p) => !existingIds.has(p.id))
-        if (newPosts.length === 0) {
-          this.state = { ...this.state, hasMore: false, loading: false }
-          this.emit()
-          return
-        }
-        this.state = {
-          ...this.state,
-          posts: [...this.state.posts, ...newPosts],
-          loading: false,
-          hasMore: newPosts.length >= 5
-        }
-        this.emit()
-      } else {
-        this.state = { ...this.state, loading: false, hasMore: false }
-        this.emit()
-      }
-    } catch {
-      this.state = { ...this.state, loading: false }
-      this.emit()
-    } finally {
-      this.loading = false
-    }
+  }
+
+  hasMore() {
+    return this.getFilteredPosts().length > this.visiblePostCount
+  }
+
+  getVisiblePosts() {
+    return this.getFilteredPosts().slice(0, this.visiblePostCount)
   }
 
   getFilteredPosts() {
@@ -156,8 +244,8 @@ export class FeedBridgeController {
       posts = [...posts].sort((a, b) => (b.likes + b.comments + b.reposts) - (a.likes + a.comments + a.reposts))
     } else {
       posts = [...posts].sort((a, b) => {
-        const tsA = parseTimestamp(a.timestamp)
-        const tsB = parseTimestamp(b.timestamp)
+        const tsA = parseTimestamp(a.publishedAt ?? a.timestamp)
+        const tsB = parseTimestamp(b.publishedAt ?? b.timestamp)
         return tsB - tsA
       })
     }
@@ -165,57 +253,83 @@ export class FeedBridgeController {
   }
 
   async likePost(id: string) {
-    this.state = { ...this.state, posts: toggleLike(this.state.posts, id) }
-    this.emit()
+    return this.reactPost(id, '❤️')
   }
 
   async reactPost(id: string, emoji = '❤️') {
     const post = this.state.posts.find((entry) => entry.id === id)
     const topic = post?.sourceTopic
+    const runtime = this.runtime
 
-    if (this.runtime && post && topic) {
-      try {
-        await this.runtime.react(topic, id, emoji)
-      } catch {
-        // Keep the optimistic UI update even if the runtime bridge is unavailable.
-      }
+    if (!runtime || !post || !topic) {
+      emitToast('Connect to the peer network to react to this post', 'error')
+      return false
+    }
+    try {
+      await runtime.react(topic, id, emoji)
+    } catch (error) {
+      emitToast(error instanceof Error ? error.message : 'Could not publish your reaction', 'error')
+      return false
     }
 
-    this.state = { ...this.state, posts: toggleLike(this.state.posts, id) }
-    this.emit()
+    if (runtime !== this.runtime) return false
+    await this.refreshAttachmentMetrics(topic, id)
+    return true
   }
 
   async repostPost(id: string) {
     const post = this.state.posts.find((entry) => entry.id === id)
+    const runtime = this.runtime
     if (!post || post.reposted) {
-      return
+      return false
     }
 
-    if (this.runtime && post.sourceTopic) {
-      try {
-        await this.runtime.publishFeed(buildRepostBody(post), {
-          title: `Boosted by ${post.author.name}`,
-          summary: post.content,
-          categories: post.topic ? [post.topic] : undefined
-        })
-      } catch {
-        // Keep the local boost state even if publishing fails.
-      }
+    if (!runtime || !post.sourceTopic) {
+      emitToast('Connect to the peer network to repost', 'error')
+      return false
+    }
+    try {
+      const sourceJid = `${post.author.handle}@${post.author.server || 'p2p'}`
+      const sourceUri = `xmpp:${sourceJid}?;node=${encodeURIComponent(post.sourceTopic)};item=${encodeURIComponent(post.id)}`
+      await runtime.publishFeed(buildRepostBody(post), {
+        title: `Boosted by ${post.author.name}`,
+        summary: post.content,
+        categories: post.topic ? [post.topic] : undefined,
+        links: [{ rel: 'related', title: 'Repost of', href: sourceUri }]
+      })
+    } catch (error) {
+      emitToast(error instanceof Error ? error.message : 'Could not publish your repost', 'error')
+      return false
     }
 
-    this.state = { ...this.state, posts: markRepost(this.state.posts, id) }
-    this.emit()
+    if (runtime !== this.runtime) return false
+    await this.refresh()
+    if (runtime !== this.runtime) return false
+    return true
   }
 
   async bookmarkPost(id: string) {
+    const nextBookmarkedIds = this.bookmarkedIds.includes(id)
+      ? this.bookmarkedIds.filter((savedId) => savedId !== id)
+      : [...this.bookmarkedIds, id]
+    try {
+      localStorage.setItem(bookmarksStorageKey(), JSON.stringify(nextBookmarkedIds))
+    } catch {
+      emitToast('Could not save this bookmark on this device. Check browser storage and try again.', 'error')
+      return false
+    }
+    this.bookmarkedIds = nextBookmarkedIds
     this.state = { ...this.state, posts: toggleBookmark(this.state.posts, id) }
     this.emit()
+    return true
   }
 
   async subscribeFeed(peerAddr: string, options?: { visibility?: BridgeVisibility }) {
-    if (this.runtime) {
+    const runtime = this.runtime
+    if (runtime) {
       try {
-        await this.runtime.subscribeFeed(peerAddr, options)
+        await runtime.subscribeFeed(peerAddr, options)
+        if (runtime !== this.runtime) return
         await this.refresh()
       } catch (err) {
         emitToast('Failed to subscribe to feed', 'error')
@@ -224,9 +338,11 @@ export class FeedBridgeController {
   }
 
   async unsubscribeFeed(peerAddr: string) {
-    if (this.runtime) {
+    const runtime = this.runtime
+    if (runtime) {
       try {
-        await this.runtime.unsubscribeFeed(peerAddr)
+        await runtime.unsubscribeFeed(peerAddr)
+        if (runtime !== this.runtime) return
         await this.refresh()
       } catch (err) {
         console.error('Failed to unsubscribe from feed:', err)
@@ -235,13 +351,14 @@ export class FeedBridgeController {
   }
 
   private emit() {
+    this.state = { ...this.state, hasMore: this.hasMore() }
     for (const listener of this.listeners) {
       listener(this.state)
     }
   }
 }
 
-function buildTrendingTopics(posts: FeedPost[], publicSubscriptions: number, collectionCount: number): TrendingTopic[] {
+function buildTrendingTopics(posts: FeedPost[]): TrendingTopic[] {
   const counts = new Map<string, number>()
 
   for (const post of posts) {
@@ -256,11 +373,6 @@ function buildTrendingTopics(posts: FeedPost[], publicSubscriptions: number, col
       count: formatCount(count)
     }))
     .sort((a, b) => Number.parseFloat(b.count) - Number.parseFloat(a.count))
-
-  topics.push(
-    { tag: 'PublicSubs', count: formatCount(publicSubscriptions) },
-    { tag: 'Collections', count: formatCount(collectionCount) }
-  )
 
   return topics.slice(0, 5)
 }

@@ -16,7 +16,8 @@ import {
   createRosterEntry,
   normalizeVCardProfile,
   XmppVCardProfile,
-  XmppPresence
+  XmppPresence,
+  canonicalRosterJid
 } from './xmpp-records.js'
 import { buildCapsElement } from './xmpp-discovery.js'
 import { buildVCard } from './xmpp-vcard.js'
@@ -46,6 +47,7 @@ export interface XmppRosterContext {
   discoveryNode: string
   discoveryIdentity: any
   collections: any
+  httpUploadAvailable?: boolean
 }
 
 /**
@@ -199,7 +201,7 @@ export class XmppRosterManager {
       children.push(xml('nick', { xmlns: 'http://jabber.org/protocol/nick' }, nickname))
     }
     if (!type || type === 'available') {
-      children.push(buildCapsElement(this.ctx.discoveryNode, this.ctx.discoveryIdentity, this.ctx.collections))
+      children.push(buildCapsElement(this.ctx.discoveryNode, this.ctx.discoveryIdentity, this.ctx.collections, this.ctx.httpUploadAvailable !== false))
     }
 
     const pres = children.length > 0
@@ -304,10 +306,12 @@ export class XmppRosterManager {
 
   public async upsertRosterEntry(entry: Partial<XmppRosterEntry> & { jid: string }): Promise<XmppRosterEntry> {
     await this.ctx.ready
-    const current = this.entries.get(entry.jid) ?? createRosterEntry(entry.jid)
+    const jid = canonicalRosterJid(entry.jid)
+    const current = this.entries.get(jid) ?? createRosterEntry(jid)
     const next = normalizeRosterEntry({
       ...current,
       ...entry,
+      jid,
       nickname: entry.nickname ?? current.nickname,
       groups: entry.groups ?? current.groups,
       presence: entry.presence ?? current.presence
@@ -321,7 +325,7 @@ export class XmppRosterManager {
 
   public async deleteRosterEntry(jid: string): Promise<void> {
     await this.ctx.ready
-    if (this.entries.delete(jid)) {
+    if (this.entries.delete(canonicalRosterJid(jid))) {
       await this.scheduleRosterPersist()
       this.ctx.emit('roster:remove', jid)
     }
@@ -348,7 +352,7 @@ export class XmppRosterManager {
   }
 
   public getRosterEntry(jid: string): XmppRosterEntry | undefined {
-    return this.entries.get(jid)
+    return this.entries.get(canonicalRosterJid(jid))
   }
 
   public buildRosterQuery(): Element {

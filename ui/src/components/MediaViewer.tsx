@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { X, ChevronLeft, ChevronRight, Download } from 'lucide-react'
 
 interface MediaItem {
@@ -16,6 +16,7 @@ export default function MediaViewer({
   onClose: () => void
 }) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex)
+  const closeButtonRef = useRef<HTMLButtonElement>(null)
   const current = items[currentIndex]
 
   const goNext = useCallback(() => {
@@ -37,21 +38,51 @@ export default function MediaViewer({
 
   useEffect(() => {
     document.addEventListener('keydown', handleKey)
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.removeEventListener('keydown', handleKey)
-      document.body.style.overflow = ''
-    }
+    return () => document.removeEventListener('keydown', handleKey)
   }, [handleKey])
+
+  useEffect(() => {
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    closeButtonRef.current?.focus()
+    return () => {
+      document.body.style.overflow = previousOverflow
+      previousFocus?.focus()
+    }
+  }, [])
+
+  const trapTabKey = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Tab') return
+    const focusable = Array.from(event.currentTarget.querySelectorAll<HTMLElement>(
+      'button:not(:disabled), a[href], input:not(:disabled), [tabindex]:not([tabindex="-1"])'
+    ))
+    const first = focusable[0]
+    const last = focusable[focusable.length - 1]
+    if (!first || !last) return
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault()
+      last.focus()
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault()
+      first.focus()
+    }
+  }
 
   if (!current) return null
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${current.alt || 'Image'} viewer`}
+      tabIndex={-1}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm"
       onClick={onClose}
+      onKeyDown={trapTabKey}
     >
       <button
+        ref={closeButtonRef}
         onClick={onClose}
         className="absolute top-4 right-4 p-2 rounded-full bg-black/40 text-white hover:bg-black/60 transition-colors z-10"
         aria-label="Close viewer"

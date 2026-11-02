@@ -13,11 +13,15 @@ export default function TrendingTopics({ topics }: { topics: TrendingTopic[] }) 
       </div>
 
       <div className="space-y-1">
-        {topics.map((topic) => (
+        {topics.length === 0 ? (
+          <p className="px-3 py-3 text-xs leading-relaxed text-muted-foreground">
+            Topics come from posts shared by P2P peers. An XMPP server login alone does not load them; connect to a peer or relay in Settings.
+          </p>
+        ) : topics.map((topic) => (
           <button
             key={topic.tag}
-            onClick={() => navigate(`/topics/${topic.tag}`)}
-            className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-secondary transition-colors text-left"
+            onClick={() => navigate(`/?q=${encodeURIComponent(topic.tag)}`)}
+            className="min-h-11 w-full flex items-center justify-between px-3 rounded-lg hover:bg-secondary transition-colors text-left"
           >
             <span className="text-sm font-mono font-medium text-foreground">#{topic.tag}</span>
             <span className="text-[11px] font-mono text-muted-foreground">{topic.count} posts</span>
@@ -27,7 +31,7 @@ export default function TrendingTopics({ topics }: { topics: TrendingTopic[] }) 
 
       <button
         onClick={() => navigate('/topics')}
-        className="mt-3 w-full text-center text-[11px] font-mono text-primary hover:underline"
+        className="mt-3 min-h-11 w-full text-center text-[11px] font-mono text-primary hover:underline"
       >
         View all topics →
       </button>

@@ -385,7 +385,9 @@ export class XmppCollectionManager {
     this.ctx.ensureTopicValidator(topic, 'attachment')
     await pubsub.subscribe(topic)
 
-    const itemId = options.itemId ?? Math.random().toString(36).substring(2, 11)
+    const itemId = options.itemId ?? (kind === 'reaction'
+      ? await stableAttachmentItemId(topic, targetId, this.ctx.jid)
+      : Math.random().toString(36).substring(2, 11))
     const publishedAt = new Date().toISOString()
     const attachmentElement = kind === 'noticed'
       ? xml('noticed', { xmlns: ATTACHMENT_XMLNS }, value ? value : null)
@@ -524,4 +526,11 @@ export class XmppCollectionManager {
     await this.attachmentSaveQueue
     await this.persistAttachmentHistory()
   }
+}
+
+async function stableAttachmentItemId(topic: string, targetId: string, authorJid: string): Promise<string> {
+  const source = new TextEncoder().encode(`${topic}\0${targetId}\0${authorJid}`)
+  const digest = await globalThis.crypto.subtle.digest('SHA-256', source)
+  const hex = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
+  return `reaction-${hex}`
 }

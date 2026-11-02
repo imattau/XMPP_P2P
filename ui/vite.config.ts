@@ -16,6 +16,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: null,
       includeAssets: ['icon-192.svg', 'icon-512.svg'],
       manifest: {
         name: 'Nexus — XMPP P2P',

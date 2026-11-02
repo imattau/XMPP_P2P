@@ -2,32 +2,25 @@ import * as React from 'react'
 import { useNavigate } from 'react-router'
 import { Check, Loader } from 'lucide-react'
 import { useIdentityBridge } from '../../bridge/identity/useIdentityBridge'
-import { getBootstrapAddrs, getBrowserXmppBridge } from '../../bridge/runtime'
+import { ensureBrowserXmppClient, getBootstrapAddrs, getBrowserXmppBridge } from '../../bridge/runtime'
 import ProgressDots from '../../components/onboarding/ProgressDots'
-
-declare global {
-  interface Window {
-    XmppP2P?: {
-      createBrowserXmppClient: (opts: {
-        bootstrapAddrs: string[]
-        dbName?: string
-        nickname?: string
-        passphrase?: string
-      }) => Promise<unknown>
-    }
-    __XMPP_P2P_CONFIG__?: {
-      bootstrapAddrs: string[]
-    }
-  }
-}
 
 export default function ReadyPage() {
   const navigate = useNavigate()
-  const { identity, completeOnboarding } = useIdentityBridge()
+  const { identity, completeOnboarding, clearRecoveryPhrase } = useIdentityBridge()
   const [starting, setStarting] = React.useState(false)
   const [error, setError] = React.useState('')
+  const [peerDiscoveryConfigured, setPeerDiscoveryConfigured] = React.useState<boolean | null>(null)
   const displayName = identity?.displayName ?? 'User'
   const handle = identity?.handle ?? 'user'
+
+  React.useEffect(() => {
+    let active = true
+    void getBootstrapAddrs()
+      .then((addresses) => { if (active) setPeerDiscoveryConfigured(addresses.length > 0) })
+      .catch(() => { if (active) setPeerDiscoveryConfigured(false) })
+    return () => { active = false }
+  }, [])
 
   const handleOpen = async () => {
     setStarting(true)
@@ -35,16 +28,19 @@ export default function ReadyPage() {
     try {
       const bridge = getBrowserXmppBridge()
       if (!bridge) {
-        if (window.XmppP2P?.createBrowserXmppClient) {
-          const bootstrapAddrs = await getBootstrapAddrs()
-          await window.XmppP2P.createBrowserXmppClient({
-            bootstrapAddrs,
-            dbName: 'xmpp-p2p',
-            nickname: displayName,
-          })
-        }
+        const bootstrapAddrs = await getBootstrapAddrs()
+        await ensureBrowserXmppClient({
+          bootstrapAddrs,
+          dbName: 'xmpp-p2p',
+          nickname: displayName,
+          recoveryPhrase: identity?.recoveryPhraseKeyed ? identity.recoveryPhrase : undefined,
+        })
+        if (!getBrowserXmppBridge()) throw new Error('The peer network did not finish starting. Please try again.')
       }
-      completeOnboarding()
+      // Keep the recovery words only until the peer key has been derived and saved.
+      if (!clearRecoveryPhrase() || !completeOnboarding()) {
+        throw new Error('The peer network is running, but this browser could not save the activation state. Check available storage and retry.')
+      }
       navigate('/')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to start P2P node')
@@ -53,14 +49,14 @@ export default function ReadyPage() {
   }
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden h-full">
+    <div className="mx-auto flex h-full w-full max-w-2xl flex-1 flex-col overflow-hidden">
       <header className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border flex-shrink-0 px-4 py-2.5">
         <div>
           <h1 className="text-heading font-semibold text-foreground">You are ready</h1>
           <p className="text-[12px] text-muted-foreground">Your identity is active</p>
         </div>
         <div className="mt-3">
-          <ProgressDots current={6} />
+          <ProgressDots current={7} />
         </div>
       </header>
 
@@ -73,7 +69,11 @@ export default function ReadyPage() {
           Welcome to Nexus
         </h2>
         <p className="text-body text-muted-foreground text-center max-w-xs mt-2 leading-relaxed">
-          Your identity is secured and connected to the peer network.
+          {peerDiscoveryConfigured === null
+            ? 'Your identity is ready. Checking peer network configuration…'
+            : peerDiscoveryConfigured
+              ? 'Your identity is ready. The app will look for peers when it opens.'
+              : 'Your identity is ready. Add a peer relay in Settings or connect to an XMPP server to get started.'}
         </p>
 
         <div className="bg-card rounded-xl p-6 w-full max-w-sm mt-8">
@@ -84,18 +84,21 @@ export default function ReadyPage() {
               </span>
             </div>
             <div className="text-[17px] font-semibold text-foreground mt-3">{displayName}</div>
-            <div className="text-[12px] text-muted-foreground font-mono mt-0.5">{handle}@peer</div>
+            <div className="text-[12px] text-muted-foreground font-mono mt-0.5">@{handle}</div>
+            <div className="text-[11px] text-muted-foreground mt-1">Profile handle</div>
             <div className="flex items-center gap-3 mt-4">
               <span className="bg-green2 rounded-lg px-3 py-1.5 text-[11px] font-semibold text-accent">
-                Secure
+                Identity ready
               </span>
-              <span className="text-[11px] text-muted-foreground">Connected to network</span>
+              <span className="text-[11px] text-muted-foreground">
+                {peerDiscoveryConfigured === null ? 'Checking peer network…' : peerDiscoveryConfigured ? 'Peer discovery starts on open' : 'No peer relay configured'}
+              </span>
             </div>
           </div>
         </div>
 
         {error && (
-          <p className="text-[11px] text-destructive mt-3 text-center">{error}</p>
+          <p role="alert" className="text-[11px] text-destructive mt-3 text-center">{error}</p>
         )}
       </main>
 
@@ -103,7 +106,7 @@ export default function ReadyPage() {
         <button
           onClick={handleOpen}
           disabled={starting}
-          className="w-full bg-primary text-white rounded-xl h-[50px] font-semibold text-sm transition-opacity hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+          className="w-full bg-primary text-primary-foreground rounded-xl h-[50px] font-semibold text-sm transition-opacity hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
         >
           {starting ? (
             <><Loader size={16} className="animate-spin" /> Starting…</>

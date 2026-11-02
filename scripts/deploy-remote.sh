@@ -14,6 +14,7 @@ ENABLE_RELAY=false
 ENABLE_WEBRTC=false
 COMPONENT_HOST=""
 COMPONENT_PORT="5347"
+COMPONENT_PORT_CONFIGURED=false
 COMPONENT_SECRET=""
 COMPONENT_DOMAIN=""
 S2S_DOMAIN=""
@@ -21,6 +22,9 @@ PASSPHRASE=""
 PROXY_MODE="auto"
 DOMAIN=""
 CADDY_EMAIL=""
+NOSTR_RELAYS=""
+NOSTR_SECRET_KEY=""
+LOCAL_NOSTR_ENV_FILE=""
 SSH_PORT="22"
 DRY_RUN=false
 SKIP_BUILD=false
@@ -211,13 +215,8 @@ Options:
   --ui-port <port>           UI SPA HTTP server port (default: 3000)
   --upload-port <port>       HTTP file upload port (default: 0 = ephemeral)
   --upload-host <host>       HTTP file upload bind host (default: 127.0.0.1)
-  --relay                    Enable circuit relay server for browser peers
+  --relay                    Enable circuit relay for browser peers (requires Caddy and --domain)
   --webrtc                   Enable WebRTC transport
-  --component-host <host>    XMPP server hostname for component connection
-  --component-port <port>    XMPP component port (default: 5347)
-  --component-secret <sec>   Shared secret for component authentication
-  --component-domain <dom>   Component subdomain (e.g. p2p.example.com)
-  --s2s-domain <domain>      Local domain for direct S2S federation
   --passphrase <pass>        Passphrase for encrypted local key storage
   --install-dir <path>       Remote install path (default: /var/www/xmpp-p2p)
   --service-user <user>      Systemd service user (default: www-data)
@@ -233,13 +232,21 @@ Options:
 Environment overrides:
   XMPP_P2P_SSH_TARGET, XMPP_P2P_PORT, XMPP_UI_PORT,
   XMPP_UPLOAD_PORT, XMPP_UPLOAD_HOST, XMPP_RELAY, XMPP_WEBRTC,
-  XMPP_COMPONENT_HOST, XMPP_COMPONENT_PORT, XMPP_COMPONENT_SECRET,
-  XMPP_COMPONENT_DOMAIN, XMPP_S2S_DOMAIN, XMPP_PASSPHRASE,
+  XMPP_PASSPHRASE,
   XMPP_P2P_INSTALL_DIR, XMPP_P2P_SERVICE_USER, XMPP_P2P_SERVICE_GROUP,
   XMPP_P2P_PROXY, XMPP_P2P_DOMAIN, XMPP_P2P_CADDY_EMAIL,
-  XMPP_P2P_SSH_PORT, XMPP_P2P_DRY_RUN, XMPP_P2P_SKIP_BUILD
+  XMPP_P2P_NOSTR_RELAYS,
+  XMPP_P2P_NOSTR_SECRET_KEY, XMPP_P2P_SSH_PORT,
+  XMPP_P2P_DRY_RUN, XMPP_P2P_SKIP_BUILD
 EOF
 }
+
+cleanup_local_nostr_env() {
+	if [[ -n "$LOCAL_NOSTR_ENV_FILE" ]]; then
+		rm -f "$LOCAL_NOSTR_ENV_FILE"
+	fi
+}
+trap cleanup_local_nostr_env EXIT
 
 is_true() {
 	case "${1,,}" in
@@ -380,6 +387,23 @@ sync_app() {
 
 install_remote_service() {
 	step_begin "install remote service"
+	if [[ -n "$NOSTR_RELAYS$NOSTR_SECRET_KEY" ]]; then
+		if [[ "$NOSTR_RELAYS$NOSTR_SECRET_KEY" == *[$'\r\n']* ]]; then
+			die "Nostr deployment values must be single-line; separate list items with commas"
+		fi
+		if [[ "$NOSTR_RELAYS" =~ [[:space:]] ]]; then
+			die "Nostr relay URLs must be comma-separated without spaces"
+		fi
+		if [[ -n "$NOSTR_SECRET_KEY" && ! "$NOSTR_SECRET_KEY" =~ ^([[:xdigit:]]{64}|nsec1[023456789acdefghjklmnpqrstuvwxyz]{58,})$ ]]; then
+			die "XMPP_P2P_NOSTR_SECRET_KEY must be a 32-byte hex key or nsec value"
+		fi
+		umask 077
+		LOCAL_NOSTR_ENV_FILE="$(mktemp)"
+		{
+			[[ -z "$NOSTR_RELAYS" ]] || printf 'XMPP_P2P_NOSTR_RELAYS=%s\n' "$NOSTR_RELAYS"
+			[[ -z "$NOSTR_SECRET_KEY" ]] || printf 'XMPP_P2P_NOSTR_SECRET_KEY=%s\n' "$NOSTR_SECRET_KEY"
+		} >"$LOCAL_NOSTR_ENV_FILE"
+	fi
 	local remote_script
 	remote_script="$(cat <<'EOF'
 set -Eeuo pipefail
@@ -404,6 +428,8 @@ PASSPHRASE="${17}"
 PROXY_MODE="${18}"
 DOMAIN="${19}"
 CADDY_EMAIL="${20}"
+REMOTE_NOSTR_ENV_FILE="/tmp/${SERVICE_NAME}-nostr.env"
+trap 'rm -f "$REMOTE_NOSTR_ENV_FILE"' EXIT
 DRY_RUN=false
 CURRENT_STEP=0
 CURRENT_STEP_LABEL=""
@@ -517,6 +543,10 @@ if [[ "$proxy_mode_resolved" == "auto" ]]; then
 	fi
 fi
 
+if is_true "$ENABLE_RELAY" && [[ "$proxy_mode_resolved" != "caddy" ]]; then
+	die "browser relay requires the managed Caddy TLS/root-WebSocket proxy; selected proxy '${proxy_mode_resolved}' will not generate a browser bootstrap address. Install Caddy and use --proxy caddy --domain <hostname>, or deploy without --relay"
+fi
+
 printf '\n'
 hr
 panel_line "XMPP P2P remote installer"
@@ -587,14 +617,26 @@ build_env_lines() {
 	lines="${lines}Environment=XMPP_UPLOAD_HOST=${UPLOAD_HOST}\n"
 	lines="${lines}Environment=XMPP_UPLOAD_PORT=${UPLOAD_PORT}\n"
 	lines="${lines}Environment=XMPP_P2P_BOOTSTRAP_OUTPUT=${INSTALL_DIR}/ui/dist/bootstrap-config.json\n"
+	lines="${lines}Environment=XMPP_P2P_NOSTR_KEY_PATH=/var/lib/${SERVICE_NAME}/nostr-bootstrap-key\n"
 	if [[ -n "$DOMAIN" ]]; then
 		lines="${lines}Environment=XMPP_P2P_BOOTSTRAP_DOMAIN=${DOMAIN}\n"
+	fi
+	if [[ "$proxy_mode_resolved" == "caddy" ]]; then
+		lines="${lines}Environment=XMPP_P2P_BOOTSTRAP_WSS=true\n"
 	fi
 	printf '%b' "$lines"
 }
 
 install_services() {
 	remote_step_begin "write systemd services"
+	sudo_run install -d -m 0750 -o "$SERVICE_USER" -g "$SERVICE_GROUP" "/var/lib/${SERVICE_NAME}"
+	if [[ -f "$REMOTE_NOSTR_ENV_FILE" ]]; then
+		sudo_run install -d -m 0750 -o root -g "$SERVICE_GROUP" "/etc/${SERVICE_NAME}"
+		sudo_run install -m 0640 -o root -g "$SERVICE_GROUP" "$REMOTE_NOSTR_ENV_FILE" "/etc/${SERVICE_NAME}/nostr.env"
+		rm -f "$REMOTE_NOSTR_ENV_FILE"
+	else
+		sudo_run rm -f "/etc/${SERVICE_NAME}/nostr.env"
+	fi
 
 	local daemon_args
 	daemon_args="$(build_daemon_args)"
@@ -613,6 +655,7 @@ WorkingDirectory=${INSTALL_DIR}
 User=${SERVICE_USER}
 Group=${SERVICE_GROUP}
 ${env_lines}
+EnvironmentFile=-/etc/${SERVICE_NAME}/nostr.env
 ExecStart=node ${INSTALL_DIR}/dist/index.js ${daemon_args}
 Restart=always
 RestartSec=5
@@ -688,9 +731,11 @@ ${domain} {
 	${CADDY_EMAIL:+tls ${CADDY_EMAIL}}
 	encode zstd gzip
 
-	handle_path /ws* {
-		reverse_proxy localhost:${ws_port}
+	@libp2p_websocket {
+		header Connection *Upgrade*
+		header Upgrade websocket
 	}
+	reverse_proxy @libp2p_websocket localhost:${ws_port}
 
 	reverse_proxy localhost:${ui_port}
 }"
@@ -942,7 +987,7 @@ EOF
 	printf '%s\n' "$remote_script" >"$remote_script_file"
 	if [[ "$DRY_RUN" == true ]]; then
 		local remote_args
-		printf -v remote_args '%q %q %q %q %q %q %q %q %q %q %q %q %q %q %q %q %q %q %q' \
+		printf -v remote_args '%q %q %q %q %q %q %q %q %q %q %q %q %q %q %q %q %q %q %q %q' \
 			"$INSTALL_DIR" "$REMOTE_STAGE_DIR" "$SERVICE_NAME" "$SERVICE_USER" "$SERVICE_GROUP" \
 			"$P2P_PORT" "$UI_PORT" "$UPLOAD_PORT" "$UPLOAD_HOST" \
 			"$ENABLE_RELAY" "$ENABLE_WEBRTC" \
@@ -951,6 +996,9 @@ EOF
 			"$PROXY_MODE" "$DOMAIN" "$CADDY_EMAIL"
 		printf '[dry-run] scp -P %s -o ControlMaster=auto -o ControlPersist=10m -o ControlPath=%q %q %q:%q\n' \
 			"$SSH_PORT" "$SSH_CONTROL_PATH" "$remote_script_file" "$SSH_TARGET" "/tmp/${SERVICE_NAME}-deploy.sh"
+		if [[ -n "$LOCAL_NOSTR_ENV_FILE" ]]; then
+			printf '[dry-run] scp <private Nostr environment file> %q:%q\n' "$SSH_TARGET" "/tmp/${SERVICE_NAME}-nostr.env"
+		fi
 		printf '[dry-run] ssh -tt -p %s -o ControlMaster=auto -o ControlPersist=10m -o ControlPath=%q %q bash %q %s\n' \
 			"$SSH_PORT" "$SSH_CONTROL_PATH" "$SSH_TARGET" "/tmp/${SERVICE_NAME}-deploy.sh" "$remote_args"
 		rm -f "$remote_script_file"
@@ -964,6 +1012,15 @@ EOF
 		-o "ControlPath=${SSH_CONTROL_PATH}" \
 		"$remote_script_file" "$SSH_TARGET:/tmp/${SERVICE_NAME}-deploy.sh"
 	rm -f "$remote_script_file"
+	if [[ -n "$LOCAL_NOSTR_ENV_FILE" ]]; then
+		scp -P "$SSH_PORT" \
+			-o "ControlMaster=auto" \
+			-o "ControlPersist=10m" \
+			-o "ControlPath=${SSH_CONTROL_PATH}" \
+			"$LOCAL_NOSTR_ENV_FILE" "$SSH_TARGET:/tmp/${SERVICE_NAME}-nostr.env"
+		rm -f "$LOCAL_NOSTR_ENV_FILE"
+		LOCAL_NOSTR_ENV_FILE=""
+	fi
 	ssh -tt -p "$SSH_PORT" \
 		-o "ControlMaster=auto" \
 		-o "ControlPersist=10m" \
@@ -1008,6 +1065,7 @@ while [[ $# -gt 0 ]]; do
 			;;
 		--component-port)
 			COMPONENT_PORT="${2:-}"
+			COMPONENT_PORT_CONFIGURED=true
 			shift 2
 			;;
 		--component-secret)
@@ -1103,6 +1161,7 @@ if [[ -z "$COMPONENT_HOST" ]]; then
 fi
 if [[ "$COMPONENT_PORT" == "5347" && -n "${XMPP_COMPONENT_PORT:-}" ]]; then
 	COMPONENT_PORT="$XMPP_COMPONENT_PORT"
+	COMPONENT_PORT_CONFIGURED=true
 fi
 if [[ -z "$COMPONENT_SECRET" ]]; then
 	COMPONENT_SECRET="${XMPP_COMPONENT_SECRET:-}"
@@ -1134,6 +1193,8 @@ fi
 if [[ -z "$CADDY_EMAIL" ]]; then
 	CADDY_EMAIL="${XMPP_P2P_CADDY_EMAIL:-}"
 fi
+NOSTR_RELAYS="${XMPP_P2P_NOSTR_RELAYS:-}"
+NOSTR_SECRET_KEY="${XMPP_P2P_NOSTR_SECRET_KEY:-}"
 if [[ "$SSH_PORT" == "22" && -n "${XMPP_P2P_SSH_PORT:-}" ]]; then
 	SSH_PORT="$XMPP_P2P_SSH_PORT"
 fi
@@ -1142,6 +1203,14 @@ if [[ "$DRY_RUN" == false && -n "${XMPP_P2P_DRY_RUN:-}" ]]; then
 fi
 if [[ "$SKIP_BUILD" == false && -n "${XMPP_P2P_SKIP_BUILD:-}" ]]; then
 	is_true "$XMPP_P2P_SKIP_BUILD" && SKIP_BUILD=true || true
+fi
+
+if [[ -n "$COMPONENT_HOST" || "$COMPONENT_PORT_CONFIGURED" == true || -n "$COMPONENT_SECRET" || -n "$COMPONENT_DOMAIN" || -n "$S2S_DOMAIN" ]]; then
+	die "XMPP component and direct S2S bridge options are not implemented by this daemon. Remove --component-* and --s2s-domain settings. The browser connects to an XMPP account through Settings; server federation is configured on the XMPP server itself."
+fi
+
+if is_true "$ENABLE_RELAY" && [[ "$PROXY_MODE" != "auto" && "$PROXY_MODE" != "caddy" ]]; then
+	die "browser relay requires the managed Caddy TLS/root-WebSocket proxy; use --proxy caddy --domain <hostname>, or deploy without --relay"
 fi
 
 proxy_mode_resolved="$PROXY_MODE"

@@ -16,10 +16,12 @@ export interface FeedMedia {
 
 export interface FeedPost {
   id: string
+  sourceProtocol?: 'p2p' | 'xmpp'
   type: FeedType
   author: FeedAuthor
   content: string
   timestamp: string
+  publishedAt?: string
   sourceTopic?: string
   topic?: string
   topicColor?: string
@@ -34,6 +36,7 @@ export interface FeedPost {
   privacy?: 'public' | 'followers' | 'community'
   media?: FeedMedia
   replyTo?: string
+  repostOf?: { topic: string; id: string }
   pinned?: boolean
   geoloc?: { lat?: string; lon?: string; country?: string; region?: string }
 }
@@ -52,6 +55,7 @@ export interface FeedViewState {
   searchOpen: boolean
   searchQuery: string
   loading: boolean
+  loadError?: string
   sortBy: FeedSortOrder
   hasMore: boolean
 }

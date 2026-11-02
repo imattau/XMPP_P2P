@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
-import { getBrowserXmppBridge } from './runtime'
+import { useBrowserXmppBridge } from './runtime'
 import { identityController } from './identity/controller'
+import { getAccountScopedStorageKey } from '../lib/account-storage'
 
 const VCARD_KEY = 'xmpp-p2p:vcard'
+const vCardStorageKey = () => getAccountScopedStorageKey(VCARD_KEY)
 
 export interface EditableVCard {
   fn: string
@@ -13,22 +15,24 @@ export interface EditableVCard {
 
 function loadLocalVCard(): EditableVCard | null {
   try {
-    const raw = localStorage.getItem(VCARD_KEY)
+    const raw = localStorage.getItem(vCardStorageKey())
     return raw ? (JSON.parse(raw) as EditableVCard) : null
   } catch {
     return null
   }
 }
 
-function saveLocalVCard(vcard: EditableVCard): void {
+function saveLocalVCard(vcard: EditableVCard): boolean {
   try {
-    localStorage.setItem(VCARD_KEY, JSON.stringify(vcard))
+    localStorage.setItem(vCardStorageKey(), JSON.stringify(vcard))
+    return true
   } catch {
-    // Storage full or unavailable
+    return false
   }
 }
 
 export function useProfileBridge() {
+  const runtime = useBrowserXmppBridge()
   const [vCard, setVCard] = useState<EditableVCard | null>(() => {
     const local = loadLocalVCard()
     if (local) return local
@@ -39,7 +43,6 @@ export function useProfileBridge() {
   const [saving, setSaving] = useState(false)
 
   const refresh = useCallback(async () => {
-    const runtime = getBrowserXmppBridge()
     if (!runtime) {
       setLoading(false)
       return
@@ -55,23 +58,22 @@ export function useProfileBridge() {
       setVCard(vcard)
       saveLocalVCard(vcard)
     } catch {
-      setVCard(null)
+      // Keep the cached profile visible when the peer network is temporarily unavailable.
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [runtime])
 
   useEffect(() => { void refresh() }, [refresh])
 
   const save = useCallback(async (updated: EditableVCard): Promise<boolean> => {
-    const runtime = getBrowserXmppBridge()
     if (!runtime) {
+      if (!saveLocalVCard(updated)) return false
       setVCard(updated)
-      saveLocalVCard(updated)
       if (updated.fn) {
         const state = identityController.getState()
         if (state.identity) {
-          identityController.createIdentity(updated.fn, state.identity.handle, state.identity.recoveryPasscode)
+          identityController.updateDisplayName(updated.fn)
         }
       }
       return true
@@ -90,15 +92,18 @@ export function useProfileBridge() {
         desc: result.desc ?? '',
         photo: result.photo ?? null
       }
+      if (vcard.fn) identityController.updateDisplayName(vcard.fn)
       setVCard(vcard)
       saveLocalVCard(vcard)
+      const nickname = vcard.fn || identityController.getState().identity?.displayName
+      if (nickname) void runtime.broadcastPresence('available', undefined, undefined, nickname).catch(() => {})
       return true
     } catch {
       return false
     } finally {
       setSaving(false)
     }
-  }, [])
+  }, [runtime])
 
   return { vCard, loading, saving, refresh, save }
 }

@@ -9,14 +9,22 @@ export function useFeedBridge() {
 
   useEffect(() => {
     const unsubscribe = controller.subscribe(setState)
-    void controller.refresh()
-    return () => { unsubscribe() }
+    const attachRuntime = () => controller.setRuntime(getBrowserXmppBridge())
+    window.addEventListener('xmpp-p2p:bridge-ready', attachRuntime)
+    window.addEventListener('xmpp-p2p:bridge-disconnected', attachRuntime)
+    attachRuntime()
+    return () => {
+      unsubscribe()
+      window.removeEventListener('xmpp-p2p:bridge-ready', attachRuntime)
+      window.removeEventListener('xmpp-p2p:bridge-disconnected', attachRuntime)
+    }
   }, [controller])
 
   return {
     ...state,
     loading: state.loading,
-    filteredPosts: controller.getFilteredPosts(),
+    filteredPosts: controller.getVisiblePosts(),
+    hasMore: controller.hasMore(),
     setActiveFilter: (activeFilter: FeedViewState['activeFilter']) => controller.setActiveFilter(activeFilter),
     setSearchOpen: (searchOpen: boolean) => controller.setSearchOpen(searchOpen),
     setSearchQuery: (searchQuery: string) => controller.setSearchQuery(searchQuery),

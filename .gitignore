@@ -11,3 +11,4 @@ output/
 data/
 scripts/__pycache__/
 test-results/
+release/

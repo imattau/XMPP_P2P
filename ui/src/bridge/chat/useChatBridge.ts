@@ -1,19 +1,27 @@
 import { useEffect, useMemo, useState } from 'react'
-import { getBrowserXmppBridge } from '../runtime'
+import { useBrowserXmppBridge } from '../runtime'
 import type { ChatComposerState, ChatMessage, ChatMessageReply, ChatParticipant, ChatThread } from './types'
 import { ChatBridgeController } from './controller'
 
 export function useChatBridge(chat: ChatThread, initialMessages: ChatMessage[]) {
+  const runtime = useBrowserXmppBridge()
   const controller = useMemo(
-    () => new ChatBridgeController(chat, initialMessages, getBrowserXmppBridge()),
-    [chat, initialMessages]
+    () => new ChatBridgeController(chat, initialMessages, runtime),
+    [chat.id, runtime]
   )
   const [state, setState] = useState<ChatComposerState>(controller.getState())
 
   useEffect(() => {
     const unsubscribe = controller.subscribe(setState)
-    return () => { unsubscribe() }
+    return () => {
+      unsubscribe()
+      controller.dispose()
+    }
   }, [controller])
+
+  useEffect(() => {
+    controller.updateChat(chat, initialMessages)
+  }, [controller, chat, initialMessages])
 
   const mentionableContacts = controller.getMentionableContacts()
   const filteredMentions = getFilteredMentions(mentionableContacts, state.mentionQuery)
@@ -39,6 +47,7 @@ export function useChatBridge(chat: ChatThread, initialMessages: ChatMessage[]) 
     setEmojiSearch: (emojiSearch: string) => controller.setEmojiSearch(emojiSearch),
     setReplyTo: (replyTo?: ChatMessageReply) => controller.setReplyTo(replyTo),
     sendMessage: () => controller.sendMessage(),
+    retryMessage: (messageId: string) => controller.retryMessage(messageId),
     startEdit: (messageId: string) => controller.startEdit(messageId),
     cancelEdit: () => controller.cancelEdit(),
   }

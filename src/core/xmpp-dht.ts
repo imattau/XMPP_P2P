@@ -19,6 +19,16 @@ function isExpired(entry: DhtEnvelope<unknown>): boolean {
   return Date.now() > new Date(entry.expiresAt).getTime()
 }
 
+function isDhtKeyNotFound(error: unknown): boolean {
+  if (error instanceof AggregateError) {
+    return error.errors.length > 0 && error.errors.every(isDhtKeyNotFound)
+  }
+  return typeof error === 'object'
+    && error !== null
+    && 'name' in error
+    && (error as { name?: unknown }).name === 'NotFoundError'
+}
+
 export function mucSettingsIndexKey(peerId: string): Uint8Array {
   return new TextEncoder().encode(`${MUC_SETTINGS_INDEX_PREFIX}${peerId}`)
 }
@@ -158,39 +168,86 @@ export async function persistMucStateToDht(ctx: XmppDhtContext): Promise<void> {
 }
 
 export async function bufferStanzaToDht(libp2p: Libp2p, peerId: string, stanza: Element): Promise<void> {
+  const contentRouting = getContentRouting(libp2p)
+  if (!contentRouting) throw new Error('Offline delivery is unavailable because DHT content routing is not active')
   const key = mailboxKey(peerId)
   const prev = mailboxLocks.get(peerId) ?? Promise.resolve()
   const next = prev.then(async () => {
-    let queue = await readDhtJson<string[]>(libp2p, key)
-    if (!Array.isArray(queue)) {
-      queue = []
+    let queue: string[] = []
+    try {
+      const raw = await contentRouting.get(key)
+      if (raw) {
+        const envelope = JSON.parse(new TextDecoder().decode(raw)) as DhtEnvelope<string[]>
+        if (!isExpired(envelope) && envelope.data !== null) {
+          if (!Array.isArray(envelope.data) || envelope.data.some((entry) => typeof entry !== 'string')) {
+            throw new Error('DHT mailbox contains invalid data')
+          }
+          queue = envelope.data
+        }
+      }
+    } catch (error) {
+      if (!isDhtKeyNotFound(error)) {
+        throw new Error(`Could not read the recipient’s DHT mailbox: ${error instanceof Error ? error.message : String(error)}`)
+      }
     }
     queue.push(stanza.toString())
-    await writeDhtJson(libp2p, key, queue, MAILBOX_TTL_MS)
+    trackDhtKey(key)
+    const envelope: DhtEnvelope<string[]> = {
+      data: queue,
+      expiresAt: new Date(Date.now() + MAILBOX_TTL_MS).toISOString(),
+    }
+    await contentRouting.put(key, new TextEncoder().encode(JSON.stringify(envelope)))
   })
   mailboxLocks.set(peerId, next.catch(() => {}))
   return next
 }
 
 export async function flushDhtMailbox(ctx: XmppDhtContext): Promise<void> {
-  const key = mailboxKey(ctx.libp2p.peerId.toString())
-  const queue = await readDhtJson<string[]>(ctx.libp2p, key)
-  if (Array.isArray(queue) && queue.length > 0) {
-    console.log(`[DHT] Transitioned to active. Flushing ${queue.length} stanzas from DHT mailbox...`)
-    await removeDhtKey(ctx.libp2p, key)
+  const peerId = ctx.libp2p.peerId.toString()
+  const contentRouting = getContentRouting(ctx.libp2p)
+  if (!contentRouting) throw new Error('DHT mailbox is unavailable while content routing is offline')
+  const key = mailboxKey(peerId)
+  const previous = mailboxLocks.get(peerId) ?? Promise.resolve()
+  const next = previous.then(async () => {
+    let queue: string[]
+    try {
+      const raw = await contentRouting.get(key)
+      if (!raw) return
+      const envelope = JSON.parse(new TextDecoder().decode(raw)) as DhtEnvelope<string[]>
+      if (isExpired(envelope) || envelope.data === null) return
+      if (!Array.isArray(envelope.data) || envelope.data.some((entry) => typeof entry !== 'string')) {
+        throw new Error('DHT mailbox contains invalid data')
+      }
+      queue = [...envelope.data]
+    } catch (error) {
+      if (isDhtKeyNotFound(error)) return
+      throw new Error(`Could not read the local DHT mailbox: ${error instanceof Error ? error.message : String(error)}`)
+    }
+    if (queue.length === 0) return
 
-    for (const xmlStr of queue) {
-      try {
+    console.log(`[DHT] Transitioned to active. Flushing ${queue.length} stanzas from DHT mailbox...`)
+    while (queue.length > 0) {
+      const xmlStr = queue[0]
+      const element = await new Promise<Element>((resolve, reject) => {
         const parser = new Parser()
-        parser.on('element', (element: Element) => {
-          const peerId = element.attrs.from ? element.attrs.from.split('@')[0] : 'unknown'
-          void ctx.handleStanza(peerId, element).catch(err => ctx.emit('error', err))
-        })
+        parser.on('element', resolve)
+        parser.on('error', reject)
         parser.write('<stream:stream>')
         parser.write(xmlStr)
-      } catch (err) {
-        console.error('[DHT] Failed to parse buffered stanza from DHT mailbox:', err)
+      })
+      const fromPeerId = element.attrs.from ? element.attrs.from.split('@')[0] : 'unknown'
+      await ctx.handleStanza(fromPeerId, element)
+
+      // Remove each stanza only after its handler has completed. If processing
+      // fails or the tab closes, the current stanza and tail remain queued.
+      queue.shift()
+      const envelope: DhtEnvelope<string[]> = {
+        data: queue,
+        expiresAt: new Date(Date.now() + MAILBOX_TTL_MS).toISOString(),
       }
+      await contentRouting.put(key, new TextEncoder().encode(JSON.stringify(envelope)))
     }
-  }
+  })
+  mailboxLocks.set(peerId, next.catch(() => {}))
+  return next
 }

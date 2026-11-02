@@ -217,15 +217,15 @@ const WORD_LIST = [
 ]
 
 const DEFAULT_PERMISSIONS: PermissionsState = {
-  notifications: true,
+  notifications: false,
   nearbyDiscovery: true,
   photosAndFiles: false,
   microphone: false,
 }
 
 const DEFAULT_PREFERENCES: PreferencesState = {
-  messageNotifications: true,
-  feedNotifications: true,
+  messageNotifications: false,
+  feedNotifications: false,
   autoDownloadMedia: false,
   theme: 'system',
 }
@@ -241,41 +241,40 @@ function loadFromStorage<T>(key: string, fallback: T): T {
   }
 }
 
-function saveToStorage<T>(key: string, value: T): void {
+function saveToStorage<T>(key: string, value: T): boolean {
   try {
     localStorage.setItem(key, JSON.stringify(value))
+    return true
   } catch {
-    // Storage full or unavailable
+    return false
   }
 }
 
 function isValidRecoveryPhrase(words: string[]): boolean {
   if (words.length !== 12) return false
   const wordSet = new Set(WORD_LIST)
-  return words.every(w => wordSet.has(w))
+  return words.every((word) => wordSet.has(word.trim().toLowerCase()))
 }
 
 function generateRecoveryPhrase(): string[] {
+  if (typeof crypto === 'undefined' || typeof crypto.getRandomValues !== 'function') {
+    throw new Error('Secure random generation is unavailable. Open Nexus over HTTPS or localhost and try again.')
+  }
+
   const words: string[] = []
   const pool = WORD_LIST
   const poolSize = pool.length
   const maxValid = 65536 - (65536 % poolSize)
 
   const array = new Uint16Array(12)
-  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
-    let generated = 0
-    while (generated < 12) {
-      crypto.getRandomValues(array)
-      for (let i = 0; i < array.length && generated < 12; i++) {
-        if (array[i] < maxValid) {
-          words.push(pool[array[i] % poolSize])
-          generated++
-        }
+  let generated = 0
+  while (generated < 12) {
+    crypto.getRandomValues(array)
+    for (let i = 0; i < array.length && generated < 12; i++) {
+      if (array[i] < maxValid) {
+        words.push(pool[array[i] % poolSize])
+        generated++
       }
-    }
-  } else {
-    for (let i = 0; i < 12; i++) {
-      words.push(pool[Math.floor(Math.random() * poolSize)])
     }
   }
   return words
@@ -286,12 +285,19 @@ export class IdentityController {
   private listeners = new Set<Listener>()
 
   constructor() {
+    let identity = loadFromStorage<IdentityState | null>(STORAGE_KEYS.IDENTITY, null)
+    if (identity && 'recoveryPasscode' in identity) {
+      const { recoveryPasscode: _legacyPasscode, ...safeIdentity } = identity as IdentityState & { recoveryPasscode?: string }
+      identity = safeIdentity
+      saveToStorage(STORAGE_KEYS.IDENTITY, identity)
+    }
     this.state = {
-      identity: loadFromStorage<IdentityState | null>(STORAGE_KEYS.IDENTITY, null),
+      identity,
       onboarding: loadFromStorage<OnboardingState>(STORAGE_KEYS.ONBOARDING, { completed: false }),
       permissions: loadFromStorage<PermissionsState>(STORAGE_KEYS.PERMISSIONS, { ...DEFAULT_PERMISSIONS }),
       preferences: loadFromStorage<PreferencesState>(STORAGE_KEYS.PREFERENCES, { ...DEFAULT_PREFERENCES }),
     }
+    this.applyTheme(this.state.preferences.theme)
   }
 
   getState() {
@@ -304,73 +310,105 @@ export class IdentityController {
     return () => { this.listeners.delete(listener) }
   }
 
-  createIdentity(displayName: string, handle: string, passcode?: string, publicProfile: boolean = true) {
+  createIdentity(displayName: string, handle: string, _legacyPasscode?: string, publicProfile: boolean = true): boolean {
     const phrase = generateRecoveryPhrase()
     const identity: IdentityState = {
       displayName,
       handle,
       jid: `${handle}@peer`,
-      recoveryPasscode: passcode,
       publicProfile,
       recoveryPhrase: phrase,
+      recoveryPhraseKeyed: true,
       recoveryPhraseSaved: false,
       createdAt: new Date().toISOString(),
     }
+    if (!saveToStorage(STORAGE_KEYS.IDENTITY, identity)) return false
     this.state = { ...this.state, identity }
-    saveToStorage(STORAGE_KEYS.IDENTITY, identity)
     this.emit()
+    return true
   }
 
-  importIdentity(method: 'qr' | 'phrase' | 'backup' | 'paste', data: { displayName: string; handle: string; jid?: string; phrase?: string[]; publicProfile?: boolean }) {
+  importIdentity(method: 'phrase' | 'backup' | 'paste', data: { displayName: string; handle: string; jid?: string; phrase?: string[]; publicProfile?: boolean }): boolean {
+    const recoveryPhrase = data.phrase?.map((word) => word.trim().toLowerCase())
+    if (!recoveryPhrase || !isValidRecoveryPhrase(recoveryPhrase)) return false
+
     const identity: IdentityState = {
       displayName: data.displayName,
       handle: data.handle,
       jid: data.jid ?? `${data.handle}@peer`,
       publicProfile: data.publicProfile ?? true,
-      recoveryPhrase: data.phrase ?? generateRecoveryPhrase(),
+      recoveryPhrase,
+      recoveryPhraseKeyed: true,
       recoveryPhraseSaved: false,
       createdAt: new Date().toISOString(),
     }
+    if (!saveToStorage(STORAGE_KEYS.IDENTITY, identity)) return false
     this.state = { ...this.state, identity }
-    saveToStorage(STORAGE_KEYS.IDENTITY, identity)
     this.emit()
+    return true
   }
 
-  setPhraseSaved() {
-    if (!this.state.identity) return
+  setPhraseSaved(): boolean {
+    if (!this.state.identity) return false
     const identity = { ...this.state.identity, recoveryPhraseSaved: true }
+    if (!saveToStorage(STORAGE_KEYS.IDENTITY, identity)) return false
+    this.state = { ...this.state, identity }
+    this.emit()
+    return true
+  }
+
+  clearRecoveryPhrase(): boolean {
+    if (!this.state.identity?.recoveryPhrase.length) return true
+    const identity = { ...this.state.identity, recoveryPhrase: [] }
+    if (!saveToStorage(STORAGE_KEYS.IDENTITY, identity)) return false
+    this.state = { ...this.state, identity }
+    this.emit()
+    return true
+  }
+
+  updateDisplayName(displayName: string) {
+    if (!this.state.identity) return
+    const identity = { ...this.state.identity, displayName }
     this.state = { ...this.state, identity }
     saveToStorage(STORAGE_KEYS.IDENTITY, identity)
     this.emit()
   }
 
-  completeOnboarding() {
+  completeOnboarding(): boolean {
     const onboarding: OnboardingState = { completed: true, completedAt: new Date().toISOString() }
+    if (!saveToStorage(STORAGE_KEYS.ONBOARDING, onboarding)) return false
     this.state = { ...this.state, onboarding }
-    saveToStorage(STORAGE_KEYS.ONBOARDING, onboarding)
     this.emit()
+    return true
   }
 
   isOnboardingComplete(): boolean {
     return this.state.onboarding.completed
   }
 
-  setPermissions(partial: Partial<PermissionsState>) {
+  setPermissions(partial: Partial<PermissionsState>): boolean {
     const permissions = { ...this.state.permissions, ...partial }
+    if (!saveToStorage(STORAGE_KEYS.PERMISSIONS, permissions)) return false
     this.state = { ...this.state, permissions }
-    saveToStorage(STORAGE_KEYS.PERMISSIONS, permissions)
     this.emit()
+    return true
   }
 
-  setPreferences(partial: Partial<PreferencesState>) {
+  setPreferences(partial: Partial<PreferencesState>): boolean {
     const preferences = { ...this.state.preferences, ...partial }
+    if (!saveToStorage(STORAGE_KEYS.PREFERENCES, preferences)) return false
     this.state = { ...this.state, preferences }
-    saveToStorage(STORAGE_KEYS.PREFERENCES, preferences)
+    this.applyTheme(preferences.theme)
     this.emit()
+    return true
   }
 
-  setTheme(theme: 'system' | 'dark') {
-    this.setPreferences({ theme })
+  setTheme(theme: 'system' | 'dark'): boolean {
+    return this.setPreferences({ theme })
+  }
+
+  private applyTheme(theme: 'system' | 'dark') {
+    if (typeof document !== 'undefined') document.documentElement.dataset.theme = theme
   }
 
   resetIdentity() {
@@ -378,6 +416,7 @@ export class IdentityController {
     localStorage.removeItem(STORAGE_KEYS.ONBOARDING)
     localStorage.removeItem(STORAGE_KEYS.PERMISSIONS)
     localStorage.removeItem(STORAGE_KEYS.PREFERENCES)
+    localStorage.removeItem('xmpp-p2p:active-peer-id')
     this.state = {
       identity: null,
       onboarding: { completed: false },

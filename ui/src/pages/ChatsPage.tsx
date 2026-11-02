@@ -1,19 +1,16 @@
 import * as React from 'react'
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router'
-import { getBrowserXmppBridge } from '../bridge/runtime'
+import { useState } from 'react'
+import { NavLink, useNavigate } from 'react-router'
 import { useRosterBridge } from '../bridge/useRosterBridge'
 import { useChatListBridge } from '../bridge/useChatListBridge'
-import ConversationDetails from '../components/ConversationDetails'
 import {
-  Search, Settings, Hash, Users, Shield, Zap, Lock,
+  Search, Settings, Hash, Users, Shield, Lock,
   User, MessageCircle, CheckCheck, Check, Clock, Pin,
-  BellOff, ChevronDown, Edit3, Mic, Image, FileText, X,
-  Filter, ArrowLeft, Maximize2, Smile, Send,
+  BellOff, Edit3, Mic, Image, FileText, X, Filter, Archive,
 } from 'lucide-react'
 
 type ChatType = 'direct' | 'group' | 'muc'
-type FilterType = 'all' | 'direct' | 'groups' | 'channels'
+type FilterType = 'all' | 'direct' | 'groups' | 'channels' | 'archived'
 
 interface ChatParticipant {
   name: string
@@ -36,12 +33,15 @@ interface Chat {
     kind?: 'text' | 'image' | 'audio' | 'file' | 'system'
     sender?: string
     timestamp: string
+    activityAt?: string
     read?: boolean
     delivered?: boolean
+    receiptReceived?: boolean
   }
   unread: number
   pinned?: boolean
   muted?: boolean
+  archived?: boolean
   encrypted?: boolean
   online?: boolean
   memberCount?: number
@@ -61,9 +61,9 @@ function OnlineRing({ online }: { online?: boolean }) {
 
 function MessageStatus({ msg }: { msg: Chat['lastMessage'] }) {
   if (msg.sender !== 'You') return null
-  if (msg.read) return <CheckCheck size={12} className="text-primary flex-shrink-0" />
-  if (msg.delivered) return <CheckCheck size={12} className="text-muted-foreground flex-shrink-0" />
-  return <Check size={12} className="text-muted-foreground flex-shrink-0" />
+  if (msg.receiptReceived) return <CheckCheck size={12} aria-label="Delivered" className="text-muted-foreground flex-shrink-0" />
+  if (msg.delivered === false) return <Clock size={12} aria-label="Pending" className="text-muted-foreground flex-shrink-0" />
+  return <Check size={12} aria-label="Sent" className="text-muted-foreground flex-shrink-0" />
 }
 
 function LastMessagePreview({ msg }: { msg: Chat['lastMessage'] }) {
@@ -97,9 +97,9 @@ function GroupAvatars({ participants, count }: { participants?: ChatParticipant[
 
 function ChatRow({ chat }: { chat: Chat }) {
   const hasUnread = chat.unread > 0
-  const navigate = useNavigate()
+  const chatPath = `/chat/${encodeURIComponent(chat.id)}`
   return (
-    <div onClick={() => navigate(`/chat/${chat.id}`)} className={`flex items-center gap-3 px-4 py-3 border-b border-border transition-colors cursor-pointer ${hasUnread ? 'bg-white/[0.025]' : 'hover:bg-white/[0.02]'}`}>
+    <NavLink to={chatPath} className={`flex items-center gap-3 px-4 py-3 border-b border-border transition-colors ${hasUnread ? 'bg-white/[0.025]' : 'hover:bg-white/[0.02]'}`}>
       <div className="relative flex-shrink-0">
         {chat.type === 'direct' ? (
           <div className="relative w-10 h-10">
@@ -152,20 +152,20 @@ function ChatRow({ chat }: { chat: Chat }) {
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0">
             {chat.memberCount && chat.type !== 'direct' && (
-              <span className="font-mono text-[10px] text-muted-foreground/60">
+              <span className="font-mono text-[10px] text-muted-foreground">
                 {chat.memberCount > 999 ? (chat.memberCount / 1000).toFixed(1) + 'k' : chat.memberCount}
               </span>
             )}
             {hasUnread && (
-              <span className={`min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center text-[10px] font-mono font-semibold ${chat.muted ? 'bg-muted text-muted-foreground' : 'bg-primary text-white'}`}>
+              <span className={`min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center text-[10px] font-mono font-semibold ${chat.muted ? 'bg-muted text-muted-foreground' : 'bg-primary text-primary-foreground'}`}>
                 {chat.unread > 99 ? '99+' : chat.unread}
               </span>
             )}
           </div>
         </div>
-        {chat.topic && <p className="font-mono text-[10px] text-muted-foreground/50 truncate mt-0.5">{chat.topic}</p>}
+        {chat.topic && <p className="font-mono text-[10px] text-muted-foreground truncate mt-0.5">{chat.topic}</p>}
       </div>
-    </div>
+    </NavLink>
   )
 }
 
@@ -174,6 +174,7 @@ const FILTERS: { id: FilterType; label: string; icon: React.ComponentType<{ size
   { id: 'direct', label: 'Direct', icon: User },
   { id: 'groups', label: 'Groups', icon: Users },
   { id: 'channels', label: 'Channels', icon: Hash },
+  { id: 'archived', label: 'Archived', icon: Archive },
 ]
 
 export default function ChatsPage() {
@@ -181,56 +182,49 @@ export default function ChatsPage() {
   const [activeFilter, setActiveFilter] = useState<FilterType>('all')
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedChatId, setSelectedChatId] = useState<string | null>(null)
   const { chats, onlineContacts } = useChatListBridge()
   const { contacts } = useRosterBridge()
-
-  useEffect(() => {
-    const runtime = getBrowserXmppBridge()
-    if (!runtime?.broadcastPresence) return
-    void runtime.broadcastPresence('available')
-    return () => { void runtime.broadcastPresence('unavailable') }
-  }, [])
 
   const unread = {
     all: chats.reduce((a, c) => a + c.unread, 0),
     direct: chats.filter((c) => c.type === 'direct').reduce((a, c) => a + c.unread, 0),
     groups: chats.filter((c) => c.type === 'group').reduce((a, c) => a + c.unread, 0),
     channels: chats.filter((c) => c.type === 'muc').reduce((a, c) => a + c.unread, 0),
+    archived: chats.filter((c) => c.archived).reduce((a, c) => a + c.unread, 0),
   }
 
   const filtered = chats
     .filter((c) => {
-      const typeMatch = activeFilter === 'all'
-        || (activeFilter === 'direct' && c.type === 'direct')
-        || (activeFilter === 'groups' && c.type === 'group')
-        || (activeFilter === 'channels' && c.type === 'muc')
+      const typeMatch = activeFilter === 'archived'
+        ? Boolean(c.archived)
+        : !c.archived && (activeFilter === 'all'
+          || (activeFilter === 'direct' && c.type === 'direct')
+          || (activeFilter === 'groups' && c.type === 'group')
+          || (activeFilter === 'channels' && c.type === 'muc'))
       const searchMatch = !searchQuery
         || c.name.toLowerCase().includes(searchQuery.toLowerCase())
         || (c.handle || '').toLowerCase().includes(searchQuery.toLowerCase())
         || c.lastMessage.text.toLowerCase().includes(searchQuery.toLowerCase())
       return typeMatch && searchMatch
     })
-    .sort((a, b) => (a.pinned === b.pinned ? 0 : a.pinned ? -1 : 1))
-
-  const selectedChat = selectedChatId ? chats.find((c) => c.id === selectedChatId) ?? null : null
-
-  const handleChatClick = (chatId: string) => {
-    setSelectedChatId(chatId)
-    navigate(`/chat/${chatId}`)
-  }
+    .sort((a, b) => {
+      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1
+      const aActivity = Date.parse(a.lastMessage.activityAt ?? '') || 0
+      const bActivity = Date.parse(b.lastMessage.activityAt ?? '') || 0
+      return bActivity - aActivity
+    })
 
   return (
     <div className="flex flex-1 min-h-0">
-      <div className="flex flex-col flex-1 md:max-w-[420px] md:border-r md:border-border overflow-hidden">
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         <header className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border flex-shrink-0">
         <div className="flex items-center justify-between px-4 py-2.5">
           <div>
-            <div className="text-[18px] font-semibold tracking-tight text-foreground leading-tight">Messages</div>
+            <h1 className="text-[18px] font-semibold tracking-tight text-foreground leading-tight">Messages</h1>
             <div className="text-[11px] font-mono text-muted-foreground leading-tight">{unread.all} unread</div>
           </div>
           <div className="flex items-center gap-0.5">
-            <button onClick={() => navigate('/search')} aria-label="Search messages"
+            <button onClick={() => setSearchOpen((open) => !open)} aria-label={searchOpen ? 'Close conversation search' : 'Search conversations'} aria-expanded={searchOpen}
               className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
               <Search size={17} />
             </button>
@@ -247,28 +241,37 @@ export default function ChatsPage() {
           <div className="px-4 pb-3">
             <div className="flex items-center gap-2 bg-secondary rounded-lg px-3 py-2">
               <Search size={14} className="text-muted-foreground flex-shrink-0" />
-              <input autoFocus value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+              <input autoFocus aria-label="Search conversations" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search conversations…"
                 className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none" />
               {searchQuery && (
-                <button onClick={() => setSearchQuery('')} className="text-muted-foreground hover:text-foreground"><X size={14} /></button>
+                <button onClick={() => setSearchQuery('')} aria-label="Clear conversation search" className="text-muted-foreground hover:text-foreground"><X size={14} /></button>
               )}
+              <button
+                type="button"
+                onClick={() => navigate(`/search${searchQuery ? `?q=${encodeURIComponent(searchQuery)}` : ''}`)}
+                aria-label={searchQuery ? `Search messages for ${searchQuery}` : 'Search messages'}
+                title="Search messages"
+                className="rounded-md p-1 text-muted-foreground hover:bg-white/5 hover:text-foreground"
+              >
+                <MessageCircle size={14} />
+              </button>
             </div>
           </div>
         )}
 
-        <div className="flex border-t border-border">
+        <div role="group" aria-label="Conversation filters" className="flex border-t border-border">
           {FILTERS.map((f) => {
             const Icon = f.icon
             const active = activeFilter === f.id
             const badge = unread[f.id]
             return (
-              <button key={f.id} onClick={() => setActiveFilter(f.id)}
+              <button key={f.id} type="button" aria-pressed={active} onClick={() => setActiveFilter(f.id)}
                 className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium transition-colors relative ${active ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
                 <div className="relative">
                   <Icon size={15} />
                   {badge > 0 && (
-                    <span className="absolute -top-1.5 -right-2 min-w-[14px] h-[14px] px-0.5 rounded-full bg-primary text-white text-[9px] font-mono flex items-center justify-center">
+                    <span className="absolute -top-1.5 -right-2 min-w-[14px] h-[14px] px-0.5 rounded-full bg-primary text-primary-foreground text-[9px] font-mono flex items-center justify-center">
                       {badge > 9 ? '9+' : badge}
                     </span>
                   )}
@@ -290,9 +293,9 @@ export default function ChatsPage() {
           <span className="text-border">|</span>
           <span className="font-mono text-[10px] text-muted-foreground">{filtered.length} conversations</span>
         </div>
-        <button className="flex items-center gap-1 font-mono text-[10px] text-muted-foreground hover:text-foreground transition-colors">
-          <Filter size={10} />Sort: Recent<ChevronDown size={10} />
-        </button>
+        <span className="flex items-center gap-1 font-mono text-[10px] text-muted-foreground">
+          <Filter size={10} />Recent
+        </span>
       </div>
 
       {(activeFilter === 'all' || activeFilter === 'direct') && !searchQuery && onlineContacts.length > 0 && (
@@ -302,7 +305,7 @@ export default function ChatsPage() {
           </div>
           <div className="flex gap-4 px-4 py-2 overflow-x-auto scrollbar-hidden">
             {onlineContacts.map((c) => (
-              <button key={c.id} className="flex flex-col items-center gap-1.5 flex-shrink-0 group">
+              <button key={c.id} onClick={() => navigate(`/chat/${encodeURIComponent(c.id)}`)} className="flex flex-col items-center gap-1.5 flex-shrink-0 group">
                 <div className="relative">
                   <div className="w-11 h-11 rounded-full overflow-hidden border-2 border-accent/40 group-hover:border-accent transition-colors bg-secondary">
                     {c.avatar
@@ -326,7 +329,7 @@ export default function ChatsPage() {
           </div>
           <div className="flex gap-4 px-4 py-2 overflow-x-auto scrollbar-hidden">
             {contacts.slice(0, 10).map((c) => (
-              <button key={c.jid} className="flex flex-col items-center gap-1.5 flex-shrink-0 group">
+              <button key={c.jid} onClick={() => navigate(`/chat/${encodeURIComponent(c.jid)}`)} className="flex flex-col items-center gap-1.5 flex-shrink-0 group">
                 <div className="relative">
                   <div className="w-11 h-11 rounded-full overflow-hidden border-2 border-transparent group-hover:border-border transition-colors bg-secondary flex items-center justify-center">
                     <span className="text-sm font-semibold text-foreground">{(c.nickname || c.name || c.jid[0] || '?')[0].toUpperCase()}</span>
@@ -359,7 +362,27 @@ export default function ChatsPage() {
             <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
               <MessageCircle size={20} className="text-muted-foreground" />
             </div>
-            <p className="text-sm text-muted-foreground">No conversations found</p>
+            <p className="text-sm text-muted-foreground text-center">
+              {searchQuery ? 'No conversations match your search.' : activeFilter === 'archived' ? 'No archived conversations.' : activeFilter === 'groups' ? 'No peer groups yet.' : activeFilter === 'channels' ? 'No channels yet.' : chats.length ? 'No conversations in this filter.' : 'No conversations yet.'}
+            </p>
+            {!searchQuery && activeFilter === 'groups' && (
+              <p className="max-w-sm text-center text-xs text-muted-foreground">Peer groups appear here. Rooms joined from the Channel tab appear under Channels. Browse public XMPP rooms after connecting your account in Settings.</p>
+            )}
+            {!searchQuery && activeFilter === 'channels' && (
+              <p className="max-w-sm text-center text-xs text-muted-foreground">Joined P2P and XMPP rooms appear here. Browse public XMPP rooms or enter a room address to join.</p>
+            )}
+            {!searchQuery && (chats.length === 0 || activeFilter === 'groups' || activeFilter === 'channels') && (
+              <div className="flex flex-wrap justify-center gap-2">
+                <button onClick={() => navigate(activeFilter === 'groups' ? '/chats/new?flow=group' : activeFilter === 'channels' ? '/chats/new?flow=muc' : '/chats/new')} className="min-h-11 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90">
+                  {activeFilter === 'groups' ? 'Find or create a peer group' : activeFilter === 'channels' ? 'Browse or join a channel' : 'Start a conversation'}
+                </button>
+                {activeFilter === 'groups' && (
+                  <button onClick={() => navigate('/chats/new?flow=muc')} className="min-h-11 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground">
+                    Browse XMPP rooms
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         ) : (
           <>
@@ -376,74 +399,6 @@ export default function ChatsPage() {
       </main>
     </div>
 
-      <div className="hidden md:flex flex-col flex-1 min-w-0">
-        {selectedChat ? (
-          <DesktopChatThread chat={selectedChat} onBack={() => setSelectedChatId(null)} />
-        ) : (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center mx-auto mb-3">
-                <MessageCircle size={20} className="text-muted-foreground" />
-              </div>
-              <p className="text-sm text-muted-foreground">Select a conversation</p>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <ConversationDetails chat={selectedChat ? { type: selectedChat.type, name: selectedChat.name, handle: selectedChat.handle, avatar: (selectedChat as any).avatar, server: selectedChat.server, encrypted: selectedChat.encrypted, online: selectedChat.online, verified: (selectedChat as any).verified, muted: selectedChat.muted, memberCount: (selectedChat as any).memberCount, topic: (selectedChat as any).topic } : null} />
-    </div>
-  )
-}
-
-function DesktopChatThread({ chat, onBack }: { chat: Chat; onBack: () => void }) {
-  const navigate = useNavigate()
-  return (
-    <div className="flex flex-col flex-1 overflow-hidden">
-      <header className="flex items-center gap-3 px-4 py-2.5 border-b border-border bg-background/95 backdrop-blur flex-shrink-0">
-        <button onClick={onBack} className="md:hidden p-1 rounded-lg text-muted-foreground hover:text-foreground">
-          <ArrowLeft size={18} />
-        </button>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
-            <span className="text-sm font-semibold text-foreground truncate">{chat.name}</span>
-            {chat.verified && <Shield size={11} className="text-primary flex-shrink-0" />}
-            {chat.encrypted && <Lock size={9} className="text-accent flex-shrink-0" />}
-          </div>
-          <div className="flex items-center gap-2 text-[11px] font-mono text-muted-foreground">
-            <span className={`w-1.5 h-1.5 rounded-full ${chat.online ? 'bg-accent' : 'bg-muted-foreground/40'}`} />
-            <span>{chat.online ? 'Online' : 'Offline'}</span>
-            {chat.encrypted && <><span>·</span><span>Encrypted</span></>}
-          </div>
-        </div>
-        <button onClick={() => navigate(`/chat/${chat.id}`)} className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
-          <Maximize2 size={16} />
-        </button>
-      </header>
-
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-        <div className="flex justify-start">
-          <div className="max-w-[75%] rounded-2xl px-4 py-2.5 bg-secondary">
-            <p className="text-sm text-foreground/90">{chat.lastMessage.text}</p>
-          </div>
-        </div>
-        <div className="flex justify-end">
-          <div className="max-w-[75%] rounded-2xl px-4 py-2.5 bg-blue2">
-            <p className="text-sm text-foreground/90">Sounds good, I'll take a look.</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="px-4 py-3 border-t border-border">
-        <div className="flex items-center gap-2 bg-secondary rounded-xl px-4 py-2.5">
-          <input
-            placeholder="Write a message..."
-            className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
-          />
-          <button className="p-1 text-muted-foreground hover:text-foreground"><Smile size={18} /></button>
-          <button className="p-1 text-muted-foreground hover:text-foreground"><Send size={18} /></button>
-        </div>
-      </div>
     </div>
   )
 }

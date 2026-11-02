@@ -4,16 +4,18 @@
  */
 
 import { Libp2p } from 'libp2p'
+import { peerIdFromString } from '@libp2p/peer-id'
+import { jid as xmppJid } from '@xmpp/client'
 import { xml, Element, Parser } from '@xmpp/xml'
 import { XmppChatManager } from './xmpp-chat.js'
-import { XmppClientBridge, type ServerConnectionInfo, type ServerMessageEvent, type ServerMucMessageEvent, type ServerPubsubEvent, type ServerDiscoInfoResult, type ServerDiscoItemsResult } from './xmpp-client-bridge.js'
+import { XmppClientBridge, type ServerConnectionInfo, type ServerMessageEvent, type ServerMucMessageEvent, type ServerPubsubEvent, type ServerDiscoInfoResult, type ServerDiscoItemsResult, type ServerMucRoomInfo, type ServerPubsubSubscriptionStatus } from './xmpp-client-bridge.js'
 import { buildXepElements, parseXepMetadata } from './xmpp-xep-helpers.js'
 import { bufferToBase64 } from './xmpp-utils.js'
 import { EventEmitter } from 'events'
 import { XmppStream } from './xmpp-stream.js'
 import * as openpgp from 'openpgp'
 import { XmppReliabilityManager } from './xmpp-reliability.js'
-import { XmppUploadManager, UPLOAD_ANNOUNCEMENTS_TOPIC } from './xmpp-uploads.js'
+import { MAX_PEER_UPLOAD_BYTES, XmppUploadManager, UPLOAD_ANNOUNCEMENTS_TOPIC } from './xmpp-uploads.js'
 import {
   buildCapsElement,
   buildDiscoInfoQuery,
@@ -184,7 +186,7 @@ import {
   type XmppMucMessage,
   type XmppMessage
 } from './xmpp-records.js'
-import { buildMicroblogEntry, deriveMicroblogTitle } from './xmpp-atom.js'
+import { buildMicroblogEntry, buildTagUri, deriveMicroblogTitle, parseMicroblogEntry } from './xmpp-atom.js'
 import type {
   OmemoDirection
 } from './omemo-runtime.js'
@@ -218,12 +220,14 @@ const OPENPGP_PUBSUB_XMLNS = 'urn:xmpp:openpgp:pubsub:0'
 export interface XmppNodeOptions {
   nickname?: string
   omemoModuleLoader?: () => Promise<import('./omemo-runtime.js').OmemoModule>
+  httpUploadServer?: boolean
 }
 
 /**
  * High-level facade around the XMPP protocol managers and libp2p streams.
  */
 export class XmppNode extends EventEmitter {
+  private readonly httpUploadAvailable: boolean
   private libp2p: Libp2p
   private streams = new Map<string, XmppStream>()
   private peerAddrs = new Map<string, Multiaddr>()
@@ -232,6 +236,7 @@ export class XmppNode extends EventEmitter {
   private readonly maxReconnectDelay = 30000
   private readonly minReconnectDelay = 1000
   private reliabilityManager = new XmppReliabilityManager()
+  private dhtMailboxPeerListener?: EventListener
   public readonly rosterManager: XmppRosterManager
   public get roster() {
     return this.rosterManager.entries
@@ -285,6 +290,7 @@ export class XmppNode extends EventEmitter {
       this.rejectReady = reject
     })
     this.libp2p = libp2p
+    this.httpUploadAvailable = options.httpUploadServer !== false
     this.jid = `${this.libp2p.peerId.toString()}@p2p`
     this.storage = storage
     this.uploadHost = (typeof process !== 'undefined' ? process.env?.XMPP_UPLOAD_HOST : undefined) ?? '127.0.0.1'
@@ -321,6 +327,7 @@ export class XmppNode extends EventEmitter {
       sendIqRequest: this.sendIqRequest.bind(this),
       discoveryNode: this.discoveryNode,
       discoveryIdentity: this.discoveryIdentity,
+      httpUploadAvailable: this.httpUploadAvailable,
       collections: this.collectionManager.collections
     })
     this.feedManager = new XmppFeedManager(this.getFeedContext())
@@ -333,12 +340,16 @@ export class XmppNode extends EventEmitter {
       .then(() => this.collectionManager.initialize())
       .then(() => this.muc.initialize())
       .then(() => this.chat.initialize())
-      .then(() => this.uploads.ensureUploadServer())
+      .then(() => options.httpUploadServer === false ? undefined : this.uploads.ensureUploadServer())
       .then(() => this.uploads.ensureUploadAnnouncementSubscription())
       .then(() => this.loadOmemoState())
       .then(() => this.openPgpStateManager.load())
       .then(() => this.resolveReady())
       .catch(err => this.rejectReady(err))
+
+    this.dhtMailboxPeerListener = () => this.flushDhtMailboxWhenActive()
+    this.libp2p.addEventListener('peer:connect', this.dhtMailboxPeerListener)
+    void this.ready.then(() => this.flushDhtMailboxWhenActive()).catch(() => {})
 
     // Register protocol handler for inbound connections.
     // libp2p StreamHandler signature: (stream: Stream, connection: Connection)
@@ -350,6 +361,9 @@ export class XmppNode extends EventEmitter {
       const xmppStream = new XmppStream(stream, peerId)
       this.registerStream(peerId, xmppStream)
       this.emit('stream', { peerId, direction: 'inbound', stream: xmppStream })
+    })
+    this.libp2p.handle('/xmpp/upload/1.0.0', (stream: any) => {
+      void this.uploads.handlePeerUploadRequest(stream)
     })
 
     // Register Gossipsub PubSub listener if available
@@ -572,6 +586,7 @@ export class XmppNode extends EventEmitter {
       jid: this.jid,
       discoveryNode: this.discoveryNode,
       discoveryIdentity: this.discoveryIdentity,
+      httpUploadAvailable: this.httpUploadAvailable,
       libp2p: this.libp2p,
       getCollections: () => this.collectionManager.collections,
       getCollectionSubscriptions: () => this.collectionManager.collectionSubscriptions,
@@ -592,10 +607,12 @@ export class XmppNode extends EventEmitter {
       buildOmemoBundleQuery: this.buildOmemoBundleQuery.bind(this),
       buildRosterQuery: () => this.rosterManager.buildRosterQuery(),
       buildFollowersQuery: this.buildFollowersQuery.bind(this),
+      getFeedHistoryForPeer: (peerId) => this.feedManager.getFeedPostsForPeer(peerId),
       buildVCardQuery: () => this.rosterManager.buildVCardQuery(),
       updateVCard: (profile) => this.rosterManager.updateVCard(profile),
       discoveryIdentity: this.discoveryIdentity,
       discoveryNode: this.discoveryNode,
+      httpUploadAvailable: this.httpUploadAvailable,
       collections: this.collectionManager.collections,
       collectionSubscriptions: this.collectionManager.collectionSubscriptions,
       openPgpState: this.openPgpStateManager.getState(),
@@ -706,6 +723,18 @@ export class XmppNode extends EventEmitter {
 
   private parsePeerReference(peerAddr: string | Multiaddr): { peerId: string; dialTarget?: Multiaddr } {
     return parsePeerReference(peerAddr)
+  }
+
+  getLocalPeerAddresses(): string[] {
+    const peerId = this.libp2p.peerId.toString()
+    return this.libp2p.getMultiaddrs().map((address) => {
+      const value = address.toString()
+      if (value.includes('/p2p-circuit')) {
+        const relayAddress = value.split('/p2p-circuit')[0]
+        return `${relayAddress}/p2p-circuit/webrtc/p2p/${peerId}`
+      }
+      return value.includes(`/p2p/${peerId}`) ? value : `${value}/p2p/${peerId}`
+    })
   }
 
   private subscriptionToFlags(subscription: XmppRosterSubscription): { to: boolean; from: boolean } {
@@ -838,6 +867,7 @@ export class XmppNode extends EventEmitter {
       communityId?: string
       autoJoin?: boolean
       archived?: boolean
+      defaultMode?: 'secure' | 'open'
     } = {}
   ): Promise<{ roomName: string; roomJid: string }> {
     await this.ready
@@ -845,7 +875,7 @@ export class XmppNode extends EventEmitter {
     const nick = options.nick ?? this.selfPresence.nickname ?? this.jid.replace('@p2p', '')
     await this.updateMucRoomSettings(roomName, {
       topic: options.topic,
-      defaultMode: 'secure',
+      defaultMode: options.defaultMode ?? 'secure',
       autoJoin: options.autoJoin ?? true,
       communityId: options.communityId,
       archived: options.archived
@@ -1150,11 +1180,67 @@ export class XmppNode extends EventEmitter {
     return this.uploads.getUploadContentUrl(cid)
   }
 
+  public async fetchUploadFromPeer(peerId: string, cid: string): Promise<Uint8Array | undefined> {
+    if (!peerId || !cid) return undefined
+    const stream = await this.libp2p.dialProtocol(peerIdFromString(peerId), ['/xmpp/upload/1.0.0'])
+    const request = new TextEncoder().encode(`${JSON.stringify({ cid })}\n`)
+    if (!stream.send(request)) await stream.onDrain()
+    await stream.close()
+
+    const chunks: Uint8Array[] = []
+    let headerBuffer = new Uint8Array()
+    let expectedSize: number | undefined
+    let receivedSize = 0
+    let responseValid = false
+    for await (const item of stream) {
+      const chunk = item instanceof Uint8Array ? item : item.subarray()
+      if (!responseValid) {
+        const combined = new Uint8Array(headerBuffer.length + chunk.length)
+        combined.set(headerBuffer)
+        combined.set(chunk, headerBuffer.length)
+        const newline = combined.indexOf(10)
+        if (newline === -1) {
+          if (combined.length > 2048) break
+          headerBuffer = combined
+          continue
+        }
+        let header: { ok?: boolean; cid?: string; size?: number }
+        try { header = JSON.parse(new TextDecoder().decode(combined.subarray(0, newline))) as typeof header } catch { break }
+        if (!header.ok || header.cid !== cid || !Number.isSafeInteger(header.size) || (header.size as number) < 0 || (header.size as number) > MAX_PEER_UPLOAD_BYTES) break
+        expectedSize = header.size
+        responseValid = true
+        const payload = combined.subarray(newline + 1)
+        if (payload.length) {
+          chunks.push(payload)
+          receivedSize += payload.length
+        }
+        headerBuffer = new Uint8Array()
+        continue
+      }
+      receivedSize += chunk.length
+      if (receivedSize > (expectedSize ?? 0)) break
+      chunks.push(chunk)
+    }
+
+    await stream.close().catch(() => {})
+    if (!responseValid || expectedSize === undefined || receivedSize !== expectedSize) return undefined
+    const output = new Uint8Array(receivedSize)
+    let offset = 0
+    for (const chunk of chunks) {
+      output.set(chunk, offset)
+      offset += chunk.length
+    }
+    return output
+  }
+
   public async storeFile(
     data: Uint8Array,
     filename: string,
     contentType: string
   ): Promise<{ cid: string; url: string }> {
+    if (!this.httpUploadAvailable && data.byteLength > MAX_PEER_UPLOAD_BYTES) {
+      throw new Error('Browser peer uploads are limited to 50 MiB per file.')
+    }
     const hashBuffer = await globalThis.crypto.subtle.digest('SHA-256', data as BufferSource)
     const hashArray = Array.from(new Uint8Array(hashBuffer))
     const cid = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')
@@ -1186,7 +1272,7 @@ export class XmppNode extends EventEmitter {
       topic: UPLOAD_ANNOUNCEMENTS_TOPIC
     }
     this.uploads['uploadManifests'].set(cid, manifest)
-    void this.uploads['announceUploadManifest'](manifest).catch(() => {})
+    await this.uploads.announceUploadManifest(manifest)
 
     return { cid, url: `upload://${cid}` }
   }
@@ -1238,13 +1324,19 @@ export class XmppNode extends EventEmitter {
       return existing
     }
 
-    const dialTarget = parsed.dialTarget ?? this.peerAddrs.get(peerIdStr)
+    let dialTarget = parsed.dialTarget ?? this.peerAddrs.get(peerIdStr)
     if (!dialTarget) {
-      throw new Error(`Peer ${peerIdStr} is not connected; provide a multiaddr or establish a stream first`)
+      const peerInfo = await this.libp2p.peerRouting.findPeer(peerIdFromString(peerIdStr))
+      dialTarget = peerInfo.multiaddrs[0]
+      if (!dialTarget) {
+        throw new Error(`Peer routing found no dialable addresses for ${peerIdStr}`)
+      }
     }
-
+    const stream = await this.libp2p.dialProtocol(
+      dialTarget,
+      ['/xmpp/1.0.0']
+    )
     this.peerAddrs.set(peerIdStr, dialTarget)
-    const stream = await this.libp2p.dialProtocol(dialTarget, ['/xmpp/1.0.0'])
     const xmppStream = new XmppStream(stream, peerIdStr)
     this.registerStream(peerIdStr, xmppStream)
     this.emit('stream', { peerId: peerIdStr, direction: 'outbound', stream: xmppStream })
@@ -1372,6 +1464,9 @@ export class XmppNode extends EventEmitter {
 
   async getRosterEntries(): Promise<XmppRosterEntry[]> {
     await this.ready
+    // The connection lifecycle syncs the server roster into this local cache.
+    // Keep UI roster reads immediate instead of issuing a potentially slow IQ
+    // request every time the contacts view mounts or refreshes.
     return this.rosterManager.getRosterEntries()
   }
 
@@ -1381,11 +1476,29 @@ export class XmppNode extends EventEmitter {
   }
 
   async addRosterEntry(jid: string, name?: string): Promise<XmppRosterEntry> {
+    if (!jid.toLowerCase().endsWith('@p2p') && this.clientBridge.isConnected) {
+      await this.clientBridge.addRosterEntry(jid, name)
+    }
     return await this.rosterManager.addRosterEntry(jid, name)
   }
 
   async removeRosterEntry(jid: string): Promise<void> {
-    await this.rosterManager.removeRosterEntry(jid)
+    const bareJid = jid.split('/')[0]
+    if (!bareJid.toLowerCase().endsWith('@p2p')) {
+      if (!this.clientBridge.isConnected) throw new Error('Connect to your XMPP server before removing this contact.')
+      await this.clientBridge.removeRosterEntry(bareJid)
+    }
+    await this.rosterManager.removeRosterEntry(bareJid)
+  }
+
+  async approveServerPresenceSubscription(jid: string): Promise<void> {
+    if (!this.clientBridge.isConnected) throw new Error('Connect your XMPP account before approving contact requests.')
+    await this.clientBridge.approvePresenceSubscription(jid)
+  }
+
+  async denyServerPresenceSubscription(jid: string): Promise<void> {
+    if (!this.clientBridge.isConnected) throw new Error('Connect your XMPP account before declining contact requests.')
+    await this.clientBridge.denyPresenceSubscription(jid)
   }
 
   async fetchRoster(peerAddr: string | Multiaddr): Promise<XmppRosterEntry[]> {
@@ -1433,11 +1546,13 @@ export class XmppNode extends EventEmitter {
     peerAddr: string | Multiaddr,
     body: string,
     options: {
+      originId?: string
       replace?: string
       reply?: { id: string; to?: string }
       thread?: string
       requestReceipt?: boolean
       chatState?: 'active' | 'composing' | 'paused' | 'inactive' | 'gone'
+      attachments?: Array<{ url: string; desc: string }>
       delay?: { stamp: string; from?: string }
       noCarbons?: boolean
     } = {}
@@ -1450,9 +1565,18 @@ export class XmppNode extends EventEmitter {
     // Route standard XMPP JIDs through the connected home server. The home server
     // may federate the stanza to another XMPP domain, so the target domain does
     // not need to match the domain of the local client connection.
-    if (!addrStr.endsWith('@p2p') && addrStr.includes('@')) {
+    if (!addrStr.split('/')[0].toLowerCase().endsWith('@p2p') && addrStr.includes('@')) {
       if (this.clientBridge.isConnected) {
-        return this.clientBridge.sendMessage(addrStr, body, { type: 'chat', thread: options.thread })
+        return this.clientBridge.sendMessage(addrStr, body, {
+          type: 'chat',
+          ...(options.originId !== undefined ? { originId: options.originId } : {}),
+          ...(options.thread ? { thread: options.thread } : {}),
+          ...(options.replace ? { replace: options.replace } : {}),
+          ...(options.reply ? { reply: options.reply } : {}),
+          ...(options.requestReceipt !== undefined ? { requestReceipt: options.requestReceipt } : {}),
+          ...(options.chatState ? { chatState: options.chatState } : {}),
+          ...(options.attachments ? { attachments: options.attachments } : {}),
+        })
       }
       if (!this.clientBridge.isConnected) {
         throw new Error(`Server bridge is not connected — cannot send to ${addrStr}`)
@@ -1461,7 +1585,7 @@ export class XmppNode extends EventEmitter {
 
     const peerId = this.parsePeerReference(peerAddr).peerId
     const toJid = this.jidFromPeerId(peerId)
-    const id = Math.random().toString(36).substring(2, 15)
+    const id = options.originId || Math.random().toString(36).substring(2, 15)
 
     const children: Element[] = []
     if (body) {
@@ -1543,6 +1667,138 @@ export class XmppNode extends EventEmitter {
     return this.chat.queryChatHistory(targetPeerJid, withJid, queryId)
   }
 
+  async queryServerChatHistory(withJid: string, before?: string): Promise<{ before?: string; hasMore: boolean }> {
+    return this.clientBridge.queryMamHistory(withJid, before)
+  }
+
+  async queryServerMucHistory(roomJid: string, before?: string): Promise<{ before?: string; hasMore: boolean }> {
+    return this.clientBridge.queryMucMamHistory(roomJid, before)
+  }
+
+  async discoverServerMucRooms(): Promise<ServerMucRoomInfo[]> {
+    return this.clientBridge.discoverMucRooms()
+  }
+
+  private getServerMicroblogContactJid(jid: string, requireRosterEntry = true): string {
+    if (!this.clientBridge.isConnected) throw new Error('Connect your XMPP account before managing microblogs.')
+    const bareJid = jid.trim().split('/')[0].toLowerCase()
+    if (!bareJid.includes('@') || bareJid.endsWith('@p2p')) {
+      throw new Error('Choose a contact from your XMPP server roster.')
+    }
+    if (bareJid === this.clientBridge.accountJid?.toLowerCase().split('/')[0]) {
+      throw new Error('Choose another account to follow its microblog.')
+    }
+    if (requireRosterEntry && !this.rosterManager.getRosterEntry(bareJid)) {
+      throw new Error('Add this XMPP contact to your roster before following its microblog.')
+    }
+    return bareJid
+  }
+
+  async subscribeServerMicroblog(jid: string): Promise<ServerPubsubSubscriptionStatus> {
+    const contactJid = this.getServerMicroblogContactJid(jid)
+    return this.clientBridge.pubsubSubscribe(contactJid, 'urn:xmpp:microblog:0')
+  }
+
+  async unsubscribeServerMicroblog(jid: string): Promise<void> {
+    const contactJid = this.getServerMicroblogContactJid(jid, false)
+    await this.clientBridge.pubsubUnsubscribe(contactJid, 'urn:xmpp:microblog:0')
+  }
+
+  async refreshServerMicroblog(jid: string): Promise<number> {
+    const contactJid = this.getServerMicroblogContactJid(jid)
+    const items = await this.clientBridge.pubsubGetItems(contactJid, 'urn:xmpp:microblog:0', 20)
+    let imported = 0
+    for (const item of items) {
+      if (item.name !== 'item' || !item.attrs.id) continue
+      const post = parseMicroblogEntry('urn:xmpp:microblog:0', item, contactJid, 'urn:xmpp:microblog:0')
+      if (!post) continue
+      // Keep every PEP author's items in a separate local feed and do not
+      // automatically copy server content into the peer network.
+      post.topic = `xmpp-pep:${contactJid}`
+      post.id = `${contactJid}:${item.attrs.id}`
+      if (await this.feedManager.recordFeedPost(post, { propagateToCollections: false, updateExisting: true })) imported += 1
+    }
+    return imported
+  }
+
+  async publishServerMicroblog(body: string, options: { itemId?: string; title?: string; summary?: string; categories?: string[]; author?: string; displayContent?: string; articlePayload?: string } = {}): Promise<string> {
+    if (!this.clientBridge.isConnected) {
+      throw new Error('Connect your XMPP account before publishing a server microblog.')
+    }
+    const accountJid = this.clientBridge.accountJid?.split('/')[0]
+    if (!accountJid) throw new Error('Your XMPP account JID is unavailable.')
+
+    const itemId = options.itemId ?? `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    const node = 'urn:xmpp:microblog:0'
+    const topic = `xmpp-pep:${accountJid}`
+    const publishedAt = new Date().toISOString()
+    const title = options.title?.trim() || deriveMicroblogTitle(body)
+    const post = {
+      id: itemId,
+      topic,
+      from: accountJid,
+      body,
+      publishedAt,
+      updatedAt: publishedAt,
+      receivedAt: publishedAt,
+      title,
+      summary: options.summary,
+      categories: options.categories,
+      author: options.author ?? accountJid,
+      node,
+    }
+    const payload = buildMicroblogEntry(post, {
+      title,
+      summary: options.summary,
+      categories: options.categories,
+      author: post.author,
+      publishedAt,
+      updatedAt: publishedAt,
+      displayContent: options.displayContent,
+      articlePayload: options.articlePayload,
+      alternateHref: `xmpp:${accountJid}?;node=${encodeURIComponent(node)};item=${encodeURIComponent(itemId)}`,
+    })
+
+    // Wait for the server's PubSub acknowledgement so the composer can report
+    // failures without clearing the user's text or claiming the post succeeded.
+    await this.clientBridge.pubsubPublish(accountJid, node, itemId, payload)
+    await this.feedManager.recordFeedPost({
+      ...post,
+      id: `${accountJid}:${itemId}`,
+      atomId: buildTagUri(accountJid, publishedAt, itemId),
+    }, { propagateToCollections: false, updateExisting: true })
+    return itemId
+  }
+
+  async joinServerMuc(roomJid: string, nick: string): Promise<void> {
+    if (!this.clientBridge.isConnected) throw new Error('Connect to your XMPP server before joining a room.')
+    await this.clientBridge.joinMuc(roomJid, nick)
+  }
+
+  getServerJid(): string | undefined {
+    return this.clientBridge.accountJid
+  }
+
+  async leaveServerMuc(roomJid: string, nick: string): Promise<void> {
+    if (!this.clientBridge.isConnected) throw new Error('Connect to your XMPP server before leaving a room.')
+    await this.clientBridge.leaveMuc(roomJid, nick)
+  }
+
+  async sendServerMucMessage(roomJid: string, body: string, options?: {
+    originId?: string
+    thread?: string
+    replace?: string
+    reply?: { id: string; to?: string }
+  }): Promise<string> {
+    if (!this.clientBridge.isConnected) throw new Error('Connect to your XMPP server before sending to a room.')
+    return this.clientBridge.sendMucMessage(roomJid, body, options)
+  }
+
+  async sendServerMucChatState(roomJid: string, state: 'composing' | 'paused' | 'active'): Promise<void> {
+    if (!this.clientBridge.isConnected) return
+    await this.clientBridge.sendMucChatState(roomJid, state)
+  }
+
   // Query MUC MAM message history from a peer
   async queryMucChatHistory(roomName: string, targetPeerId: string, queryId?: string): Promise<void> {
     return this.muc.queryHistory(roomName, targetPeerId, queryId)
@@ -1563,6 +1819,13 @@ export class XmppNode extends EventEmitter {
     }
   }
 
+  private flushDhtMailboxWhenActive(): void {
+    if (this.reliabilityManager.clientState !== 'active') return
+    void this.ready
+      .then(() => flushDhtMailbox(this.getDhtContext()))
+      .catch((error) => console.debug('[DHT] Mailbox flush deferred until network is available:', error))
+  }
+
   private isPeerInactive(peerId: string): boolean {
     return this.reliabilityManager.isPeerInactive(peerId)
   }
@@ -1578,9 +1841,15 @@ export class XmppNode extends EventEmitter {
       const dialTarget = peerAddr || `${peerId}@p2p`
       const stream = await this.getOrCreateStream(dialTarget)
       stream.send(stanza)
-    } catch (err) {
-      console.warn(`[DEBUG] Failed to send stanza directly to ${peerId}. Buffering to DHT mailbox:`, err)
-      await bufferStanzaToDht(this.libp2p, peerId, stanza)
+    } catch (directError) {
+      console.warn(`[DEBUG] Failed to send stanza directly to ${peerId}. Buffering to DHT mailbox:`, directError)
+      try {
+        await bufferStanzaToDht(this.libp2p, peerId, stanza)
+      } catch (mailboxError) {
+        const directMessage = directError instanceof Error ? directError.message : String(directError)
+        const mailboxMessage = mailboxError instanceof Error ? mailboxError.message : String(mailboxError)
+        throw new Error(`Could not reach peer ${peerId}: ${directMessage}. Offline delivery also failed: ${mailboxMessage}`)
+      }
     }
   }
 
@@ -1636,6 +1905,7 @@ export class XmppNode extends EventEmitter {
     peerAddr: string | Multiaddr,
     body: string,
     options: {
+      originId?: string
       replace?: string
       reply?: { id: string; to?: string }
       thread?: string
@@ -1810,7 +2080,7 @@ export class XmppNode extends EventEmitter {
     await this.feedManager.unsubscribeFeed(peerAddr)
   }
 
-  async publishFeed(body: string, options: { topic?: string; itemId?: string; title?: string; summary?: string; categories?: string[]; author?: string; replyTo?: string } = {}): Promise<string> {
+  async publishFeed(body: string, options: { topic?: string; itemId?: string; title?: string; summary?: string; categories?: string[]; author?: string; replyTo?: string; links?: Array<{ rel: string; href: string; type?: string; title?: string; ref?: string }> } = {}): Promise<string> {
     return await this.feedManager.publishFeed(body, options)
   }
 
@@ -1903,7 +2173,19 @@ export class XmppNode extends EventEmitter {
         id: event.id || Math.random().toString(36).substring(2, 15),
         type: event.type || 'chat',
         thread: event.thread,
-        delay: event.delay ? { stamp: event.delay.stamp, from: event.delay.from } : undefined
+        delay: event.delay ? { stamp: event.delay.stamp, from: event.delay.from } : undefined,
+        receipt: event.receipt,
+        replace: event.replace,
+        reply: event.reply,
+        chatState: event.chatState,
+        mam: event.mam,
+        queryId: event.queryId,
+        fromSelf: event.fromSelf,
+        stanzaError: event.stanzaError,
+      }
+      if (event.type === 'error') {
+        this.emit('message', { ...msg, server: event.server })
+        return
       }
       if (this.chat) {
         this.chat.recordChatMessage(msg).catch(err => this.emit('error', err))
@@ -1914,34 +2196,125 @@ export class XmppNode extends EventEmitter {
     })
 
     this.clientBridge.on('presence', (event: any) => {
-      this.emit('presence', {
-        from: event.from,
-        type: event.type,
-        server: event.server,
+      // Subscription stanzas are relationship requests, not online state.
+      if (event.type && event.type !== 'available' && event.type !== 'unavailable') return
+      const from = String(event.from || '').split('/')[0]
+      if (!from) return
+      const presence = {
+        from,
+        to: '',
+        type: event.type || 'available',
         show: event.show,
         status: event.status
-      })
+      }
+      void this.rosterManager.recordPresence(from, presence).catch(err => this.emit('error', err))
+      this.emit('presence', presence)
+    })
+
+    this.clientBridge.on('presence:subscribe', (event: { from: string; server: string }) => {
+      this.emit('server:presence-subscription-request', event)
     })
 
     this.clientBridge.on('muc:message', (event: any) => {
       this.emit('muc:message', {
         room: event.room,
+        roomJid: event.roomJid,
         from: event.from,
+        nick: event.nick,
+        fromSelf: event.fromSelf,
+        mam: event.mam,
         body: event.body,
         id: event.id,
-        server: event.server
+        server: event.server,
+        delay: event.delay,
+        chatState: event.chatState,
       })
+    })
+
+    this.clientBridge.on('muc:join', (event: any) => {
+      this.emit('muc:join', {
+        room: event.room,
+        roomJid: event.roomJid,
+        from: event.from,
+        nick: event.nick,
+        fromSelf: event.fromSelf,
+        server: event.server,
+        occupantJid: event.occupantJid,
+        peerJid: event.occupantJid,
+        role: event.role,
+        affiliation: event.affiliation,
+        statusCodes: event.statusCodes,
+      })
+    })
+
+    this.clientBridge.on('muc:leave', (event: any) => {
+      this.emit('muc:leave', {
+        room: event.room,
+        roomJid: event.roomJid,
+        from: event.from,
+        nick: event.nick,
+        fromSelf: event.fromSelf,
+        server: event.server,
+        occupantJid: event.occupantJid,
+        peerJid: event.occupantJid,
+        role: event.role,
+        affiliation: event.affiliation,
+        statusCodes: event.statusCodes,
+      })
+    })
+
+    this.clientBridge.on('muc:error', (event: any) => {
+      this.emit('muc:error', event)
     })
 
     this.clientBridge.on('connection', (info: ServerConnectionInfo) => {
       this.emit('server:connection', info)
+      if (info.status === 'connected') {
+        // Also refresh after automatic stream resumption/reconnection.
+        void this.syncServerRoster().catch((error) => {
+          console.warn('[XMPP] Server connected, but roster sync did not complete:', error)
+        })
+      }
+    })
+
+    this.clientBridge.on('roster:change', (items: Array<{ jid: string; name?: string; subscription: string }> = []) => {
+      void (async () => {
+        for (const item of items) {
+          if (item.subscription === 'remove') await this.rosterManager.removeRosterEntry(item.jid)
+          else await this.rosterManager.upsertRosterEntry({
+            jid: item.jid,
+            name: item.name,
+            subscription: item.subscription as XmppRosterEntry['subscription'],
+            ask: undefined,
+          })
+        }
+        this.emit('server:roster')
+      })().catch((error) => this.emit('error', error))
     })
 
     this.clientBridge.on('pubsub:event', (event: any) => {
+      const entry = event.payload?.entry
+      if (event.node === 'urn:xmpp:microblog:0' && entry && event.itemId) {
+        const item = xml('item', { id: event.itemId }, entry)
+        const post = parseMicroblogEntry(event.node, item, event.from, event.node)
+        if (post) {
+          const authorJid = event.from.split('/')[0].toLowerCase()
+          // PEP reuses the same node name for every account, so keep the author
+          // in the local storage topic to prevent identical item IDs colliding.
+          post.topic = `xmpp-pep:${authorJid}`
+          post.id = `${authorJid}:${event.itemId}`
+          // XMPP microblog items are local timeline content; do not bridge them back
+          // into P2P collections without an explicit publish action from the user.
+          void this.feedManager.recordFeedPost(post, { propagateToCollections: false, updateExisting: true }).catch((error) => {
+            console.warn('[XMPP] Could not save a server microblog item:', error)
+          })
+          return
+        }
+      }
       this.emit('pubsub:message', {
         topic: event.node,
         from: event.from,
-        body: event.payload?.entry?.text() || '',
+        body: entry?.getChild('content')?.text() || entry?.getChild('summary')?.text() || '',
         itemId: event.itemId,
         server: event.server
       })
@@ -1952,9 +2325,49 @@ export class XmppNode extends EventEmitter {
     await this.clientBridge.connect(credentials)
   }
 
-  async registerServer(jid: string, password: string, service: string): Promise<void> {
-    const resolvedService = await this.clientBridge.register(service, jid.split('@')[0], password)
+  async uploadFileToServer(data: Uint8Array, filename: string, contentType: string): Promise<string> {
+    return this.clientBridge.uploadFile(data, filename, contentType)
+  }
+
+  async registerServer(jid: string, password: string, service: string, registrationFields?: Record<string, string>): Promise<void> {
+    const account = xmppJid(jid)
+    if (!account.local) throw new Error('Enter a full XMPP JID to create an account.')
+    const resolvedService = await this.clientBridge.register(service, account.local, password, account.domain, registrationFields)
     await this.clientBridge.connect({ jid, password, service: resolvedService })
+  }
+
+  private async syncServerRoster(): Promise<void> {
+    await this.ready
+    const savedContacts = this.rosterManager.getRosterEntries()
+      .filter((entry) => !entry.jid.toLowerCase().split('/')[0].endsWith('@p2p'))
+    let serverContacts: Array<{ jid: string; name?: string; subscription: string }> = []
+    let serverRosterAvailable = false
+    try {
+      serverContacts = await this.clientBridge.getRosterEntries()
+      serverRosterAvailable = true
+    } catch (error) {
+      // A roster read failure should not undo a successful account connection.
+      console.warn('[XMPP] Connected, but could not load the server roster:', error)
+    }
+
+    const serverJids = new Set(serverContacts.map((entry) => entry.jid.split('/')[0].toLowerCase()))
+    for (const entry of serverContacts) {
+      await this.rosterManager.upsertRosterEntry({
+        jid: entry.jid,
+        name: entry.name,
+        subscription: entry.subscription as XmppRosterEntry['subscription'],
+        ask: undefined,
+      })
+    }
+
+    // Push local contacts to the newly connected account only when they are
+    // absent from its roster. Re-sending subscription requests on every login
+    // can annoy contacts and produce repeated authorization prompts.
+    const contactsToAdd = serverRosterAvailable
+      ? savedContacts.filter((entry) => !serverJids.has(entry.jid.split('/')[0].toLowerCase()))
+      : []
+    await Promise.allSettled(contactsToAdd.map((entry) => this.clientBridge.addRosterEntry(entry.jid, entry.name ?? entry.nickname)))
+    this.emit('server:roster')
   }
 
   async disconnectServer(): Promise<void> {
@@ -1976,6 +2389,11 @@ export class XmppNode extends EventEmitter {
 
   async close() {
     await this.ready
+
+    if (this.dhtMailboxPeerListener) {
+      this.libp2p.removeEventListener('peer:connect', this.dhtMailboxPeerListener)
+      this.dhtMailboxPeerListener = undefined
+    }
 
     await this.clientBridge.disconnect().catch(() => {})
 
@@ -2005,6 +2423,7 @@ export class XmppNode extends EventEmitter {
     await this.omemoStateManager.close()
     await this.openPgpStateManager.close()
     this.reliabilityManager.clear()
-    this.muc.close()
+    await this.muc.close()
+    await this.storage.close()
   }
 }

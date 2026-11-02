@@ -1,0 +1,58 @@
+appId: app.nexus.xmpp
+productName: Nexus
+copyright: Copyright © 2026 imattau
+
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - dist/**
+  - ui/dist/**
+  - package.json
+  - node_modules/**
+
+asar: true
+npmRebuild: false
+executableName: nexus
+artifactName: ${productName}-${version}-${os}-${arch}.${ext}
+
+mac:
+  category: public.app-category.social-networking
+  identity: null
+  hardenedRuntime: false
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+    - target: zip
+      arch: [x64, arm64]
+
+linux:
+  category: Network
+  maintainer: imattau
+  icon: assets/zapstore-icon.png
+  syncDesktopName: true
+  target:
+    - target: AppImage
+      arch: [x64]
+    - target: deb
+      arch: [x64]
+    - target: rpm
+      arch: [x64]
+    - target: flatpak
+      arch: [x64]
+
+flatpak:
+  runtime: org.freedesktop.Platform
+  runtimeVersion: '25.08'
+  sdk: org.freedesktop.Sdk
+  base: org.electronjs.Electron2.BaseApp
+  baseVersion: '25.08'
+  branch: stable
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]

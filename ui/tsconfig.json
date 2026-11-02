@@ -15,8 +15,7 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "types": ["node", "vitest/globals"],
-    "baseUrl": ".",
+    "types": ["node", "vitest/globals", "vite/client"],
     "paths": {
       "react-router": ["./src/react-router"]
     }

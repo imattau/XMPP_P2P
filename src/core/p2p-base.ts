@@ -21,6 +21,11 @@ if (!MultiaddrProto.toOptions) {
 
 export interface BaseLibp2pConfigOptions {
   enableDht?: boolean
+  /**
+   * Run KadDHT as a client instead of a routing server. Mobile peers should
+   * use client mode to avoid serving DHT traffic in the background.
+   */
+  dhtClientMode?: boolean
 }
 
 export function createBaseLibp2pServices(options: BaseLibp2pConfigOptions = {}): Record<string, any> {
@@ -57,7 +62,7 @@ export function createBaseLibp2pServices(options: BaseLibp2pConfigOptions = {}):
 
   if (options.enableDht) {
     services.dht = kadDHT({
-      clientMode: false,
+      clientMode: options.dhtClientMode === true,
       protocol: '/ipfs/lan/kad/1.0.0',
       peerInfoMapper: removePublicAddressesMapper,
       allowQueryWithZeroPeers: true,

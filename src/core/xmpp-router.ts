@@ -11,12 +11,14 @@ import { handlePubSubMessageElement as handlePubSubMessageElementFromModule } fr
 import { handleSecureMessageStanza as handleSecureMessageStanzaFromModule } from './xmpp-secure.js'
 import { buildVCard, parseVCard, VCARD_XMLNS } from './xmpp-vcard.js'
 import { parseXepMetadata } from './xmpp-xep-helpers.js'
+import type { XmppFeedPost } from './xmpp-records.js'
 
 const ROSTER_XMLNS = 'jabber:iq:roster'
 const NICK_XMLNS = 'http://jabber.org/protocol/nick'
 const DISCO_INFO_XMLNS = 'http://jabber.org/protocol/disco#info'
 const DISCO_ITEMS_XMLNS = 'http://jabber.org/protocol/disco#items'
 const FOLLOWERS_XMLNS = 'urn:xmpp:pubsub:followers:0'
+const FEED_HISTORY_XMLNS = 'urn:xmpp:p2p:feed-history:1'
 const OMEMO_DEVICES_NODE = 'urn:xmpp:omemo:2:devices'
 const OMEMO_BUNDLES_NODE = 'urn:xmpp:omemo:2:bundles'
 const OPENPGP_IQ_XMLNS = 'urn:xmpp:openpgp:0'
@@ -56,10 +58,12 @@ export interface XmppRouterContext {
   buildOmemoBundleQuery(deviceId: number): Element
   buildRosterQuery(): Element
   buildFollowersQuery(): Element
+  getFeedHistoryForPeer(peerId: string): Promise<XmppFeedPost[]>
   buildVCardQuery(): Element
   updateVCard(profile: any): Promise<any>
   discoveryIdentity: any
   discoveryNode: string
+  httpUploadAvailable?: boolean
   collections: any
   collectionSubscriptions: any
   openPgpState: any
@@ -308,6 +312,20 @@ export async function handleIqStanza(ctx: XmppRouterContext, peerId: string, ele
 
   const query = element.getChild('query')
   const vCard = element.getChild('vCard')
+  if (query && query.attrs.xmlns === FEED_HISTORY_XMLNS) {
+    if (type === 'get') {
+      const posts = await ctx.getFeedHistoryForPeer(peerId)
+      await sendIqResult(ctx, peerId, id, xml(
+        'query',
+        { xmlns: FEED_HISTORY_XMLNS },
+        ...posts.map(post => xml('post', {}, JSON.stringify(post)))
+      ))
+      return
+    }
+    await sendIqError(ctx, peerId, element, 'not-allowed', 'auth')
+    return
+  }
+
   if (vCard && vCard.attrs.xmlns === VCARD_XMLNS) {
     if (type === 'get') {
       await sendIqResult(ctx, peerId, id, ctx.buildVCardQuery())
@@ -323,6 +341,10 @@ export async function handleIqStanza(ctx: XmppRouterContext, peerId: string, ele
 
   const uploadRequest = element.getChild('request')
   if (uploadRequest && uploadRequest.attrs.xmlns === HTTP_UPLOAD_XMLNS) {
+    if (ctx.httpUploadAvailable === false) {
+      await sendIqError(ctx, peerId, element, 'service-unavailable')
+      return
+    }
     if (type !== 'get') {
       await sendIqError(ctx, peerId, element, 'service-unavailable')
       return
@@ -471,7 +493,7 @@ export async function handleIqStanza(ctx: XmppRouterContext, peerId: string, ele
 
   if (query.attrs.xmlns === DISCO_INFO_XMLNS) {
     if (type === 'get') {
-      await sendIqResult(ctx, peerId, id, buildDiscoInfoQuery(ctx.discoveryIdentity, ctx.collections, query.attrs.node))
+      await sendIqResult(ctx, peerId, id, buildDiscoInfoQuery(ctx.discoveryIdentity, ctx.collections, query.attrs.node, ctx.httpUploadAvailable !== false))
       return
     }
   }

@@ -41,6 +41,9 @@ export interface XmppMessage {
   stanzaId?: { id: string; by: string }
   carbon?: { type: 'sent' | 'received' }
   private?: boolean
+  mam?: boolean
+  queryId?: string
+  fromSelf?: boolean
 }
 
 /**
@@ -334,6 +337,15 @@ export function normalizeVCardProfile(profile?: Partial<XmppVCardProfile>): Xmpp
   }
 }
 
+export function canonicalRosterJid(jid: string): string {
+  const bareJid = jid.trim().split('/')[0]
+  const separator = bareJid.lastIndexOf('@')
+  if (separator <= 0) return bareJid
+  const localpart = bareJid.slice(0, separator)
+  const domain = bareJid.slice(separator + 1)
+  return domain.toLowerCase() === 'p2p' ? `${localpart}@p2p` : bareJid.toLowerCase()
+}
+
 export function normalizeRosterEntry(entry: Partial<XmppRosterEntry> & { jid: string }): XmppRosterEntry {
   const subscription: XmppRosterSubscription = entry.subscription === 'to' || entry.subscription === 'from' || entry.subscription === 'both'
     ? entry.subscription
@@ -354,7 +366,7 @@ export function normalizeRosterEntry(entry: Partial<XmppRosterEntry> & { jid: st
     : undefined
 
   return {
-    jid: entry.jid,
+    jid: canonicalRosterJid(entry.jid),
     name: entry.name,
     nickname: entry.nickname ?? entry.presence?.nickname,
     groups,
@@ -391,7 +403,7 @@ export function parsePeerReference(peerAddr: string | Multiaddr): { peerId: stri
     }
   }
 
-  if (addrStr.endsWith('@p2p')) {
+  if (addrStr.toLowerCase().endsWith('@p2p')) {
     return {
       peerId: addrStr.slice(0, -4)
     }
@@ -436,7 +448,7 @@ export function flagsToSubscription(to: boolean, from: boolean): XmppRosterSubsc
 }
 
 export function peerIdFromJid(jid: string): string {
-  return jid.endsWith('@p2p') ? jid.slice(0, -4) : jid
+  return jid.toLowerCase().endsWith('@p2p') ? jid.slice(0, -4) : jid
 }
 
 export function jidFromPeerId(peerId: string): string {
@@ -608,6 +620,7 @@ export interface XmppMucMessage {
   timestamp: string
   encrypted?: boolean
   encryption?: 'omemo'
+  replace?: string
   reply?: { id: string; to?: string }
   thread?: string
 }
@@ -627,6 +640,7 @@ export function normalizeMucMessage(entry: Partial<XmppMucMessage> & { id: strin
     timestamp: entry.timestamp || new Date().toISOString(),
     encrypted: entry.encrypted || undefined,
     encryption: entry.encryption || undefined,
+    replace: entry.replace || undefined,
     reply: entry.reply?.id
       ? {
           id: entry.reply.id,

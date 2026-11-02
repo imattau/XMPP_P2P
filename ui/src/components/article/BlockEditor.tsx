@@ -1,4 +1,4 @@
-import { GripVertical, MoreHorizontal, Plus } from 'lucide-react'
+import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import type { ArticleBlock, ArticleBlockType } from '../../bridge/article/types'
 import { generateBlockId } from '../../bridge/article/controller'
@@ -11,19 +11,12 @@ interface BlockEditorProps {
 }
 
 const BLOCK_LABELS: Record<ArticleBlockType, string> = {
-  heading: 'Heading',
-  paragraph: 'Paragraph',
-  quote: 'Quote',
-  image: 'Image',
-  gallery: 'Gallery',
-  list: 'List',
-  code: 'Code',
-  table: 'Table',
-  callout: 'Callout',
-  divider: 'Divider',
-  file: 'File',
-  link: 'Link',
+  heading: 'Heading', paragraph: 'Text', quote: 'Quote', image: 'Image',
+  gallery: 'Gallery', list: 'List', code: 'Code', table: 'Table',
+  callout: 'Callout', divider: 'Divider', file: 'File', link: 'Link',
 }
+
+const fieldClass = 'w-full bg-secondary/50 rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-primary/30'
 
 function createEmptyBlock(type: ArticleBlockType): ArticleBlock {
   return { id: generateBlockId(), type, content: '' }
@@ -31,121 +24,99 @@ function createEmptyBlock(type: ArticleBlockType): ArticleBlock {
 
 export default function BlockEditor({ blocks, onChange }: BlockEditorProps) {
   const [showInsertPicker, setShowInsertPicker] = useState(false)
-  const [editingBlockId, setEditingBlockId] = useState<string | null>(null)
 
-  const handleContentChange = (id: string, content: string) => {
-    onChange(blocks.map((b) => (b.id === id ? { ...b, content } : b)))
+  const updateBlock = (id: string, patch: Partial<ArticleBlock>) => {
+    onChange(blocks.map((block) => block.id === id ? { ...block, ...patch } : block))
+  }
+
+  const updateMeta = (block: ArticleBlock, key: string, value: unknown) => {
+    updateBlock(block.id, { meta: { ...block.meta, [key]: value } })
   }
 
   const handleInsertBlock = (type: ArticleBlockType) => {
-    const newBlock = createEmptyBlock(type)
-    onChange([...blocks, newBlock])
+    onChange([...blocks, createEmptyBlock(type)])
     setShowInsertPicker(false)
-    setEditingBlockId(newBlock.id)
   }
 
-  const handleDeleteBlock = (id: string) => {
-    if (blocks.length <= 1) return
-    onChange(blocks.filter((b) => b.id !== id))
+  const moveBlock = (id: string, direction: -1 | 1) => {
+    const index = blocks.findIndex((block) => block.id === id)
+    const destination = index + direction
+    if (index < 0 || destination < 0 || destination >= blocks.length) return
+    const reordered = [...blocks]
+    ;[reordered[index], reordered[destination]] = [reordered[destination], reordered[index]]
+    onChange(reordered)
+  }
+
+  const renderEditor = (block: ArticleBlock) => {
+    switch (block.type) {
+      case 'divider':
+        return <hr className="border-border my-2" />
+      case 'image':
+        return <div className="space-y-2">
+          <input type="url" aria-label="Image URL" value={String(block.meta?.url ?? '')} onChange={(event) => updateMeta(block, 'url', event.target.value)} placeholder="Image URL (https://…)" className={fieldClass} />
+          <input aria-label="Image caption or alternative text" value={block.content} onChange={(event) => updateBlock(block.id, { content: event.target.value })} placeholder="Caption or alternative text" className={fieldClass} />
+          {!!block.meta?.url && <img src={String(block.meta.url)} alt={block.content} className="w-full max-h-56 rounded-lg object-cover" />}
+        </div>
+      case 'gallery': {
+        const images = Array.isArray(block.meta?.images) ? block.meta.images as Array<{ url: string }> : []
+        return <textarea value={images.map((image) => image.url).join('\n')} onChange={(event) => {
+          const nextImages = event.target.value.split('\n').map((url) => url.trim()).filter(Boolean).map((url) => ({ url }))
+          updateMeta(block, 'images', nextImages)
+        }} aria-label="Gallery image URLs, one per line" placeholder="Add one image URL per line" rows={3} className={fieldClass} />
+      }
+      case 'list': {
+        const items = Array.isArray(block.meta?.items) ? block.meta.items as string[] : (block.content ? [block.content] : [])
+        return <textarea value={items.join('\n')} onChange={(event) => {
+          const nextItems = event.target.value.split('\n')
+          updateBlock(block.id, { content: '', meta: { ...block.meta, items: nextItems } })
+        }} aria-label="List items, one per line" placeholder="One list item per line" rows={3} className={fieldClass} />
+      }
+      case 'table':
+        return <textarea aria-label="Table content, columns separated by vertical bars" value={block.content} onChange={(event) => updateBlock(block.id, { content: event.target.value })} placeholder={'Column A | Column B\nValue | Value'} rows={4} className={`${fieldClass} font-mono`} />
+      case 'file':
+        return <div className="space-y-2">
+          <input aria-label="File name" value={block.content} onChange={(event) => updateBlock(block.id, { content: event.target.value })} placeholder="File name" className={fieldClass} />
+          <input type="url" aria-label="File URL" value={String(block.meta?.url ?? '')} onChange={(event) => updateMeta(block, 'url', event.target.value)} placeholder="File URL (https://…)" className={fieldClass} />
+        </div>
+      case 'link':
+        return <div className="space-y-2">
+          <input aria-label="Link text" value={block.content} onChange={(event) => updateBlock(block.id, { content: event.target.value })} placeholder="Link text" className={fieldClass} />
+          <input type="url" aria-label="Link URL" value={String(block.meta?.href ?? '')} onChange={(event) => updateMeta(block, 'href', event.target.value)} placeholder="https://…" className={fieldClass} />
+        </div>
+      case 'code':
+        return <textarea aria-label="Code block" value={block.content} onChange={(event) => updateBlock(block.id, { content: event.target.value })} placeholder="Write code…" rows={4} className={`${fieldClass} font-mono`} />
+      case 'heading':
+        return <input aria-label="Heading" value={block.content} onChange={(event) => updateBlock(block.id, { content: event.target.value })} placeholder="Heading" className={fieldClass} />
+      case 'paragraph':
+      case 'quote':
+      case 'callout':
+      default:
+        return <textarea aria-label={block.type === 'quote' ? 'Quote text' : block.type === 'callout' ? 'Callout text' : 'Paragraph text'} value={block.content} onChange={(event) => updateBlock(block.id, { content: event.target.value })} placeholder={block.type === 'quote' ? 'Quote…' : block.type === 'callout' ? 'Callout text…' : 'Start writing…'} rows={3} className={fieldClass} />
+    }
   }
 
   return (
     <div className="space-y-2">
       <BlockEditorToolbar onInsertBlock={handleInsertBlock} />
-
       <div className="space-y-2">
-        {blocks.map((block) => (
-          <div
-            key={block.id}
-            className="bg-card rounded-xl border border-border p-3"
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <button className="cursor-grab text-muted-foreground/40 hover:text-muted-foreground transition-colors flex-shrink-0">
-                <GripVertical size={16} />
-              </button>
+        {blocks.map((block, index) => (
+          <section key={block.id} aria-label={`${BLOCK_LABELS[block.type]} block`} className="bg-card rounded-xl border border-border p-3">
+            <div className="flex items-center gap-2 mb-2">
               <span className="text-xs font-semibold text-primary">{BLOCK_LABELS[block.type]}</span>
               <div className="flex-1" />
-              <div className="flex items-center gap-0.5">
-                {block.type === 'image' && !!block.meta?.url && (
-                  <button
-                    onClick={() => handleDeleteBlock(block.id)}
-                    className="text-[10px] text-muted-foreground hover:text-destructive transition-colors px-1 py-0.5 rounded"
-                  >
-                    Remove
-                  </button>
-                )}
-                <button
-                  onClick={() => handleDeleteBlock(block.id)}
-                  className="text-muted-foreground/40 hover:text-muted-foreground transition-colors"
-                >
-                  <MoreHorizontal size={14} />
-                </button>
-              </div>
+              <button type="button" aria-label="Move block up" disabled={index === 0} onClick={() => moveBlock(block.id, -1)} className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground disabled:opacity-30"><ArrowUp size={14} /></button>
+              <button type="button" aria-label="Move block down" disabled={index === blocks.length - 1} onClick={() => moveBlock(block.id, 1)} className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground disabled:opacity-30"><ArrowDown size={14} /></button>
+              <button type="button" aria-label={`Remove ${BLOCK_LABELS[block.type]} block`} disabled={blocks.length <= 1} onClick={() => onChange(blocks.filter((item) => item.id !== block.id))} className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-destructive disabled:opacity-30"><Trash2 size={14} /></button>
             </div>
-
-            {block.type === 'image' ? (
-              <div
-                onClick={() => {
-                  const url = prompt('Image URL:')
-                  if (url) {
-                    onChange(blocks.map((b) => (b.id === block.id ? { ...b, meta: { ...b.meta, url } } : b)))
-                  }
-                }}
-                className="min-h-[40px] bg-secondary/50 rounded-lg px-3 py-2 cursor-pointer text-sm text-muted-foreground hover:bg-secondary transition-colors"
-              >
-                {block.meta?.url ? (
-                  <div className="relative">
-                    <img src={block.meta.url as string} alt="" className="w-full h-32 object-cover rounded-lg" />
-                    <span className="text-xs text-muted-foreground mt-1 block">{block.content}</span>
-                  </div>
-                ) : (
-                  <span>Click to add image URL…</span>
-                )}
-              </div>
-            ) : block.type === 'divider' ? (
-              <hr className="border-border my-2" />
-            ) : block.type === 'code' ? (
-              <textarea
-                value={block.content}
-                onChange={(e) => handleContentChange(block.id, e.target.value)}
-                placeholder="Write code…"
-                className="w-full bg-secondary/50 rounded-lg px-3 py-2 text-sm font-mono text-foreground placeholder:text-muted-foreground outline-none resize-none min-h-[60px]"
-                rows={3}
-              />
-            ) : (
-              <div
-                contentEditable
-                suppressContentEditableWarning
-                onFocus={() => setEditingBlockId(block.id)}
-                onBlur={(e) => handleContentChange(block.id, e.currentTarget.textContent ?? '')}
-                className="min-h-[24px] bg-secondary/50 rounded-lg px-3 py-2 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary/30 empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground/40"
-                data-placeholder={
-                  block.type === 'heading' ? 'Heading…'
-                  : block.type === 'quote' ? 'Quote…'
-                  : block.type === 'paragraph' ? 'Start writing…'
-                  : 'Write…'
-                }
-                dangerouslySetInnerHTML={{ __html: block.content || '' }}
-              />
-            )}
-          </div>
+            {renderEditor(block)}
+          </section>
         ))}
       </div>
 
-      <button
-        onClick={() => setShowInsertPicker(true)}
-        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-secondary text-primary hover:bg-secondary/80 transition-colors text-sm font-medium"
-      >
-        <Plus size={16} />
-        Add block
+      <button type="button" onClick={() => setShowInsertPicker(true)} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-secondary py-3 text-sm font-medium text-primary transition-colors hover:bg-secondary/80">
+        <Plus size={16} /> Add block
       </button>
-
-      {showInsertPicker && (
-        <InsertBlockPicker
-          onSelect={handleInsertBlock}
-          onClose={() => setShowInsertPicker(false)}
-        />
-      )}
+      {showInsertPicker && <InsertBlockPicker onSelect={handleInsertBlock} onClose={() => setShowInsertPicker(false)} />}
     </div>
   )
 }

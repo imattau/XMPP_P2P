@@ -6,12 +6,6 @@
   var __getOwnPropNames = Object.getOwnPropertyNames;
   var __getProtoOf = Object.getPrototypeOf;
   var __hasOwnProp = Object.prototype.hasOwnProperty;
-  var __require = /* @__PURE__ */ ((x2) => typeof require !== "undefined" ? require : typeof Proxy !== "undefined" ? new Proxy(x2, {
-    get: (a2, b2) => (typeof require !== "undefined" ? require : a2)[b2]
-  }) : x2)(function(x2) {
-    if (typeof require !== "undefined") return require.apply(this, arguments);
-    throw Error('Dynamic require of "' + x2 + '" is not supported');
-  });
   var __esm = (fn2, res, err) => function __init() {
     if (err) throw err[0];
     try {
@@ -20,7 +14,7 @@
       throw err = [e2], e2;
     }
   };
-  var __commonJS = (cb, mod2) => function __require2() {
+  var __commonJS = (cb, mod2) => function __require() {
     try {
       return mod2 || (0, cb[__getOwnPropNames(cb)[0]])((mod2 = { exports: {} }).exports, mod2), mod2.exports;
     } catch (e2) {
@@ -57,12 +51,12 @@
       exports.byteLength = byteLength;
       exports.toByteArray = toByteArray;
       exports.fromByteArray = fromByteArray;
-      var lookup2 = [];
+      var lookup3 = [];
       var revLookup = [];
       var Arr = typeof Uint8Array !== "undefined" ? Uint8Array : Array;
       var code6 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
       for (i2 = 0, len = code6.length; i2 < len; ++i2) {
-        lookup2[i2] = code6[i2];
+        lookup3[i2] = code6[i2];
         revLookup[code6.charCodeAt(i2)] = i2;
       }
       var i2;
@@ -115,7 +109,7 @@
         return arr;
       }
       function tripletToBase64(num) {
-        return lookup2[num >> 18 & 63] + lookup2[num >> 12 & 63] + lookup2[num >> 6 & 63] + lookup2[num & 63];
+        return lookup3[num >> 18 & 63] + lookup3[num >> 12 & 63] + lookup3[num >> 6 & 63] + lookup3[num & 63];
       }
       function encodeChunk(uint8, start2, end) {
         var tmp;
@@ -138,12 +132,12 @@
         if (extraBytes === 1) {
           tmp = uint8[len2 - 1];
           parts.push(
-            lookup2[tmp >> 2] + lookup2[tmp << 4 & 63] + "=="
+            lookup3[tmp >> 2] + lookup3[tmp << 4 & 63] + "=="
           );
         } else if (extraBytes === 2) {
           tmp = (uint8[len2 - 2] << 8) + uint8[len2 - 1];
           parts.push(
-            lookup2[tmp >> 10] + lookup2[tmp >> 4 & 63] + lookup2[tmp << 2 & 63] + "="
+            lookup3[tmp >> 10] + lookup3[tmp >> 4 & 63] + lookup3[tmp << 2 & 63] + "="
           );
         }
         return parts.join("");
@@ -243,13 +237,13 @@
       var base645 = require_base64_js();
       var ieee754 = require_ieee754();
       var customInspectSymbol = typeof Symbol === "function" && typeof Symbol["for"] === "function" ? Symbol["for"]("nodejs.util.inspect.custom") : null;
-      exports.Buffer = Buffer4;
+      exports.Buffer = Buffer5;
       exports.SlowBuffer = SlowBuffer;
       exports.INSPECT_MAX_BYTES = 50;
       var K_MAX_LENGTH = 2147483647;
       exports.kMaxLength = K_MAX_LENGTH;
-      Buffer4.TYPED_ARRAY_SUPPORT = typedArraySupport();
-      if (!Buffer4.TYPED_ARRAY_SUPPORT && typeof console !== "undefined" && typeof console.error === "function") {
+      Buffer5.TYPED_ARRAY_SUPPORT = typedArraySupport();
+      if (!Buffer5.TYPED_ARRAY_SUPPORT && typeof console !== "undefined" && typeof console.error === "function") {
         console.error(
           "This browser lacks typed array (Uint8Array) support which is required by `buffer` v5.x. Use `buffer` v4.x if you require old browser support."
         );
@@ -267,17 +261,17 @@
           return false;
         }
       }
-      Object.defineProperty(Buffer4.prototype, "parent", {
+      Object.defineProperty(Buffer5.prototype, "parent", {
         enumerable: true,
         get: function() {
-          if (!Buffer4.isBuffer(this)) return void 0;
+          if (!Buffer5.isBuffer(this)) return void 0;
           return this.buffer;
         }
       });
-      Object.defineProperty(Buffer4.prototype, "offset", {
+      Object.defineProperty(Buffer5.prototype, "offset", {
         enumerable: true,
         get: function() {
-          if (!Buffer4.isBuffer(this)) return void 0;
+          if (!Buffer5.isBuffer(this)) return void 0;
           return this.byteOffset;
         }
       });
@@ -286,10 +280,10 @@
           throw new RangeError('The value "' + length7 + '" is invalid for option "size"');
         }
         var buf = new Uint8Array(length7);
-        Object.setPrototypeOf(buf, Buffer4.prototype);
+        Object.setPrototypeOf(buf, Buffer5.prototype);
         return buf;
       }
-      function Buffer4(arg, encodingOrOffset, length7) {
+      function Buffer5(arg, encodingOrOffset, length7) {
         if (typeof arg === "number") {
           if (typeof encodingOrOffset === "string") {
             throw new TypeError(
@@ -300,7 +294,7 @@
         }
         return from7(arg, encodingOrOffset, length7);
       }
-      Buffer4.poolSize = 8192;
+      Buffer5.poolSize = 8192;
       function from7(value2, encodingOrOffset, length7) {
         if (typeof value2 === "string") {
           return fromString6(value2, encodingOrOffset);
@@ -326,12 +320,12 @@
         }
         var valueOf = value2.valueOf && value2.valueOf();
         if (valueOf != null && valueOf !== value2) {
-          return Buffer4.from(valueOf, encodingOrOffset, length7);
+          return Buffer5.from(valueOf, encodingOrOffset, length7);
         }
         var b2 = fromObject(value2);
         if (b2) return b2;
         if (typeof Symbol !== "undefined" && Symbol.toPrimitive != null && typeof value2[Symbol.toPrimitive] === "function") {
-          return Buffer4.from(
+          return Buffer5.from(
             value2[Symbol.toPrimitive]("string"),
             encodingOrOffset,
             length7
@@ -341,11 +335,11 @@
           "The first argument must be one of type string, Buffer, ArrayBuffer, Array, or Array-like Object. Received type " + typeof value2
         );
       }
-      Buffer4.from = function(value2, encodingOrOffset, length7) {
+      Buffer5.from = function(value2, encodingOrOffset, length7) {
         return from7(value2, encodingOrOffset, length7);
       };
-      Object.setPrototypeOf(Buffer4.prototype, Uint8Array.prototype);
-      Object.setPrototypeOf(Buffer4, Uint8Array);
+      Object.setPrototypeOf(Buffer5.prototype, Uint8Array.prototype);
+      Object.setPrototypeOf(Buffer5, Uint8Array);
       function assertSize(size) {
         if (typeof size !== "number") {
           throw new TypeError('"size" argument must be of type number');
@@ -363,24 +357,24 @@
         }
         return createBuffer(size);
       }
-      Buffer4.alloc = function(size, fill, encoding) {
+      Buffer5.alloc = function(size, fill, encoding) {
         return alloc6(size, fill, encoding);
       };
       function allocUnsafe5(size) {
         assertSize(size);
         return createBuffer(size < 0 ? 0 : checked(size) | 0);
       }
-      Buffer4.allocUnsafe = function(size) {
+      Buffer5.allocUnsafe = function(size) {
         return allocUnsafe5(size);
       };
-      Buffer4.allocUnsafeSlow = function(size) {
+      Buffer5.allocUnsafeSlow = function(size) {
         return allocUnsafe5(size);
       };
       function fromString6(string4, encoding) {
         if (typeof encoding !== "string" || encoding === "") {
           encoding = "utf8";
         }
-        if (!Buffer4.isEncoding(encoding)) {
+        if (!Buffer5.isEncoding(encoding)) {
           throw new TypeError("Unknown encoding: " + encoding);
         }
         var length7 = byteLength(string4, encoding) | 0;
@@ -421,11 +415,11 @@
         } else {
           buf = new Uint8Array(array, byteOffset, length7);
         }
-        Object.setPrototypeOf(buf, Buffer4.prototype);
+        Object.setPrototypeOf(buf, Buffer5.prototype);
         return buf;
       }
       function fromObject(obj) {
-        if (Buffer4.isBuffer(obj)) {
+        if (Buffer5.isBuffer(obj)) {
           var len = checked(obj.length) | 0;
           var buf = createBuffer(len);
           if (buf.length === 0) {
@@ -454,15 +448,15 @@
         if (+length7 != length7) {
           length7 = 0;
         }
-        return Buffer4.alloc(+length7);
+        return Buffer5.alloc(+length7);
       }
-      Buffer4.isBuffer = function isBuffer(b2) {
-        return b2 != null && b2._isBuffer === true && b2 !== Buffer4.prototype;
+      Buffer5.isBuffer = function isBuffer(b2) {
+        return b2 != null && b2._isBuffer === true && b2 !== Buffer5.prototype;
       };
-      Buffer4.compare = function compare4(a2, b2) {
-        if (isInstance(a2, Uint8Array)) a2 = Buffer4.from(a2, a2.offset, a2.byteLength);
-        if (isInstance(b2, Uint8Array)) b2 = Buffer4.from(b2, b2.offset, b2.byteLength);
-        if (!Buffer4.isBuffer(a2) || !Buffer4.isBuffer(b2)) {
+      Buffer5.compare = function compare4(a2, b2) {
+        if (isInstance(a2, Uint8Array)) a2 = Buffer5.from(a2, a2.offset, a2.byteLength);
+        if (isInstance(b2, Uint8Array)) b2 = Buffer5.from(b2, b2.offset, b2.byteLength);
+        if (!Buffer5.isBuffer(a2) || !Buffer5.isBuffer(b2)) {
           throw new TypeError(
             'The "buf1", "buf2" arguments must be one of type Buffer or Uint8Array'
           );
@@ -481,7 +475,7 @@
         if (y3 < x2) return 1;
         return 0;
       };
-      Buffer4.isEncoding = function isEncoding(encoding) {
+      Buffer5.isEncoding = function isEncoding(encoding) {
         switch (String(encoding).toLowerCase()) {
           case "hex":
           case "utf8":
@@ -499,12 +493,12 @@
             return false;
         }
       };
-      Buffer4.concat = function concat4(list, length7) {
+      Buffer5.concat = function concat4(list, length7) {
         if (!Array.isArray(list)) {
           throw new TypeError('"list" argument must be an Array of Buffers');
         }
         if (list.length === 0) {
-          return Buffer4.alloc(0);
+          return Buffer5.alloc(0);
         }
         var i2;
         if (length7 === void 0) {
@@ -513,13 +507,13 @@
             length7 += list[i2].length;
           }
         }
-        var buffer = Buffer4.allocUnsafe(length7);
+        var buffer = Buffer5.allocUnsafe(length7);
         var pos = 0;
         for (i2 = 0; i2 < list.length; ++i2) {
           var buf = list[i2];
           if (isInstance(buf, Uint8Array)) {
             if (pos + buf.length > buffer.length) {
-              Buffer4.from(buf).copy(buffer, pos);
+              Buffer5.from(buf).copy(buffer, pos);
             } else {
               Uint8Array.prototype.set.call(
                 buffer,
@@ -527,7 +521,7 @@
                 pos
               );
             }
-          } else if (!Buffer4.isBuffer(buf)) {
+          } else if (!Buffer5.isBuffer(buf)) {
             throw new TypeError('"list" argument must be an Array of Buffers');
           } else {
             buf.copy(buffer, pos);
@@ -537,7 +531,7 @@
         return buffer;
       };
       function byteLength(string4, encoding) {
-        if (Buffer4.isBuffer(string4)) {
+        if (Buffer5.isBuffer(string4)) {
           return string4.length;
         }
         if (ArrayBuffer.isView(string4) || isInstance(string4, ArrayBuffer)) {
@@ -579,7 +573,7 @@
           }
         }
       }
-      Buffer4.byteLength = byteLength;
+      Buffer5.byteLength = byteLength;
       function slowToString(encoding, start2, end) {
         var loweredCase = false;
         if (start2 === void 0 || start2 < 0) {
@@ -626,13 +620,13 @@
           }
         }
       }
-      Buffer4.prototype._isBuffer = true;
+      Buffer5.prototype._isBuffer = true;
       function swap(b2, n2, m3) {
         var i2 = b2[n2];
         b2[n2] = b2[m3];
         b2[m3] = i2;
       }
-      Buffer4.prototype.swap16 = function swap16() {
+      Buffer5.prototype.swap16 = function swap16() {
         var len = this.length;
         if (len % 2 !== 0) {
           throw new RangeError("Buffer size must be a multiple of 16-bits");
@@ -642,7 +636,7 @@
         }
         return this;
       };
-      Buffer4.prototype.swap32 = function swap32() {
+      Buffer5.prototype.swap32 = function swap32() {
         var len = this.length;
         if (len % 4 !== 0) {
           throw new RangeError("Buffer size must be a multiple of 32-bits");
@@ -653,7 +647,7 @@
         }
         return this;
       };
-      Buffer4.prototype.swap64 = function swap64() {
+      Buffer5.prototype.swap64 = function swap64() {
         var len = this.length;
         if (len % 8 !== 0) {
           throw new RangeError("Buffer size must be a multiple of 64-bits");
@@ -666,19 +660,19 @@
         }
         return this;
       };
-      Buffer4.prototype.toString = function toString8() {
+      Buffer5.prototype.toString = function toString8() {
         var length7 = this.length;
         if (length7 === 0) return "";
         if (arguments.length === 0) return utf8Slice(this, 0, length7);
         return slowToString.apply(this, arguments);
       };
-      Buffer4.prototype.toLocaleString = Buffer4.prototype.toString;
-      Buffer4.prototype.equals = function equals10(b2) {
-        if (!Buffer4.isBuffer(b2)) throw new TypeError("Argument must be a Buffer");
+      Buffer5.prototype.toLocaleString = Buffer5.prototype.toString;
+      Buffer5.prototype.equals = function equals10(b2) {
+        if (!Buffer5.isBuffer(b2)) throw new TypeError("Argument must be a Buffer");
         if (this === b2) return true;
-        return Buffer4.compare(this, b2) === 0;
+        return Buffer5.compare(this, b2) === 0;
       };
-      Buffer4.prototype.inspect = function inspect3() {
+      Buffer5.prototype.inspect = function inspect3() {
         var str = "";
         var max = exports.INSPECT_MAX_BYTES;
         str = this.toString("hex", 0, max).replace(/(.{2})/g, "$1 ").trim();
@@ -686,13 +680,13 @@
         return "<Buffer " + str + ">";
       };
       if (customInspectSymbol) {
-        Buffer4.prototype[customInspectSymbol] = Buffer4.prototype.inspect;
+        Buffer5.prototype[customInspectSymbol] = Buffer5.prototype.inspect;
       }
-      Buffer4.prototype.compare = function compare4(target, start2, end, thisStart, thisEnd) {
+      Buffer5.prototype.compare = function compare4(target, start2, end, thisStart, thisEnd) {
         if (isInstance(target, Uint8Array)) {
-          target = Buffer4.from(target, target.offset, target.byteLength);
+          target = Buffer5.from(target, target.offset, target.byteLength);
         }
-        if (!Buffer4.isBuffer(target)) {
+        if (!Buffer5.isBuffer(target)) {
           throw new TypeError(
             'The "target" argument must be one of type Buffer or Uint8Array. Received type ' + typeof target
           );
@@ -765,9 +759,9 @@
           else return -1;
         }
         if (typeof val === "string") {
-          val = Buffer4.from(val, encoding);
+          val = Buffer5.from(val, encoding);
         }
-        if (Buffer4.isBuffer(val)) {
+        if (Buffer5.isBuffer(val)) {
           if (val.length === 0) {
             return -1;
           }
@@ -835,13 +829,13 @@
         }
         return -1;
       }
-      Buffer4.prototype.includes = function includes(val, byteOffset, encoding) {
+      Buffer5.prototype.includes = function includes(val, byteOffset, encoding) {
         return this.indexOf(val, byteOffset, encoding) !== -1;
       };
-      Buffer4.prototype.indexOf = function indexOf(val, byteOffset, encoding) {
+      Buffer5.prototype.indexOf = function indexOf(val, byteOffset, encoding) {
         return bidirectionalIndexOf(this, val, byteOffset, encoding, true);
       };
-      Buffer4.prototype.lastIndexOf = function lastIndexOf(val, byteOffset, encoding) {
+      Buffer5.prototype.lastIndexOf = function lastIndexOf(val, byteOffset, encoding) {
         return bidirectionalIndexOf(this, val, byteOffset, encoding, false);
       };
       function hexWrite(buf, string4, offset, length7) {
@@ -878,7 +872,7 @@
       function ucs2Write(buf, string4, offset, length7) {
         return blitBuffer(utf16leToBytes(string4, buf.length - offset), buf, offset, length7);
       }
-      Buffer4.prototype.write = function write3(string4, offset, length7, encoding) {
+      Buffer5.prototype.write = function write3(string4, offset, length7, encoding) {
         if (offset === void 0) {
           encoding = "utf8";
           length7 = this.length;
@@ -933,7 +927,7 @@
           }
         }
       };
-      Buffer4.prototype.toJSON = function toJSON() {
+      Buffer5.prototype.toJSON = function toJSON() {
         return {
           type: "Buffer",
           data: Array.prototype.slice.call(this._arr || this, 0)
@@ -1056,7 +1050,7 @@
         }
         return res;
       }
-      Buffer4.prototype.slice = function slice(start2, end) {
+      Buffer5.prototype.slice = function slice(start2, end) {
         var len = this.length;
         start2 = ~~start2;
         end = end === void 0 ? len : ~~end;
@@ -1074,14 +1068,14 @@
         }
         if (end < start2) end = start2;
         var newBuf = this.subarray(start2, end);
-        Object.setPrototypeOf(newBuf, Buffer4.prototype);
+        Object.setPrototypeOf(newBuf, Buffer5.prototype);
         return newBuf;
       };
       function checkOffset(offset, ext, length7) {
         if (offset % 1 !== 0 || offset < 0) throw new RangeError("offset is not uint");
         if (offset + ext > length7) throw new RangeError("Trying to access beyond buffer length");
       }
-      Buffer4.prototype.readUintLE = Buffer4.prototype.readUIntLE = function readUIntLE(offset, byteLength2, noAssert) {
+      Buffer5.prototype.readUintLE = Buffer5.prototype.readUIntLE = function readUIntLE(offset, byteLength2, noAssert) {
         offset = offset >>> 0;
         byteLength2 = byteLength2 >>> 0;
         if (!noAssert) checkOffset(offset, byteLength2, this.length);
@@ -1093,7 +1087,7 @@
         }
         return val;
       };
-      Buffer4.prototype.readUintBE = Buffer4.prototype.readUIntBE = function readUIntBE(offset, byteLength2, noAssert) {
+      Buffer5.prototype.readUintBE = Buffer5.prototype.readUIntBE = function readUIntBE(offset, byteLength2, noAssert) {
         offset = offset >>> 0;
         byteLength2 = byteLength2 >>> 0;
         if (!noAssert) {
@@ -1106,32 +1100,32 @@
         }
         return val;
       };
-      Buffer4.prototype.readUint8 = Buffer4.prototype.readUInt8 = function readUInt8(offset, noAssert) {
+      Buffer5.prototype.readUint8 = Buffer5.prototype.readUInt8 = function readUInt8(offset, noAssert) {
         offset = offset >>> 0;
         if (!noAssert) checkOffset(offset, 1, this.length);
         return this[offset];
       };
-      Buffer4.prototype.readUint16LE = Buffer4.prototype.readUInt16LE = function readUInt16LE(offset, noAssert) {
+      Buffer5.prototype.readUint16LE = Buffer5.prototype.readUInt16LE = function readUInt16LE(offset, noAssert) {
         offset = offset >>> 0;
         if (!noAssert) checkOffset(offset, 2, this.length);
         return this[offset] | this[offset + 1] << 8;
       };
-      Buffer4.prototype.readUint16BE = Buffer4.prototype.readUInt16BE = function readUInt16BE(offset, noAssert) {
+      Buffer5.prototype.readUint16BE = Buffer5.prototype.readUInt16BE = function readUInt16BE(offset, noAssert) {
         offset = offset >>> 0;
         if (!noAssert) checkOffset(offset, 2, this.length);
         return this[offset] << 8 | this[offset + 1];
       };
-      Buffer4.prototype.readUint32LE = Buffer4.prototype.readUInt32LE = function readUInt32LE(offset, noAssert) {
+      Buffer5.prototype.readUint32LE = Buffer5.prototype.readUInt32LE = function readUInt32LE(offset, noAssert) {
         offset = offset >>> 0;
         if (!noAssert) checkOffset(offset, 4, this.length);
         return (this[offset] | this[offset + 1] << 8 | this[offset + 2] << 16) + this[offset + 3] * 16777216;
       };
-      Buffer4.prototype.readUint32BE = Buffer4.prototype.readUInt32BE = function readUInt32BE(offset, noAssert) {
+      Buffer5.prototype.readUint32BE = Buffer5.prototype.readUInt32BE = function readUInt32BE(offset, noAssert) {
         offset = offset >>> 0;
         if (!noAssert) checkOffset(offset, 4, this.length);
         return this[offset] * 16777216 + (this[offset + 1] << 16 | this[offset + 2] << 8 | this[offset + 3]);
       };
-      Buffer4.prototype.readIntLE = function readIntLE(offset, byteLength2, noAssert) {
+      Buffer5.prototype.readIntLE = function readIntLE(offset, byteLength2, noAssert) {
         offset = offset >>> 0;
         byteLength2 = byteLength2 >>> 0;
         if (!noAssert) checkOffset(offset, byteLength2, this.length);
@@ -1145,7 +1139,7 @@
         if (val >= mul) val -= Math.pow(2, 8 * byteLength2);
         return val;
       };
-      Buffer4.prototype.readIntBE = function readIntBE(offset, byteLength2, noAssert) {
+      Buffer5.prototype.readIntBE = function readIntBE(offset, byteLength2, noAssert) {
         offset = offset >>> 0;
         byteLength2 = byteLength2 >>> 0;
         if (!noAssert) checkOffset(offset, byteLength2, this.length);
@@ -1159,60 +1153,60 @@
         if (val >= mul) val -= Math.pow(2, 8 * byteLength2);
         return val;
       };
-      Buffer4.prototype.readInt8 = function readInt8(offset, noAssert) {
+      Buffer5.prototype.readInt8 = function readInt8(offset, noAssert) {
         offset = offset >>> 0;
         if (!noAssert) checkOffset(offset, 1, this.length);
         if (!(this[offset] & 128)) return this[offset];
         return (255 - this[offset] + 1) * -1;
       };
-      Buffer4.prototype.readInt16LE = function readInt16LE(offset, noAssert) {
+      Buffer5.prototype.readInt16LE = function readInt16LE(offset, noAssert) {
         offset = offset >>> 0;
         if (!noAssert) checkOffset(offset, 2, this.length);
         var val = this[offset] | this[offset + 1] << 8;
         return val & 32768 ? val | 4294901760 : val;
       };
-      Buffer4.prototype.readInt16BE = function readInt16BE(offset, noAssert) {
+      Buffer5.prototype.readInt16BE = function readInt16BE(offset, noAssert) {
         offset = offset >>> 0;
         if (!noAssert) checkOffset(offset, 2, this.length);
         var val = this[offset + 1] | this[offset] << 8;
         return val & 32768 ? val | 4294901760 : val;
       };
-      Buffer4.prototype.readInt32LE = function readInt32LE(offset, noAssert) {
+      Buffer5.prototype.readInt32LE = function readInt32LE(offset, noAssert) {
         offset = offset >>> 0;
         if (!noAssert) checkOffset(offset, 4, this.length);
         return this[offset] | this[offset + 1] << 8 | this[offset + 2] << 16 | this[offset + 3] << 24;
       };
-      Buffer4.prototype.readInt32BE = function readInt32BE(offset, noAssert) {
+      Buffer5.prototype.readInt32BE = function readInt32BE(offset, noAssert) {
         offset = offset >>> 0;
         if (!noAssert) checkOffset(offset, 4, this.length);
         return this[offset] << 24 | this[offset + 1] << 16 | this[offset + 2] << 8 | this[offset + 3];
       };
-      Buffer4.prototype.readFloatLE = function readFloatLE3(offset, noAssert) {
+      Buffer5.prototype.readFloatLE = function readFloatLE3(offset, noAssert) {
         offset = offset >>> 0;
         if (!noAssert) checkOffset(offset, 4, this.length);
         return ieee754.read(this, offset, true, 23, 4);
       };
-      Buffer4.prototype.readFloatBE = function readFloatBE(offset, noAssert) {
+      Buffer5.prototype.readFloatBE = function readFloatBE(offset, noAssert) {
         offset = offset >>> 0;
         if (!noAssert) checkOffset(offset, 4, this.length);
         return ieee754.read(this, offset, false, 23, 4);
       };
-      Buffer4.prototype.readDoubleLE = function readDoubleLE3(offset, noAssert) {
+      Buffer5.prototype.readDoubleLE = function readDoubleLE3(offset, noAssert) {
         offset = offset >>> 0;
         if (!noAssert) checkOffset(offset, 8, this.length);
         return ieee754.read(this, offset, true, 52, 8);
       };
-      Buffer4.prototype.readDoubleBE = function readDoubleBE(offset, noAssert) {
+      Buffer5.prototype.readDoubleBE = function readDoubleBE(offset, noAssert) {
         offset = offset >>> 0;
         if (!noAssert) checkOffset(offset, 8, this.length);
         return ieee754.read(this, offset, false, 52, 8);
       };
       function checkInt(buf, value2, offset, ext, max, min) {
-        if (!Buffer4.isBuffer(buf)) throw new TypeError('"buffer" argument must be a Buffer instance');
+        if (!Buffer5.isBuffer(buf)) throw new TypeError('"buffer" argument must be a Buffer instance');
         if (value2 > max || value2 < min) throw new RangeError('"value" argument is out of bounds');
         if (offset + ext > buf.length) throw new RangeError("Index out of range");
       }
-      Buffer4.prototype.writeUintLE = Buffer4.prototype.writeUIntLE = function writeUIntLE(value2, offset, byteLength2, noAssert) {
+      Buffer5.prototype.writeUintLE = Buffer5.prototype.writeUIntLE = function writeUIntLE(value2, offset, byteLength2, noAssert) {
         value2 = +value2;
         offset = offset >>> 0;
         byteLength2 = byteLength2 >>> 0;
@@ -1228,7 +1222,7 @@
         }
         return offset + byteLength2;
       };
-      Buffer4.prototype.writeUintBE = Buffer4.prototype.writeUIntBE = function writeUIntBE(value2, offset, byteLength2, noAssert) {
+      Buffer5.prototype.writeUintBE = Buffer5.prototype.writeUIntBE = function writeUIntBE(value2, offset, byteLength2, noAssert) {
         value2 = +value2;
         offset = offset >>> 0;
         byteLength2 = byteLength2 >>> 0;
@@ -1244,14 +1238,14 @@
         }
         return offset + byteLength2;
       };
-      Buffer4.prototype.writeUint8 = Buffer4.prototype.writeUInt8 = function writeUInt8(value2, offset, noAssert) {
+      Buffer5.prototype.writeUint8 = Buffer5.prototype.writeUInt8 = function writeUInt8(value2, offset, noAssert) {
         value2 = +value2;
         offset = offset >>> 0;
         if (!noAssert) checkInt(this, value2, offset, 1, 255, 0);
         this[offset] = value2 & 255;
         return offset + 1;
       };
-      Buffer4.prototype.writeUint16LE = Buffer4.prototype.writeUInt16LE = function writeUInt16LE(value2, offset, noAssert) {
+      Buffer5.prototype.writeUint16LE = Buffer5.prototype.writeUInt16LE = function writeUInt16LE(value2, offset, noAssert) {
         value2 = +value2;
         offset = offset >>> 0;
         if (!noAssert) checkInt(this, value2, offset, 2, 65535, 0);
@@ -1259,7 +1253,7 @@
         this[offset + 1] = value2 >>> 8;
         return offset + 2;
       };
-      Buffer4.prototype.writeUint16BE = Buffer4.prototype.writeUInt16BE = function writeUInt16BE(value2, offset, noAssert) {
+      Buffer5.prototype.writeUint16BE = Buffer5.prototype.writeUInt16BE = function writeUInt16BE(value2, offset, noAssert) {
         value2 = +value2;
         offset = offset >>> 0;
         if (!noAssert) checkInt(this, value2, offset, 2, 65535, 0);
@@ -1267,7 +1261,7 @@
         this[offset + 1] = value2 & 255;
         return offset + 2;
       };
-      Buffer4.prototype.writeUint32LE = Buffer4.prototype.writeUInt32LE = function writeUInt32LE(value2, offset, noAssert) {
+      Buffer5.prototype.writeUint32LE = Buffer5.prototype.writeUInt32LE = function writeUInt32LE(value2, offset, noAssert) {
         value2 = +value2;
         offset = offset >>> 0;
         if (!noAssert) checkInt(this, value2, offset, 4, 4294967295, 0);
@@ -1277,7 +1271,7 @@
         this[offset] = value2 & 255;
         return offset + 4;
       };
-      Buffer4.prototype.writeUint32BE = Buffer4.prototype.writeUInt32BE = function writeUInt32BE(value2, offset, noAssert) {
+      Buffer5.prototype.writeUint32BE = Buffer5.prototype.writeUInt32BE = function writeUInt32BE(value2, offset, noAssert) {
         value2 = +value2;
         offset = offset >>> 0;
         if (!noAssert) checkInt(this, value2, offset, 4, 4294967295, 0);
@@ -1287,7 +1281,7 @@
         this[offset + 3] = value2 & 255;
         return offset + 4;
       };
-      Buffer4.prototype.writeIntLE = function writeIntLE(value2, offset, byteLength2, noAssert) {
+      Buffer5.prototype.writeIntLE = function writeIntLE(value2, offset, byteLength2, noAssert) {
         value2 = +value2;
         offset = offset >>> 0;
         if (!noAssert) {
@@ -1306,7 +1300,7 @@
         }
         return offset + byteLength2;
       };
-      Buffer4.prototype.writeIntBE = function writeIntBE(value2, offset, byteLength2, noAssert) {
+      Buffer5.prototype.writeIntBE = function writeIntBE(value2, offset, byteLength2, noAssert) {
         value2 = +value2;
         offset = offset >>> 0;
         if (!noAssert) {
@@ -1325,7 +1319,7 @@
         }
         return offset + byteLength2;
       };
-      Buffer4.prototype.writeInt8 = function writeInt8(value2, offset, noAssert) {
+      Buffer5.prototype.writeInt8 = function writeInt8(value2, offset, noAssert) {
         value2 = +value2;
         offset = offset >>> 0;
         if (!noAssert) checkInt(this, value2, offset, 1, 127, -128);
@@ -1333,7 +1327,7 @@
         this[offset] = value2 & 255;
         return offset + 1;
       };
-      Buffer4.prototype.writeInt16LE = function writeInt16LE(value2, offset, noAssert) {
+      Buffer5.prototype.writeInt16LE = function writeInt16LE(value2, offset, noAssert) {
         value2 = +value2;
         offset = offset >>> 0;
         if (!noAssert) checkInt(this, value2, offset, 2, 32767, -32768);
@@ -1341,7 +1335,7 @@
         this[offset + 1] = value2 >>> 8;
         return offset + 2;
       };
-      Buffer4.prototype.writeInt16BE = function writeInt16BE(value2, offset, noAssert) {
+      Buffer5.prototype.writeInt16BE = function writeInt16BE(value2, offset, noAssert) {
         value2 = +value2;
         offset = offset >>> 0;
         if (!noAssert) checkInt(this, value2, offset, 2, 32767, -32768);
@@ -1349,7 +1343,7 @@
         this[offset + 1] = value2 & 255;
         return offset + 2;
       };
-      Buffer4.prototype.writeInt32LE = function writeInt32LE(value2, offset, noAssert) {
+      Buffer5.prototype.writeInt32LE = function writeInt32LE(value2, offset, noAssert) {
         value2 = +value2;
         offset = offset >>> 0;
         if (!noAssert) checkInt(this, value2, offset, 4, 2147483647, -2147483648);
@@ -1359,7 +1353,7 @@
         this[offset + 3] = value2 >>> 24;
         return offset + 4;
       };
-      Buffer4.prototype.writeInt32BE = function writeInt32BE(value2, offset, noAssert) {
+      Buffer5.prototype.writeInt32BE = function writeInt32BE(value2, offset, noAssert) {
         value2 = +value2;
         offset = offset >>> 0;
         if (!noAssert) checkInt(this, value2, offset, 4, 2147483647, -2147483648);
@@ -1383,10 +1377,10 @@
         ieee754.write(buf, value2, offset, littleEndian, 23, 4);
         return offset + 4;
       }
-      Buffer4.prototype.writeFloatLE = function writeFloatLE3(value2, offset, noAssert) {
+      Buffer5.prototype.writeFloatLE = function writeFloatLE3(value2, offset, noAssert) {
         return writeFloat(this, value2, offset, true, noAssert);
       };
-      Buffer4.prototype.writeFloatBE = function writeFloatBE(value2, offset, noAssert) {
+      Buffer5.prototype.writeFloatBE = function writeFloatBE(value2, offset, noAssert) {
         return writeFloat(this, value2, offset, false, noAssert);
       };
       function writeDouble(buf, value2, offset, littleEndian, noAssert) {
@@ -1398,14 +1392,14 @@
         ieee754.write(buf, value2, offset, littleEndian, 52, 8);
         return offset + 8;
       }
-      Buffer4.prototype.writeDoubleLE = function writeDoubleLE3(value2, offset, noAssert) {
+      Buffer5.prototype.writeDoubleLE = function writeDoubleLE3(value2, offset, noAssert) {
         return writeDouble(this, value2, offset, true, noAssert);
       };
-      Buffer4.prototype.writeDoubleBE = function writeDoubleBE(value2, offset, noAssert) {
+      Buffer5.prototype.writeDoubleBE = function writeDoubleBE(value2, offset, noAssert) {
         return writeDouble(this, value2, offset, false, noAssert);
       };
-      Buffer4.prototype.copy = function copy(target, targetStart, start2, end) {
-        if (!Buffer4.isBuffer(target)) throw new TypeError("argument should be a Buffer");
+      Buffer5.prototype.copy = function copy(target, targetStart, start2, end) {
+        if (!Buffer5.isBuffer(target)) throw new TypeError("argument should be a Buffer");
         if (!start2) start2 = 0;
         if (!end && end !== 0) end = this.length;
         if (targetStart >= target.length) targetStart = target.length;
@@ -1434,7 +1428,7 @@
         }
         return len;
       };
-      Buffer4.prototype.fill = function fill(val, start2, end, encoding) {
+      Buffer5.prototype.fill = function fill(val, start2, end, encoding) {
         if (typeof val === "string") {
           if (typeof start2 === "string") {
             encoding = start2;
@@ -1447,7 +1441,7 @@
           if (encoding !== void 0 && typeof encoding !== "string") {
             throw new TypeError("encoding must be a string");
           }
-          if (typeof encoding === "string" && !Buffer4.isEncoding(encoding)) {
+          if (typeof encoding === "string" && !Buffer5.isEncoding(encoding)) {
             throw new TypeError("Unknown encoding: " + encoding);
           }
           if (val.length === 1) {
@@ -1476,7 +1470,7 @@
             this[i2] = val;
           }
         } else {
-          var bytes = Buffer4.isBuffer(val) ? val : Buffer4.from(val, encoding);
+          var bytes = Buffer5.isBuffer(val) ? val : Buffer5.from(val, encoding);
           var len = bytes.length;
           if (len === 0) {
             throw new TypeError('The value "' + val + '" is invalid for argument "value"');
@@ -2650,7 +2644,7 @@
       "use strict";
       init_globals();
       var escape2 = require_escape();
-      var Element20 = class _Element {
+      var Element19 = class _Element {
         constructor(name5, attrs) {
           this.name = name5;
           this.parent = null;
@@ -2940,8 +2934,8 @@
           }
         }
       };
-      Element20.prototype.tree = Element20.prototype.root;
-      module.exports = Element20;
+      Element19.prototype.tree = Element19.prototype.root;
+      module.exports = Element19;
     }
   });
 
@@ -2950,7 +2944,7 @@
     "node_modules/ltx/lib/createElement.js"(exports, module) {
       "use strict";
       init_globals();
-      var Element20 = require_Element();
+      var Element19 = require_Element();
       function append(el2, child) {
         if (Array.isArray(child)) {
           for (const c2 of child) append(el2, c2);
@@ -2970,7 +2964,7 @@
             else attrs[key] = value2.toString(10);
           }
         }
-        const el2 = new Element20(name5, attrs);
+        const el2 = new Element19(name5, attrs);
         for (const child of children) {
           append(el2, child);
         }
@@ -5807,8 +5801,8 @@
       };
       util2.Buffer = (function() {
         try {
-          var Buffer4 = util2.global.Buffer;
-          return Buffer4.prototype.utf8Write ? Buffer4 : (
+          var Buffer5 = util2.global.Buffer;
+          return Buffer5.prototype.utf8Write ? Buffer5 : (
             /* istanbul ignore next */
             null
           );
@@ -5944,18 +5938,18 @@
         json: true
       };
       util2._configure = function() {
-        var Buffer4 = util2.Buffer;
-        if (!Buffer4) {
+        var Buffer5 = util2.Buffer;
+        if (!Buffer5) {
           util2._Buffer_from = util2._Buffer_allocUnsafe = null;
           return;
         }
-        util2._Buffer_from = Buffer4.from !== Uint8Array.from && Buffer4.from || /* istanbul ignore next */
+        util2._Buffer_from = Buffer5.from !== Uint8Array.from && Buffer5.from || /* istanbul ignore next */
         function Buffer_from(value2, encoding) {
-          return new Buffer4(value2, encoding);
+          return new Buffer5(value2, encoding);
         };
-        util2._Buffer_allocUnsafe = Buffer4.allocUnsafe || /* istanbul ignore next */
+        util2._Buffer_allocUnsafe = Buffer5.allocUnsafe || /* istanbul ignore next */
         function Buffer_allocUnsafe(size) {
-          return new Buffer4(size);
+          return new Buffer5(size);
         };
       };
     })(minimal);
@@ -7051,7 +7045,7 @@
       });
       return this;
     };
-    Namespace.prototype.lookup = function lookup2(path2, filterTypes, parentAlreadyChecked) {
+    Namespace.prototype.lookup = function lookup3(path2, filterTypes, parentAlreadyChecked) {
       if (typeof filterTypes === "boolean") {
         parentAlreadyChecked = filterTypes;
         filterTypes = void 0;
@@ -7086,7 +7080,7 @@
       }
       return null;
     };
-    Namespace.prototype._lookupImpl = function lookup2(path2, flatPath) {
+    Namespace.prototype._lookupImpl = function lookup3(path2, flatPath) {
       if (Object.prototype.hasOwnProperty.call(this._lookupCache, flatPath)) {
         return this._lookupCache[flatPath];
       }
@@ -12530,12 +12524,6 @@
   // src/browser-index.ts
   init_globals();
 
-  // src/core/p2p-browser.ts
-  init_globals();
-
-  // node_modules/libp2p/dist/src/index.js
-  init_globals();
-
   // node_modules/@libp2p/crypto/dist/src/keys/index.js
   init_globals();
 
@@ -14955,6 +14943,52 @@
   var P_256_KEY_LENGTH = 32;
   var P_384_KEY_LENGTH = 48;
   var P_521_KEY_LENGTH = 66;
+  function unmarshalECDSAPrivateKey(bytes) {
+    const message4 = decodeDer(bytes);
+    return pkiMessageToECDSAPrivateKey(message4);
+  }
+  function pkiMessageToECDSAPrivateKey(message4) {
+    const privateKey = message4[1];
+    const d3 = toString2(privateKey, "base64url");
+    const coordinates = message4[2][1][0];
+    const offset = 1;
+    let x2;
+    let y3;
+    if (privateKey.byteLength === P_256_KEY_LENGTH) {
+      x2 = toString2(coordinates.subarray(offset, offset + P_256_KEY_LENGTH), "base64url");
+      y3 = toString2(coordinates.subarray(offset + P_256_KEY_LENGTH), "base64url");
+      return new ECDSAPrivateKey({
+        ...P_256_KEY_JWK,
+        key_ops: ["sign"],
+        d: d3,
+        x: x2,
+        y: y3
+      });
+    }
+    if (privateKey.byteLength === P_384_KEY_LENGTH) {
+      x2 = toString2(coordinates.subarray(offset, offset + P_384_KEY_LENGTH), "base64url");
+      y3 = toString2(coordinates.subarray(offset + P_384_KEY_LENGTH), "base64url");
+      return new ECDSAPrivateKey({
+        ...P_384_KEY_JWK,
+        key_ops: ["sign"],
+        d: d3,
+        x: x2,
+        y: y3
+      });
+    }
+    if (privateKey.byteLength === P_521_KEY_LENGTH) {
+      x2 = toString2(coordinates.subarray(offset, offset + P_521_KEY_LENGTH), "base64url");
+      y3 = toString2(coordinates.subarray(offset + P_521_KEY_LENGTH), "base64url");
+      return new ECDSAPrivateKey({
+        ...P_521_KEY_JWK,
+        key_ops: ["sign"],
+        d: d3,
+        x: x2,
+        y: y3
+      });
+    }
+    throw new InvalidParametersError(`Private key length was wrong length, got ${privateKey.byteLength}, expected 32, 48 or 66`);
+  }
   function unmarshalECDSAPublicKey(bytes) {
     const message4 = decodeDer(bytes);
     return pkiMessageToECDSAPublicKey(message4);
@@ -17678,6 +17712,20 @@
       publicKey: publicKey2
     };
   }
+  function generateKeyFromSeed(seed) {
+    if (seed.length !== KEYS_BYTE_LENGTH) {
+      throw new TypeError('"seed" must be 32 bytes in length.');
+    } else if (!(seed instanceof Uint8Array)) {
+      throw new TypeError('"seed" must be a node.js Buffer, or Uint8Array.');
+    }
+    const privateKeyRaw = seed;
+    const publicKey2 = ed25519.getPublicKey(privateKeyRaw);
+    const privateKey = concatKeys(privateKeyRaw, publicKey2);
+    return {
+      privateKey,
+      publicKey: publicKey2
+    };
+  }
   async function hashAndSignWebCrypto(privateKey, msg) {
     let privateKeyRaw;
     if (privateKey.length === PRIVATE_KEY_BYTE_LENGTH) {
@@ -17819,12 +17867,28 @@
   };
 
   // node_modules/@libp2p/crypto/dist/src/keys/ed25519/utils.js
+  function unmarshalEd25519PrivateKey(bytes) {
+    if (bytes.length > PRIVATE_KEY_BYTE_LENGTH) {
+      bytes = ensureEd25519Key(bytes, PRIVATE_KEY_BYTE_LENGTH + PUBLIC_KEY_BYTE_LENGTH);
+      const privateKeyBytes2 = bytes.subarray(0, PRIVATE_KEY_BYTE_LENGTH);
+      const publicKeyBytes2 = bytes.subarray(PRIVATE_KEY_BYTE_LENGTH, bytes.length);
+      return new Ed25519PrivateKey(privateKeyBytes2, publicKeyBytes2);
+    }
+    bytes = ensureEd25519Key(bytes, PRIVATE_KEY_BYTE_LENGTH);
+    const privateKeyBytes = bytes.subarray(0, PRIVATE_KEY_BYTE_LENGTH);
+    const publicKeyBytes = bytes.subarray(PUBLIC_KEY_BYTE_LENGTH);
+    return new Ed25519PrivateKey(privateKeyBytes, publicKeyBytes);
+  }
   function unmarshalEd25519PublicKey(bytes) {
     bytes = ensureEd25519Key(bytes, PUBLIC_KEY_BYTE_LENGTH);
     return new Ed25519PublicKey(bytes);
   }
   async function generateEd25519KeyPair() {
     const { privateKey, publicKey: publicKey2 } = generateKey();
+    return new Ed25519PrivateKey(privateKey, publicKey2);
+  }
+  async function generateEd25519KeyPairFromSeed(seed) {
+    const { privateKey, publicKey: publicKey2 } = generateKeyFromSeed(seed);
     return new Ed25519PrivateKey(privateKey, publicKey2);
   }
   function ensureEd25519Key(key, length7) {
@@ -20813,6 +20877,9 @@
   };
 
   // node_modules/@libp2p/crypto/dist/src/keys/secp256k1/utils.js
+  function unmarshalSecp256k1PrivateKey(bytes) {
+    return new Secp256k1PrivateKey(bytes);
+  }
   function unmarshalSecp256k1PublicKey(bytes) {
     return new Secp256k1PublicKey(bytes);
   }
@@ -20866,6 +20933,12 @@
     }
     throw new UnsupportedKeyTypeError();
   }
+  async function generateKeyPairFromSeed(type2, seed) {
+    if (type2 !== "Ed25519") {
+      throw new UnsupportedKeyTypeError("Seed key derivation only supported for Ed25519 keys");
+    }
+    return generateEd25519KeyPairFromSeed(seed);
+  }
   function publicKeyFromProtobuf(buf, digest4) {
     const { Type, Data } = PublicKey.decode(buf);
     const data = Data ?? new Uint8Array();
@@ -20898,6 +20971,28 @@
   }
   function publicKeyToProtobuf(key) {
     return PublicKey.encode({
+      Type: KeyType[key.type],
+      Data: key.raw
+    });
+  }
+  function privateKeyFromProtobuf(buf) {
+    const decoded = PrivateKey.decode(buf);
+    const data = decoded.Data ?? new Uint8Array();
+    switch (decoded.Type) {
+      case KeyType.RSA:
+        return pkcs1ToRSAPrivateKey(data);
+      case KeyType.Ed25519:
+        return unmarshalEd25519PrivateKey(data);
+      case KeyType.secp256k1:
+        return unmarshalSecp256k1PrivateKey(data);
+      case KeyType.ECDSA:
+        return unmarshalECDSAPrivateKey(data);
+      default:
+        throw new UnsupportedKeyTypeError();
+    }
+  }
+  function privateKeyToProtobuf(key) {
+    return PrivateKey.encode({
       Type: KeyType[key.type],
       Data: key.raw
     });
@@ -21129,6 +21224,15 @@
   function isSha256Multihash(multihash) {
     return multihash.code === sha256.code;
   }
+
+  // src/browser-index.ts
+  var import_buffer3 = __toESM(require_buffer(), 1);
+
+  // src/core/p2p-browser.ts
+  init_globals();
+
+  // node_modules/libp2p/dist/src/index.js
+  init_globals();
 
   // node_modules/libp2p/dist/src/config.js
   init_globals();
@@ -74108,9 +74212,22 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
 
   // src/core/p2p-browser.ts
   async function createBrowserP2PNode(options) {
+    if (options.bootstrapAddrs.some((address) => /\/http-path\//.test(address))) {
+      throw new Error("Browser relay addresses must use the root WebSocket endpoint; URL paths cannot be used for WebRTC peer routes");
+    }
     const services = createBaseLibp2pServices({ enableDht: true });
     const peerDiscovery = options.bootstrapAddrs.length > 0 ? [bootstrap({ list: options.bootstrapAddrs })] : [];
     const node = await createLibp2p({
+      privateKey: options.privateKey,
+      // A configured browser relay should provide a routable circuit address.
+      // Some bootstrap peers are ordinary WebSocket nodes, though, so their
+      // failed HOP reservation must not prevent direct WebSocket startup.
+      addresses: {
+        listen: options.bootstrapAddrs.map(
+          (address) => address.includes("/p2p-circuit") ? address : `${address}/p2p-circuit`
+        )
+      },
+      transportManager: { faultTolerance: FaultTolerance.NO_FATAL },
       transports: [
         webSockets(),
         webRTC(),
@@ -74119,6 +74236,19 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       connectionEncrypters: [noise()],
       streamMuxers: [yamux()],
       peerDiscovery,
+      // libp2p's browser default rejects all private addresses and insecure
+      // WebSockets. Explicitly configured bootstrap relays are trusted by the
+      // operator, and their circuit addresses must remain dialable for peers
+      // behind browser NATs. Keep the default restrictions for other addresses.
+      connectionGater: {
+        denyDialMultiaddr: (address) => {
+          const value2 = address.toString();
+          if (options.bootstrapAddrs.some(
+            (bootstrapAddr) => value2 === bootstrapAddr || value2.startsWith(`${bootstrapAddr}/p2p-circuit`)
+          )) return false;
+          return WebSockets.matches(address) || isPrivate(address) === true;
+        }
+      },
       services
     });
     return node;
@@ -74208,6 +74338,19 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       db.close();
       this.dbPromise = void 0;
     }
+    /** Copy all records and blobs to another IndexedDB namespace during account migration. */
+    async copyAllTo(target) {
+      if (target === this || target.dbName === this.dbName) return;
+      const [sourceDb, targetDb] = await Promise.all([this.open(), target.open()]);
+      const [records, blobs] = await Promise.all([
+        this.getAll(sourceDb, RECORDS_STORE),
+        this.getAll(sourceDb, BLOBS_STORE)
+      ]);
+      await Promise.all([
+        target.putAll(targetDb, RECORDS_STORE, records),
+        target.putAll(targetDb, BLOBS_STORE, blobs)
+      ]);
+    }
     /**
      * Opens the database and creates stores on first use.
      */
@@ -74274,6 +74417,24 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
           cursor.continue();
         };
         request.onerror = () => reject(request.error);
+      });
+    }
+    getAll(db, storeName) {
+      return new Promise((resolve6, reject) => {
+        const request = db.transaction(storeName, "readonly").objectStore(storeName).getAll();
+        request.onsuccess = () => resolve6(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    }
+    putAll(db, storeName, values) {
+      if (values.length === 0) return Promise.resolve();
+      return new Promise((resolve6, reject) => {
+        const transaction = db.transaction(storeName, "readwrite");
+        const store = transaction.objectStore(storeName);
+        for (const value2 of values) store.put(value2);
+        transaction.oncomplete = () => resolve6();
+        transaction.onerror = () => reject(transaction.error);
+        transaction.onabort = () => reject(transaction.error ?? new Error("IndexedDB copy transaction was aborted"));
       });
     }
   };
@@ -74539,841 +74700,6 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
 
   // src/core/xmpp-node.ts
   init_globals();
-  init_xml();
-
-  // src/core/xmpp-chat.ts
-  init_globals();
-  init_xml();
-
-  // src/core/xmpp-dht.ts
-  init_globals();
-  init_xml();
-  var MUC_SETTINGS_INDEX_PREFIX = "/xmpp/muc/index/";
-  var MUC_SETTINGS_PREFIX = "/xmpp/muc/room/";
-  var DEFAULT_DHT_TTL_MS = 24 * 60 * 60 * 1e3;
-  var MAILBOX_TTL_MS = 7 * 24 * 60 * 60 * 1e3;
-  var mailboxLocks = /* @__PURE__ */ new Map();
-  function isExpired(entry) {
-    if (!entry.expiresAt) return false;
-    return Date.now() > new Date(entry.expiresAt).getTime();
-  }
-  function mucSettingsIndexKey(peerId) {
-    return new TextEncoder().encode(`${MUC_SETTINGS_INDEX_PREFIX}${peerId}`);
-  }
-  function mucSettingsKey(roomName) {
-    return new TextEncoder().encode(`${MUC_SETTINGS_PREFIX}${roomName}`);
-  }
-  function mailboxKey(peerId) {
-    return new TextEncoder().encode(`/xmpp/mailbox/queue/${peerId}`);
-  }
-  function getContentRouting(libp2p) {
-    const cr2 = libp2p.contentRouting;
-    if (!cr2?.get || !cr2?.put) {
-      console.warn("[DHT] contentRouting API not available \u2014 DHT operations will be skipped");
-      return null;
-    }
-    return cr2;
-  }
-  async function readDhtJson(libp2p, key) {
-    const contentRouting = getContentRouting(libp2p);
-    if (!contentRouting) return void 0;
-    try {
-      const keyStr = new TextDecoder().decode(key);
-      const raw = await contentRouting.get(key);
-      if (!raw) return void 0;
-      const envelope = JSON.parse(new TextDecoder().decode(raw));
-      if (isExpired(envelope)) {
-        console.log(`[DHT] Key ${keyStr} expired, treating as not found`);
-        return void 0;
-      }
-      return envelope.data;
-    } catch (err) {
-      console.debug(`[DHT] Failed to read key ${new TextDecoder().decode(key)}:`, err?.message);
-      return void 0;
-    }
-  }
-  async function writeDhtJson(libp2p, key, value2, ttlMs) {
-    const contentRouting = getContentRouting(libp2p);
-    if (!contentRouting) return;
-    try {
-      const keyStr = new TextDecoder().decode(key);
-      trackDhtKey(key);
-      const envelope = {
-        data: value2,
-        ...ttlMs ? { expiresAt: new Date(Date.now() + ttlMs).toISOString() } : {}
-      };
-      await contentRouting.put(key, new TextEncoder().encode(JSON.stringify(envelope)));
-    } catch (err) {
-      console.error(`[DHT] writeDhtJson failed for key ${new TextDecoder().decode(key)}:`, err?.message || err);
-    }
-  }
-  async function removeDhtKey(libp2p, key) {
-    const contentRouting = getContentRouting(libp2p);
-    if (!contentRouting) return;
-    try {
-      await contentRouting.put(key, new TextEncoder().encode(JSON.stringify({ data: null, expiresAt: (/* @__PURE__ */ new Date(0)).toISOString() })));
-    } catch {
-    }
-  }
-  var knownDhtKeys = /* @__PURE__ */ new Set();
-  function trackDhtKey(key) {
-    knownDhtKeys.add(new TextDecoder().decode(key));
-  }
-  async function loadMucStateFromDht(ctx) {
-    const index = await readDhtJson(
-      ctx.libp2p,
-      mucSettingsIndexKey(ctx.libp2p.peerId.toString())
-    );
-    const roomNames = index?.rooms ?? [];
-    for (const roomName of roomNames) {
-      await ctx.ensureMucRoomSettings(roomName);
-    }
-  }
-  async function persistMucStateToDht(ctx) {
-    const rooms = Array.from(ctx.mucRooms.values());
-    await Promise.all(rooms.map(async (room) => {
-      await writeDhtJson(ctx.libp2p, mucSettingsKey(room.roomName), room, DEFAULT_DHT_TTL_MS);
-    }));
-    await writeDhtJson(ctx.libp2p, mucSettingsIndexKey(ctx.libp2p.peerId.toString()), {
-      version: 1,
-      rooms: rooms.map((room) => room.roomName)
-    }, DEFAULT_DHT_TTL_MS);
-  }
-  async function bufferStanzaToDht(libp2p, peerId, stanza) {
-    const key = mailboxKey(peerId);
-    const prev = mailboxLocks.get(peerId) ?? Promise.resolve();
-    const next = prev.then(async () => {
-      let queue = await readDhtJson(libp2p, key);
-      if (!Array.isArray(queue)) {
-        queue = [];
-      }
-      queue.push(stanza.toString());
-      await writeDhtJson(libp2p, key, queue, MAILBOX_TTL_MS);
-    });
-    mailboxLocks.set(peerId, next.catch(() => {
-    }));
-    return next;
-  }
-  async function flushDhtMailbox(ctx) {
-    const key = mailboxKey(ctx.libp2p.peerId.toString());
-    const queue = await readDhtJson(ctx.libp2p, key);
-    if (Array.isArray(queue) && queue.length > 0) {
-      console.log(`[DHT] Transitioned to active. Flushing ${queue.length} stanzas from DHT mailbox...`);
-      await removeDhtKey(ctx.libp2p, key);
-      for (const xmlStr of queue) {
-        try {
-          const parser2 = new Parser_default();
-          parser2.on("element", (element) => {
-            const peerId = element.attrs.from ? element.attrs.from.split("@")[0] : "unknown";
-            void ctx.handleStanza(peerId, element).catch((err) => ctx.emit("error", err));
-          });
-          parser2.write("<stream:stream>");
-          parser2.write(xmlStr);
-        } catch (err) {
-          console.error("[DHT] Failed to parse buffered stanza from DHT mailbox:", err);
-        }
-      }
-    }
-  }
-
-  // src/core/xmpp-persistence.ts
-  init_globals();
-  async function readState(storage2, namespace2) {
-    const raw = await storage2.getRecord(namespace2, "state");
-    if (raw === void 0) {
-      return void 0;
-    }
-    return JSON.parse(raw);
-  }
-  async function writeState(storage2, namespace2, value2) {
-    await storage2.putRecord(namespace2, "state", JSON.stringify(value2), (/* @__PURE__ */ new Date()).toISOString());
-  }
-  function trimMap(map3, limit) {
-    while (map3.size > limit) {
-      const oldestKey = map3.keys().next().value;
-      if (oldestKey == null) {
-        break;
-      }
-      map3.delete(oldestKey);
-    }
-  }
-  async function loadRosterState(ctx) {
-    try {
-      const parsed = await readState(ctx.storage, "roster");
-      const entries = Array.isArray(parsed) ? parsed : parsed?.entries;
-      for (const entry of entries ?? []) {
-        const normalized = ctx.normalizeRosterEntry(entry);
-        ctx.roster.set(normalized.jid, normalized);
-      }
-    } catch (err) {
-      console.error("[XMPP] Failed to load roster from storage:", err);
-    }
-  }
-  async function loadFeedHistoryState(ctx, limit) {
-    try {
-      const parsed = await readState(ctx.storage, "feed_history");
-      const posts = Array.isArray(parsed) ? parsed : parsed?.posts;
-      for (const post of posts ?? []) {
-        const normalized = ctx.normalizeFeedPost(post);
-        ctx.feedHistory.set(ctx.feedHistoryKey(normalized.topic, normalized.id), normalized);
-      }
-      trimMap(ctx.feedHistory, limit);
-    } catch (err) {
-      console.error("[XMPP] Failed to load feed history from storage:", err);
-    }
-  }
-  async function loadSubscriptionState(ctx, limit) {
-    try {
-      const parsed = await readState(ctx.storage, "feed_subscriptions");
-      const subscriptions = Array.isArray(parsed) ? parsed : parsed?.subscriptions;
-      for (const subscription of subscriptions ?? []) {
-        const normalized = ctx.normalizeFeedSubscription(subscription);
-        ctx.feedSubscriptions.set(normalized.topic, normalized);
-      }
-      trimMap(ctx.feedSubscriptions, limit);
-      await ctx.restoreFeedSubscriptions();
-    } catch (err) {
-      console.error("[XMPP] Failed to load subscription state from storage:", err);
-    }
-  }
-  async function loadFollowerState(ctx, limit) {
-    try {
-      const parsed = await readState(ctx.storage, "followers");
-      const followers = Array.isArray(parsed) ? parsed : parsed?.followers;
-      for (const follower of followers ?? []) {
-        const normalized = ctx.normalizeFollower(follower);
-        ctx.followers.set(ctx.followerKey(normalized.feedPeerId, normalized.followerPeerId), normalized);
-      }
-      trimMap(ctx.followers, limit);
-      await ctx.restoreFollowerSubscriptions();
-    } catch (err) {
-      console.error("[XMPP] Failed to load follower state from storage:", err);
-    }
-  }
-  async function loadCollectionState(ctx, limit) {
-    try {
-      const parsed = await readState(ctx.storage, "collections");
-      const collections = Array.isArray(parsed) ? parsed : parsed?.collections;
-      const posts = Array.isArray(parsed) ? [] : parsed?.posts;
-      for (const collection of collections ?? []) {
-        const normalized = ctx.normalizeCollection(collection);
-        ctx.collections.set(normalized.id, normalized);
-        ctx.onCollectionLoaded(normalized);
-      }
-      for (const post of posts ?? []) {
-        const normalized = ctx.normalizeCollectionPost(post);
-        ctx.collectionHistory.set(ctx.collectionHistoryKey(normalized.collectionId, normalized.id), normalized);
-      }
-      trimMap(ctx.collectionHistory, limit);
-      await ctx.restoreCollectionSubscriptions();
-    } catch (err) {
-      console.error("[XMPP] Failed to load collection state from storage:", err);
-    }
-  }
-  async function loadAttachmentHistoryState(ctx, limit) {
-    try {
-      const parsed = await readState(ctx.storage, "attachments");
-      const attachments = Array.isArray(parsed) ? parsed : parsed?.attachments;
-      for (const attachment of attachments ?? []) {
-        const normalized = ctx.normalizeAttachment(attachment);
-        ctx.attachmentHistory.set(ctx.attachmentHistoryKey(normalized.topic, normalized.targetId, normalized.from), normalized);
-      }
-      trimMap(ctx.attachmentHistory, limit);
-    } catch (err) {
-      console.error("[XMPP] Failed to load attachment history from storage:", err);
-    }
-  }
-  async function loadMucState(ctx) {
-    try {
-      const parsed = await readState(ctx.storage, "muc_rooms");
-      const rooms = Array.isArray(parsed) ? parsed : parsed?.rooms;
-      for (const room of rooms ?? []) {
-        const normalized = ctx.normalizeMucRoomSettings(room);
-        ctx.mucRooms.set(normalized.roomName, normalized);
-      }
-    } catch (err) {
-      console.error("[XMPP] Failed to load MUC state from storage:", err);
-    }
-  }
-  async function loadMucHistoryState(ctx, limit) {
-    try {
-      const parsed = await readState(ctx.storage, "muc_history");
-      const messages2 = Array.isArray(parsed) ? parsed : parsed?.messages;
-      for (const msg of messages2 ?? []) {
-        const normalized = ctx.normalizeMucMessage(msg);
-        ctx.mucHistory.set(ctx.mucHistoryKey(normalized.room, normalized.id), normalized);
-      }
-      trimMap(ctx.mucHistory, limit);
-    } catch (err) {
-      console.error("[XMPP] Failed to load MUC history from storage:", err);
-    }
-  }
-  async function loadChatHistoryState(ctx, limit) {
-    try {
-      const parsed = await readState(ctx.storage, "chat_history");
-      const messages2 = Array.isArray(parsed) ? parsed : parsed?.messages;
-      for (const msg of messages2 ?? []) {
-        const normalized = {
-          from: msg.from || "",
-          to: msg.to || "",
-          body: msg.body || "",
-          id: msg.id,
-          type: msg.type || "chat",
-          thread: msg.thread,
-          delay: msg.delay,
-          chatState: msg.chatState,
-          encrypted: msg.encrypted,
-          encryption: msg.encryption
-        };
-        const key = normalized.id || `${normalized.from}:${normalized.to}:${normalized.body}:${normalized.delay?.stamp || ""}`;
-        if (!ctx.chatHistory.has(key)) {
-          ctx.chatHistory.set(key, normalized);
-        }
-      }
-      trimMap(ctx.chatHistory, limit);
-    } catch (err) {
-      console.error("[XMPP] Failed to load chat history from storage:", err);
-    }
-  }
-  async function loadVCardState(ctx) {
-    try {
-      const parsed = await readState(ctx.storage, "vcard");
-      const profile = parsed && typeof parsed === "object" && "profile" in parsed ? parsed.profile : parsed;
-      const photoType = profile?.photo?.type?.trim();
-      const photoBinval = profile?.photo?.binval?.trim();
-      const normalized = {
-        fn: profile?.fn?.trim() || void 0,
-        nickname: profile?.nickname?.trim() || void 0,
-        desc: profile?.desc?.trim() || void 0,
-        photo: photoType && photoBinval ? {
-          type: photoType,
-          binval: photoBinval
-        } : void 0
-      };
-      ctx.vCard.fn = normalized.fn ?? ctx.vCard.fn;
-      if (!ctx.vCard.nickname && normalized.nickname) {
-        ctx.vCard.nickname = normalized.nickname;
-      }
-      if (normalized.desc) {
-        ctx.vCard.desc = normalized.desc;
-      }
-      if (normalized.photo) {
-        ctx.vCard.photo = normalized.photo;
-      }
-    } catch (err) {
-      console.error("[XMPP] Failed to load vCard from storage:", err);
-    }
-  }
-  async function persistRosterState(ctx) {
-    const payload = {
-      version: 1,
-      entries: Array.from(ctx.roster.values()).sort((a2, b2) => a2.jid.localeCompare(b2.jid))
-    };
-    await writeState(ctx.storage, "roster", payload);
-  }
-  async function persistFeedHistoryState(ctx) {
-    const payload = {
-      version: 1,
-      posts: Array.from(ctx.feedHistory.values()).sort((a2, b2) => b2.publishedAt.localeCompare(a2.publishedAt))
-    };
-    await writeState(ctx.storage, "feed_history", payload);
-  }
-  async function persistSubscriptionState(ctx) {
-    const payload = {
-      version: 1,
-      subscriptions: Array.from(ctx.feedSubscriptions.values()).sort((a2, b2) => a2.subscribedAt.localeCompare(b2.subscribedAt))
-    };
-    await writeState(ctx.storage, "feed_subscriptions", payload);
-  }
-  async function persistFollowerState(ctx) {
-    const payload = {
-      version: 1,
-      followers: Array.from(ctx.followers.values()).sort((a2, b2) => a2.subscribedAt.localeCompare(b2.subscribedAt))
-    };
-    await writeState(ctx.storage, "followers", payload);
-  }
-  async function persistCollectionState(ctx) {
-    const payload = {
-      version: 1,
-      collections: Array.from(ctx.collections.values()).sort((a2, b2) => a2.id.localeCompare(b2.id)),
-      posts: Array.from(ctx.collectionHistory.values()).sort((a2, b2) => b2.publishedAt.localeCompare(a2.publishedAt))
-    };
-    await writeState(ctx.storage, "collections", payload);
-  }
-  async function persistAttachmentHistoryState(ctx) {
-    const payload = {
-      version: 1,
-      attachments: Array.from(ctx.attachmentHistory.values()).sort((a2, b2) => b2.publishedAt.localeCompare(a2.publishedAt))
-    };
-    await writeState(ctx.storage, "attachments", payload);
-  }
-  async function persistMucState(ctx) {
-    const payload = {
-      version: 1,
-      rooms: Array.from(ctx.mucRooms.values()).sort((a2, b2) => a2.roomName.localeCompare(b2.roomName))
-    };
-    await writeState(ctx.storage, "muc_rooms", payload);
-  }
-  async function persistMucHistoryState(ctx) {
-    const payload = {
-      version: 1,
-      messages: Array.from(ctx.mucHistory.values()).sort((a2, b2) => a2.timestamp.localeCompare(b2.timestamp))
-    };
-    await writeState(ctx.storage, "muc_history", payload);
-  }
-  async function persistChatHistoryState(ctx) {
-    const payload = {
-      version: 1,
-      messages: Array.from(ctx.chatHistory.values()).sort((a2, b2) => {
-        const aStamp = a2.delay?.stamp || "";
-        const bStamp = b2.delay?.stamp || "";
-        return aStamp.localeCompare(bStamp);
-      })
-    };
-    await writeState(ctx.storage, "chat_history", payload);
-  }
-  async function persistVCardState(ctx) {
-    const payload = {
-      version: 1,
-      profile: {
-        fn: ctx.vCard.fn?.trim() || void 0,
-        nickname: ctx.vCard.nickname?.trim() || void 0,
-        desc: ctx.vCard.desc?.trim() || void 0,
-        photo: ctx.vCard.photo?.type && ctx.vCard.photo.binval ? {
-          type: ctx.vCard.photo.type.trim() || void 0,
-          binval: ctx.vCard.photo.binval.trim() || void 0
-        } : void 0
-      }
-    };
-    await writeState(ctx.storage, "vcard", payload);
-  }
-  async function persistOpenPgpState(storage2, state) {
-    if (!state) {
-      return;
-    }
-    await writeState(storage2, "openpgp", state);
-  }
-
-  // src/core/xmpp-xep-helpers.ts
-  init_globals();
-  init_xml();
-  var RECEIPTS_XMLNS = "urn:xmpp:receipts";
-  var CHATSTATES_XMLNS = "urn:xmpp:chatstates";
-  var DELAY_XMLNS = "urn:xmpp:delay";
-  var CORRECT_XMLNS = "urn:xmpp:message-correct:0";
-  var REPLY_XMLNS = "urn:xmpp:reply:0";
-  var PING_XMLNS = "urn:xmpp:ping";
-  var NICK_XMLNS = "http://jabber.org/protocol/nick";
-  var SID_XMLNS = "urn:xmpp:sid:0";
-  var CARBONS_XMLNS = "urn:xmpp:carbons:2";
-  var FORWARD_XMLNS = "urn:xmpp:forward:0";
-  function parseXepMetadata(element) {
-    const metadata = {};
-    const requestEl = element.getChild("request");
-    if (requestEl && requestEl.attrs.xmlns === RECEIPTS_XMLNS && element.attrs.id) {
-      metadata.receipt = { type: "request", id: element.attrs.id };
-    }
-    const receivedChildren = element.children.filter((child) => child?.name === "received");
-    for (const child of receivedChildren) {
-      if (child.attrs.xmlns === RECEIPTS_XMLNS) {
-        metadata.receipt = { type: "received", id: child.attrs.id };
-      } else if (child.attrs.xmlns === CARBONS_XMLNS) {
-        const forwardedEl = child.getChild("forwarded");
-        if (forwardedEl && forwardedEl.attrs.xmlns === FORWARD_XMLNS) {
-          const forwardedMsg = forwardedEl.getChild("message");
-          if (forwardedMsg) {
-            metadata.carbon = { type: "received", forwardedMessage: forwardedMsg };
-          }
-        }
-      }
-    }
-    const chatStateNames = ["active", "composing", "paused", "inactive", "gone"];
-    for (const name5 of chatStateNames) {
-      const stateEl = element.getChild(name5);
-      if (stateEl && stateEl.attrs.xmlns === CHATSTATES_XMLNS) {
-        metadata.chatState = name5;
-        break;
-      }
-    }
-    const delayEl = element.getChild("delay");
-    if (delayEl && delayEl.attrs.xmlns === DELAY_XMLNS && delayEl.attrs.stamp) {
-      metadata.delay = {
-        from: delayEl.attrs.from,
-        stamp: delayEl.attrs.stamp
-      };
-    }
-    const replaceEl = element.getChild("replace");
-    if (replaceEl && replaceEl.attrs.xmlns === CORRECT_XMLNS) {
-      metadata.replace = replaceEl.attrs.id;
-    }
-    const replyEl = element.getChild("reply");
-    if (replyEl && replyEl.attrs.xmlns === REPLY_XMLNS && replyEl.attrs.id) {
-      metadata.reply = {
-        id: replyEl.attrs.id,
-        to: replyEl.attrs.to
-      };
-    }
-    const threadEl = element.getChild("thread");
-    const thread = threadEl?.text()?.trim();
-    if (thread) {
-      metadata.thread = thread;
-    }
-    const nickEl = element.getChild("nick");
-    if (nickEl && nickEl.attrs.xmlns === NICK_XMLNS) {
-      const nick = nickEl.text()?.trim();
-      if (nick) {
-        metadata.nick = nick;
-      }
-    }
-    const originIdEl = element.getChild("origin-id");
-    if (originIdEl && originIdEl.attrs.xmlns === SID_XMLNS) {
-      metadata.originId = originIdEl.attrs.id;
-    }
-    const stanzaIdEl = element.getChild("stanza-id");
-    if (stanzaIdEl && stanzaIdEl.attrs.xmlns === SID_XMLNS) {
-      metadata.stanzaId = {
-        id: stanzaIdEl.attrs.id,
-        by: stanzaIdEl.attrs.by
-      };
-    }
-    const privateEl = element.getChild("private");
-    if (privateEl && privateEl.attrs.xmlns === CARBONS_XMLNS) {
-      metadata.private = true;
-    }
-    const sentCarbonEl = element.getChild("sent");
-    if (sentCarbonEl && sentCarbonEl.attrs.xmlns === CARBONS_XMLNS) {
-      const forwardedEl = sentCarbonEl.getChild("forwarded");
-      if (forwardedEl && forwardedEl.attrs.xmlns === FORWARD_XMLNS) {
-        const forwardedMsg = forwardedEl.getChild("message");
-        if (forwardedMsg) {
-          metadata.carbon = { type: "sent", forwardedMessage: forwardedMsg };
-        }
-      }
-    }
-    return metadata;
-  }
-  function buildXepElements(options) {
-    const elements = [];
-    if (options.private) {
-      elements.push(xml("private", { xmlns: CARBONS_XMLNS }));
-    }
-    if (options.requestReceipt) {
-      elements.push(xml("request", { xmlns: RECEIPTS_XMLNS }));
-    }
-    if (options.chatState) {
-      elements.push(xml(options.chatState, { xmlns: CHATSTATES_XMLNS }));
-    }
-    if (options.delay) {
-      const delayAttrs = {
-        xmlns: DELAY_XMLNS,
-        stamp: options.delay.stamp
-      };
-      if (options.delay.from) {
-        delayAttrs.from = options.delay.from;
-      }
-      elements.push(xml("delay", delayAttrs));
-    }
-    if (options.replace) {
-      elements.push(xml("replace", {
-        xmlns: CORRECT_XMLNS,
-        id: options.replace
-      }));
-    }
-    if (options.reply) {
-      const replyAttrs = {
-        xmlns: REPLY_XMLNS,
-        id: options.reply.id
-      };
-      if (options.reply.to) {
-        replyAttrs.to = options.reply.to;
-      }
-      elements.push(xml("reply", replyAttrs));
-    }
-    if (options.thread) {
-      elements.push(xml("thread", {}, options.thread));
-    }
-    if (options.nick) {
-      elements.push(xml("nick", { xmlns: NICK_XMLNS }, options.nick));
-    }
-    if (options.originId) {
-      elements.push(xml("origin-id", { xmlns: SID_XMLNS, id: options.originId }));
-    }
-    if (options.stanzaId) {
-      elements.push(xml("stanza-id", { xmlns: SID_XMLNS, id: options.stanzaId.id, by: options.stanzaId.by }));
-    }
-    return elements;
-  }
-
-  // src/core/xmpp-chat.ts
-  var CHAT_HISTORY_LIMIT = 500;
-  function encryptDhtPayload(plaintext, key) {
-    const iv = randomBytes4(12);
-    const cipher = createCipheriv("aes-256-gcm", key, iv);
-    const encrypted = import_buffer.Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
-    const tag = cipher.getAuthTag();
-    return {
-      iv: iv.toString("base64"),
-      tag: tag.toString("base64"),
-      ciphertext: encrypted.toString("base64")
-    };
-  }
-  function decryptDhtPayload(payload, key) {
-    const ivBuf = import_buffer.Buffer.from(payload.iv, "base64");
-    const tagBuf = import_buffer.Buffer.from(payload.tag, "base64");
-    const ciphertextBuf = import_buffer.Buffer.from(payload.ciphertext, "base64");
-    const decipher = createDecipheriv("aes-256-gcm", key, ivBuf);
-    decipher.setAuthTag(tagBuf);
-    return import_buffer.Buffer.concat([decipher.update(ciphertextBuf), decipher.final()]).toString("utf8");
-  }
-  var XmppChatManager = class {
-    ctx;
-    chatHistory = /* @__PURE__ */ new Map();
-    chatHistorySaveQueue = Promise.resolve();
-    constructor(ctx) {
-      this.ctx = ctx;
-    }
-    async initialize() {
-      await this.loadChatHistory();
-    }
-    getLibp2pPrivateKeyBytes() {
-      const components = this.ctx.libp2p.components?.components;
-      if (components?.privateKey?.raw instanceof Uint8Array) {
-        return components.privateKey.raw;
-      }
-      if (this.ctx.libp2p.peerId.privateKey instanceof Uint8Array) {
-        return this.ctx.libp2p.peerId.privateKey;
-      }
-      if (typeof this.ctx.libp2p.peerId.privateKey?.marshal === "function") {
-        return this.ctx.libp2p.peerId.privateKey.marshal();
-      }
-      return void 0;
-    }
-    async getDhtEncryptionKey() {
-      const pkBytes = this.getLibp2pPrivateKeyBytes();
-      if (pkBytes) {
-        return createHash("sha256").update(pkBytes).digest();
-      }
-      const namespace2 = "security";
-      const keyName = "dht_storage_key";
-      let raw = await this.ctx.storage.getRecord(namespace2, keyName);
-      if (!raw) {
-        const newKey = randomBytes4(32).toString("base64");
-        await this.ctx.storage.putRecord(namespace2, keyName, newKey, (/* @__PURE__ */ new Date()).toISOString());
-        raw = newKey;
-      }
-      return import_buffer.Buffer.from(raw, "base64");
-    }
-    chatKey(msg) {
-      return msg.id || `${msg.from}:${msg.to}:${msg.body}:${msg.delay?.stamp || ""}`;
-    }
-    async loadChatHistory() {
-      await loadChatHistoryState({
-        storage: this.ctx.storage,
-        chatHistory: this.chatHistory
-      }, CHAT_HISTORY_LIMIT);
-      try {
-        const dhtKey = new TextEncoder().encode(`/xmpp/archive/chats/${this.ctx.libp2p.peerId.toString()}`);
-        const dhtData = await readDhtJson(this.ctx.libp2p, dhtKey);
-        if (dhtData) {
-          let chatData = void 0;
-          if (dhtData.ciphertext && dhtData.iv && dhtData.tag) {
-            try {
-              const key = await this.getDhtEncryptionKey();
-              const decryptedJson = decryptDhtPayload(dhtData, key);
-              chatData = JSON.parse(decryptedJson);
-            } catch (decErr) {
-              console.error("[XMPP] Failed to decrypt DHT chat history record:", decErr);
-            }
-          } else if (Array.isArray(dhtData.messages)) {
-            chatData = dhtData;
-          }
-          if (chatData && Array.isArray(chatData.messages)) {
-            for (const msg of chatData.messages) {
-              const ck = this.chatKey(msg);
-              if (!this.chatHistory.has(ck)) {
-                this.chatHistory.set(ck, msg);
-              }
-            }
-            while (this.chatHistory.size > CHAT_HISTORY_LIMIT) {
-              const oldestKey = this.chatHistory.keys().next().value;
-              if (oldestKey == null) break;
-              this.chatHistory.delete(oldestKey);
-            }
-          }
-        }
-      } catch (err) {
-        console.warn("[XMPP] Failed to load chat history from DHT:", err);
-      }
-    }
-    async recordChatMessage(msg) {
-      const key = this.chatKey(msg);
-      this.chatHistory.set(key, msg);
-      while (this.chatHistory.size > CHAT_HISTORY_LIMIT) {
-        const oldestKey = this.chatHistory.keys().next().value;
-        if (oldestKey == null) break;
-        this.chatHistory.delete(oldestKey);
-      }
-      this.scheduleChatPersist();
-    }
-    persistScheduled = false;
-    scheduleChatPersist() {
-      if (this.persistScheduled) return;
-      this.persistScheduled = true;
-      queueMicrotask(() => {
-        this.persistScheduled = false;
-        this.chatHistorySaveQueue = this.chatHistorySaveQueue.then(async () => {
-          await persistChatHistoryState({
-            storage: this.ctx.storage,
-            chatHistory: this.chatHistory
-          });
-          await this.persistChatHistoryToDht();
-        }).catch((err) => {
-          console.warn("[XMPP] Failed to persist chat history:", err);
-        });
-      });
-    }
-    async persistChatHistoryToDht() {
-      try {
-        const historyList = Array.from(this.chatHistory.values());
-        const key = new TextEncoder().encode(`/xmpp/archive/chats/${this.ctx.libp2p.peerId.toString()}`);
-        const plaintext = JSON.stringify({
-          version: 1,
-          messages: historyList
-        });
-        const encKey = await this.getDhtEncryptionKey();
-        const encryptedPayload = encryptDhtPayload(plaintext, encKey);
-        await writeDhtJson(this.ctx.libp2p, key, encryptedPayload);
-      } catch (err) {
-        console.warn("[XMPP] Failed to persist chat history to DHT:", err);
-      }
-    }
-    async handleIncomingMamQuery(element, peerId) {
-      const query = element.getChild("query");
-      if (!query) return;
-      const queryId = query.attrs.queryid;
-      let filterWith = void 0;
-      const xEl = query.getChild("x");
-      if (xEl && xEl.attrs.xmlns === "jabber:x:data") {
-        const fields = xEl.children.filter((child) => child?.name === "field");
-        for (const f2 of fields) {
-          if (f2.attrs.var === "with") {
-            filterWith = f2.getChild("value")?.text();
-          }
-        }
-      }
-      let history = Array.from(this.chatHistory.values());
-      if (filterWith) {
-        const bareFilterWith = filterWith.split("/")[0];
-        history = history.filter((msg) => {
-          const fromBare = msg.from.split("/")[0];
-          const toBare = msg.to.split("/")[0];
-          return fromBare === bareFilterWith || toBare === bareFilterWith;
-        });
-      }
-      for (const msg of history) {
-        const children = [];
-        if (msg.body) {
-          children.push(xml("body", {}, msg.body));
-        }
-        children.push(...buildXepElements({
-          replace: msg.replace,
-          reply: msg.reply,
-          thread: msg.thread,
-          private: msg.private,
-          originId: msg.originId,
-          stanzaId: msg.stanzaId
-        }));
-        const msgEl = xml("message", {
-          to: msg.to,
-          from: msg.from,
-          type: msg.type || "chat",
-          id: msg.id ?? ""
-        }, ...children);
-        const resultEl = xml("result", {
-          xmlns: "urn:xmpp:mam:2",
-          queryid: queryId,
-          id: msg.id ?? ""
-        }, xml(
-          "forwarded",
-          { xmlns: "urn:xmpp:forward:0" },
-          xml("delay", { xmlns: "urn:xmpp:delay", stamp: msg.delay?.stamp || (/* @__PURE__ */ new Date()).toISOString() }),
-          msgEl
-        ));
-        const wrapperMsg = xml("message", {
-          to: `${peerId}@p2p`,
-          from: this.ctx.jid
-        }, resultEl);
-        const stream = await this.ctx.getOrCreateStream(`${peerId}@p2p`);
-        stream.send(wrapperMsg);
-      }
-      const finEl = xml(
-        "fin",
-        { xmlns: "urn:xmpp:mam:2", complete: "true" },
-        xml("count", {}, String(history.length))
-      );
-      await this.ctx.sendIqResult(peerId, element.attrs.id, finEl);
-    }
-    async handleIncomingMamResult(element, peerId) {
-      const resultEl = element.getChild("result");
-      if (!resultEl) return;
-      const queryId = resultEl.attrs.queryid;
-      const forwardedEl = resultEl.getChild("forwarded");
-      const delayEl = forwardedEl?.getChild("delay");
-      const delayStamp = delayEl?.attrs.stamp;
-      const innerMsg = forwardedEl?.getChild("message");
-      if (innerMsg) {
-        const fromVal = innerMsg.attrs.from || "";
-        const toVal = innerMsg.attrs.to || "";
-        const body = innerMsg.getChild("body")?.text() || "";
-        const msgId2 = innerMsg.attrs.id || resultEl.attrs.id;
-        const metadata = parseXepMetadata(innerMsg);
-        const msg = {
-          from: fromVal,
-          to: toVal,
-          body,
-          id: msgId2,
-          type: innerMsg.attrs.type || "chat",
-          delay: delayStamp ? { stamp: delayStamp, from: delayEl?.attrs.from } : void 0,
-          ...metadata
-        };
-        await this.recordChatMessage(msg);
-        this.ctx.emit("message", {
-          ...msg,
-          mam: true,
-          queryId
-        });
-      }
-    }
-    async queryChatHistory(targetPeerJid, withJid, queryId) {
-      const id2 = Math.random().toString(36).substring(2, 11);
-      const toJid = this.ctx.jidFromPeerId(this.ctx.parsePeerReference(targetPeerJid).peerId);
-      const children = [];
-      if (withJid) {
-        children.push(
-          xml(
-            "x",
-            { xmlns: "jabber:x:data", type: "submit" },
-            xml("field", { var: "FORM_TYPE", type: "hidden" }, xml("value", {}, "urn:xmpp:mam:2")),
-            xml("field", { var: "with" }, xml("value", {}, withJid))
-          )
-        );
-      }
-      const iq = xml(
-        "iq",
-        { type: "get", id: id2, to: toJid, from: this.ctx.jid },
-        xml("query", { xmlns: "urn:xmpp:mam:2", ...queryId ? { queryid: queryId } : {} }, ...children)
-      );
-      await this.ctx.sendIqRequest(toJid, iq);
-      return id2;
-    }
-    async flushSaveQueue() {
-      await this.chatHistorySaveQueue;
-    }
-  };
-
-  // src/core/xmpp-client-bridge.ts
-  init_globals();
-  init_events();
 
   // node_modules/@xmpp/client/index.js
   init_globals();
@@ -76511,12 +75837,25 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
 
   // node_modules/@xmpp/resolve/lib/dns.js
   init_globals();
-  var import_node_dns = __toESM(__require("node:dns"), 1);
+
+  // shims/dns-promises.ts
+  init_globals();
+  async function resolveSrv(_name) {
+    throw new Error("resolveSrv not available in browser");
+  }
+  function lookup(_hostname, optionsOrCallback, callback) {
+    const done = typeof optionsOrCallback === "function" ? optionsOrCallback : callback;
+    const error = Object.assign(new Error("DNS lookup is not available in browser transports"), { code: "ENOTFOUND" });
+    queueMicrotask(() => done?.(error));
+  }
+  var dns_promises_default = { lookup, resolveSrv };
+
+  // node_modules/@xmpp/resolve/lib/dns.js
   var IGNORE_CODES = ["ENOTFOUND", "ENODATA"];
-  function lookup(domain, options = {}) {
+  function lookup2(domain, options = {}) {
     options.all = true;
     return new Promise((resolve6, reject) => {
-      import_node_dns.default.lookup(domain, options, (err, addresses) => {
+      dns_promises_default.lookup(domain, options, (err, addresses) => {
         if (err) {
           return reject(err);
         }
@@ -76540,9 +75879,9 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       });
     });
   }
-  function resolveSrv(domain, { service: service2, protocol }) {
+  function resolveSrv2(domain, { service: service2, protocol }) {
     return new Promise((resolve6, reject) => {
-      import_node_dns.default.resolveSrv(`_${service2}._${protocol}.${domain}`, (err, records) => {
+      dns_promises_default.resolveSrv(`_${service2}._${protocol}.${domain}`, (err, records) => {
         if (err && IGNORE_CODES.includes(err.code)) {
           resolve6([]);
         } else if (err) {
@@ -76574,7 +75913,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     const addresses = [];
     return Promise.all(
       srvs.map(async (srv) => {
-        const srvAddresses = await lookup(srv.name, options);
+        const srvAddresses = await lookup2(srv.name, options);
         for (const address of srvAddresses) {
           const { port, service: service2 } = srv;
           const addr = address.address;
@@ -76633,10 +75972,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       ];
     }
     const family = { options };
-    return lookup(domain, options).then((addresses) => {
+    return lookup2(domain, options).then((addresses) => {
       return Promise.all(
         options.srv.map((srv) => {
-          return resolveSrv(domain, { ...srv, family }).then((records) => {
+          return resolveSrv2(domain, { ...srv, family }).then((records) => {
             return lookupSrvs(records, options);
           });
         })
@@ -77722,49 +77061,1062 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     return module(...args);
   }
 
+  // src/core/xmpp-node.ts
+  init_xml();
+
+  // src/core/xmpp-chat.ts
+  init_globals();
+  init_xml();
+
+  // src/core/xmpp-dht.ts
+  init_globals();
+  init_xml();
+  var MUC_SETTINGS_INDEX_PREFIX = "/xmpp/muc/index/";
+  var MUC_SETTINGS_PREFIX = "/xmpp/muc/room/";
+  var DEFAULT_DHT_TTL_MS = 24 * 60 * 60 * 1e3;
+  var MAILBOX_TTL_MS = 7 * 24 * 60 * 60 * 1e3;
+  var mailboxLocks = /* @__PURE__ */ new Map();
+  function isExpired(entry) {
+    if (!entry.expiresAt) return false;
+    return Date.now() > new Date(entry.expiresAt).getTime();
+  }
+  function isDhtKeyNotFound(error) {
+    if (error instanceof AggregateError) {
+      return error.errors.length > 0 && error.errors.every(isDhtKeyNotFound);
+    }
+    return typeof error === "object" && error !== null && "name" in error && error.name === "NotFoundError";
+  }
+  function mucSettingsIndexKey(peerId) {
+    return new TextEncoder().encode(`${MUC_SETTINGS_INDEX_PREFIX}${peerId}`);
+  }
+  function mucSettingsKey(roomName) {
+    return new TextEncoder().encode(`${MUC_SETTINGS_PREFIX}${roomName}`);
+  }
+  function mailboxKey(peerId) {
+    return new TextEncoder().encode(`/xmpp/mailbox/queue/${peerId}`);
+  }
+  function getContentRouting(libp2p) {
+    const cr2 = libp2p.contentRouting;
+    if (!cr2?.get || !cr2?.put) {
+      console.warn("[DHT] contentRouting API not available \u2014 DHT operations will be skipped");
+      return null;
+    }
+    return cr2;
+  }
+  async function readDhtJson(libp2p, key) {
+    const contentRouting = getContentRouting(libp2p);
+    if (!contentRouting) return void 0;
+    try {
+      const keyStr = new TextDecoder().decode(key);
+      const raw = await contentRouting.get(key);
+      if (!raw) return void 0;
+      const envelope = JSON.parse(new TextDecoder().decode(raw));
+      if (isExpired(envelope)) {
+        console.log(`[DHT] Key ${keyStr} expired, treating as not found`);
+        return void 0;
+      }
+      return envelope.data;
+    } catch (err) {
+      console.debug(`[DHT] Failed to read key ${new TextDecoder().decode(key)}:`, err?.message);
+      return void 0;
+    }
+  }
+  async function writeDhtJson(libp2p, key, value2, ttlMs) {
+    const contentRouting = getContentRouting(libp2p);
+    if (!contentRouting) return;
+    try {
+      const keyStr = new TextDecoder().decode(key);
+      trackDhtKey(key);
+      const envelope = {
+        data: value2,
+        ...ttlMs ? { expiresAt: new Date(Date.now() + ttlMs).toISOString() } : {}
+      };
+      await contentRouting.put(key, new TextEncoder().encode(JSON.stringify(envelope)));
+    } catch (err) {
+      console.error(`[DHT] writeDhtJson failed for key ${new TextDecoder().decode(key)}:`, err?.message || err);
+    }
+  }
+  var knownDhtKeys = /* @__PURE__ */ new Set();
+  function trackDhtKey(key) {
+    knownDhtKeys.add(new TextDecoder().decode(key));
+  }
+  async function loadMucStateFromDht(ctx) {
+    const index = await readDhtJson(
+      ctx.libp2p,
+      mucSettingsIndexKey(ctx.libp2p.peerId.toString())
+    );
+    const roomNames = index?.rooms ?? [];
+    for (const roomName of roomNames) {
+      await ctx.ensureMucRoomSettings(roomName);
+    }
+  }
+  async function persistMucStateToDht(ctx) {
+    const rooms = Array.from(ctx.mucRooms.values());
+    await Promise.all(rooms.map(async (room) => {
+      await writeDhtJson(ctx.libp2p, mucSettingsKey(room.roomName), room, DEFAULT_DHT_TTL_MS);
+    }));
+    await writeDhtJson(ctx.libp2p, mucSettingsIndexKey(ctx.libp2p.peerId.toString()), {
+      version: 1,
+      rooms: rooms.map((room) => room.roomName)
+    }, DEFAULT_DHT_TTL_MS);
+  }
+  async function bufferStanzaToDht(libp2p, peerId, stanza) {
+    const contentRouting = getContentRouting(libp2p);
+    if (!contentRouting) throw new Error("Offline delivery is unavailable because DHT content routing is not active");
+    const key = mailboxKey(peerId);
+    const prev = mailboxLocks.get(peerId) ?? Promise.resolve();
+    const next = prev.then(async () => {
+      let queue = [];
+      try {
+        const raw = await contentRouting.get(key);
+        if (raw) {
+          const envelope2 = JSON.parse(new TextDecoder().decode(raw));
+          if (!isExpired(envelope2) && envelope2.data !== null) {
+            if (!Array.isArray(envelope2.data) || envelope2.data.some((entry) => typeof entry !== "string")) {
+              throw new Error("DHT mailbox contains invalid data");
+            }
+            queue = envelope2.data;
+          }
+        }
+      } catch (error) {
+        if (!isDhtKeyNotFound(error)) {
+          throw new Error(`Could not read the recipient\u2019s DHT mailbox: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+      queue.push(stanza.toString());
+      trackDhtKey(key);
+      const envelope = {
+        data: queue,
+        expiresAt: new Date(Date.now() + MAILBOX_TTL_MS).toISOString()
+      };
+      await contentRouting.put(key, new TextEncoder().encode(JSON.stringify(envelope)));
+    });
+    mailboxLocks.set(peerId, next.catch(() => {
+    }));
+    return next;
+  }
+  async function flushDhtMailbox(ctx) {
+    const peerId = ctx.libp2p.peerId.toString();
+    const contentRouting = getContentRouting(ctx.libp2p);
+    if (!contentRouting) throw new Error("DHT mailbox is unavailable while content routing is offline");
+    const key = mailboxKey(peerId);
+    const previous = mailboxLocks.get(peerId) ?? Promise.resolve();
+    const next = previous.then(async () => {
+      let queue;
+      try {
+        const raw = await contentRouting.get(key);
+        if (!raw) return;
+        const envelope = JSON.parse(new TextDecoder().decode(raw));
+        if (isExpired(envelope) || envelope.data === null) return;
+        if (!Array.isArray(envelope.data) || envelope.data.some((entry) => typeof entry !== "string")) {
+          throw new Error("DHT mailbox contains invalid data");
+        }
+        queue = [...envelope.data];
+      } catch (error) {
+        if (isDhtKeyNotFound(error)) return;
+        throw new Error(`Could not read the local DHT mailbox: ${error instanceof Error ? error.message : String(error)}`);
+      }
+      if (queue.length === 0) return;
+      console.log(`[DHT] Transitioned to active. Flushing ${queue.length} stanzas from DHT mailbox...`);
+      while (queue.length > 0) {
+        const xmlStr = queue[0];
+        const element = await new Promise((resolve6, reject) => {
+          const parser2 = new Parser_default();
+          parser2.on("element", resolve6);
+          parser2.on("error", reject);
+          parser2.write("<stream:stream>");
+          parser2.write(xmlStr);
+        });
+        const fromPeerId = element.attrs.from ? element.attrs.from.split("@")[0] : "unknown";
+        await ctx.handleStanza(fromPeerId, element);
+        queue.shift();
+        const envelope = {
+          data: queue,
+          expiresAt: new Date(Date.now() + MAILBOX_TTL_MS).toISOString()
+        };
+        await contentRouting.put(key, new TextEncoder().encode(JSON.stringify(envelope)));
+      }
+    });
+    mailboxLocks.set(peerId, next.catch(() => {
+    }));
+    return next;
+  }
+
+  // src/core/xmpp-persistence.ts
+  init_globals();
+  async function readState(storage2, namespace2) {
+    const raw = await storage2.getRecord(namespace2, "state");
+    if (raw === void 0) {
+      return void 0;
+    }
+    return JSON.parse(raw);
+  }
+  async function writeState(storage2, namespace2, value2) {
+    await storage2.putRecord(namespace2, "state", JSON.stringify(value2), (/* @__PURE__ */ new Date()).toISOString());
+  }
+  function trimMap(map3, limit) {
+    while (map3.size > limit) {
+      const oldestKey = map3.keys().next().value;
+      if (oldestKey == null) {
+        break;
+      }
+      map3.delete(oldestKey);
+    }
+  }
+  async function loadRosterState(ctx) {
+    try {
+      const parsed = await readState(ctx.storage, "roster");
+      const entries = Array.isArray(parsed) ? parsed : parsed?.entries;
+      for (const entry of entries ?? []) {
+        const normalized = ctx.normalizeRosterEntry(entry);
+        ctx.roster.set(normalized.jid, normalized);
+      }
+    } catch (err) {
+      console.error("[XMPP] Failed to load roster from storage:", err);
+    }
+  }
+  async function loadFeedHistoryState(ctx, limit) {
+    try {
+      const parsed = await readState(ctx.storage, "feed_history");
+      const posts = Array.isArray(parsed) ? parsed : parsed?.posts;
+      for (const post of posts ?? []) {
+        const normalized = ctx.normalizeFeedPost(post);
+        ctx.feedHistory.set(ctx.feedHistoryKey(normalized.topic, normalized.id), normalized);
+      }
+      trimMap(ctx.feedHistory, limit);
+    } catch (err) {
+      console.error("[XMPP] Failed to load feed history from storage:", err);
+    }
+  }
+  async function loadSubscriptionState(ctx, limit) {
+    try {
+      const parsed = await readState(ctx.storage, "feed_subscriptions");
+      const subscriptions = Array.isArray(parsed) ? parsed : parsed?.subscriptions;
+      for (const subscription of subscriptions ?? []) {
+        const normalized = ctx.normalizeFeedSubscription(subscription);
+        ctx.feedSubscriptions.set(normalized.topic, normalized);
+      }
+      trimMap(ctx.feedSubscriptions, limit);
+      await ctx.restoreFeedSubscriptions();
+    } catch (err) {
+      console.error("[XMPP] Failed to load subscription state from storage:", err);
+    }
+  }
+  async function loadFollowerState(ctx, limit) {
+    try {
+      const parsed = await readState(ctx.storage, "followers");
+      const followers = Array.isArray(parsed) ? parsed : parsed?.followers;
+      for (const follower of followers ?? []) {
+        const normalized = ctx.normalizeFollower(follower);
+        ctx.followers.set(ctx.followerKey(normalized.feedPeerId, normalized.followerPeerId), normalized);
+      }
+      trimMap(ctx.followers, limit);
+      await ctx.restoreFollowerSubscriptions();
+    } catch (err) {
+      console.error("[XMPP] Failed to load follower state from storage:", err);
+    }
+  }
+  async function loadCollectionState(ctx, limit) {
+    try {
+      const parsed = await readState(ctx.storage, "collections");
+      const collections = Array.isArray(parsed) ? parsed : parsed?.collections;
+      const posts = Array.isArray(parsed) ? [] : parsed?.posts;
+      for (const collection of collections ?? []) {
+        const normalized = ctx.normalizeCollection(collection);
+        ctx.collections.set(normalized.id, normalized);
+        ctx.onCollectionLoaded(normalized);
+      }
+      for (const post of posts ?? []) {
+        const normalized = ctx.normalizeCollectionPost(post);
+        ctx.collectionHistory.set(ctx.collectionHistoryKey(normalized.collectionId, normalized.id), normalized);
+      }
+      trimMap(ctx.collectionHistory, limit);
+      await ctx.restoreCollectionSubscriptions();
+    } catch (err) {
+      console.error("[XMPP] Failed to load collection state from storage:", err);
+    }
+  }
+  async function loadAttachmentHistoryState(ctx, limit) {
+    try {
+      const parsed = await readState(ctx.storage, "attachments");
+      const attachments = Array.isArray(parsed) ? parsed : parsed?.attachments;
+      for (const attachment of attachments ?? []) {
+        const normalized = ctx.normalizeAttachment(attachment);
+        ctx.attachmentHistory.set(ctx.attachmentHistoryKey(normalized.topic, normalized.targetId, normalized.from), normalized);
+      }
+      trimMap(ctx.attachmentHistory, limit);
+    } catch (err) {
+      console.error("[XMPP] Failed to load attachment history from storage:", err);
+    }
+  }
+  async function loadMucState(ctx) {
+    try {
+      const parsed = await readState(ctx.storage, "muc_rooms");
+      const rooms = Array.isArray(parsed) ? parsed : parsed?.rooms;
+      for (const room of rooms ?? []) {
+        const normalized = ctx.normalizeMucRoomSettings(room);
+        ctx.mucRooms.set(normalized.roomName, normalized);
+      }
+    } catch (err) {
+      console.error("[XMPP] Failed to load MUC state from storage:", err);
+    }
+  }
+  async function loadMucHistoryState(ctx, limit) {
+    try {
+      const parsed = await readState(ctx.storage, "muc_history");
+      const messages2 = Array.isArray(parsed) ? parsed : parsed?.messages;
+      for (const msg of messages2 ?? []) {
+        const normalized = ctx.normalizeMucMessage(msg);
+        ctx.mucHistory.set(ctx.mucHistoryKey(normalized.room, normalized.id), normalized);
+      }
+      trimMap(ctx.mucHistory, limit);
+    } catch (err) {
+      console.error("[XMPP] Failed to load MUC history from storage:", err);
+    }
+  }
+  async function loadChatHistoryState(ctx, limit) {
+    try {
+      const parsed = await readState(ctx.storage, "chat_history");
+      const messages2 = Array.isArray(parsed) ? parsed : parsed?.messages;
+      for (const msg of messages2 ?? []) {
+        const normalized = {
+          from: msg.from || "",
+          to: msg.to || "",
+          body: msg.body || "",
+          id: msg.id,
+          type: msg.type || "chat",
+          thread: msg.thread,
+          delay: msg.delay,
+          chatState: msg.chatState,
+          encrypted: msg.encrypted,
+          encryption: msg.encryption
+        };
+        const key = normalized.id || `${normalized.from}:${normalized.to}:${normalized.body}:${normalized.delay?.stamp || ""}`;
+        if (!ctx.chatHistory.has(key)) {
+          ctx.chatHistory.set(key, normalized);
+        }
+      }
+      trimMap(ctx.chatHistory, limit);
+    } catch (err) {
+      console.error("[XMPP] Failed to load chat history from storage:", err);
+    }
+  }
+  async function loadVCardState(ctx) {
+    try {
+      const parsed = await readState(ctx.storage, "vcard");
+      const profile = parsed && typeof parsed === "object" && "profile" in parsed ? parsed.profile : parsed;
+      const photoType = profile?.photo?.type?.trim();
+      const photoBinval = profile?.photo?.binval?.trim();
+      const normalized = {
+        fn: profile?.fn?.trim() || void 0,
+        nickname: profile?.nickname?.trim() || void 0,
+        desc: profile?.desc?.trim() || void 0,
+        photo: photoType && photoBinval ? {
+          type: photoType,
+          binval: photoBinval
+        } : void 0
+      };
+      ctx.vCard.fn = normalized.fn ?? ctx.vCard.fn;
+      if (!ctx.vCard.nickname && normalized.nickname) {
+        ctx.vCard.nickname = normalized.nickname;
+      }
+      if (normalized.desc) {
+        ctx.vCard.desc = normalized.desc;
+      }
+      if (normalized.photo) {
+        ctx.vCard.photo = normalized.photo;
+      }
+    } catch (err) {
+      console.error("[XMPP] Failed to load vCard from storage:", err);
+    }
+  }
+  async function persistRosterState(ctx) {
+    const payload = {
+      version: 1,
+      entries: Array.from(ctx.roster.values()).sort((a2, b2) => a2.jid.localeCompare(b2.jid))
+    };
+    await writeState(ctx.storage, "roster", payload);
+  }
+  async function persistFeedHistoryState(ctx) {
+    const payload = {
+      version: 1,
+      posts: Array.from(ctx.feedHistory.values()).sort((a2, b2) => b2.publishedAt.localeCompare(a2.publishedAt))
+    };
+    await writeState(ctx.storage, "feed_history", payload);
+  }
+  async function persistSubscriptionState(ctx) {
+    const payload = {
+      version: 1,
+      subscriptions: Array.from(ctx.feedSubscriptions.values()).sort((a2, b2) => a2.subscribedAt.localeCompare(b2.subscribedAt))
+    };
+    await writeState(ctx.storage, "feed_subscriptions", payload);
+  }
+  async function persistFollowerState(ctx) {
+    const payload = {
+      version: 1,
+      followers: Array.from(ctx.followers.values()).sort((a2, b2) => a2.subscribedAt.localeCompare(b2.subscribedAt))
+    };
+    await writeState(ctx.storage, "followers", payload);
+  }
+  async function persistCollectionState(ctx) {
+    const payload = {
+      version: 1,
+      collections: Array.from(ctx.collections.values()).sort((a2, b2) => a2.id.localeCompare(b2.id)),
+      posts: Array.from(ctx.collectionHistory.values()).sort((a2, b2) => b2.publishedAt.localeCompare(a2.publishedAt))
+    };
+    await writeState(ctx.storage, "collections", payload);
+  }
+  async function persistAttachmentHistoryState(ctx) {
+    const payload = {
+      version: 1,
+      attachments: Array.from(ctx.attachmentHistory.values()).sort((a2, b2) => b2.publishedAt.localeCompare(a2.publishedAt))
+    };
+    await writeState(ctx.storage, "attachments", payload);
+  }
+  async function persistMucState(ctx) {
+    const payload = {
+      version: 1,
+      rooms: Array.from(ctx.mucRooms.values()).sort((a2, b2) => a2.roomName.localeCompare(b2.roomName))
+    };
+    await writeState(ctx.storage, "muc_rooms", payload);
+  }
+  async function persistMucHistoryState(ctx) {
+    const payload = {
+      version: 1,
+      messages: Array.from(ctx.mucHistory.values()).sort((a2, b2) => a2.timestamp.localeCompare(b2.timestamp))
+    };
+    await writeState(ctx.storage, "muc_history", payload);
+  }
+  async function persistChatHistoryState(ctx) {
+    const payload = {
+      version: 1,
+      messages: Array.from(ctx.chatHistory.values()).sort((a2, b2) => {
+        const aStamp = a2.delay?.stamp || "";
+        const bStamp = b2.delay?.stamp || "";
+        return aStamp.localeCompare(bStamp);
+      })
+    };
+    await writeState(ctx.storage, "chat_history", payload);
+  }
+  async function persistVCardState(ctx) {
+    const payload = {
+      version: 1,
+      profile: {
+        fn: ctx.vCard.fn?.trim() || void 0,
+        nickname: ctx.vCard.nickname?.trim() || void 0,
+        desc: ctx.vCard.desc?.trim() || void 0,
+        photo: ctx.vCard.photo?.type && ctx.vCard.photo.binval ? {
+          type: ctx.vCard.photo.type.trim() || void 0,
+          binval: ctx.vCard.photo.binval.trim() || void 0
+        } : void 0
+      }
+    };
+    await writeState(ctx.storage, "vcard", payload);
+  }
+  async function persistOpenPgpState(storage2, state) {
+    if (!state) {
+      return;
+    }
+    await writeState(storage2, "openpgp", state);
+  }
+
+  // src/core/xmpp-xep-helpers.ts
+  init_globals();
+  init_xml();
+  var RECEIPTS_XMLNS = "urn:xmpp:receipts";
+  var CHATSTATES_XMLNS = "urn:xmpp:chatstates";
+  var DELAY_XMLNS = "urn:xmpp:delay";
+  var CORRECT_XMLNS = "urn:xmpp:message-correct:0";
+  var REPLY_XMLNS = "urn:xmpp:reply:0";
+  var PING_XMLNS = "urn:xmpp:ping";
+  var NICK_XMLNS = "http://jabber.org/protocol/nick";
+  var SID_XMLNS = "urn:xmpp:sid:0";
+  var CARBONS_XMLNS = "urn:xmpp:carbons:2";
+  var FORWARD_XMLNS = "urn:xmpp:forward:0";
+  function parseXepMetadata(element) {
+    const metadata = {};
+    const requestEl = element.getChild("request");
+    if (requestEl && requestEl.attrs.xmlns === RECEIPTS_XMLNS && element.attrs.id) {
+      metadata.receipt = { type: "request", id: element.attrs.id };
+    }
+    const receivedChildren = element.children.filter((child) => child?.name === "received");
+    for (const child of receivedChildren) {
+      if (child.attrs.xmlns === RECEIPTS_XMLNS) {
+        metadata.receipt = { type: "received", id: child.attrs.id };
+      } else if (child.attrs.xmlns === CARBONS_XMLNS) {
+        const forwardedEl = child.getChild("forwarded");
+        if (forwardedEl && forwardedEl.attrs.xmlns === FORWARD_XMLNS) {
+          const forwardedMsg = forwardedEl.getChild("message");
+          if (forwardedMsg) {
+            metadata.carbon = { type: "received", forwardedMessage: forwardedMsg };
+          }
+        }
+      }
+    }
+    const chatStateNames = ["active", "composing", "paused", "inactive", "gone"];
+    for (const name5 of chatStateNames) {
+      const stateEl = element.getChild(name5);
+      if (stateEl && stateEl.attrs.xmlns === CHATSTATES_XMLNS) {
+        metadata.chatState = name5;
+        break;
+      }
+    }
+    const delayEl = element.getChild("delay");
+    if (delayEl && delayEl.attrs.xmlns === DELAY_XMLNS && delayEl.attrs.stamp) {
+      metadata.delay = {
+        from: delayEl.attrs.from,
+        stamp: delayEl.attrs.stamp
+      };
+    }
+    const replaceEl = element.getChild("replace");
+    if (replaceEl && replaceEl.attrs.xmlns === CORRECT_XMLNS) {
+      metadata.replace = replaceEl.attrs.id;
+    }
+    const replyEl = element.getChild("reply");
+    if (replyEl && replyEl.attrs.xmlns === REPLY_XMLNS && replyEl.attrs.id) {
+      metadata.reply = {
+        id: replyEl.attrs.id,
+        to: replyEl.attrs.to
+      };
+    }
+    const threadEl = element.getChild("thread");
+    const thread = threadEl?.text()?.trim();
+    if (thread) {
+      metadata.thread = thread;
+    }
+    const nickEl = element.getChild("nick");
+    if (nickEl && nickEl.attrs.xmlns === NICK_XMLNS) {
+      const nick = nickEl.text()?.trim();
+      if (nick) {
+        metadata.nick = nick;
+      }
+    }
+    const originIdEl = element.getChild("origin-id");
+    if (originIdEl && originIdEl.attrs.xmlns === SID_XMLNS) {
+      metadata.originId = originIdEl.attrs.id;
+    }
+    const stanzaIdEl = element.getChild("stanza-id");
+    if (stanzaIdEl && stanzaIdEl.attrs.xmlns === SID_XMLNS) {
+      metadata.stanzaId = {
+        id: stanzaIdEl.attrs.id,
+        by: stanzaIdEl.attrs.by
+      };
+    }
+    const privateEl = element.getChild("private");
+    if (privateEl && privateEl.attrs.xmlns === CARBONS_XMLNS) {
+      metadata.private = true;
+    }
+    const sentCarbonEl = element.getChild("sent");
+    if (sentCarbonEl && sentCarbonEl.attrs.xmlns === CARBONS_XMLNS) {
+      const forwardedEl = sentCarbonEl.getChild("forwarded");
+      if (forwardedEl && forwardedEl.attrs.xmlns === FORWARD_XMLNS) {
+        const forwardedMsg = forwardedEl.getChild("message");
+        if (forwardedMsg) {
+          metadata.carbon = { type: "sent", forwardedMessage: forwardedMsg };
+        }
+      }
+    }
+    return metadata;
+  }
+  function buildXepElements(options) {
+    const elements = [];
+    if (options.private) {
+      elements.push(xml("private", { xmlns: CARBONS_XMLNS }));
+    }
+    if (options.requestReceipt) {
+      elements.push(xml("request", { xmlns: RECEIPTS_XMLNS }));
+    }
+    if (options.chatState) {
+      elements.push(xml(options.chatState, { xmlns: CHATSTATES_XMLNS }));
+    }
+    if (options.delay) {
+      const delayAttrs = {
+        xmlns: DELAY_XMLNS,
+        stamp: options.delay.stamp
+      };
+      if (options.delay.from) {
+        delayAttrs.from = options.delay.from;
+      }
+      elements.push(xml("delay", delayAttrs));
+    }
+    if (options.replace) {
+      elements.push(xml("replace", {
+        xmlns: CORRECT_XMLNS,
+        id: options.replace
+      }));
+    }
+    if (options.reply) {
+      const replyAttrs = {
+        xmlns: REPLY_XMLNS,
+        id: options.reply.id
+      };
+      if (options.reply.to) {
+        replyAttrs.to = options.reply.to;
+      }
+      elements.push(xml("reply", replyAttrs));
+    }
+    if (options.thread) {
+      elements.push(xml("thread", {}, options.thread));
+    }
+    if (options.nick) {
+      elements.push(xml("nick", { xmlns: NICK_XMLNS }, options.nick));
+    }
+    if (options.originId) {
+      elements.push(xml("origin-id", { xmlns: SID_XMLNS, id: options.originId }));
+    }
+    if (options.stanzaId) {
+      elements.push(xml("stanza-id", { xmlns: SID_XMLNS, id: options.stanzaId.id, by: options.stanzaId.by }));
+    }
+    return elements;
+  }
+
+  // src/core/xmpp-chat.ts
+  var CHAT_HISTORY_LIMIT = 500;
+  function encryptDhtPayload(plaintext, key) {
+    const iv = randomBytes4(12);
+    const cipher = createCipheriv("aes-256-gcm", key, iv);
+    const encrypted = import_buffer.Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
+    const tag = cipher.getAuthTag();
+    return {
+      iv: iv.toString("base64"),
+      tag: tag.toString("base64"),
+      ciphertext: encrypted.toString("base64")
+    };
+  }
+  function decryptDhtPayload(payload, key) {
+    const ivBuf = import_buffer.Buffer.from(payload.iv, "base64");
+    const tagBuf = import_buffer.Buffer.from(payload.tag, "base64");
+    const ciphertextBuf = import_buffer.Buffer.from(payload.ciphertext, "base64");
+    const decipher = createDecipheriv("aes-256-gcm", key, ivBuf);
+    decipher.setAuthTag(tagBuf);
+    return import_buffer.Buffer.concat([decipher.update(ciphertextBuf), decipher.final()]).toString("utf8");
+  }
+  var XmppChatManager = class {
+    ctx;
+    chatHistory = /* @__PURE__ */ new Map();
+    chatHistorySaveQueue = Promise.resolve();
+    constructor(ctx) {
+      this.ctx = ctx;
+    }
+    async initialize() {
+      await this.loadChatHistory();
+    }
+    getLibp2pPrivateKeyBytes() {
+      const components = this.ctx.libp2p.components?.components;
+      if (components?.privateKey?.raw instanceof Uint8Array) {
+        return components.privateKey.raw;
+      }
+      if (this.ctx.libp2p.peerId.privateKey instanceof Uint8Array) {
+        return this.ctx.libp2p.peerId.privateKey;
+      }
+      if (typeof this.ctx.libp2p.peerId.privateKey?.marshal === "function") {
+        return this.ctx.libp2p.peerId.privateKey.marshal();
+      }
+      return void 0;
+    }
+    async getDhtEncryptionKey() {
+      const pkBytes = this.getLibp2pPrivateKeyBytes();
+      if (pkBytes) {
+        return createHash("sha256").update(pkBytes).digest();
+      }
+      const namespace2 = "security";
+      const keyName = "dht_storage_key";
+      let raw = await this.ctx.storage.getRecord(namespace2, keyName);
+      if (!raw) {
+        const newKey = randomBytes4(32).toString("base64");
+        await this.ctx.storage.putRecord(namespace2, keyName, newKey, (/* @__PURE__ */ new Date()).toISOString());
+        raw = newKey;
+      }
+      return import_buffer.Buffer.from(raw, "base64");
+    }
+    chatKey(msg) {
+      return msg.id || `${msg.from}:${msg.to}:${msg.body}:${msg.delay?.stamp || ""}`;
+    }
+    async loadChatHistory() {
+      await loadChatHistoryState({
+        storage: this.ctx.storage,
+        chatHistory: this.chatHistory
+      }, CHAT_HISTORY_LIMIT);
+      try {
+        const dhtKey = new TextEncoder().encode(`/xmpp/archive/chats/${this.ctx.libp2p.peerId.toString()}`);
+        const dhtData = await readDhtJson(this.ctx.libp2p, dhtKey);
+        if (dhtData) {
+          let chatData = void 0;
+          if (dhtData.ciphertext && dhtData.iv && dhtData.tag) {
+            try {
+              const key = await this.getDhtEncryptionKey();
+              const decryptedJson = decryptDhtPayload(dhtData, key);
+              chatData = JSON.parse(decryptedJson);
+            } catch (decErr) {
+              console.error("[XMPP] Failed to decrypt DHT chat history record:", decErr);
+            }
+          } else if (Array.isArray(dhtData.messages)) {
+            chatData = dhtData;
+          }
+          if (chatData && Array.isArray(chatData.messages)) {
+            for (const msg of chatData.messages) {
+              const ck = this.chatKey(msg);
+              if (!this.chatHistory.has(ck)) {
+                this.chatHistory.set(ck, msg);
+              }
+            }
+            while (this.chatHistory.size > CHAT_HISTORY_LIMIT) {
+              const oldestKey = this.chatHistory.keys().next().value;
+              if (oldestKey == null) break;
+              this.chatHistory.delete(oldestKey);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("[XMPP] Failed to load chat history from DHT:", err);
+      }
+    }
+    async recordChatMessage(msg) {
+      const key = this.chatKey(msg);
+      this.chatHistory.set(key, msg);
+      while (this.chatHistory.size > CHAT_HISTORY_LIMIT) {
+        const oldestKey = this.chatHistory.keys().next().value;
+        if (oldestKey == null) break;
+        this.chatHistory.delete(oldestKey);
+      }
+      this.scheduleChatPersist();
+    }
+    persistScheduled = false;
+    scheduleChatPersist() {
+      if (this.persistScheduled) return;
+      this.persistScheduled = true;
+      queueMicrotask(() => {
+        this.persistScheduled = false;
+        this.chatHistorySaveQueue = this.chatHistorySaveQueue.then(async () => {
+          await persistChatHistoryState({
+            storage: this.ctx.storage,
+            chatHistory: this.chatHistory
+          });
+          await this.persistChatHistoryToDht();
+        }).catch((err) => {
+          console.warn("[XMPP] Failed to persist chat history:", err);
+        });
+      });
+    }
+    async persistChatHistoryToDht() {
+      try {
+        const historyList = Array.from(this.chatHistory.values());
+        const key = new TextEncoder().encode(`/xmpp/archive/chats/${this.ctx.libp2p.peerId.toString()}`);
+        const plaintext = JSON.stringify({
+          version: 1,
+          messages: historyList
+        });
+        const encKey = await this.getDhtEncryptionKey();
+        const encryptedPayload = encryptDhtPayload(plaintext, encKey);
+        await writeDhtJson(this.ctx.libp2p, key, encryptedPayload);
+      } catch (err) {
+        console.warn("[XMPP] Failed to persist chat history to DHT:", err);
+      }
+    }
+    async handleIncomingMamQuery(element, peerId) {
+      const query = element.getChild("query");
+      if (!query) return;
+      const queryId = query.attrs.queryid;
+      let filterWith = void 0;
+      const xEl = query.getChild("x");
+      if (xEl && xEl.attrs.xmlns === "jabber:x:data") {
+        const fields = xEl.children.filter((child) => child?.name === "field");
+        for (const f2 of fields) {
+          if (f2.attrs.var === "with") {
+            filterWith = f2.getChild("value")?.text();
+          }
+        }
+      }
+      let history = Array.from(this.chatHistory.values());
+      if (filterWith) {
+        const bareFilterWith = filterWith.split("/")[0];
+        history = history.filter((msg) => {
+          const fromBare = msg.from.split("/")[0];
+          const toBare = msg.to.split("/")[0];
+          return fromBare === bareFilterWith || toBare === bareFilterWith;
+        });
+      }
+      for (const msg of history) {
+        const children = [];
+        if (msg.body) {
+          children.push(xml("body", {}, msg.body));
+        }
+        children.push(...buildXepElements({
+          replace: msg.replace,
+          reply: msg.reply,
+          thread: msg.thread,
+          private: msg.private,
+          originId: msg.originId,
+          stanzaId: msg.stanzaId
+        }));
+        const msgEl = xml("message", {
+          to: msg.to,
+          from: msg.from,
+          type: msg.type || "chat",
+          id: msg.id ?? ""
+        }, ...children);
+        const resultEl = xml("result", {
+          xmlns: "urn:xmpp:mam:2",
+          queryid: queryId,
+          id: msg.id ?? ""
+        }, xml(
+          "forwarded",
+          { xmlns: "urn:xmpp:forward:0" },
+          xml("delay", { xmlns: "urn:xmpp:delay", stamp: msg.delay?.stamp || (/* @__PURE__ */ new Date()).toISOString() }),
+          msgEl
+        ));
+        const wrapperMsg = xml("message", {
+          to: `${peerId}@p2p`,
+          from: this.ctx.jid
+        }, resultEl);
+        const stream = await this.ctx.getOrCreateStream(`${peerId}@p2p`);
+        stream.send(wrapperMsg);
+      }
+      const finEl = xml(
+        "fin",
+        { xmlns: "urn:xmpp:mam:2", complete: "true" },
+        xml("count", {}, String(history.length))
+      );
+      await this.ctx.sendIqResult(peerId, element.attrs.id, finEl);
+    }
+    async handleIncomingMamResult(element, peerId) {
+      const resultEl = element.getChild("result");
+      if (!resultEl) return;
+      const queryId = resultEl.attrs.queryid;
+      const forwardedEl = resultEl.getChild("forwarded");
+      const delayEl = forwardedEl?.getChild("delay");
+      const delayStamp = delayEl?.attrs.stamp;
+      const innerMsg = forwardedEl?.getChild("message");
+      if (innerMsg) {
+        const fromVal = innerMsg.attrs.from || "";
+        const toVal = innerMsg.attrs.to || "";
+        const body = innerMsg.getChild("body")?.text() || "";
+        const msgId2 = innerMsg.attrs.id || resultEl.attrs.id;
+        const metadata = parseXepMetadata(innerMsg);
+        const msg = {
+          from: fromVal,
+          to: toVal,
+          body,
+          id: msgId2,
+          type: innerMsg.attrs.type || "chat",
+          delay: delayStamp ? { stamp: delayStamp, from: delayEl?.attrs.from } : void 0,
+          ...metadata
+        };
+        await this.recordChatMessage(msg);
+        this.ctx.emit("message", {
+          ...msg,
+          mam: true,
+          queryId
+        });
+      }
+    }
+    async queryChatHistory(targetPeerJid, withJid, queryId) {
+      const id2 = Math.random().toString(36).substring(2, 11);
+      const toJid = this.ctx.jidFromPeerId(this.ctx.parsePeerReference(targetPeerJid).peerId);
+      const children = [];
+      if (withJid) {
+        children.push(
+          xml(
+            "x",
+            { xmlns: "jabber:x:data", type: "submit" },
+            xml("field", { var: "FORM_TYPE", type: "hidden" }, xml("value", {}, "urn:xmpp:mam:2")),
+            xml("field", { var: "with" }, xml("value", {}, withJid))
+          )
+        );
+      }
+      const iq = xml(
+        "iq",
+        { type: "get", id: id2, to: toJid, from: this.ctx.jid },
+        xml("query", { xmlns: "urn:xmpp:mam:2", ...queryId ? { queryid: queryId } : {} }, ...children)
+      );
+      await this.ctx.sendIqRequest(toJid, iq);
+      return id2;
+    }
+    async flushSaveQueue() {
+      await this.chatHistorySaveQueue;
+    }
+  };
+
   // src/core/xmpp-client-bridge.ts
+  init_globals();
+  init_events();
   init_xml();
   var NS_PUBSUB = "http://jabber.org/protocol/pubsub";
   var NS_PUBSUB_EVENT = "http://jabber.org/protocol/pubsub#event";
   var NS_MUC = "http://jabber.org/protocol/muc";
+  var NS_MUC_USER = "http://jabber.org/protocol/muc#user";
+  var NS_MUC_OWNER = "http://jabber.org/protocol/muc#owner";
+  var NS_ROSTER = "jabber:iq:roster";
+  var NS_MAM = "urn:xmpp:mam:2";
+  var NS_DELAY = "urn:xmpp:delay";
+  var NS_CARBONS = "urn:xmpp:carbons:2";
+  var NS_STANZAS = "urn:ietf:params:xml:ns:xmpp-stanzas";
+  function iqErrorMessage(stanza) {
+    const error = stanza.getChild("error");
+    const condition = error?.children.find(
+      (child) => child instanceof import_Element2.default && child.name !== "text" && child.attrs.xmlns === NS_STANZAS
+    )?.name;
+    switch (condition) {
+      case "service-unavailable":
+      case "feature-not-implemented":
+        return "The XMPP server does not support this request.";
+      case "forbidden":
+      case "not-authorized":
+        return "The XMPP server denied this request.";
+      case "item-not-found":
+        return "The requested XMPP item was not found.";
+      case "bad-request":
+        return "The XMPP server rejected this request as invalid.";
+      case "remote-server-not-found":
+      case "remote-server-timeout":
+        return "The XMPP server could not reach the remote service.";
+      case "internal-server-error":
+        return "The XMPP server encountered an internal error.";
+    }
+    const serverText = error?.getChild("text", NS_STANZAS)?.text().trim();
+    return serverText || "The XMPP server rejected the request.";
+  }
+  var RegistrationResponseError = class extends Error {
+  };
+  var CAPTCHA_REGISTRATION_MESSAGE = "This server requires CAPTCHA verification. Complete registration on the provider website, then sign in here.";
+  function decodeRegistrationXmlText(value2) {
+    return value2.replace(/&(#x[0-9a-f]+|#[0-9]+|amp|lt|gt|quot|apos);/gi, (entity, token) => {
+      if (token === "amp") return "&";
+      if (token === "lt") return "<";
+      if (token === "gt") return ">";
+      if (token === "quot") return '"';
+      if (token === "apos") return "'";
+      const codePoint = token[1]?.toLowerCase() === "x" ? Number.parseInt(token.slice(2), 16) : Number.parseInt(token.slice(1), 10);
+      try {
+        return Number.isFinite(codePoint) ? String.fromCodePoint(codePoint) : entity;
+      } catch {
+        return entity;
+      }
+    });
+  }
+  function registrationDataForm(buffer, username, password, registrationFields = {}) {
+    const form = buffer.match(/<x\b([^>]*)>([\s\S]*?)<\/x>/i);
+    if (!form || !/\bxmlns=['"]jabber:x:data['"]/i.test(form[1]) || !/\btype=['"]form['"]/i.test(form[1])) return void 0;
+    const fields = [];
+    let hasUsername = false;
+    let hasPassword = false;
+    const submittedFields = { ...registrationFields };
+    for (const field2 of form[2].matchAll(/<field\b([^>]*?)(?:\s*\/\s*>|\s*>([\s\S]*?)<\/field>)/gi)) {
+      const attributes = field2[1];
+      const variable = attributes.match(/\bvar=['"]([^'"]+)['"]/i)?.[1];
+      if (!variable) continue;
+      const contents = field2[2] ?? "";
+      const values = [...contents.matchAll(/<value\b[^>]*>([\s\S]*?)<\/value>/gi)].map((value2) => decodeRegistrationXmlText(value2[1].replace(/<[^>]*>/g, "")));
+      let valuesToSubmit = values;
+      if (variable === "username") {
+        valuesToSubmit = [username];
+        hasUsername = true;
+      } else if (variable === "password") {
+        valuesToSubmit = [password];
+        hasPassword = true;
+      } else if (Object.hasOwn(submittedFields, variable)) {
+        valuesToSubmit = [submittedFields[variable]];
+        delete submittedFields[variable];
+      } else if (/\btype=['"]hidden['"]/i.test(attributes)) {
+      } else if (/<required\b/i.test(contents)) {
+        if (/<captcha\b/i.test(buffer) || /captcha|human[_ -]?verification/i.test(variable)) {
+          throw new RegistrationResponseError(CAPTCHA_REGISTRATION_MESSAGE);
+        }
+        throw new RegistrationResponseError(`The XMPP server requires additional registration information: ${variable}`);
+      } else {
+        continue;
+      }
+      fields.push(xml("field", { var: variable }, ...valuesToSubmit.map((value2) => xml("value", {}, value2))));
+    }
+    if (!hasUsername || !hasPassword) {
+      throw new RegistrationResponseError("The XMPP server registration form does not include username and password fields.");
+    }
+    return xml("x", { xmlns: "jabber:x:data", type: "submit" }, ...fields);
+  }
+  function normalizeXmppWebSocketUrl(value2) {
+    let endpoint;
+    try {
+      endpoint = new URL(value2);
+    } catch {
+      throw new Error("XMPP WebSocket URL is invalid");
+    }
+    const hostname = endpoint.hostname.toLowerCase();
+    const ipv4 = hostname.split(".").map(Number);
+    const isLoopback2 = hostname === "localhost" || hostname.endsWith(".localhost") || hostname === "[::1]" || ipv4.length === 4 && ipv4[0] === 127 && ipv4.every((part) => Number.isInteger(part) && part >= 0 && part <= 255);
+    const securePage = typeof globalThis.location !== "undefined" && globalThis.location.protocol === "https:";
+    if (endpoint.protocol !== "wss:" && !(endpoint.protocol === "ws:" && isLoopback2) || endpoint.protocol === "ws:" && securePage || !endpoint.hostname || endpoint.username || endpoint.password || endpoint.hash) {
+      throw new Error("XMPP WebSocket URLs must use wss://. ws:// is only allowed for localhost development servers served over http://.");
+    }
+    return endpoint.toString();
+  }
   var XmppClientBridge = class extends EventEmitter2 {
     client = null;
     status = "disconnected";
     domain = "";
+    lastError;
     pendingIq = /* @__PURE__ */ new Map();
+    serverPresenceResources = /* @__PURE__ */ new Map();
+    configuringMucRooms = /* @__PURE__ */ new Set();
+    httpUploadService;
     iqTimeoutMs = 3e4;
     get connectionInfo() {
-      return { type: "component", domain: this.domain, status: this.status };
+      return { type: "client", domain: this.domain, status: this.status, error: this.lastError };
     }
     get isConnected() {
       return this.status === "connected";
     }
-    async discoverWebSocketUrl(domain) {
-      return this.discoverViaDNS(domain);
+    get accountJid() {
+      return this.client?.jid?.toString();
     }
-    async discoverViaDNS(domain) {
-      const providers = [
-        { url: `https://dns.google/resolve?name=_xmppconnect.${domain}&type=TXT`, json: true },
-        { url: `https://cloudflare-dns.com/dns-query?name=_xmppconnect.${domain}&type=TXT`, json: true, accept: "application/dns-json" }
-      ];
-      for (const provider of providers) {
+    async discoverWebSocketUrl(domain) {
+      return this.discoverViaHostMeta(domain);
+    }
+    async discoverViaHostMeta(domain) {
+      const rel = "urn:xmpp:alt-connections:websocket";
+      const secureWebSocket = (candidate) => {
+        if (typeof candidate !== "string") return null;
         try {
-          const headers = {};
-          if (provider.accept) headers.Accept = provider.accept;
-          const resp = await fetch(provider.url, { signal: AbortSignal.timeout(4e3), headers });
-          if (resp.ok) {
-            const data = await resp.json();
-            if (data.Answer) {
-              for (const ans of data.Answer) {
-                const val = ans.data.replace(/"/g, "");
-                if (val.startsWith("_xmpp-client-websocket=")) {
-                  return val.split("=")[1];
-                }
-              }
-            }
-          }
+          const endpoint = new URL(candidate);
+          return endpoint.protocol === "wss:" ? endpoint.toString() : null;
         } catch {
+          return null;
         }
+      };
+      try {
+        const response2 = await fetch(`https://${domain}/.well-known/host-meta.json`, {
+          signal: AbortSignal.timeout(4e3),
+          credentials: "omit",
+          headers: { Accept: "application/jrd+json, application/json" }
+        });
+        if (response2.ok && new URL(response2.url).protocol === "https:") {
+          const metadata = await response2.json();
+          for (const link of metadata.links ?? []) {
+            if (link.rel !== rel) continue;
+            const endpoint = secureWebSocket(link.href);
+            if (endpoint) return endpoint;
+          }
+        }
+      } catch {
+      }
+      try {
+        const response2 = await fetch(`https://${domain}/.well-known/host-meta`, {
+          signal: AbortSignal.timeout(4e3),
+          credentials: "omit",
+          headers: { Accept: "application/xrd+xml, application/xml, text/xml" }
+        });
+        if (!response2.ok || new URL(response2.url).protocol !== "https:") return null;
+        const document2 = await response2.text();
+        const links = document2.match(/<Link\b[^>]*>/gi) ?? [];
+        for (const link of links) {
+          const attributes = /* @__PURE__ */ new Map();
+          for (const match of link.matchAll(/([\w:-]+)\s*=\s*(["'])(.*?)\2/g)) {
+            attributes.set(match[1].toLowerCase(), match[3].replace(/&amp;/g, "&"));
+          }
+          if (attributes.get("rel") !== rel) continue;
+          const endpoint = secureWebSocket(attributes.get("href"));
+          if (endpoint) return endpoint;
+        }
+      } catch {
       }
       return null;
     }
@@ -77774,34 +78126,70 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       const jidObj = jid_default(credentials.jid);
       this.domain = jidObj.domain;
       this.status = "connecting";
+      this.lastError = void 0;
       this.emit("connection", this.connectionInfo);
-      let service2 = credentials.service;
-      if (service2 && /^wss?:\/\//.test(service2)) {
-      } else if (service2 && !/:\/\//.test(service2)) {
-        service2 = await this.discoverWebSocketUrl(service2) || this.defaultWsUrl(service2);
+      const requestedService = credentials.service?.trim();
+      let services;
+      if (requestedService && requestedService.includes("://")) {
+        try {
+          services = [{ url: normalizeXmppWebSocketUrl(requestedService), timeoutMs: 3e4 }];
+        } catch (error) {
+          this.status = "error";
+          this.lastError = error instanceof Error ? error.message : String(error);
+          this.emit("connection", { ...this.connectionInfo, status: "error", error: this.lastError });
+          throw error;
+        }
       } else {
-        service2 = await this.discoverWebSocketUrl(this.domain) || this.defaultWsUrl(this.domain);
+        const domain = requestedService || this.domain;
+        const discovered = await this.discoverWebSocketUrl(domain);
+        services = [.../* @__PURE__ */ new Set([...discovered ? [discovered] : [], ...this.defaultWsUrls(domain)])].map((url, index) => ({ url, timeoutMs: discovered && index === 0 ? 2e4 : 12e3 }));
       }
-      const clientOptions = {
+      let lastError;
+      const attemptedServices = [];
+      for (const service2 of services) {
+        attemptedServices.push(service2.url);
+        this.status = "connecting";
+        this.lastError = void 0;
+        this.emit("connection", this.connectionInfo);
+        try {
+          await this.connectToService(credentials, jidObj, service2.url, service2.timeoutMs);
+          return;
+        } catch (error) {
+          lastError = error instanceof Error ? error : new Error(String(error));
+          if (this.isAuthenticationFailure(lastError)) break;
+        }
+      }
+      this.status = "error";
+      const endpointSummary = attemptedServices.length > 0 ? `Endpoint${attemptedServices.length === 1 ? "" : "s"} tried: ${attemptedServices.join(", ")}` : "";
+      this.lastError = [lastError?.message || "Could not connect to the XMPP server", endpointSummary].filter(Boolean).join(". ");
+      this.emit("connection", { ...this.connectionInfo, status: "error", error: this.lastError });
+      throw new Error(`Failed to connect: ${this.lastError}`);
+    }
+    isAuthenticationFailure(error) {
+      return /not[- ]authorized|invalid credentials|authentication failed|account[- ]disabled|temporary-auth-failure|mechanism-too-weak/i.test(error.message);
+    }
+    async connectToService(credentials, jidObj, service2, timeoutMs) {
+      service2 = normalizeXmppWebSocketUrl(service2);
+      this.client = client({
         domain: this.domain,
         username: jidObj.local,
-        password: credentials.password
-      };
-      if (service2) {
-        clientOptions.service = service2;
-      }
-      this.client = client(clientOptions);
+        password: credentials.password,
+        service: service2
+      });
       const client2 = this.client;
       client2.on("online", () => {
         this.status = "connected";
+        this.lastError = void 0;
         this.domain = client2?.jid?.domain || this.domain;
         this.emit("connection", this.connectionInfo);
+        void this.sendIQ(void 0, "set", xml("enable", { xmlns: NS_CARBONS })).catch(() => {
+        });
+        void this.sendPresence().catch((error) => this.emit("presence:error", error));
       });
-      this.client.on("stanza", (stanza) => {
-        this.handleStanza(stanza);
-      });
-      this.client.on("status", (status) => {
+      client2.on("stanza", (stanza) => this.handleStanza(stanza));
+      client2.on("status", (status) => {
         if (status === "disconnect" || status === "offline") {
+          this.clearServerPresence();
           this.status = "disconnected";
           this.emit("connection", { ...this.connectionInfo, status: "disconnected" });
           for (const [, pending] of this.pendingIq) {
@@ -77811,41 +78199,67 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
           this.pendingIq.clear();
         }
       });
-      this.client.on("error", (err) => {
+      client2.on("error", (err) => {
         this.status = "error";
+        this.lastError = err.message;
         this.emit("connection", { ...this.connectionInfo, status: "error", error: err.message });
-        if (disconnectReject) disconnectReject(err);
+        disconnectReject?.(err);
       });
+      const onReconnecting = () => {
+        if (this.client !== client2) return;
+        this.status = "connecting";
+        this.lastError = void 0;
+        this.emit("connection", this.connectionInfo);
+      };
+      const onReconnected = () => {
+        if (this.client !== client2) return;
+        this.status = "connected";
+        this.lastError = void 0;
+        this.domain = client2?.jid?.domain || this.domain;
+        this.emit("connection", this.connectionInfo);
+        void this.sendPresence().catch((error) => this.emit("presence:error", error));
+      };
+      client2.reconnect?.on?.("reconnecting", onReconnecting);
+      client2.reconnect?.on?.("reconnected", onReconnected);
       let disconnectReject = null;
+      let timeout2;
       const onDisconnect = (status) => {
         if ((status === "disconnect" || status === "offline") && disconnectReject) {
           disconnectReject(new Error("Server disconnected before authentication completed"));
         }
       };
-      this.client.on("status", onDisconnect);
+      client2.on("status", onDisconnect);
       try {
         await Promise.race([
-          this.client.start(),
+          client2.start(),
           new Promise((_2, reject) => {
             disconnectReject = reject;
-            setTimeout(() => reject(new Error("Connection timed out after 30 seconds")), 3e4);
+            timeout2 = setTimeout(() => reject(new Error(`Connection timed out after ${Math.ceil(timeoutMs / 1e3)} seconds`)), timeoutMs);
           })
         ]);
-      } catch (err) {
+      } catch (error) {
+        await this.disconnect().catch(() => {
+        });
+        throw error instanceof Error ? error : new Error(String(error));
+      } finally {
+        if (timeout2) clearTimeout(timeout2);
         disconnectReject = null;
-        this.client?.removeListener?.("status", onDisconnect);
-        this.status = "disconnected";
-        this.emit("connection", { ...this.connectionInfo, status: "disconnected" });
-        throw new Error(`Failed to connect: ${err.message}`);
+        client2.removeListener?.("status", onDisconnect);
       }
-      disconnectReject = null;
-      this.client?.removeListener?.("status", onDisconnect);
     }
     async disconnect() {
-      if (!this.client) return;
+      if (!this.client) {
+        this.clearServerPresence();
+        const changed = this.status !== "disconnected" || this.lastError !== void 0;
+        this.status = "disconnected";
+        this.lastError = void 0;
+        if (changed) this.emit("connection", this.connectionInfo);
+        return;
+      }
       const oldClient = this.client;
       try {
         oldClient.reconnect?.stop?.();
+        oldClient.reconnect?.removeAllListeners?.();
         await oldClient.stop();
       } catch {
       }
@@ -77854,7 +78268,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       oldClient.removeAllListeners?.("status");
       oldClient.removeAllListeners?.("error");
       this.client = null;
+      this.httpUploadService = void 0;
+      this.clearServerPresence();
       this.status = "disconnected";
+      this.lastError = void 0;
       this.emit("connection", { ...this.connectionInfo, status: "disconnected" });
       for (const [, pending] of this.pendingIq) {
         clearTimeout(pending.timer);
@@ -77862,27 +78279,118 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       }
       this.pendingIq.clear();
     }
-    /**
-     * Returns a sensible WebSocket fallback URL for a domain per XEP-0156 conventions.
-     * Uses port 5443 for wss:// (most ejabberd/Prosody HTTPS listeners) with the
-     * standard /xmpp-websocket path, which Prosody defaults to. Ejabberd also accepts
-     * this path. Change this if your server uses a non-standard path.
-     */
-    defaultWsUrl(domain) {
-      return `wss://${domain}:5443/xmpp-websocket`;
-    }
-    async register(domainOrService, username, password) {
-      const isUrl = /^wss?:\/\//.test(domainOrService);
-      let service2;
-      let domain;
-      if (isUrl) {
-        domain = domainOrService.split("/")[2]?.split(":")[0] || domainOrService;
-        service2 = domainOrService;
-      } else {
-        domain = domainOrService;
-        const discovered = await this.discoverWebSocketUrl(domainOrService);
-        service2 = discovered || this.defaultWsUrl(domainOrService);
+    async uploadFile(data, filename, contentType = "application/octet-stream") {
+      if (!this.isConnected) throw new Error("Connect to your XMPP server before uploading a file.");
+      if (data.byteLength === 0) throw new Error("The selected file is empty.");
+      const service2 = await this.findHttpUploadService();
+      if (!service2) throw new Error("Your XMPP server does not provide an HTTP File Upload service.");
+      const response2 = await this.sendIQ(service2.jid, "get", xml("request", {
+        xmlns: service2.namespace,
+        filename: filename.trim() || "file",
+        size: String(data.byteLength),
+        "content-type": contentType || "application/octet-stream"
+      }));
+      const slot = response2.getChild("slot", service2.namespace);
+      const put = slot?.getChild("put", service2.namespace);
+      const get = slot?.getChild("get", service2.namespace);
+      const putUrl = put?.attrs.url;
+      const getUrl = get?.attrs.url;
+      if (!putUrl || !getUrl) throw new Error("The XMPP upload service returned an incomplete upload slot.");
+      const secureUrl = (value2, label) => {
+        let parsed;
+        try {
+          parsed = new URL(value2);
+        } catch {
+          throw new Error(`The XMPP upload service returned an invalid ${label} URL.`);
+        }
+        if (parsed.protocol !== "https:" || parsed.username || parsed.password || parsed.hash) {
+          throw new Error(`The XMPP upload service returned an insecure ${label} URL.`);
+        }
+        return parsed.toString();
+      };
+      const safePutUrl = secureUrl(putUrl, "upload");
+      const safeGetUrl = secureUrl(getUrl, "download");
+      const headers = new Headers({ "Content-Type": contentType || "application/octet-stream" });
+      for (const header of put?.children.filter((child) => child instanceof import_Element2.default && child.name === "header") ?? []) {
+        const name5 = (header.attrs.name ?? "").replace(/[\r\n]/g, "");
+        const lowerName = name5.toLowerCase();
+        if (!["authorization", "cookie", "expires"].includes(lowerName)) continue;
+        const value2 = header.text().replace(/[\r\n]/g, "");
+        if (lowerName === "cookie" && value2) {
+          throw new Error("This XMPP upload service requires a Cookie header that browser apps cannot set. Ask the server operator to use a browser-compatible upload configuration.");
+        }
+        if (name5 && value2) headers.append(name5, value2);
       }
+      let uploaded;
+      try {
+        uploaded = await fetch(safePutUrl, { method: "PUT", headers, body: data, credentials: "omit" });
+      } catch {
+        throw new Error("Could not reach the XMPP file upload service. Check the server and try again.");
+      }
+      if (!uploaded.ok) throw new Error(`XMPP file upload failed (HTTP ${uploaded.status}).`);
+      return safeGetUrl;
+    }
+    async findHttpUploadService() {
+      if (this.httpUploadService) return this.httpUploadService;
+      const match = (features) => features.find((feature) => /^urn:xmpp:http:upload:\d+$/.test(feature));
+      const rootInfo = await this.discoInfo(this.domain).catch(() => void 0);
+      const rootNamespace = rootInfo && match(rootInfo.features);
+      if (rootNamespace) {
+        this.httpUploadService = { jid: this.domain, namespace: rootNamespace };
+        return this.httpUploadService;
+      }
+      const items = await this.discoItems(this.domain).catch(() => ({ items: [] }));
+      for (const item of items.items) {
+        const info = await this.discoInfo(item.jid).catch(() => void 0);
+        const namespace2 = info && match(info.features);
+        if (!namespace2) continue;
+        this.httpUploadService = { jid: item.jid, namespace: namespace2 };
+        return this.httpUploadService;
+      }
+      return void 0;
+    }
+    /**
+     * Common secure WebSocket endpoints used by default server configurations.
+     * Explicit XEP-0156 discovery and user-provided URLs are tried before these.
+     */
+    defaultWsUrls(domain) {
+      return [
+        `wss://${domain}/xmpp-websocket`,
+        // Common browser endpoint on HTTPS port 443
+        `wss://${domain}:5281/xmpp-websocket`,
+        // Prosody default
+        `wss://${domain}:5443/websocket`,
+        // common ejabberd default
+        `wss://${domain}:5443/xmpp-websocket`
+        // deployments using Prosody's path on 5443
+      ];
+    }
+    async register(domainOrService, username, password, xmppDomain, registrationFields = {}) {
+      const isUrl = domainOrService.includes("://");
+      let streamDomain;
+      let services;
+      if (isUrl) {
+        const endpoint = new URL(normalizeXmppWebSocketUrl(domainOrService));
+        streamDomain = xmppDomain || endpoint.hostname || domainOrService;
+        services = [endpoint.toString()];
+      } else {
+        streamDomain = xmppDomain || domainOrService;
+        const discovered = await this.discoverWebSocketUrl(domainOrService);
+        services = [.../* @__PURE__ */ new Set([...discovered ? [discovered] : [], ...this.defaultWsUrls(domainOrService)])];
+      }
+      let lastError;
+      for (const service2 of services) {
+        try {
+          return await this.registerAtService(streamDomain, service2, username, password, registrationFields);
+        } catch (error) {
+          lastError = error instanceof Error ? error : new Error(String(error));
+          if (error instanceof RegistrationResponseError) throw error;
+        }
+      }
+      throw new Error(`Could not register with ${streamDomain}: ${lastError?.message || "XMPP registration failed"}`);
+    }
+    registerAtService(domain, service2, username, password, registrationFields) {
+      service2 = normalizeXmppWebSocketUrl(service2);
       return new Promise((resolve6, reject) => {
         const ws2 = new WebSocket(service2, ["xmpp"]);
         let buffer = "";
@@ -77917,22 +78425,34 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
           if (step === "features" && buffer.includes("</stream:features>")) {
             const supportsRegistration = buffer.includes("http://jabber.org/features/iq-register") || buffer.includes("jabber:iq:register");
             if (!supportsRegistration) {
-              finish(() => reject(new Error("Server does not support in-band registration")));
+              finish(() => reject(new RegistrationResponseError("Server does not support in-band registration")));
               return;
             }
             step = "form";
             buffer = "";
-            ws2.send(`<iq type='get' id='reg-1'><query xmlns='jabber:iq:register'/></iq>`);
+            ws2.send(`<iq xmlns='jabber:client' type='get' id='reg-1'><query xmlns='jabber:iq:register'/></iq>`);
             return;
           }
           if (step === "form") {
             const match = buffer.match(/id=['"](reg-1)['"]/);
             if (match && (buffer.includes('type="result"') || buffer.includes("type='result'"))) {
               step = "submit";
+              let dataForm;
+              try {
+                dataForm = registrationDataForm(buffer, username, password, registrationFields);
+              } catch (error) {
+                finish(() => reject(error instanceof Error ? error : new Error(String(error))));
+                return;
+              }
               buffer = "";
-              const u2 = username.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-              const p2 = password.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-              ws2.send(`<iq type='set' id='reg-2'><query xmlns='jabber:iq:register'><username>${u2}</username><password>${p2}</password></query></iq>`);
+              const registration = dataForm ? xml("iq", { xmlns: "jabber:client", type: "set", id: "reg-2" }, xml("query", { xmlns: "jabber:iq:register" }, dataForm)) : xml("iq", { xmlns: "jabber:client", type: "set", id: "reg-2" }, xml(
+                "query",
+                { xmlns: "jabber:iq:register" },
+                xml("username", {}, username),
+                xml("password", {}, password),
+                ...Object.entries(registrationFields).map(([field2, value2]) => xml(field2, {}, value2))
+              ));
+              ws2.send(registration.toString());
               return;
             }
           }
@@ -77945,8 +78465,9 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
           }
           if (!done && (buffer.includes('type="error"') || buffer.includes("type='error'"))) {
             const textMatch = buffer.match(/<text[^>]*>([^<]+)<\/text>/);
-            const errText = textMatch?.[1] || "Registration rejected by server";
-            finish(() => reject(new Error(errText)));
+            const serverText = textMatch?.[1] || "Registration rejected by server";
+            const errText = /captcha|human verification|verification challenge/i.test(serverText) ? CAPTCHA_REGISTRATION_MESSAGE : serverText;
+            finish(() => reject(new RegistrationResponseError(errText)));
           }
         };
         ws2.onerror = () => {
@@ -77959,13 +78480,93 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       await this.client.send(stanza);
     }
     async sendMessage(to2, body, options) {
-      const id2 = options?.replace || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const id2 = options?.originId || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       const attrs = { to: to2, type: options?.type || "chat", id: id2 };
-      const children = [xml("body", {}, body)];
-      if (options?.thread) children.push(xml("thread", {}, options.thread));
-      if (options?.replace) children.push(xml("replace", { id: options.replace, xmlns: "urn:xmpp:message-correct:0" }));
+      const children = [
+        ...body ? [xml("body", {}, body)] : [],
+        ...(options?.attachments ?? []).flatMap((attachment) => {
+          let url;
+          try {
+            url = new URL(attachment.url);
+          } catch {
+            return [];
+          }
+          if (url.protocol !== "https:" || url.username || url.password || url.hash) return [];
+          return [xml(
+            "x",
+            { xmlns: "jabber:x:oob" },
+            xml("url", {}, url.toString()),
+            xml("desc", {}, attachment.desc)
+          )];
+        }),
+        ...buildXepElements({ ...options, originId: options?.originId ?? id2 })
+      ];
       await this.sendStanza(xml("message", attrs, ...children));
       return id2;
+    }
+    async queryMamHistory(withJid, before) {
+      const peerJid = withJid.trim().split("/")[0];
+      if (!peerJid || !peerJid.includes("@")) throw new Error("Enter a full XMPP JID to load archived messages.");
+      return this.queryMamArchive(void 0, peerJid, before);
+    }
+    async queryMucMamHistory(roomJid, before) {
+      const bareRoomJid = roomJid.trim().split("/")[0];
+      if (!bareRoomJid || !bareRoomJid.includes("@")) throw new Error("Enter a full XMPP room JID to load archived messages.");
+      return this.queryMamArchive(bareRoomJid, void 0, before);
+    }
+    async queryMamArchive(targetJid, withJid, before) {
+      if (!this.isConnected) throw new Error("Connect to your XMPP server before loading archived messages.");
+      const queryId = `mam-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const filters = withJid ? [xml(
+        "x",
+        { xmlns: "jabber:x:data", type: "submit" },
+        xml("field", { var: "FORM_TYPE", type: "hidden" }, xml("value", {}, NS_MAM)),
+        xml("field", { var: "with" }, xml("value", {}, withJid))
+      )] : [];
+      const rsm = xml(
+        "set",
+        { xmlns: "http://jabber.org/protocol/rsm" },
+        xml("max", {}, "50"),
+        xml("before", {}, before || void 0)
+      );
+      let response2;
+      try {
+        response2 = await this.sendIQ(targetJid, "set", xml("query", { xmlns: NS_MAM, queryid: queryId }, ...filters, rsm));
+      } catch (error) {
+        if (error instanceof Error && /does not support this request/i.test(error.message)) {
+          throw new Error("This XMPP server does not provide message archives.");
+        }
+        throw error;
+      }
+      const fin = response2.getChild("fin", NS_MAM);
+      const resultSet = fin?.getChild("set", "http://jabber.org/protocol/rsm");
+      const first = resultSet?.getChild("first")?.text().trim();
+      return { before: first || void 0, hasMore: fin?.attrs.complete !== "true" && Boolean(first) };
+    }
+    async getRosterEntries() {
+      const response2 = await this.sendIQ(void 0, "get", xml("query", { xmlns: NS_ROSTER }));
+      const query = response2.getChild("query", NS_ROSTER);
+      return (query?.children ?? []).filter((child) => child instanceof import_Element2.default && child.name === "item").filter((item) => Boolean(item.attrs.jid) && item.attrs.subscription !== "remove").map((item) => ({ jid: item.attrs.jid, name: item.attrs.name, subscription: item.attrs.subscription || "none" }));
+    }
+    async addRosterEntry(jid2, name5) {
+      const attrs = { jid: jid2 };
+      if (name5) attrs.name = name5;
+      await this.sendIQ(void 0, "set", xml("query", { xmlns: NS_ROSTER }, xml("item", attrs)));
+      await this.sendStanza(xml("presence", { to: jid2, type: "subscribe" }));
+    }
+    async approvePresenceSubscription(jid2) {
+      const bareJid = jid2.trim().split("/")[0].toLowerCase();
+      if (!bareJid.includes("@") || bareJid.endsWith("@p2p")) throw new Error("Enter a full XMPP contact JID.");
+      await this.sendIQ(void 0, "set", xml("query", { xmlns: NS_ROSTER }, xml("item", { jid: bareJid })));
+      await this.sendStanza(xml("presence", { to: bareJid, type: "subscribed" }));
+    }
+    async denyPresenceSubscription(jid2) {
+      const bareJid = jid2.trim().split("/")[0].toLowerCase();
+      if (!bareJid.includes("@") || bareJid.endsWith("@p2p")) throw new Error("Enter a full XMPP contact JID.");
+      await this.sendStanza(xml("presence", { to: bareJid, type: "unsubscribed" }));
+    }
+    async removeRosterEntry(jid2) {
+      await this.sendIQ(void 0, "set", xml("query", { xmlns: NS_ROSTER }, xml("item", { jid: jid2, subscription: "remove" })));
     }
     async sendPresence(type2, status, show) {
       const attrs = {};
@@ -77975,16 +78576,28 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       if (status) children.push(xml("status", {}, status));
       await this.sendStanza(xml("presence", attrs, ...children));
     }
-    async sendIQ(to2, type2, queryEl) {
+    clearServerPresence() {
+      for (const from7 of this.serverPresenceResources.keys()) {
+        this.emit("presence", { from: from7, to: "", type: "unavailable", server: this.domain });
+      }
+      this.serverPresenceResources.clear();
+    }
+    async sendIQ(to2, type2, queryEl, timeoutMs = this.iqTimeoutMs) {
       const id2 = `iq-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      const stanza = xml("iq", { to: to2, type: type2, id: id2 }, queryEl);
-      await this.sendStanza(stanza);
+      const attrs = { type: type2, id: id2 };
+      if (to2) attrs.to = to2;
+      const stanza = xml("iq", attrs, queryEl);
       return new Promise((resolve6, reject) => {
         const timer = setTimeout(() => {
           this.pendingIq.delete(id2);
           reject(new Error(`IQ timeout: ${id2}`));
-        }, this.iqTimeoutMs);
+        }, timeoutMs);
         this.pendingIq.set(id2, { resolve: resolve6, reject, timer });
+        void this.sendStanza(stanza).catch((error) => {
+          clearTimeout(timer);
+          this.pendingIq.delete(id2);
+          reject(error instanceof Error ? error : new Error("Could not send XMPP IQ request"));
+        });
       });
     }
     async joinMuc(roomJid, nick) {
@@ -77994,41 +78607,44 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         xml("x", { xmlns: NS_MUC })
       ));
     }
-    async sendMucMessage(roomJid, body) {
-      return this.sendMessage(roomJid, body, { type: "groupchat" });
+    async sendMucMessage(roomJid, body, options) {
+      return this.sendMessage(roomJid, body, { type: "groupchat", ...options });
+    }
+    async sendMucChatState(roomJid, state) {
+      await this.sendStanza(xml("message", { to: roomJid, type: "groupchat" }, xml(state, { xmlns: "http://jabber.org/protocol/chatstates" })));
     }
     async leaveMuc(roomJid, nick) {
       await this.sendStanza(xml("presence", { to: `${roomJid}/${nick}`, type: "unavailable" }));
     }
     async pubsubSubscribe(nodeJid, node) {
-      const iq = xml(
-        "iq",
-        { to: nodeJid, type: "set" },
+      const result = await this.sendIQ(
+        nodeJid,
+        "set",
         xml(
           "pubsub",
           { xmlns: NS_PUBSUB },
-          xml("subscribe", { node, jid: this.client?.jid?.toString() || "" })
-        )
+          xml("subscribe", { node, jid: this.client?.jid?.toString().split("/")[0] || "" })
+        ),
+        1e4
       );
-      await this.sendStanza(iq);
+      const subscription = result.getChild("pubsub")?.getChild("subscription");
+      const state = subscription?.attrs.subscription;
+      if (state === "pending") return "pending";
+      if (state === "unconfigured" || subscription?.getChild("subscribe-options")?.getChild("required")) return "unconfigured";
+      return "subscribed";
     }
     async pubsubPublish(nodeJid, node, itemId, payload) {
-      const iq = xml(
-        "iq",
-        { to: nodeJid, type: "set" },
+      await this.sendIQ(
+        nodeJid,
+        "set",
         xml(
           "pubsub",
           { xmlns: NS_PUBSUB },
-          xml(
-            "publish",
-            { node },
-            xml("item", { id: itemId }, payload)
-          )
+          xml("publish", { node }, xml("item", { id: itemId }, payload))
         )
       );
-      await this.sendStanza(iq);
     }
-    async pubsubGetItems(nodeJid, node, maxItems) {
+    async pubsubGetItems(nodeJid, node, maxItems, timeoutMs = 8e3) {
       const attrs = { node };
       if (maxItems !== void 0) attrs.max_items = String(maxItems);
       const result = await this.sendIQ(
@@ -78038,7 +78654,8 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
           "pubsub",
           { xmlns: NS_PUBSUB },
           xml("items", attrs)
-        )
+        ),
+        timeoutMs
       );
       const pubsub = result.getChild("pubsub");
       if (!pubsub) return [];
@@ -78047,22 +78664,23 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       return items.children.filter((c2) => c2 instanceof import_Element2.default) || [];
     }
     async pubsubUnsubscribe(nodeJid, node) {
-      const iq = xml(
-        "iq",
-        { to: nodeJid, type: "set" },
+      await this.sendIQ(
+        nodeJid,
+        "set",
         xml(
           "pubsub",
           { xmlns: NS_PUBSUB },
-          xml("unsubscribe", { node, jid: this.client?.jid?.toString() || "" })
-        )
+          xml("unsubscribe", { node, jid: this.client?.jid?.toString().split("/")[0] || "" })
+        ),
+        1e4
       );
-      await this.sendStanza(iq);
     }
-    async discoInfo(jid2) {
+    async discoInfo(jid2, timeoutMs = this.iqTimeoutMs) {
       const result = await this.sendIQ(
         jid2,
         "get",
-        xml("query", { xmlns: "http://jabber.org/protocol/disco#info" })
+        xml("query", { xmlns: "http://jabber.org/protocol/disco#info" }),
+        timeoutMs
       );
       const query = result.getChild("query");
       if (!query) return { identities: [], features: [] };
@@ -78076,11 +78694,12 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       const features = featureEls.map((el2) => el2.attrs.var || "");
       return { identities, features };
     }
-    async discoItems(jid2) {
+    async discoItems(jid2, timeoutMs = this.iqTimeoutMs) {
       const result = await this.sendIQ(
         jid2,
         "get",
-        xml("query", { xmlns: "http://jabber.org/protocol/disco#items" })
+        xml("query", { xmlns: "http://jabber.org/protocol/disco#items" }),
+        timeoutMs
       );
       const query = result.getChild("query");
       if (!query) return { items: [] };
@@ -78092,27 +78711,59 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       }));
       return { items };
     }
+    async discoverMucRooms() {
+      if (!this.isConnected) throw new Error("Connect to your XMPP server before browsing rooms.");
+      const discoveryTimeoutMs = 5e3;
+      const [rootInfo, rootItems] = await Promise.all([
+        this.discoInfo(this.domain, discoveryTimeoutMs).catch(() => ({ identities: [], features: [] })),
+        this.discoItems(this.domain, discoveryTimeoutMs).catch(() => ({ items: [] }))
+      ]);
+      const rootIsMuc = rootInfo.features.includes(NS_MUC) || rootInfo.identities.some((identity7) => identity7.category === "conference");
+      const serviceItems = await Promise.all(rootItems.items.map(async (item) => ({
+        item,
+        info: await this.discoInfo(item.jid, discoveryTimeoutMs).catch(() => ({ identities: [], features: [] }))
+      })));
+      const services = [
+        ...rootIsMuc ? [this.domain] : [],
+        ...serviceItems.filter(({ info }) => info.features.includes(NS_MUC) || info.identities.some((identity7) => identity7.category === "conference")).map(({ item }) => item.jid)
+      ];
+      const uniqueServices = [...new Set(services)];
+      const roomLists = await Promise.all(uniqueServices.map(async (serviceJid) => ({
+        serviceJid,
+        result: await this.discoItems(serviceJid, discoveryTimeoutMs).catch(() => ({ items: [] }))
+      })));
+      return roomLists.flatMap(({ serviceJid, result }) => result.items.filter((item) => item.jid.includes("@") && !item.jid.includes("/")).map((item) => ({
+        roomJid: item.jid,
+        name: item.name?.trim() || item.jid.split("@")[0],
+        serviceJid
+      }))).sort((left, right) => left.name.localeCompare(right.name));
+    }
     handleStanza(stanza) {
       if (stanza.name === "message") {
         this.handleMessage(stanza);
       } else if (stanza.name === "presence") {
-        this.emit("presence", {
-          from: stanza.attrs.from || "",
-          to: stanza.attrs.to || "",
-          type: stanza.attrs.type,
-          show: stanza.getChild("show")?.text(),
-          status: stanza.getChild("status")?.text(),
-          server: this.domain
-        });
+        this.handlePresence(stanza);
       } else if (stanza.name === "iq") {
         const id2 = stanza.attrs.id;
+        const rosterQuery = stanza.getChild("query", NS_ROSTER);
+        if (stanza.attrs.type === "set" && rosterQuery) {
+          if (id2) {
+            const attrs = { type: "result", id: id2 };
+            if (stanza.attrs.from) attrs.to = stanza.attrs.from;
+            void this.sendStanza(xml("iq", attrs)).catch(() => {
+            });
+          }
+          const items = rosterQuery.children.filter((child) => child instanceof import_Element2.default && child.name === "item").map((item) => ({ jid: item.attrs.jid || "", name: item.attrs.name, subscription: item.attrs.subscription || "none" })).filter((item) => item.jid);
+          this.emit("roster:change", items);
+          return;
+        }
         if (id2 && (stanza.attrs.type === "result" || stanza.attrs.type === "error")) {
           const pending = this.pendingIq.get(id2);
           if (pending) {
             clearTimeout(pending.timer);
             this.pendingIq.delete(id2);
             if (stanza.attrs.type === "error") {
-              pending.reject(new Error(`IQ error: ${stanza.toString()}`));
+              pending.reject(new Error(iqErrorMessage(stanza)));
             } else {
               pending.resolve(stanza);
             }
@@ -78120,13 +78771,233 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         }
       }
     }
+    handlePresence(stanza) {
+      const fullFrom = stanza.attrs.from || "";
+      const slash = fullFrom.indexOf("/");
+      const from7 = (slash < 0 ? fullFrom : fullFrom.slice(0, slash)).toLowerCase();
+      const resource = slash < 0 ? "" : fullFrom.slice(slash + 1);
+      if (!from7 || from7.toLowerCase() === this.client?.jid?.toString().split("/")[0].toLowerCase()) return;
+      const type2 = stanza.attrs.type;
+      if (type2 === "subscribe") {
+        this.emit("presence:subscribe", {
+          from: from7,
+          server: from7.split("@")[1] || this.domain
+        });
+        return;
+      }
+      if (type2 === "error" && resource && from7.includes("@")) {
+        const error = stanza.getChild("error");
+        const condition = error?.children.find(
+          (child) => child instanceof import_Element2.default && child.name !== "text" && child.attrs.xmlns === "urn:ietf:params:xml:ns:xmpp-stanzas"
+        );
+        const text = error?.getChild("text", "urn:ietf:params:xml:ns:xmpp-stanzas")?.text().trim();
+        this.emit("muc:error", {
+          room: from7,
+          roomJid: from7,
+          from: fullFrom,
+          nick: resource,
+          server: from7.split("@")[1]?.split("/")[0] || this.domain,
+          stanzaError: condition ? { condition: condition.name, text } : text ? { text } : void 0
+        });
+        return;
+      }
+      if (type2 && type2 !== "available" && type2 !== "unavailable") return;
+      const mucUser = stanza.getChild("x", NS_MUC_USER);
+      if (mucUser && resource) {
+        const item = mucUser.getChild("item");
+        const statusCodes = mucUser.children.filter((child) => child instanceof import_Element2.default && child.name === "status").map((status) => status.attrs.code).filter((code6) => Boolean(code6));
+        const event = {
+          room: from7,
+          roomJid: from7,
+          from: fullFrom,
+          nick: resource,
+          type: type2 || "available",
+          server: from7.split("@")[1]?.split("/")[0] || this.domain,
+          fromSelf: statusCodes.includes("110"),
+          occupantJid: item?.attrs.jid,
+          role: item?.attrs.role,
+          affiliation: item?.attrs.affiliation,
+          statusCodes
+        };
+        if (type2 !== "unavailable" && event.fromSelf && statusCodes.includes("201") && !this.configuringMucRooms.has(from7)) {
+          this.configuringMucRooms.add(from7);
+          void this.acceptMucRoomDefaults(from7).catch((error) => {
+            this.emit("muc:error", {
+              ...event,
+              stanzaError: { text: error instanceof Error ? error.message : "Could not accept the room defaults." }
+            });
+          }).finally(() => this.configuringMucRooms.delete(from7));
+        }
+        if (type2 === "unavailable") {
+          this.emit("muc:leave", event);
+          const replacementNick = statusCodes.includes("303") ? item?.attrs.nick : void 0;
+          if (replacementNick) {
+            this.emit("muc:join", {
+              ...event,
+              from: `${from7}/${replacementNick}`,
+              nick: replacementNick,
+              type: "available",
+              fromSelf: false
+            });
+          }
+        } else {
+          this.emit("muc:join", event);
+        }
+        return;
+      }
+      let resources = this.serverPresenceResources.get(from7);
+      if (type2 === "unavailable") {
+        if (resource) resources?.delete(resource);
+        else resources?.clear();
+        if (!resources?.size) this.serverPresenceResources.delete(from7);
+      } else {
+        if (!resources) {
+          resources = /* @__PURE__ */ new Map();
+          this.serverPresenceResources.set(from7, resources);
+        }
+        const rawPriority = stanza.getChild("priority")?.text().trim();
+        const parsedPriority = rawPriority ? Number(rawPriority) : 0;
+        resources.set(resource, {
+          show: stanza.getChild("show")?.text(),
+          status: stanza.getChild("status")?.text(),
+          priority: Number.isInteger(parsedPriority) ? Math.max(-128, Math.min(127, parsedPriority)) : 0
+        });
+      }
+      const activeResources = this.serverPresenceResources.get(from7);
+      const activeStatus = activeResources ? [...activeResources.values()].reduce((highest, candidate) => candidate.priority > highest.priority ? candidate : highest) : void 0;
+      this.emit("presence", {
+        from: from7,
+        to: stanza.attrs.to || "",
+        type: activeResources?.size ? "available" : "unavailable",
+        show: activeStatus?.show,
+        status: activeStatus?.status,
+        server: this.domain
+      });
+    }
+    async acceptMucRoomDefaults(roomJid) {
+      const response2 = await this.sendIQ(roomJid, "get", xml("query", { xmlns: NS_MUC_OWNER }));
+      const form = response2.getChild("query", NS_MUC_OWNER)?.getChild("x", "jabber:x:data");
+      if (!form || form.attrs.type !== "form") return;
+      const fields = form.children.filter((child) => child instanceof import_Element2.default && child.name === "field").flatMap((field2) => {
+        const variable = field2.attrs.var;
+        if (!variable) return [];
+        const values = field2.children.filter((child) => child instanceof import_Element2.default && child.name === "value").map((value2) => value2.text());
+        if (!values.length) return [];
+        return [xml("field", { var: variable }, ...values.map((value2) => xml("value", {}, value2)))];
+      });
+      await this.sendIQ(roomJid, "set", xml(
+        "query",
+        { xmlns: NS_MUC_OWNER },
+        xml("x", { xmlns: "jabber:x:data", type: "submit" }, ...fields)
+      ));
+    }
     handleMessage(stanza) {
+      const stanzaMetadata = parseXepMetadata(stanza);
+      if (stanzaMetadata.carbon) {
+        const forwarded = stanzaMetadata.carbon.forwardedMessage;
+        const from8 = forwarded.attrs.from || "";
+        const to3 = forwarded.attrs.to || "";
+        const body2 = this.getMessageBody(forwarded);
+        const metadata2 = parseXepMetadata(forwarded);
+        const stanzaId2 = forwarded.attrs.id || stanza.attrs.id || "";
+        const id3 = metadata2.originId || stanzaId2;
+        const ownJid = this.client?.jid?.toString().split("/")[0].toLowerCase();
+        const fromSelf = stanzaMetadata.carbon.type === "sent" || Boolean(ownJid && from8.split("/")[0].toLowerCase() === ownJid);
+        this.emit("message", {
+          from: from8,
+          to: to3,
+          body: body2,
+          id: id3,
+          type: forwarded.attrs.type || "chat",
+          server: this.domain,
+          thread: metadata2.thread,
+          delay: metadata2.delay,
+          receipt: metadata2.receipt,
+          replace: metadata2.replace,
+          reply: metadata2.reply,
+          chatState: metadata2.chatState,
+          fromSelf
+        });
+        return;
+      }
+      const mamResult = stanza.getChild("result", NS_MAM);
+      if (mamResult) {
+        const forwarded = mamResult.getChild("forwarded");
+        const archived = forwarded?.getChild("message");
+        if (!archived) return;
+        const from8 = archived.attrs.from || "";
+        const to3 = archived.attrs.to || "";
+        const body2 = this.getMessageBody(archived);
+        const metadata2 = parseXepMetadata(archived);
+        const id3 = metadata2.originId || archived.attrs.id || mamResult.attrs.id || "";
+        const delay3 = forwarded?.getChild("delay", NS_DELAY);
+        const ownJid = this.client?.jid?.toString().split("/")[0].toLowerCase();
+        const ownNick = this.client?.jid?.local;
+        const archivedType = archived.attrs.type || "chat";
+        const fromSelf = archivedType === "groupchat" ? Boolean(ownNick && from8.split("/")[1] === ownNick) : Boolean(ownJid && from8.split("/")[0].toLowerCase() === ownJid);
+        const archivedDelay = metadata2.delay ?? (delay3 ? { stamp: delay3.attrs.stamp || "", from: delay3.attrs.from } : void 0);
+        if (archivedType === "groupchat") {
+          const roomJid = from8.includes("/") ? from8.split("/")[0] : from8;
+          const nick = from8.includes("/") ? from8.split("/")[1] : void 0;
+          this.emit("muc:message", {
+            room: roomJid,
+            roomJid,
+            from: from8,
+            nick,
+            body: body2,
+            id: id3,
+            type: archivedType,
+            server: this.domain,
+            fromSelf,
+            mam: true,
+            delay: archivedDelay
+          });
+          return;
+        }
+        this.emit("message", {
+          from: from8,
+          to: to3,
+          body: body2,
+          id: id3,
+          type: archivedType,
+          server: this.domain,
+          thread: metadata2.thread,
+          delay: archivedDelay,
+          receipt: metadata2.receipt,
+          replace: metadata2.replace,
+          reply: metadata2.reply,
+          chatState: metadata2.chatState,
+          mam: true,
+          queryId: mamResult.attrs.queryid,
+          fromSelf
+        });
+        return;
+      }
       const from7 = stanza.attrs.from || "";
       const to2 = stanza.attrs.to || "";
       const type2 = stanza.attrs.type || "normal";
-      const id2 = stanza.attrs.id || "";
-      const body = stanza.getChild("body")?.text() || "";
+      const stanzaId = stanza.attrs.id || "";
+      const body = this.getMessageBody(stanza);
       const thread = stanza.getChild("thread")?.text();
+      const metadata = parseXepMetadata(stanza);
+      const id2 = metadata.originId || stanzaId;
+      if (type2 === "error") {
+        const error = stanza.getChild("error");
+        const condition = error?.children.find(
+          (child) => child instanceof import_Element2.default && child.name !== "text" && child.attrs.xmlns === NS_STANZAS
+        )?.name;
+        const text = error?.getChild("text", NS_STANZAS)?.text().trim();
+        this.emit("message", {
+          from: from7,
+          to: to2,
+          body: "",
+          id: stanzaId || id2,
+          type: type2,
+          server: this.domain,
+          stanzaError: { condition, text: text || void 0 }
+        });
+        return;
+      }
       const delayEl = stanza.getChild("delay");
       const delay2 = delayEl ? { stamp: delayEl.attrs.stamp || "", from: delayEl.attrs.from } : void 0;
       const chatState = ["active", "composing", "paused", "inactive", "gone"].map((s3) => stanza.getChild(s3)).find((child) => child?.attrs?.xmlns === "http://jabber.org/protocol/chatstates");
@@ -78134,10 +79005,8 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       if (type2 === "groupchat") {
         const roomJid = from7.includes("/") ? from7.split("/")[0] : from7;
         const nick = from7.includes("/") ? from7.split("/")[1] : void 0;
-        this.emit("muc:message", { room: roomJid, roomJid, from: from7, body, id: id2, type: "groupchat", server: this.domain, nick, delay: delay2, chatState: chatStateName });
-        if (body) {
-          this.emit("message", { from: from7, to: to2, body, id: id2, type: "groupchat", server: this.domain, thread, delay: delay2, chatState: chatStateName });
-        }
+        const ownNick = this.client?.jid?.local;
+        this.emit("muc:message", { room: roomJid, roomJid, from: from7, body, id: id2, type: "groupchat", server: this.domain, nick, fromSelf: Boolean(nick && ownNick && nick === ownNick), delay: delay2, chatState: chatStateName });
         return;
       }
       const pubsubEvent = stanza.getChild("event", NS_PUBSUB_EVENT);
@@ -78145,7 +79014,50 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         this.handlePubsubEvent(stanza);
         return;
       }
-      this.emit("message", { from: from7, to: to2, body, id: id2, type: type2, server: this.domain, thread, delay: delay2, chatState: chatStateName });
+      if (type2 !== "groupchat" && metadata.receipt?.type === "request" && stanzaId && this.client) {
+        void this.sendStanza(xml("message", { to: from7, type: "chat" }, xml("received", { xmlns: RECEIPTS_XMLNS, id: stanzaId }))).catch(() => {
+        });
+      }
+      this.emit("message", {
+        from: from7,
+        to: to2,
+        body,
+        id: id2,
+        type: type2,
+        server: this.domain,
+        thread: metadata.thread ?? thread,
+        delay: metadata.delay ?? delay2,
+        receipt: metadata.receipt,
+        replace: metadata.replace,
+        reply: metadata.reply,
+        chatState: metadata.chatState ?? chatStateName
+      });
+    }
+    getMessageBody(stanza) {
+      const body = stanza.getChild("body")?.text() || "";
+      const oob = stanza.getChild("x", "jabber:x:oob");
+      const rawUrl = oob?.getChild("url")?.text().trim();
+      if (!rawUrl) return body;
+      let url;
+      try {
+        url = new URL(rawUrl);
+      } catch {
+        return body;
+      }
+      if (url.protocol !== "https:" || url.username || url.password || url.hash || /[\r\n<>]/.test(rawUrl)) return body;
+      const safeUrl = url.toString().replace(/\(/g, "%28").replace(/\)/g, "%29");
+      if (body.includes(rawUrl) || body.includes(safeUrl)) return body;
+      const rawDescription = oob?.getChild("desc")?.text().trim();
+      let pathName = url.pathname.split("/").pop() || "";
+      try {
+        pathName = decodeURIComponent(pathName);
+      } catch {
+      }
+      const filename = (rawDescription || pathName || "Shared file").replace(/[\[\]\r\n]/g, " ");
+      const isImage = /\.(?:avif|gif|jpe?g|png|webp)$/i.test(filename);
+      const reference = `${isImage ? "!" : ""}[${filename}](${safeUrl})`;
+      return body ? `${body}
+${reference}` : reference;
     }
     handlePubsubEvent(stanza) {
       const from7 = stanza.attrs.from || "";
@@ -78517,6 +79429,14 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       } : void 0
     };
   }
+  function canonicalRosterJid(jid2) {
+    const bareJid = jid2.trim().split("/")[0];
+    const separator = bareJid.lastIndexOf("@");
+    if (separator <= 0) return bareJid;
+    const localpart = bareJid.slice(0, separator);
+    const domain = bareJid.slice(separator + 1);
+    return domain.toLowerCase() === "p2p" ? `${localpart}@p2p` : bareJid.toLowerCase();
+  }
   function normalizeRosterEntry(entry) {
     const subscription = entry.subscription === "to" || entry.subscription === "from" || entry.subscription === "both" ? entry.subscription : "none";
     const groups = Array.isArray(entry.groups) ? entry.groups.filter((group) => typeof group === "string" && group.length > 0) : void 0;
@@ -78528,7 +79448,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       receivedAt: entry.presence.receivedAt || (/* @__PURE__ */ new Date()).toISOString()
     } : void 0;
     return {
-      jid: entry.jid,
+      jid: canonicalRosterJid(entry.jid),
       name: entry.name,
       nickname: entry.nickname ?? entry.presence?.nickname,
       groups,
@@ -78560,7 +79480,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         dialTarget: multiaddr(addrStr)
       };
     }
-    if (addrStr.endsWith("@p2p")) {
+    if (addrStr.toLowerCase().endsWith("@p2p")) {
       return {
         peerId: addrStr.slice(0, -4)
       };
@@ -78600,7 +79520,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     return "none";
   }
   function peerIdFromJid(jid2) {
-    return jid2.endsWith("@p2p") ? jid2.slice(0, -4) : jid2;
+    return jid2.toLowerCase().endsWith("@p2p") ? jid2.slice(0, -4) : jid2;
   }
   function jidFromPeerId(peerId) {
     return `${peerId}@p2p`;
@@ -78646,7 +79566,8 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       contentType: entry.contentType,
       categories: entry.categories?.filter((c2) => typeof c2 === "string" && c2.trim().length > 0),
       links: entry.links?.filter((l2) => l2 != null && !!(l2.rel || l2.href)),
-      geoloc: entry.geoloc
+      geoloc: entry.geoloc,
+      replyTo: entry.replyTo
     };
   }
   function normalizeCollection(entry) {
@@ -78751,6 +79672,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       timestamp: entry.timestamp || (/* @__PURE__ */ new Date()).toISOString(),
       encrypted: entry.encrypted || void 0,
       encryption: entry.encryption || void 0,
+      replace: entry.replace || void 0,
       reply: entry.reply?.id ? {
         id: entry.reply.id,
         to: entry.reply.to
@@ -78790,7 +79712,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       name: collection.name ?? collection.id
     }];
   }
-  function getDiscoveryFeatures(collections, node) {
+  function getDiscoveryFeatures(collections, node, httpUploadAvailable = true) {
     const features = /* @__PURE__ */ new Set([
       DISCO_INFO_XMLNS,
       DISCO_ITEMS_XMLNS,
@@ -78800,7 +79722,6 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       MICROBLOG_XMLNS,
       COLLECTION_XMLNS,
       ATTACHMENT_XMLNS,
-      HTTP_UPLOAD_XMLNS,
       OMEMO_FEATURE,
       OMEMO_PTE_FEATURE,
       OPENPGP_FEATURE,
@@ -78816,6 +79737,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       REPLY_XMLNS,
       CARBONS_XMLNS
     ]);
+    if (httpUploadAvailable) features.add(HTTP_UPLOAD_XMLNS);
     if (findCollection(collections, node)) {
       features.add(COLLECTION_XMLNS);
     }
@@ -78830,9 +79752,9 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     const payload = [...identityBits, ...features.slice().sort()].join("<");
     return createHash("sha1").update(payload).digest("base64");
   }
-  function buildCapsElement(discoveryNode, discoveryIdentity, collections) {
+  function buildCapsElement(discoveryNode, discoveryIdentity, collections, httpUploadAvailable = true) {
     const identities = getDiscoveryIdentities(discoveryIdentity, collections);
-    const features = getDiscoveryFeatures(collections);
+    const features = getDiscoveryFeatures(collections, void 0, httpUploadAvailable);
     const ver = computeDiscoveryVer(identities, features);
     return xml("c", {
       xmlns: CAPS_XMLNS,
@@ -78841,9 +79763,9 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       ver
     });
   }
-  function buildDiscoInfoQuery(discoveryIdentity, collections, node) {
+  function buildDiscoInfoQuery(discoveryIdentity, collections, node, httpUploadAvailable = true) {
     const identities = getDiscoveryIdentities(discoveryIdentity, collections, node);
-    const features = getDiscoveryFeatures(collections, node);
+    const features = getDiscoveryFeatures(collections, node, httpUploadAvailable);
     const queryAttrs = { xmlns: DISCO_INFO_XMLNS };
     if (node) {
       queryAttrs.node = node;
@@ -79035,7 +79957,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       const parsed = parsePeerReference(peerAddr);
       const peerId = parsed.peerId || this.peerIdFromJid(peerAddr.toString());
       if (peerId === this.ctx.libp2p.peerId.toString()) {
-        return parseDiscoInfoQuery(buildDiscoInfoQuery(this.ctx.discoveryIdentity, this.ctx.getCollections(), node ?? this.ctx.discoveryNode));
+        return parseDiscoInfoQuery(buildDiscoInfoQuery(this.ctx.discoveryIdentity, this.ctx.getCollections(), node ?? this.ctx.discoveryNode, this.ctx.httpUploadAvailable !== false));
       }
       return await this.queryDiscoInfo(peerAddr, node);
     }
@@ -79053,7 +79975,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       const parsed = parsePeerReference(peerAddr);
       const peerId = parsed.peerId || this.peerIdFromJid(peerAddr.toString());
       if (peerId === this.ctx.libp2p.peerId.toString()) {
-        const info = parseDiscoInfoQuery(buildDiscoInfoQuery(this.ctx.discoveryIdentity, this.ctx.getCollections()));
+        const info = parseDiscoInfoQuery(buildDiscoInfoQuery(this.ctx.discoveryIdentity, this.ctx.getCollections(), void 0, this.ctx.httpUploadAvailable !== false));
         return {
           peerId,
           jid: this.ctx.jid,
@@ -79090,6 +80012,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
 
   // src/core/xmpp-uploads.ts
   var UPLOAD_ANNOUNCEMENTS_TOPIC = "xmpp-upload:announcements";
+  var MAX_PEER_UPLOAD_BYTES = 50 * 1024 * 1024;
   var XmppUploadManager = class {
     context;
     uploadSlots = /* @__PURE__ */ new Map();
@@ -79156,7 +80079,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       await pubsub.subscribe(UPLOAD_ANNOUNCEMENTS_TOPIC);
     }
     normalizeUploadProviders(manifest) {
-      const providers = [...manifest.providers ?? [], { url: manifest.getUrl, jid: manifest.from }];
+      const providers = [...manifest.providers ?? []];
+      if (/^(?:https?:\/\/|p2p-upload:\/\/)/i.test(manifest.getUrl)) {
+        providers.push({ url: manifest.getUrl, jid: manifest.from });
+      }
       const merged = /* @__PURE__ */ new Map();
       for (const provider of providers) {
         if (!provider.url) {
@@ -79183,6 +80109,11 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     buildUploadProviders(manifest) {
       const providers = this.normalizeUploadProviders(manifest);
       const localUrl = this.getLocalUploadProviderUrl(manifest.cid);
+      const peerId = this.context.jid.split("@")[0];
+      const peerUrl = `p2p-upload://peer/${encodeURIComponent(peerId)}/${encodeURIComponent(manifest.cid)}`;
+      if (peerId && !providers.some((provider) => provider.url === peerUrl)) {
+        providers.unshift({ url: peerUrl, jid: this.context.jid });
+      }
       if (localUrl && !providers.some((provider) => provider.url === localUrl)) {
         providers.unshift({
           url: localUrl,
@@ -79199,6 +80130,45 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         return void 0;
       }
       return `${this.uploadBaseUrl}/ipfs/${encodeURIComponent(cid)}`;
+    }
+    async handlePeerUploadRequest(stream) {
+      const send = async (data) => {
+        for (let offset = 0; offset < data.length; offset += 64 * 1024) {
+          if (!stream.send(data.subarray(offset, Math.min(offset + 64 * 1024, data.length)))) {
+            await stream.onDrain();
+          }
+        }
+      };
+      try {
+        const requestChunks = [];
+        let requestSize = 0;
+        for await (const item of stream) {
+          const chunk = item instanceof Uint8Array ? item : item.subarray();
+          requestSize += chunk.length;
+          if (requestSize > 2048) throw new Error("Upload request is too large");
+          requestChunks.push(chunk);
+        }
+        const requestBytes = new Uint8Array(requestSize);
+        let offset = 0;
+        for (const chunk of requestChunks) {
+          requestBytes.set(chunk, offset);
+          offset += chunk.length;
+        }
+        const requestText = new TextDecoder().decode(requestBytes).trim();
+        const request = JSON.parse(requestText);
+        const cid = typeof request.cid === "string" && /^[a-f0-9]{64}$/i.test(request.cid) ? request.cid : "";
+        const blob = cid ? await this.context.storage.getBlob("uploads", cid) : void 0;
+        const payload = blob ? new Uint8Array(blob) : void 0;
+        const metadataRaw = cid ? await this.context.storage.getRecord("uploads_meta", cid) : void 0;
+        const metadata = metadataRaw ? JSON.parse(metadataRaw) : void 0;
+        const header = payload && payload.length <= MAX_PEER_UPLOAD_BYTES ? { ok: true, cid, size: payload.length, contentType: metadata?.contentType ?? "application/octet-stream", filename: metadata?.filename ?? cid } : { ok: false, cid, size: 0 };
+        await send(new TextEncoder().encode(`${JSON.stringify(header)}
+`));
+        if (header.ok && payload) await send(payload);
+        await stream.close();
+      } catch (error) {
+        stream.abort(error instanceof Error ? error : new Error("Upload transfer failed"));
+      }
     }
     async announceUploadManifest(manifest) {
       const providers = this.buildUploadProviders(manifest);
@@ -79282,6 +80252,17 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       });
     }
     async fetchUploadFromProvider(url) {
+      if (url.startsWith("p2p-upload://")) {
+        try {
+          const parsed = new URL(url);
+          const [peerId, cid] = parsed.pathname.split("/").filter(Boolean).map(decodeURIComponent);
+          if (!peerId || !cid || !this.context.fetchUploadFromPeer) return void 0;
+          const data = await this.context.fetchUploadFromPeer(peerId, cid);
+          return data ? import_buffer.Buffer.from(data) : void 0;
+        } catch {
+          return void 0;
+        }
+      }
       const controller = new AbortController();
       const timeout2 = setTimeout(() => controller.abort(), 5e3);
       try {
@@ -79372,7 +80353,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       if (!this.uploadPrefetches.has(normalized.cid)) {
         this.uploadPrefetches.set(
           normalized.cid,
-          this.fetchAndCacheUpload(merged).catch((err) => this.context.emit("error", err)).finally(() => {
+          this.fetchAndCacheUpload(merged).then((available) => {
+            if (available) this.context.emit("upload:available", normalized.cid);
+            return available;
+          }).catch((err) => this.context.emit("error", err)).finally(() => {
             this.uploadPrefetches.delete(normalized.cid);
           })
         );
@@ -89412,8 +90396,21 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
   init_globals();
   init_xml();
   var XHTML_XMLNS = "http://www.w3.org/1999/xhtml";
+  var XHTML_BLOCK_ELEMENTS = /* @__PURE__ */ new Set(["div", "p", "li", "blockquote", "pre"]);
   var trimText = (value2) => value2?.trim() ?? "";
   var collapseWhitespace = (value2) => value2.replace(/\s+/g, " ").trim();
+  var extractElementText = (element) => {
+    const text = element.children.map((child) => {
+      if (typeof child === "string" || typeof child === "number") return String(child);
+      if (!(child instanceof import_Element2.default)) return "";
+      if (child.name === "br") return "\n";
+      const nested = extractElementText(child);
+      return XHTML_BLOCK_ELEMENTS.has(child.name) ? `
+${nested}
+` : nested;
+    }).join("");
+    return text.replace(/[ \t]*\n[ \t]*/g, "\n").replace(/\n{2,}/g, "\n").trim();
+  };
   var deriveMicroblogTitle = (body) => {
     const text = collapseWhitespace(body);
     if (!text) {
@@ -89492,7 +90489,8 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       xml("updated", {}, updatedAt),
       authorName || authorUri ? xml("author", {}, authorName ? xml("name", {}, authorName) : null, authorUri ? xml("uri", {}, authorUri) : null) : null,
       summary ? xml("summary", { type: "text" }, summary) : null,
-      options.contentType === "xhtml" ? xml("content", { type: "xhtml" }, xml("div", { xmlns: XHTML_XMLNS }, post.body)) : xml("content", { type: "text" }, post.body),
+      options.contentType === "xhtml" ? xml("content", { type: "xhtml" }, xml("div", { xmlns: XHTML_XMLNS }, options.displayContent ?? post.body)) : xml("content", { type: "text" }, options.displayContent ?? post.body),
+      options.articlePayload ? xml("article", { xmlns: "urn:nexus:article:1" }, options.articlePayload) : null,
       ...categories.filter(Boolean).map((category) => xml("category", { term: category })),
       ...links.filter((link) => link.href).map((link) => {
         const attrs = { href: link.href };
@@ -89502,6 +90500,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         if (link.ref) attrs.ref = link.ref;
         return xml("link", attrs);
       }),
+      options.replyTo ? xml("in-reply-to", { xmlns: "urn:xmpp:feed:reply:0", ref: options.replyTo }) : null,
       options.geoloc ? xml(
         "geoloc",
         { xmlns: "http://jabber.org/protocol/geoloc" },
@@ -89527,7 +90526,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     const authorEl = entryEl?.getChild("author");
     const publishedEl = entryEl?.getChild("published");
     const updatedEl = entryEl?.getChild("updated");
-    const body = trimText(contentEl?.text() || bodyEl?.text() || summaryEl?.text() || titleEl?.text());
+    const replyEl = entryEl?.getChild("in-reply-to");
+    const articlePayloadEl = entryEl && entryEl.children.find((child) => child?.name === "article" && child.attrs?.xmlns === "urn:nexus:article:1");
+    const content = contentEl?.attrs.type === "xhtml" && contentEl ? extractElementText(contentEl) : contentEl?.text();
+    const body = articlePayloadEl?.text() || trimText(content || bodyEl?.text() || summaryEl?.text() || titleEl?.text());
     if (!body && !titleEl?.text()) {
       return void 0;
     }
@@ -89545,6 +90547,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       summary: trimText(summaryEl?.text()) || void 0,
       author,
       contentType: contentEl?.attrs.type === "xhtml" ? "xhtml" : "text",
+      replyTo: replyEl?.attrs.ref,
       categories: entryEl ? entryEl.children.filter((child) => child?.name === "category").map((category) => category.attrs.term || category.attrs.label).filter((category) => Boolean(category && category.trim())) : void 0,
       links: entryEl ? parseLinks(entryEl) : void 0,
       geoloc: entryEl ? parseGeoloc(entryEl) : void 0
@@ -89868,7 +90871,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         });
       }
     };
-    const isP2pSender = fromJid.endsWith("@p2p") || !fromJid.includes("@");
+    const isP2pSender = fromJid.toLowerCase().endsWith("@p2p") || !fromJid.includes("@");
     if (metadata.receipt?.type === "request" && element.attrs.id && isP2pSender) {
       void ctx.getOrCreateStream(fromJid).then((stream) => {
         stream.send(
@@ -90005,7 +91008,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     const xmppStream = await ctx.getOrCreateStream(peerAddr);
     const peerId = xmppStream.remotePeer.toString();
     const toJid = jidFromPeerId(peerId);
-    const itemId = Math.random().toString(36).substring(2, 15);
+    const itemId = options.originId || Math.random().toString(36).substring(2, 15);
     const devices = await ctx.getPeerOmemoDevices(peerAddr);
     if (devices.length === 0) {
       throw new Error(`No OMEMO devices available for ${toJid}`);
@@ -90192,6 +91195,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
   var DISCO_INFO_XMLNS2 = "http://jabber.org/protocol/disco#info";
   var DISCO_ITEMS_XMLNS2 = "http://jabber.org/protocol/disco#items";
   var FOLLOWERS_XMLNS2 = "urn:xmpp:pubsub:followers:0";
+  var FEED_HISTORY_XMLNS = "urn:xmpp:p2p:feed-history:1";
   var OMEMO_DEVICES_NODE2 = "urn:xmpp:omemo:2:devices";
   var OMEMO_BUNDLES_NODE2 = "urn:xmpp:omemo:2:bundles";
   var OPENPGP_IQ_XMLNS2 = "urn:xmpp:openpgp:0";
@@ -90325,6 +91329,19 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     }
     const query = element.getChild("query");
     const vCard = element.getChild("vCard");
+    if (query && query.attrs.xmlns === FEED_HISTORY_XMLNS) {
+      if (type2 === "get") {
+        const posts = await ctx.getFeedHistoryForPeer(peerId);
+        await sendIqResult(ctx, peerId, id2, xml(
+          "query",
+          { xmlns: FEED_HISTORY_XMLNS },
+          ...posts.map((post) => xml("post", {}, JSON.stringify(post)))
+        ));
+        return;
+      }
+      await sendIqError(ctx, peerId, element, "not-allowed", "auth");
+      return;
+    }
     if (vCard && vCard.attrs.xmlns === VCARD_XMLNS) {
       if (type2 === "get") {
         await sendIqResult(ctx, peerId, id2, ctx.buildVCardQuery());
@@ -90338,6 +91355,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     }
     const uploadRequest = element.getChild("request");
     if (uploadRequest && uploadRequest.attrs.xmlns === HTTP_UPLOAD_XMLNS) {
+      if (ctx.httpUploadAvailable === false) {
+        await sendIqError(ctx, peerId, element, "service-unavailable");
+        return;
+      }
       if (type2 !== "get") {
         await sendIqError(ctx, peerId, element, "service-unavailable");
         return;
@@ -90478,7 +91499,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     }
     if (query.attrs.xmlns === DISCO_INFO_XMLNS2) {
       if (type2 === "get") {
-        await sendIqResult(ctx, peerId, id2, buildDiscoInfoQuery(ctx.discoveryIdentity, ctx.collections, query.attrs.node));
+        await sendIqResult(ctx, peerId, id2, buildDiscoInfoQuery(ctx.discoveryIdentity, ctx.collections, query.attrs.node, ctx.httpUploadAvailable !== false));
         return;
       }
     }
@@ -90781,7 +91802,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         children.push(xml("nick", { xmlns: "http://jabber.org/protocol/nick" }, nickname));
       }
       if (!type2 || type2 === "available") {
-        children.push(buildCapsElement(this.ctx.discoveryNode, this.ctx.discoveryIdentity, this.ctx.collections));
+        children.push(buildCapsElement(this.ctx.discoveryNode, this.ctx.discoveryIdentity, this.ctx.collections, this.ctx.httpUploadAvailable !== false));
       }
       const pres = children.length > 0 ? xml("presence", presAttrs, ...children) : xml("presence", presAttrs);
       xmppStream.send(pres);
@@ -90865,10 +91886,12 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     }
     async upsertRosterEntry(entry) {
       await this.ctx.ready;
-      const current = this.entries.get(entry.jid) ?? createRosterEntry(entry.jid);
+      const jid2 = canonicalRosterJid(entry.jid);
+      const current = this.entries.get(jid2) ?? createRosterEntry(jid2);
       const next = normalizeRosterEntry({
         ...current,
         ...entry,
+        jid: jid2,
         nickname: entry.nickname ?? current.nickname,
         groups: entry.groups ?? current.groups,
         presence: entry.presence ?? current.presence
@@ -90880,7 +91903,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     }
     async deleteRosterEntry(jid2) {
       await this.ctx.ready;
-      if (this.entries.delete(jid2)) {
+      if (this.entries.delete(canonicalRosterJid(jid2))) {
         await this.scheduleRosterPersist();
         this.ctx.emit("roster:remove", jid2);
       }
@@ -90903,7 +91926,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       return Array.from(this.entries.values()).sort((a2, b2) => a2.jid.localeCompare(b2.jid));
     }
     getRosterEntry(jid2) {
-      return this.entries.get(jid2);
+      return this.entries.get(canonicalRosterJid(jid2));
     }
     buildRosterQuery() {
       return xml(
@@ -91031,6 +92054,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
   init_xml();
   var FEED_HISTORY_LIMIT = 50;
   var SUBSCRIPTION_HISTORY_LIMIT = 200;
+  var FEED_HISTORY_XMLNS2 = "urn:xmpp:p2p:feed-history:1";
   var XmppFeedManager = class {
     ctx;
     feedHistory = /* @__PURE__ */ new Map();
@@ -91136,11 +92160,19 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       }
     }
     async restoreFeedSubscriptions() {
+      const pubsub = this.ctx.getPubSubService();
       for (const subscription of this.feedSubscriptions.values()) {
-        if (subscription.visibility === "public") {
-          await this.publishSubscriptionDeclaration(subscription, "upsert");
+        try {
+          this.ctx.ensureTopicValidator(subscription.topic, "feed");
+          this.ctx.ensureTopicValidator(subscription.topic, "attachment");
+          await pubsub.subscribe(subscription.topic);
+          if (subscription.visibility === "public") {
+            await this.publishSubscriptionDeclaration(subscription, "upsert");
+          }
+          await this.watchFollowerTopic(subscription.peerId);
+        } catch (error) {
+          console.error(`[XMPP] Failed to restore feed subscription ${subscription.topic}:`, error);
         }
-        await this.watchFollowerTopic(subscription.peerId);
       }
     }
     async announcePublicSubscriptionsForPeer(peerId) {
@@ -91215,12 +92247,18 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         stream.send(stanza);
       }
     }
-    async recordFeedPost(post) {
+    async recordFeedPost(post, options = {}) {
       await this.ctx.ready;
       const normalized = normalizeFeedPost(post);
       const key = feedHistoryKey(normalized.topic, normalized.id);
-      if (this.feedHistory.has(key)) {
-        return false;
+      const existing = this.feedHistory.get(key);
+      if (existing) {
+        if (options.updateExisting !== true) return false;
+        if (JSON.stringify(existing) === JSON.stringify(normalized)) return false;
+        this.feedHistory.set(key, normalized);
+        await this.scheduleFeedPersist();
+        this.ctx.emit("feed:post", normalized);
+        return true;
       }
       this.feedHistory.set(key, normalized);
       while (this.feedHistory.size > FEED_HISTORY_LIMIT) {
@@ -91232,7 +92270,9 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       }
       await this.scheduleFeedPersist();
       this.ctx.emit("feed:post", normalized);
-      await this.ctx.propagateFeedToCollections(normalized);
+      if (options.propagateToCollections !== false) {
+        await this.ctx.propagateFeedToCollections(normalized);
+      }
       return true;
     }
     async recordFeedSubscription(subscription, announce = true) {
@@ -91292,8 +92332,9 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       return Array.from(this.followers.values()).filter((follower) => follower.feedPeerId === peerId);
     }
     async subscribeFeed(peerAddr, options = {}) {
-      const xmppStream = await this.ctx.getOrCreateStream(peerAddr);
-      const peerId = xmppStream.remotePeer.toString();
+      const peerReference = parsePeerReference(peerAddr);
+      const peerId = peerReference.peerId || peerIdFromJid(peerAddr.toString());
+      if (!peerId) throw new Error("A peer address is required to follow a feed");
       const topic = feedTopicForPeer(peerId);
       const pubsub = this.ctx.getPubSubService();
       this.ctx.ensureTopicValidator(topic, "feed");
@@ -91309,14 +92350,20 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       });
       await this.recordFeedSubscription(subscription);
       await this.watchFollowerTopic(peerId);
+      try {
+        await this.syncFeedHistory(peerAddr, peerId, topic);
+      } catch (error) {
+        console.warn(`[XMPP] Could not sync recent feed history for ${peerId}:`, error);
+      }
       if (subscription.visibility === "public") {
         await this.publishSubscriptionDeclaration(subscription, "upsert");
       }
       return subscription;
     }
     async setFeedSubscriptionVisibility(peerAddr, visibility) {
-      const xmppStream = await this.ctx.getOrCreateStream(peerAddr);
-      const peerId = xmppStream.remotePeer.toString();
+      const peerReference = parsePeerReference(peerAddr);
+      const peerId = peerReference.peerId || peerIdFromJid(peerAddr.toString());
+      if (!peerId) throw new Error("A peer address is required to update feed visibility");
       const topic = feedTopicForPeer(peerId);
       const existing = this.feedSubscriptions.get(topic);
       if (!existing) {
@@ -91328,6 +92375,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         updatedAt: (/* @__PURE__ */ new Date()).toISOString()
       });
       await this.recordFeedSubscription(next);
+      try {
+        await this.ctx.getOrCreateStream(peerAddr);
+      } catch {
+      }
       if (visibility === "public") {
         await this.publishSubscriptionDeclaration(next, "upsert");
       } else {
@@ -91336,17 +92387,26 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       return next;
     }
     async unsubscribeFeed(peerAddr) {
-      const xmppStream = await this.ctx.getOrCreateStream(peerAddr);
-      const peerId = xmppStream.remotePeer.toString();
+      const peerReference = parsePeerReference(peerAddr);
+      const peerId = peerReference.peerId || peerIdFromJid(peerAddr.toString());
+      if (!peerId) throw new Error("A peer address is required to unfollow a feed");
       const topic = feedTopicForPeer(peerId);
       const pubsub = this.ctx.getPubSubService();
       const existing = this.feedSubscriptions.get(topic);
+      let declarationError;
       if (existing && existing.visibility === "public") {
-        await this.publishSubscriptionDeclaration(existing, "remove");
+        try {
+          await this.publishSubscriptionDeclaration(existing, "remove");
+        } catch (error) {
+          declarationError = error;
+        }
       }
       await pubsub.unsubscribe(topic);
       this.feedSubscriptions.delete(topic);
       await this.scheduleSubscriptionPersist();
+      if (declarationError) {
+        throw new Error(`Feed unfollowed locally, but the removal could not be announced: ${declarationError instanceof Error ? declarationError.message : "network error"}`);
+      }
     }
     async publishFeed(body, options = {}) {
       const pubsub = this.ctx.getPubSubService();
@@ -91366,6 +92426,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         updatedAt: publishedAt,
         receivedAt: publishedAt,
         title,
+        replyTo: options.replyTo,
         summary: options.summary,
         categories: options.categories,
         author: options.author
@@ -91376,7 +92437,9 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         author: options.author,
         publishedAt,
         updatedAt: publishedAt,
-        alternateHref: `xmpp:${this.ctx.jid}?;node=${encodeURIComponent(topic)};item=${encodeURIComponent(itemId)}`
+        alternateHref: `xmpp:${this.ctx.jid}?;node=${encodeURIComponent(topic)};item=${encodeURIComponent(itemId)}`,
+        replyTo: options.replyTo,
+        links: options.links
       });
       const stanza = xml(
         "message",
@@ -91416,16 +92479,45 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         author: options.author ?? this.ctx.jid,
         contentType: "text",
         categories: options.categories,
+        replyTo: options.replyTo,
         links: [{
           rel: "alternate",
           href: `xmpp:${this.ctx.jid}?;node=${encodeURIComponent(topic)};item=${encodeURIComponent(itemId)}`
-        }]
+        }, ...options.links ?? []]
       });
       return itemId;
     }
     async getFeedPosts() {
       await this.ctx.ready;
       return Array.from(this.feedHistory.values()).sort((a2, b2) => b2.publishedAt.localeCompare(a2.publishedAt));
+    }
+    async getFeedPostsForPeer(peerId) {
+      await this.ctx.ready;
+      const topic = feedTopicForPeer(peerId);
+      return Array.from(this.feedHistory.values()).filter((post) => post.topic === topic && post.from === jidFromPeerId(peerId)).sort((a2, b2) => b2.publishedAt.localeCompare(a2.publishedAt)).slice(0, FEED_HISTORY_LIMIT);
+    }
+    async syncFeedHistory(peerAddr, peerId, topic) {
+      const id2 = `feed-history-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const request = xml("iq", {
+        type: "get",
+        id: id2,
+        to: jidFromPeerId(peerId),
+        from: this.ctx.jid
+      }, xml("query", { xmlns: FEED_HISTORY_XMLNS2 }));
+      const response2 = await this.ctx.sendIqRequest(peerAddr, request);
+      const result = response2.getChild("query");
+      if (!result || result.attrs.xmlns !== FEED_HISTORY_XMLNS2) {
+        throw new Error("Peer returned an invalid feed history response");
+      }
+      const entries = result.children.filter((child) => child?.name === "post");
+      for (const entry of entries) {
+        try {
+          const post = JSON.parse(entry.text());
+          if (post.topic !== topic || post.from !== jidFromPeerId(peerId) || typeof post.id !== "string" || typeof post.body !== "string") continue;
+          await this.recordFeedPost(post);
+        } catch {
+        }
+      }
     }
     async getFeedSubscriptions() {
       await this.ctx.ready;
@@ -91757,7 +92849,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       const pubsub = this.ctx.getPubSubService();
       this.ctx.ensureTopicValidator(topic, "attachment");
       await pubsub.subscribe(topic);
-      const itemId = options.itemId ?? Math.random().toString(36).substring(2, 11);
+      const itemId = options.itemId ?? (kind === "reaction" ? await stableAttachmentItemId(topic, targetId, this.ctx.jid) : Math.random().toString(36).substring(2, 11));
       const publishedAt = (/* @__PURE__ */ new Date()).toISOString();
       const attachmentElement = kind === "noticed" ? xml("noticed", { xmlns: ATTACHMENT_XMLNS2 }, value2 ? value2 : null) : xml("reactions", { xmlns: ATTACHMENT_XMLNS2 }, xml("reaction", value2 ? { emoji: value2 } : {}, value2 ? value2 : null));
       const stanza = xml(
@@ -91878,6 +92970,12 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       await this.persistAttachmentHistory();
     }
   };
+  async function stableAttachmentItemId(topic, targetId, authorJid) {
+    const source = new TextEncoder().encode(`${topic}\0${targetId}\0${authorJid}`);
+    const digest4 = await globalThis.crypto.subtle.digest("SHA-256", source);
+    const hex = Array.from(new Uint8Array(digest4), (byte) => byte.toString(16).padStart(2, "0")).join("");
+    return `reaction-${hex}`;
+  }
 
   // src/core/xmpp-muc.ts
   init_globals();
@@ -92117,13 +93215,14 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       });
     }
     async updateMucRoomSettings(roomName, settings) {
+      const existing = await this.ensureMucRoomSettings(roomName);
       const normalized = normalizeMucRoomSettings({
         roomName,
-        topic: settings.topic,
-        defaultMode: settings.defaultMode,
-        autoJoin: settings.autoJoin,
-        communityId: settings.communityId,
-        archived: settings.archived,
+        topic: settings.topic ?? existing?.topic,
+        defaultMode: settings.defaultMode ?? (existing?.defaultSecure === false ? "open" : "secure"),
+        autoJoin: settings.autoJoin ?? existing?.autoJoin ?? true,
+        communityId: settings.communityId ?? existing?.communityId,
+        archived: settings.archived ?? existing?.archived,
         updatedAt: (/* @__PURE__ */ new Date()).toISOString()
       });
       this.mucRooms.set(roomName, normalized);
@@ -92142,6 +93241,12 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       const key = `${normalized.room}:${normalized.id}`;
       if (this.mucHistory.has(key)) {
         return false;
+      }
+      if ([...this.mucHistory.values()].some((entry) => entry.room === normalized.room && entry.replace === normalized.id)) {
+        return false;
+      }
+      if (normalized.replace) {
+        this.mucHistory.delete(`${normalized.room}:${normalized.replace}`);
       }
       this.mucHistory.set(key, normalized);
       while (this.mucHistory.size > MUC_HISTORY_LIMIT) {
@@ -92263,6 +93368,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         fromPeerId: this.ctx.jid.split("@")[0],
         body,
         timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+        replace: replaceId,
         reply,
         thread
       });
@@ -92305,7 +93411,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       for (const occupant of roomState.occupants.values()) {
         await addOmemoKey(occupant.jid);
       }
-      if (keysMap.size === 0 && roomState.occupants.size > 0) {
+      if (keysMap.size === 0) {
         throw new Error("No occupants have available OMEMO devices");
       }
       const keysElements = [];
@@ -92350,6 +93456,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         timestamp: (/* @__PURE__ */ new Date()).toISOString(),
         encrypted: true,
         encryption: "omemo",
+        replace: replaceId,
         reply,
         thread
       });
@@ -92410,6 +93517,9 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
           }
           msgEl.children.push(xml("reply", replyAttrs));
         }
+        if (msg.replace) {
+          msgEl.children.push(xml("replace", { xmlns: "urn:xmpp:message-correct:0", id: msg.replace }));
+        }
         if (msg.thread) {
           msgEl.children.push(xml("thread", {}, msg.thread));
         }
@@ -92458,6 +93568,8 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         const msgId2 = innerMsg.attrs.id || resultEl.attrs.id;
         const reply = parseReplyElement(innerMsg);
         const thread = parseThreadElement(innerMsg);
+        const replaceEl = innerMsg.getChild("replace");
+        const replace = replaceEl?.attrs.xmlns === "urn:xmpp:message-correct:0" ? replaceEl.attrs.id : void 0;
         if (body) {
           const mamMsg = {
             id: msgId2,
@@ -92466,6 +93578,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
             fromPeerId: peerId,
             body,
             timestamp: delayStamp || (/* @__PURE__ */ new Date()).toISOString(),
+            replace,
             reply,
             thread
           };
@@ -92481,6 +93594,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
             timestamp: delayStamp || (/* @__PURE__ */ new Date()).toISOString(),
             id: msgId2,
             mam: true,
+            replace,
             reply,
             thread,
             queryId
@@ -92629,6 +93743,8 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
               const msgId2 = element.attrs.id || Math.random().toString(36).substring(2, 11);
               const reply = parseReplyElement(element);
               const thread = parseThreadElement(element);
+              const replaceEl = element.getChild("replace");
+              const replace = replaceEl?.attrs.xmlns === "urn:xmpp:message-correct:0" ? replaceEl.attrs.id : void 0;
               await this.recordMucMessage({
                 id: msgId2,
                 room: roomName,
@@ -92638,11 +93754,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
                 timestamp: (/* @__PURE__ */ new Date()).toISOString(),
                 encrypted: true,
                 encryption: "omemo",
+                replace,
                 reply,
                 thread
               });
-              const replaceEl = element.getChild("replace");
-              const replace = replaceEl?.attrs.xmlns === "urn:xmpp:message-correct:0" ? replaceEl.attrs.id : void 0;
               this.ctx.emit("muc:message", {
                 room: roomName,
                 roomJid,
@@ -92669,6 +93784,8 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
             const msgId2 = element.attrs.id || Math.random().toString(36).substring(2, 11);
             const reply = parseReplyElement(element);
             const thread = parseThreadElement(element);
+            const replaceEl = element.getChild("replace");
+            const replace = replaceEl?.attrs.xmlns === "urn:xmpp:message-correct:0" ? replaceEl.attrs.id : void 0;
             await this.recordMucMessage({
               id: msgId2,
               room: roomName,
@@ -92676,11 +93793,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
               fromPeerId,
               body,
               timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+              replace,
               reply,
               thread
             });
-            const replaceEl = element.getChild("replace");
-            const replace = replaceEl?.attrs.xmlns === "urn:xmpp:message-correct:0" ? replaceEl.attrs.id : void 0;
             this.ctx.emit("muc:message", {
               room: roomName,
               roomJid,
@@ -92706,6 +93822,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
   var ATTACHMENT_HISTORY_LIMIT2 = 200;
   var OPENPGP_PUBSUB_XMLNS2 = "urn:xmpp:openpgp:pubsub:0";
   var XmppNode = class extends EventEmitter2 {
+    httpUploadAvailable;
     libp2p;
     streams = /* @__PURE__ */ new Map();
     peerAddrs = /* @__PURE__ */ new Map();
@@ -92714,6 +93831,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     maxReconnectDelay = 3e4;
     minReconnectDelay = 1e3;
     reliabilityManager = new XmppReliabilityManager();
+    dhtMailboxPeerListener;
     rosterManager;
     get roster() {
       return this.rosterManager.entries;
@@ -92766,6 +93884,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         this.rejectReady = reject;
       });
       this.libp2p = libp2p;
+      this.httpUploadAvailable = options.httpUploadServer !== false;
       this.jid = `${this.libp2p.peerId.toString()}@p2p`;
       this.storage = storage2;
       this.uploadHost = (typeof process !== "undefined" ? "127.0.0.1" : void 0) ?? "127.0.0.1";
@@ -92804,6 +93923,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         sendIqRequest: this.sendIqRequest.bind(this),
         discoveryNode: this.discoveryNode,
         discoveryIdentity: this.discoveryIdentity,
+        httpUploadAvailable: this.httpUploadAvailable,
         collections: this.collectionManager.collections
       });
       this.feedManager = new XmppFeedManager(this.getFeedContext());
@@ -92811,13 +93931,20 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         this.rosterManager.selfPresence.nickname = options.nickname;
         this.rosterManager.selfVCard.nickname = options.nickname;
       }
-      this.rosterManager.initialize().then(() => this.feedManager.initialize()).then(() => this.collectionManager.initialize()).then(() => this.muc.initialize()).then(() => this.chat.initialize()).then(() => this.uploads.ensureUploadServer()).then(() => this.uploads.ensureUploadAnnouncementSubscription()).then(() => this.loadOmemoState()).then(() => this.openPgpStateManager.load()).then(() => this.resolveReady()).catch((err) => this.rejectReady(err));
+      this.rosterManager.initialize().then(() => this.feedManager.initialize()).then(() => this.collectionManager.initialize()).then(() => this.muc.initialize()).then(() => this.chat.initialize()).then(() => options.httpUploadServer === false ? void 0 : this.uploads.ensureUploadServer()).then(() => this.uploads.ensureUploadAnnouncementSubscription()).then(() => this.loadOmemoState()).then(() => this.openPgpStateManager.load()).then(() => this.resolveReady()).catch((err) => this.rejectReady(err));
+      this.dhtMailboxPeerListener = () => this.flushDhtMailboxWhenActive();
+      this.libp2p.addEventListener("peer:connect", this.dhtMailboxPeerListener);
+      void this.ready.then(() => this.flushDhtMailboxWhenActive()).catch(() => {
+      });
       this.libp2p.handle("/xmpp/1.0.0", (stream, connection) => {
         const peerId = connection?.remotePeer?.toString() || "unknown";
         console.log(`[DEBUG] Inbound connection handler triggered from peer: ${peerId}`);
         const xmppStream = new XmppStream(stream, peerId);
         this.registerStream(peerId, xmppStream);
         this.emit("stream", { peerId, direction: "inbound", stream: xmppStream });
+      });
+      this.libp2p.handle("/xmpp/upload/1.0.0", (stream) => {
+        void this.uploads.handlePeerUploadRequest(stream);
       });
       const pubsub = this.libp2p.services.pubsub;
       if (pubsub) {
@@ -93024,6 +94151,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         jid: this.jid,
         discoveryNode: this.discoveryNode,
         discoveryIdentity: this.discoveryIdentity,
+        httpUploadAvailable: this.httpUploadAvailable,
         libp2p: this.libp2p,
         getCollections: () => this.collectionManager.collections,
         getCollectionSubscriptions: () => this.collectionManager.collectionSubscriptions,
@@ -93043,10 +94171,12 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         buildOmemoBundleQuery: this.buildOmemoBundleQuery.bind(this),
         buildRosterQuery: () => this.rosterManager.buildRosterQuery(),
         buildFollowersQuery: this.buildFollowersQuery.bind(this),
+        getFeedHistoryForPeer: (peerId) => this.feedManager.getFeedPostsForPeer(peerId),
         buildVCardQuery: () => this.rosterManager.buildVCardQuery(),
         updateVCard: (profile) => this.rosterManager.updateVCard(profile),
         discoveryIdentity: this.discoveryIdentity,
         discoveryNode: this.discoveryNode,
+        httpUploadAvailable: this.httpUploadAvailable,
         collections: this.collectionManager.collections,
         collectionSubscriptions: this.collectionManager.collectionSubscriptions,
         openPgpState: this.openPgpStateManager.getState(),
@@ -93116,6 +94246,17 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     }
     parsePeerReference(peerAddr) {
       return parsePeerReference(peerAddr);
+    }
+    getLocalPeerAddresses() {
+      const peerId = this.libp2p.peerId.toString();
+      return this.libp2p.getMultiaddrs().map((address) => {
+        const value2 = address.toString();
+        if (value2.includes("/p2p-circuit")) {
+          const relayAddress = value2.split("/p2p-circuit")[0];
+          return `${relayAddress}/p2p-circuit/webrtc/p2p/${peerId}`;
+        }
+        return value2.includes(`/p2p/${peerId}`) ? value2 : `${value2}/p2p/${peerId}`;
+      });
     }
     subscriptionToFlags(subscription) {
       return subscriptionToFlags(subscription);
@@ -93217,7 +94358,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       const nick = options.nick ?? this.selfPresence.nickname ?? this.jid.replace("@p2p", "");
       await this.updateMucRoomSettings(roomName, {
         topic: options.topic,
-        defaultMode: "secure",
+        defaultMode: options.defaultMode ?? "secure",
         autoJoin: options.autoJoin ?? true,
         communityId: options.communityId,
         archived: options.archived
@@ -93458,7 +94599,66 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     getUploadContentUrl(cid) {
       return this.uploads.getUploadContentUrl(cid);
     }
+    async fetchUploadFromPeer(peerId, cid) {
+      if (!peerId || !cid) return void 0;
+      const stream = await this.libp2p.dialProtocol(peerIdFromString(peerId), ["/xmpp/upload/1.0.0"]);
+      const request = new TextEncoder().encode(`${JSON.stringify({ cid })}
+`);
+      if (!stream.send(request)) await stream.onDrain();
+      await stream.close();
+      const chunks = [];
+      let headerBuffer = new Uint8Array();
+      let expectedSize;
+      let receivedSize = 0;
+      let responseValid = false;
+      for await (const item of stream) {
+        const chunk = item instanceof Uint8Array ? item : item.subarray();
+        if (!responseValid) {
+          const combined = new Uint8Array(headerBuffer.length + chunk.length);
+          combined.set(headerBuffer);
+          combined.set(chunk, headerBuffer.length);
+          const newline = combined.indexOf(10);
+          if (newline === -1) {
+            if (combined.length > 2048) break;
+            headerBuffer = combined;
+            continue;
+          }
+          let header;
+          try {
+            header = JSON.parse(new TextDecoder().decode(combined.subarray(0, newline)));
+          } catch {
+            break;
+          }
+          if (!header.ok || header.cid !== cid || !Number.isSafeInteger(header.size) || header.size < 0 || header.size > MAX_PEER_UPLOAD_BYTES) break;
+          expectedSize = header.size;
+          responseValid = true;
+          const payload = combined.subarray(newline + 1);
+          if (payload.length) {
+            chunks.push(payload);
+            receivedSize += payload.length;
+          }
+          headerBuffer = new Uint8Array();
+          continue;
+        }
+        receivedSize += chunk.length;
+        if (receivedSize > (expectedSize ?? 0)) break;
+        chunks.push(chunk);
+      }
+      await stream.close().catch(() => {
+      });
+      if (!responseValid || expectedSize === void 0 || receivedSize !== expectedSize) return void 0;
+      const output = new Uint8Array(receivedSize);
+      let offset = 0;
+      for (const chunk of chunks) {
+        output.set(chunk, offset);
+        offset += chunk.length;
+      }
+      return output;
+    }
     async storeFile(data, filename, contentType) {
+      if (!this.httpUploadAvailable && data.byteLength > MAX_PEER_UPLOAD_BYTES) {
+        throw new Error("Browser peer uploads are limited to 50 MiB per file.");
+      }
       const hashBuffer = await globalThis.crypto.subtle.digest("SHA-256", data);
       const hashArray = Array.from(new Uint8Array(hashBuffer));
       const cid = hashArray.map((b2) => b2.toString(16).padStart(2, "0")).join("");
@@ -93488,8 +94688,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         topic: UPLOAD_ANNOUNCEMENTS_TOPIC
       };
       this.uploads["uploadManifests"].set(cid, manifest);
-      void this.uploads["announceUploadManifest"](manifest).catch(() => {
-      });
+      await this.uploads.announceUploadManifest(manifest);
       return { cid, url: `upload://${cid}` };
     }
     async handleStanza(peerId, element) {
@@ -93527,12 +94726,19 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       if (existing) {
         return existing;
       }
-      const dialTarget = parsed.dialTarget ?? this.peerAddrs.get(peerIdStr);
+      let dialTarget = parsed.dialTarget ?? this.peerAddrs.get(peerIdStr);
       if (!dialTarget) {
-        throw new Error(`Peer ${peerIdStr} is not connected; provide a multiaddr or establish a stream first`);
+        const peerInfo = await this.libp2p.peerRouting.findPeer(peerIdFromString(peerIdStr));
+        dialTarget = peerInfo.multiaddrs[0];
+        if (!dialTarget) {
+          throw new Error(`Peer routing found no dialable addresses for ${peerIdStr}`);
+        }
       }
+      const stream = await this.libp2p.dialProtocol(
+        dialTarget,
+        ["/xmpp/1.0.0"]
+      );
       this.peerAddrs.set(peerIdStr, dialTarget);
-      const stream = await this.libp2p.dialProtocol(dialTarget, ["/xmpp/1.0.0"]);
       const xmppStream = new XmppStream(stream, peerIdStr);
       this.registerStream(peerIdStr, xmppStream);
       this.emit("stream", { peerId: peerIdStr, direction: "outbound", stream: xmppStream });
@@ -93646,10 +94852,26 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       return this.rosterManager.getRosterEntry(jid2);
     }
     async addRosterEntry(jid2, name5) {
+      if (!jid2.toLowerCase().endsWith("@p2p") && this.clientBridge.isConnected) {
+        await this.clientBridge.addRosterEntry(jid2, name5);
+      }
       return await this.rosterManager.addRosterEntry(jid2, name5);
     }
     async removeRosterEntry(jid2) {
-      await this.rosterManager.removeRosterEntry(jid2);
+      const bareJid = jid2.split("/")[0];
+      if (!bareJid.toLowerCase().endsWith("@p2p")) {
+        if (!this.clientBridge.isConnected) throw new Error("Connect to your XMPP server before removing this contact.");
+        await this.clientBridge.removeRosterEntry(bareJid);
+      }
+      await this.rosterManager.removeRosterEntry(bareJid);
+    }
+    async approveServerPresenceSubscription(jid2) {
+      if (!this.clientBridge.isConnected) throw new Error("Connect your XMPP account before approving contact requests.");
+      await this.clientBridge.approvePresenceSubscription(jid2);
+    }
+    async denyServerPresenceSubscription(jid2) {
+      if (!this.clientBridge.isConnected) throw new Error("Connect your XMPP account before declining contact requests.");
+      await this.clientBridge.denyPresenceSubscription(jid2);
     }
     async fetchRoster(peerAddr) {
       await this.ready;
@@ -93689,19 +94911,26 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       if (!addrStr) {
         throw new Error("Cannot send message: peer address is empty");
       }
-      const targetDomain = addrStr.includes("@") ? addrStr.split("@")[1] : "";
-      if (!addrStr.endsWith("@p2p") && addrStr.includes("@")) {
-        if (this.clientBridge.isConnected && targetDomain === this.clientBridge.connectionInfo.domain) {
-          return this.clientBridge.sendMessage(addrStr, body, { type: "chat", thread: options.thread });
+      if (!addrStr.split("/")[0].toLowerCase().endsWith("@p2p") && addrStr.includes("@")) {
+        if (this.clientBridge.isConnected) {
+          return this.clientBridge.sendMessage(addrStr, body, {
+            type: "chat",
+            ...options.originId !== void 0 ? { originId: options.originId } : {},
+            ...options.thread ? { thread: options.thread } : {},
+            ...options.replace ? { replace: options.replace } : {},
+            ...options.reply ? { reply: options.reply } : {},
+            ...options.requestReceipt !== void 0 ? { requestReceipt: options.requestReceipt } : {},
+            ...options.chatState ? { chatState: options.chatState } : {},
+            ...options.attachments ? { attachments: options.attachments } : {}
+          });
         }
         if (!this.clientBridge.isConnected) {
           throw new Error(`Server bridge is not connected \u2014 cannot send to ${addrStr}`);
         }
-        throw new Error(`Cannot route to ${targetDomain}: bridge is connected to ${this.clientBridge.connectionInfo.domain}`);
       }
       const peerId = this.parsePeerReference(peerAddr).peerId;
       const toJid = this.jidFromPeerId(peerId);
-      const id2 = Math.random().toString(36).substring(2, 15);
+      const id2 = options.originId || Math.random().toString(36).substring(2, 15);
       const children = [];
       if (body) {
         children.push(xml("body", {}, body));
@@ -93777,6 +95006,114 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     async queryChatHistory(targetPeerJid, withJid, queryId) {
       return this.chat.queryChatHistory(targetPeerJid, withJid, queryId);
     }
+    async queryServerChatHistory(withJid, before) {
+      return this.clientBridge.queryMamHistory(withJid, before);
+    }
+    async queryServerMucHistory(roomJid, before) {
+      return this.clientBridge.queryMucMamHistory(roomJid, before);
+    }
+    async discoverServerMucRooms() {
+      return this.clientBridge.discoverMucRooms();
+    }
+    getServerMicroblogContactJid(jid2, requireRosterEntry = true) {
+      if (!this.clientBridge.isConnected) throw new Error("Connect your XMPP account before managing microblogs.");
+      const bareJid = jid2.trim().split("/")[0].toLowerCase();
+      if (!bareJid.includes("@") || bareJid.endsWith("@p2p")) {
+        throw new Error("Choose a contact from your XMPP server roster.");
+      }
+      if (bareJid === this.clientBridge.accountJid?.toLowerCase().split("/")[0]) {
+        throw new Error("Choose another account to follow its microblog.");
+      }
+      if (requireRosterEntry && !this.rosterManager.getRosterEntry(bareJid)) {
+        throw new Error("Add this XMPP contact to your roster before following its microblog.");
+      }
+      return bareJid;
+    }
+    async subscribeServerMicroblog(jid2) {
+      const contactJid = this.getServerMicroblogContactJid(jid2);
+      return this.clientBridge.pubsubSubscribe(contactJid, "urn:xmpp:microblog:0");
+    }
+    async unsubscribeServerMicroblog(jid2) {
+      const contactJid = this.getServerMicroblogContactJid(jid2, false);
+      await this.clientBridge.pubsubUnsubscribe(contactJid, "urn:xmpp:microblog:0");
+    }
+    async refreshServerMicroblog(jid2) {
+      const contactJid = this.getServerMicroblogContactJid(jid2);
+      const items = await this.clientBridge.pubsubGetItems(contactJid, "urn:xmpp:microblog:0", 20);
+      let imported = 0;
+      for (const item of items) {
+        if (item.name !== "item" || !item.attrs.id) continue;
+        const post = parseMicroblogEntry("urn:xmpp:microblog:0", item, contactJid, "urn:xmpp:microblog:0");
+        if (!post) continue;
+        post.topic = `xmpp-pep:${contactJid}`;
+        post.id = `${contactJid}:${item.attrs.id}`;
+        if (await this.feedManager.recordFeedPost(post, { propagateToCollections: false, updateExisting: true })) imported += 1;
+      }
+      return imported;
+    }
+    async publishServerMicroblog(body, options = {}) {
+      if (!this.clientBridge.isConnected) {
+        throw new Error("Connect your XMPP account before publishing a server microblog.");
+      }
+      const accountJid = this.clientBridge.accountJid?.split("/")[0];
+      if (!accountJid) throw new Error("Your XMPP account JID is unavailable.");
+      const itemId = options.itemId ?? `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const node = "urn:xmpp:microblog:0";
+      const topic = `xmpp-pep:${accountJid}`;
+      const publishedAt = (/* @__PURE__ */ new Date()).toISOString();
+      const title = options.title?.trim() || deriveMicroblogTitle(body);
+      const post = {
+        id: itemId,
+        topic,
+        from: accountJid,
+        body,
+        publishedAt,
+        updatedAt: publishedAt,
+        receivedAt: publishedAt,
+        title,
+        summary: options.summary,
+        categories: options.categories,
+        author: options.author ?? accountJid,
+        node
+      };
+      const payload = buildMicroblogEntry(post, {
+        title,
+        summary: options.summary,
+        categories: options.categories,
+        author: post.author,
+        publishedAt,
+        updatedAt: publishedAt,
+        displayContent: options.displayContent,
+        articlePayload: options.articlePayload,
+        alternateHref: `xmpp:${accountJid}?;node=${encodeURIComponent(node)};item=${encodeURIComponent(itemId)}`
+      });
+      await this.clientBridge.pubsubPublish(accountJid, node, itemId, payload);
+      await this.feedManager.recordFeedPost({
+        ...post,
+        id: `${accountJid}:${itemId}`,
+        atomId: buildTagUri(accountJid, publishedAt, itemId)
+      }, { propagateToCollections: false, updateExisting: true });
+      return itemId;
+    }
+    async joinServerMuc(roomJid, nick) {
+      if (!this.clientBridge.isConnected) throw new Error("Connect to your XMPP server before joining a room.");
+      await this.clientBridge.joinMuc(roomJid, nick);
+    }
+    getServerJid() {
+      return this.clientBridge.accountJid;
+    }
+    async leaveServerMuc(roomJid, nick) {
+      if (!this.clientBridge.isConnected) throw new Error("Connect to your XMPP server before leaving a room.");
+      await this.clientBridge.leaveMuc(roomJid, nick);
+    }
+    async sendServerMucMessage(roomJid, body, options) {
+      if (!this.clientBridge.isConnected) throw new Error("Connect to your XMPP server before sending to a room.");
+      return this.clientBridge.sendMucMessage(roomJid, body, options);
+    }
+    async sendServerMucChatState(roomJid, state) {
+      if (!this.clientBridge.isConnected) return;
+      await this.clientBridge.sendMucChatState(roomJid, state);
+    }
     // Query MUC MAM message history from a peer
     async queryMucChatHistory(roomName, targetPeerId, queryId) {
       return this.muc.queryHistory(roomName, targetPeerId, queryId);
@@ -93794,6 +95131,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         await flushDhtMailbox(this.getDhtContext());
       }
     }
+    flushDhtMailboxWhenActive() {
+      if (this.reliabilityManager.clientState !== "active") return;
+      void this.ready.then(() => flushDhtMailbox(this.getDhtContext())).catch((error) => console.debug("[DHT] Mailbox flush deferred until network is available:", error));
+    }
     isPeerInactive(peerId) {
       return this.reliabilityManager.isPeerInactive(peerId);
     }
@@ -93807,9 +95148,15 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         const dialTarget = peerAddr || `${peerId}@p2p`;
         const stream = await this.getOrCreateStream(dialTarget);
         stream.send(stanza);
-      } catch (err) {
-        console.warn(`[DEBUG] Failed to send stanza directly to ${peerId}. Buffering to DHT mailbox:`, err);
-        await bufferStanzaToDht(this.libp2p, peerId, stanza);
+      } catch (directError) {
+        console.warn(`[DEBUG] Failed to send stanza directly to ${peerId}. Buffering to DHT mailbox:`, directError);
+        try {
+          await bufferStanzaToDht(this.libp2p, peerId, stanza);
+        } catch (mailboxError) {
+          const directMessage = directError instanceof Error ? directError.message : String(directError);
+          const mailboxMessage = mailboxError instanceof Error ? mailboxError.message : String(mailboxError);
+          throw new Error(`Could not reach peer ${peerId}: ${directMessage}. Offline delivery also failed: ${mailboxMessage}`);
+        }
       }
     }
     getOmemoDeviceIdOrThrow() {
@@ -94057,8 +95404,20 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
           id: event.id || Math.random().toString(36).substring(2, 15),
           type: event.type || "chat",
           thread: event.thread,
-          delay: event.delay ? { stamp: event.delay.stamp, from: event.delay.from } : void 0
+          delay: event.delay ? { stamp: event.delay.stamp, from: event.delay.from } : void 0,
+          receipt: event.receipt,
+          replace: event.replace,
+          reply: event.reply,
+          chatState: event.chatState,
+          mam: event.mam,
+          queryId: event.queryId,
+          fromSelf: event.fromSelf,
+          stanzaError: event.stanzaError
         };
+        if (event.type === "error") {
+          this.emit("message", { ...msg, server: event.server });
+          return;
+        }
         if (this.chat) {
           this.chat.recordChatMessage(msg).catch((err) => this.emit("error", err));
         } else {
@@ -94067,31 +95426,111 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         this.emit("message", { ...msg, server: event.server });
       });
       this.clientBridge.on("presence", (event) => {
-        this.emit("presence", {
-          from: event.from,
-          type: event.type,
-          server: event.server,
+        if (event.type && event.type !== "available" && event.type !== "unavailable") return;
+        const from7 = String(event.from || "").split("/")[0];
+        if (!from7) return;
+        const presence = {
+          from: from7,
+          to: "",
+          type: event.type || "available",
           show: event.show,
           status: event.status
-        });
+        };
+        void this.rosterManager.recordPresence(from7, presence).catch((err) => this.emit("error", err));
+        this.emit("presence", presence);
+      });
+      this.clientBridge.on("presence:subscribe", (event) => {
+        this.emit("server:presence-subscription-request", event);
       });
       this.clientBridge.on("muc:message", (event) => {
         this.emit("muc:message", {
           room: event.room,
+          roomJid: event.roomJid,
           from: event.from,
+          nick: event.nick,
+          fromSelf: event.fromSelf,
+          mam: event.mam,
           body: event.body,
           id: event.id,
-          server: event.server
+          server: event.server,
+          delay: event.delay,
+          chatState: event.chatState
         });
+      });
+      this.clientBridge.on("muc:join", (event) => {
+        this.emit("muc:join", {
+          room: event.room,
+          roomJid: event.roomJid,
+          from: event.from,
+          nick: event.nick,
+          fromSelf: event.fromSelf,
+          server: event.server,
+          occupantJid: event.occupantJid,
+          peerJid: event.occupantJid,
+          role: event.role,
+          affiliation: event.affiliation,
+          statusCodes: event.statusCodes
+        });
+      });
+      this.clientBridge.on("muc:leave", (event) => {
+        this.emit("muc:leave", {
+          room: event.room,
+          roomJid: event.roomJid,
+          from: event.from,
+          nick: event.nick,
+          fromSelf: event.fromSelf,
+          server: event.server,
+          occupantJid: event.occupantJid,
+          peerJid: event.occupantJid,
+          role: event.role,
+          affiliation: event.affiliation,
+          statusCodes: event.statusCodes
+        });
+      });
+      this.clientBridge.on("muc:error", (event) => {
+        this.emit("muc:error", event);
       });
       this.clientBridge.on("connection", (info) => {
         this.emit("server:connection", info);
+        if (info.status === "connected") {
+          void this.syncServerRoster().catch((error) => {
+            console.warn("[XMPP] Server connected, but roster sync did not complete:", error);
+          });
+        }
+      });
+      this.clientBridge.on("roster:change", (items = []) => {
+        void (async () => {
+          for (const item of items) {
+            if (item.subscription === "remove") await this.rosterManager.removeRosterEntry(item.jid);
+            else await this.rosterManager.upsertRosterEntry({
+              jid: item.jid,
+              name: item.name,
+              subscription: item.subscription,
+              ask: void 0
+            });
+          }
+          this.emit("server:roster");
+        })().catch((error) => this.emit("error", error));
       });
       this.clientBridge.on("pubsub:event", (event) => {
+        const entry = event.payload?.entry;
+        if (event.node === "urn:xmpp:microblog:0" && entry && event.itemId) {
+          const item = xml("item", { id: event.itemId }, entry);
+          const post = parseMicroblogEntry(event.node, item, event.from, event.node);
+          if (post) {
+            const authorJid = event.from.split("/")[0].toLowerCase();
+            post.topic = `xmpp-pep:${authorJid}`;
+            post.id = `${authorJid}:${event.itemId}`;
+            void this.feedManager.recordFeedPost(post, { propagateToCollections: false, updateExisting: true }).catch((error) => {
+              console.warn("[XMPP] Could not save a server microblog item:", error);
+            });
+            return;
+          }
+        }
         this.emit("pubsub:message", {
           topic: event.node,
           from: event.from,
-          body: event.payload?.entry?.text() || "",
+          body: entry?.getChild("content")?.text() || entry?.getChild("summary")?.text() || "",
           itemId: event.itemId,
           server: event.server
         });
@@ -94100,9 +95539,38 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     async connectServer(credentials) {
       await this.clientBridge.connect(credentials);
     }
-    async registerServer(jid2, password, service2) {
-      const resolvedService = await this.clientBridge.register(service2, jid2.split("@")[0], password);
+    async uploadFileToServer(data, filename, contentType) {
+      return this.clientBridge.uploadFile(data, filename, contentType);
+    }
+    async registerServer(jid2, password, service2, registrationFields) {
+      const account = jid_default(jid2);
+      if (!account.local) throw new Error("Enter a full XMPP JID to create an account.");
+      const resolvedService = await this.clientBridge.register(service2, account.local, password, account.domain, registrationFields);
       await this.clientBridge.connect({ jid: jid2, password, service: resolvedService });
+    }
+    async syncServerRoster() {
+      await this.ready;
+      const savedContacts = this.rosterManager.getRosterEntries().filter((entry) => !entry.jid.toLowerCase().split("/")[0].endsWith("@p2p"));
+      let serverContacts = [];
+      let serverRosterAvailable = false;
+      try {
+        serverContacts = await this.clientBridge.getRosterEntries();
+        serverRosterAvailable = true;
+      } catch (error) {
+        console.warn("[XMPP] Connected, but could not load the server roster:", error);
+      }
+      const serverJids = new Set(serverContacts.map((entry) => entry.jid.split("/")[0].toLowerCase()));
+      for (const entry of serverContacts) {
+        await this.rosterManager.upsertRosterEntry({
+          jid: entry.jid,
+          name: entry.name,
+          subscription: entry.subscription,
+          ask: void 0
+        });
+      }
+      const contactsToAdd = serverRosterAvailable ? savedContacts.filter((entry) => !serverJids.has(entry.jid.split("/")[0].toLowerCase())) : [];
+      await Promise.allSettled(contactsToAdd.map((entry) => this.clientBridge.addRosterEntry(entry.jid, entry.name ?? entry.nickname)));
+      this.emit("server:roster");
     }
     async disconnectServer() {
       await this.clientBridge.disconnect();
@@ -94119,6 +95587,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     }
     async close() {
       await this.ready;
+      if (this.dhtMailboxPeerListener) {
+        this.libp2p.removeEventListener("peer:connect", this.dhtMailboxPeerListener);
+        this.dhtMailboxPeerListener = void 0;
+      }
       await this.clientBridge.disconnect().catch(() => {
       });
       for (const pending of this.pendingIq.values()) {
@@ -94144,7 +95616,8 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       await this.omemoStateManager.close();
       await this.openPgpStateManager.close();
       this.reliabilityManager.clear();
-      this.muc.close();
+      await this.muc.close();
+      await this.storage.close();
     }
   };
 
@@ -94163,24 +95636,38 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
   // src/bridge/browser-runtime.ts
   init_globals();
   var BrowserXmppRuntimeBridge = class {
-    constructor(xmppNode) {
+    constructor(xmppNode, stopNetwork = async () => {
+    }) {
       this.xmppNode = xmppNode;
+      this.stopNetwork = stopNetwork;
       this.hookEvents();
     }
     xmppNode;
+    stopNetwork;
     messageListeners = /* @__PURE__ */ new Set();
     presenceListeners = /* @__PURE__ */ new Set();
     feedPostListeners = /* @__PURE__ */ new Set();
+    collectionPostListeners = /* @__PURE__ */ new Set();
+    attachmentSummaryListeners = /* @__PURE__ */ new Set();
     connectionListeners = /* @__PURE__ */ new Set();
     serverConnectionListeners = /* @__PURE__ */ new Set();
+    serverRosterListeners = /* @__PURE__ */ new Set();
+    serverPresenceRequestListeners = /* @__PURE__ */ new Set();
+    pendingServerPresenceRequests = /* @__PURE__ */ new Map();
     chatStateListeners = /* @__PURE__ */ new Set();
     mucMessageListeners = /* @__PURE__ */ new Set();
     mucJoinListeners = /* @__PURE__ */ new Set();
     mucLeaveListeners = /* @__PURE__ */ new Set();
+    mucErrorListeners = /* @__PURE__ */ new Set();
     mucChatStateListeners = /* @__PURE__ */ new Set();
     mucMarkerListeners = /* @__PURE__ */ new Set();
     activeConnections = /* @__PURE__ */ new Set();
     hookEvents() {
+      this.xmppNode.on("upload:available", (cid) => {
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("xmpp-p2p:upload-available", { detail: cid }));
+        }
+      });
       this.xmppNode.on("message", (msg) => {
         if (msg.chatState && !msg.body) {
           for (const cb of this.chatStateListeners) {
@@ -94202,7 +95689,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         const normalized = {
           ...presence,
           from: presence.from?.includes("@") ? presence.from : `${presence.from}@p2p`,
-          to: presence.to?.includes("@") ? presence.to : `${presence.to}@p2p`
+          to: !presence.to ? "" : presence.to.includes("@") ? presence.to : `${presence.to}@p2p`
         };
         for (const cb of this.presenceListeners) {
           try {
@@ -94219,6 +95706,30 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
               cb(feedPost);
             } catch {
             }
+          }
+        }
+      });
+      this.xmppNode.on("feed:post", (post) => {
+        for (const cb of this.feedPostListeners) {
+          try {
+            cb(post);
+          } catch {
+          }
+        }
+      });
+      this.xmppNode.on("collection:post", (post) => {
+        for (const cb of this.collectionPostListeners) {
+          try {
+            cb(post);
+          } catch {
+          }
+        }
+      });
+      this.xmppNode.on("attachment:summary", (summary) => {
+        for (const cb of this.attachmentSummaryListeners) {
+          try {
+            cb(summary);
+          } catch {
           }
         }
       });
@@ -94248,6 +95759,24 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
           }
         }
       });
+      this.xmppNode.on("server:roster", () => {
+        for (const cb of this.serverRosterListeners) {
+          try {
+            cb();
+          } catch {
+          }
+        }
+      });
+      this.xmppNode.on("server:presence-subscription-request", (request) => {
+        const normalized = { jid: request.from.split("/")[0].toLowerCase(), server: request.server };
+        this.pendingServerPresenceRequests.set(normalized.jid, normalized);
+        for (const cb of this.serverPresenceRequestListeners) {
+          try {
+            cb(normalized);
+          } catch {
+          }
+        }
+      });
       this.xmppNode.on("muc:message", (event) => {
         for (const cb of this.mucMessageListeners) {
           try {
@@ -94266,6 +95795,14 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       });
       this.xmppNode.on("muc:leave", (event) => {
         for (const cb of this.mucLeaveListeners) {
+          try {
+            cb(event);
+          } catch {
+          }
+        }
+      });
+      this.xmppNode.on("muc:error", (event) => {
+        for (const cb of this.mucErrorListeners) {
           try {
             cb(event);
           } catch {
@@ -94314,6 +95851,17 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       this.feedPostListeners.add(cb);
       return () => this.feedPostListeners.delete(cb);
     }
+    onCollectionPost(cb) {
+      this.collectionPostListeners.add(cb);
+      return () => this.collectionPostListeners.delete(cb);
+    }
+    onAttachmentSummary(cb) {
+      this.attachmentSummaryListeners.add(cb);
+      return () => this.attachmentSummaryListeners.delete(cb);
+    }
+    getAttachments(topic, targetId) {
+      return this.xmppNode.getAttachments(topic, targetId);
+    }
     onConnectionChange(cb) {
       this.connectionListeners.add(cb);
       return () => this.connectionListeners.delete(cb);
@@ -94334,6 +95882,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       this.mucLeaveListeners.add(cb);
       return () => this.mucLeaveListeners.delete(cb);
     }
+    onMucError(cb) {
+      this.mucErrorListeners.add(cb);
+      return () => this.mucErrorListeners.delete(cb);
+    }
     onMucChatState(cb) {
       this.mucChatStateListeners.add(cb);
       return () => this.mucChatStateListeners.delete(cb);
@@ -94344,6 +95896,52 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     }
     async sendChatState(target, state) {
       await this.xmppNode.sendMessage(target, "", { chatState: state });
+    }
+    async sendMucChatState(roomName, state) {
+      if (roomName.includes("@") && !roomName.toLowerCase().endsWith("@muc.p2p")) {
+        return this.xmppNode.sendServerMucChatState(roomName, state);
+      }
+      await this.xmppNode.muc.sendGroupChatState(roomName.replace(/@muc\.p2p$/, ""), state);
+    }
+    async getMucHistory(roomName) {
+      await this.xmppNode.ready;
+      return this.xmppNode.getMucHistory(roomName.replace(/@muc\.p2p$/, ""));
+    }
+    getMucParticipants(roomName) {
+      const state = this.xmppNode.muc.getRoomState(roomName.replace(/@muc\.p2p$/, ""));
+      return state ? [...state.occupants.values()] : [];
+    }
+    async queryChatHistory(targetPeerJid, withJid) {
+      await this.xmppNode.ready;
+      return this.xmppNode.queryChatHistory(targetPeerJid, withJid);
+    }
+    async queryServerChatHistory(withJid, before) {
+      await this.xmppNode.ready;
+      return this.xmppNode.queryServerChatHistory(withJid, before);
+    }
+    async queryServerMucHistory(roomJid, before) {
+      await this.xmppNode.ready;
+      return this.xmppNode.queryServerMucHistory(roomJid, before);
+    }
+    async discoverServerMucRooms() {
+      await this.xmppNode.ready;
+      return this.xmppNode.discoverServerMucRooms();
+    }
+    async subscribeServerMicroblog(jid2) {
+      await this.xmppNode.ready;
+      return this.xmppNode.subscribeServerMicroblog(jid2);
+    }
+    async unsubscribeServerMicroblog(jid2) {
+      await this.xmppNode.ready;
+      return this.xmppNode.unsubscribeServerMicroblog(jid2);
+    }
+    async refreshServerMicroblog(jid2) {
+      await this.xmppNode.ready;
+      return this.xmppNode.refreshServerMicroblog(jid2);
+    }
+    async publishServerMicroblog(body, options) {
+      await this.xmppNode.ready;
+      return this.xmppNode.publishServerMicroblog(body, options);
     }
     getFeedPosts() {
       return this.xmppNode.getFeedPosts();
@@ -94375,6 +95973,15 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     getCollections() {
       return this.xmppNode.getCollections();
     }
+    createCollection(id2, name5) {
+      return this.xmppNode.createCollection(id2, name5);
+    }
+    subscribeCollection(id2) {
+      return this.xmppNode.subscribeCollection(id2);
+    }
+    unsubscribeCollection(id2) {
+      return this.xmppNode.unsubscribeCollection(id2);
+    }
     getCollectionPosts(collectionId) {
       return this.xmppNode.getCollectionPosts(collectionId);
     }
@@ -94393,14 +96000,35 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     setVCard(profile) {
       return this.xmppNode.setVCard(profile);
     }
-    broadcastPresence(type2, status, show, nickname) {
-      return this.xmppNode.broadcastPresence(type2, status, show, nickname);
+    async broadcastPresence(type2, status, show, nickname) {
+      await this.xmppNode.broadcastPresence(type2, status, show, nickname);
+      if (this.xmppNode.clientBridge.connectionInfo.status === "connected") {
+        await this.xmppNode.clientBridge.sendPresence(type2, status, show);
+      }
     }
     getRosterEntries() {
       return this.xmppNode.getRosterEntries();
     }
+    addRosterEntry(jid2, name5) {
+      return this.xmppNode.addRosterEntry(jid2, name5);
+    }
+    removeRosterEntry(jid2) {
+      return this.xmppNode.removeRosterEntry(jid2);
+    }
     async createPrivateMucRoom(roomName, options) {
       return this.xmppNode.createPrivateMucRoom(roomName, options);
+    }
+    async joinMucRoom(roomName, nick) {
+      return this.xmppNode.joinMucRoom(roomName, nick ?? this.xmppNode.jid.split("@")[0]);
+    }
+    async leaveMucRoom(roomName) {
+      return this.xmppNode.muc.leaveRoom(roomName.replace(/@muc\.p2p$/, ""));
+    }
+    async joinServerMuc(roomJid, nick) {
+      return this.xmppNode.joinServerMuc(roomJid, nick);
+    }
+    async leaveServerMuc(roomJid, nick) {
+      return this.xmppNode.leaveServerMuc(roomJid, nick);
     }
     async getMucRoomSettings(roomName) {
       return this.xmppNode.getMucRoomSettings(roomName);
@@ -94409,21 +96037,58 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       return this.xmppNode.updateMucRoomSettings(roomName, settings);
     }
     async sendChatMessage(target, body, options) {
-      const peerAddr = target.handle || `${target.id}@p2p`;
+      const directAddress = target.handle || target.id;
+      const isExternalXmppDirect = target.type === "direct" && directAddress.includes("@") && !directAddress.toLowerCase().split("/")[0].endsWith("@p2p");
+      if (isExternalXmppDirect && options?.attachments?.some((attachment) => /^(?:upload|p2p-upload):\/\//i.test(attachment.url))) {
+        throw new Error("This file is stored on the P2P network and cannot be opened by a standard XMPP contact. Send a public HTTPS link instead.");
+      }
       let messageBody = body;
       if (options?.attachments && options.attachments.length > 0) {
-        const attachmentRefs = options.attachments.map((a2) => a2.url.startsWith("upload://") ? a2.url : `[${a2.alt}](${a2.url})`).join("\n");
+        const attachmentRefs = options.attachments.map((a2) => `${a2.kind === "image" ? "!" : ""}[${a2.alt.replace(/[\[\]\r\n]/g, " ")}](${a2.url})`).join("\n");
         if (messageBody) {
           messageBody += "\n" + attachmentRefs;
         } else {
           messageBody = attachmentRefs;
         }
       }
+      if (target.type === "group" || target.type === "muc") {
+        const roomJid = target.handle || target.id;
+        if (roomJid.includes("@") && !roomJid.toLowerCase().endsWith("@muc.p2p")) {
+          if (options?.attachments?.some((attachment) => /^(?:upload|p2p-upload):\/\//i.test(attachment.url))) {
+            throw new Error("This file is stored on the P2P network and cannot be opened by a standard XMPP room. Send a public HTTPS link instead.");
+          }
+          return this.xmppNode.sendServerMucMessage(roomJid, messageBody, {
+            originId: options?.originId,
+            thread: options?.thread,
+            replace: options?.replace,
+            reply: options?.reply
+          });
+        }
+        const roomName = target.id.replace(/@muc\.p2p$/, "");
+        const sendGroupMessage = target.encrypted ? this.xmppNode.muc.sendGroupMessageSecure.bind(this.xmppNode.muc) : this.xmppNode.muc.sendGroupMessage.bind(this.xmppNode.muc);
+        return sendGroupMessage(roomName, messageBody, options?.replace, options?.originId, options?.reply, options?.thread);
+      }
+      const peerAddr = target.peerAddress || target.handle || `${target.id}@p2p`;
+      if (target.encrypted) {
+        const peerJid = target.handle || `${target.id}@p2p`;
+        if (!peerJid.split("/")[0].toLowerCase().endsWith("@p2p")) {
+          throw new Error("OMEMO direct messaging is currently supported only for P2P contacts.");
+        }
+        return this.xmppNode.sendEncryptedMessage(peerAddr, messageBody, {
+          originId: options?.originId,
+          reply: options?.reply,
+          thread: options?.thread,
+          replace: options?.replace,
+          requestReceipt: true
+        });
+      }
       return this.xmppNode.sendMessage(peerAddr, messageBody, {
+        originId: options?.originId,
         reply: options?.reply,
         thread: options?.thread,
         replace: options?.replace,
-        requestReceipt: true
+        requestReceipt: true,
+        attachments: options?.attachments?.map((attachment) => ({ url: attachment.url, desc: attachment.alt }))
       });
     }
     async connectServer(jid2, password, service2) {
@@ -94432,8 +96097,8 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     async disconnectServer() {
       return this.xmppNode.disconnectServer();
     }
-    async registerServer(jid2, password, service2) {
-      return this.xmppNode.registerServer(jid2, password, service2);
+    async registerServer(jid2, password, service2, registrationFields) {
+      return this.xmppNode.registerServer(jid2, password, service2, registrationFields);
     }
     isServerConnected() {
       return this.xmppNode.isServerConnected();
@@ -94449,6 +96114,28 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       this.serverConnectionListeners.add(cb);
       return () => this.serverConnectionListeners.delete(cb);
     }
+    onServerRosterChange(cb) {
+      this.serverRosterListeners.add(cb);
+      return () => this.serverRosterListeners.delete(cb);
+    }
+    onServerPresenceSubscriptionRequest(cb) {
+      this.serverPresenceRequestListeners.add(cb);
+      for (const request of this.pendingServerPresenceRequests.values()) {
+        try {
+          cb(request);
+        } catch {
+        }
+      }
+      return () => this.serverPresenceRequestListeners.delete(cb);
+    }
+    async approveServerPresenceSubscription(jid2) {
+      await this.xmppNode.approveServerPresenceSubscription(jid2);
+      this.pendingServerPresenceRequests.delete(jid2.trim().split("/")[0].toLowerCase());
+    }
+    async denyServerPresenceSubscription(jid2) {
+      await this.xmppNode.denyServerPresenceSubscription(jid2);
+      this.pendingServerPresenceRequests.delete(jid2.trim().split("/")[0].toLowerCase());
+    }
     // ── Component/Federation methods ─────────────────────────────────────────
     // XEP-0114 TCP components are not available in the browser. These are
     // stubs that keep the bridge conformant with XmppRuntimeBridge.
@@ -94459,13 +96146,6 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     }
     isComponentConnected() {
       return false;
-    }
-    _federationEnabled = true;
-    setFederationEnabled(enabled) {
-      this._federationEnabled = enabled;
-    }
-    isFederationEnabled() {
-      return this._federationEnabled;
     }
     // ── Saved component configs ───────────────────────────────────────────────
     // Persisted in XmppNode's storage under a well-known namespace so configs
@@ -94532,21 +96212,50 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     getConnectedPeers() {
       return Array.from(this.activeConnections);
     }
+    getLocalJid() {
+      return this.xmppNode.jid;
+    }
+    getServerJid() {
+      return this.xmppNode.getServerJid();
+    }
+    getLocalPeerAddresses() {
+      return this.xmppNode.getLocalPeerAddresses();
+    }
     async disconnect() {
       this.messageListeners.clear();
       this.presenceListeners.clear();
       this.feedPostListeners.clear();
+      this.attachmentSummaryListeners.clear();
       this.connectionListeners.clear();
       this.serverConnectionListeners.clear();
+      this.serverRosterListeners.clear();
+      this.serverPresenceRequestListeners.clear();
+      this.pendingServerPresenceRequests.clear();
       this.mucMessageListeners.clear();
       this.mucJoinListeners.clear();
       this.mucLeaveListeners.clear();
+      this.mucErrorListeners.clear();
       this.mucChatStateListeners.clear();
       this.mucMarkerListeners.clear();
       this.activeConnections.clear();
-      await this.xmppNode.close();
+      try {
+        await this.xmppNode.close();
+      } finally {
+        try {
+          await this.stopNetwork();
+        } finally {
+          if (typeof window !== "undefined" && window.__XMPP_P2P_BRIDGE__ === this) {
+            delete window.__XMPP_P2P_BRIDGE__;
+            window.dispatchEvent(new Event("xmpp-p2p:bridge-disconnected"));
+          }
+        }
+      }
     }
-    async uploadFile(file, fileName, mimeType) {
+    async uploadFile(file, recipient, fileName, mimeType) {
+      const fileSize = file instanceof File ? file.size : file.byteLength;
+      if (fileSize > MAX_PEER_UPLOAD_BYTES) {
+        throw new Error("Attachments are limited to 50 MiB per file.");
+      }
       let data;
       let name5;
       let mime;
@@ -94560,9 +96269,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         name5 = fileName || "file";
         mime = mimeType || "application/octet-stream";
       }
-      const result = await this.xmppNode.storeFile(data, name5, mime);
+      const isExternalXmppRecipient = Boolean(recipient?.includes("@") && !recipient.toLowerCase().split("/")[0].endsWith("@p2p"));
+      const url = isExternalXmppRecipient ? await this.xmppNode.uploadFileToServer(data, name5, mime) : (await this.xmppNode.storeFile(data, name5, mime)).url;
       const kind = mime.startsWith("image/") ? "image" : "file";
-      return { url: result.url, alt: name5, kind };
+      return { url, alt: name5, kind };
     }
     async getOmemoFingerprint() {
       try {
@@ -94595,17 +96305,59 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       const cid = match[1];
       const blob = await this.xmppNode.storage.getBlob("uploads", cid);
       if (!blob) return void 0;
-      const mimeType = "application/octet-stream";
+      let mimeType = "application/octet-stream";
+      try {
+        const rawMetadata = await this.xmppNode.storage.getRecord("uploads_meta", cid);
+        const metadata = rawMetadata ? JSON.parse(rawMetadata) : void 0;
+        if (metadata?.contentType) mimeType = metadata.contentType;
+      } catch {
+      }
       return URL.createObjectURL(new Blob([blob], { type: mimeType }));
     }
   };
 
   // src/browser-index.ts
+  function storageMarkerKey(dbName, marker) {
+    return `${dbName}:${marker}`;
+  }
+  function readStorageMarker(key) {
+    try {
+      return typeof localStorage === "undefined" ? null : localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  }
+  function writeStorageMarker(key, value2) {
+    try {
+      if (typeof localStorage !== "undefined") localStorage.setItem(key, value2);
+    } catch {
+    }
+  }
+  async function keyFromRecoveryPhrase(words) {
+    if (words.length !== 12 || words.some((word) => !word.trim())) {
+      throw new Error("A valid 12-word recovery phrase is required");
+    }
+    const phraseBytes = new TextEncoder().encode(words.map((word) => word.trim().toLowerCase()).join(" "));
+    const material = await crypto.subtle.importKey("raw", phraseBytes, "PBKDF2", false, ["deriveBits"]);
+    const seed = new Uint8Array(await crypto.subtle.deriveBits({
+      name: "PBKDF2",
+      hash: "SHA-256",
+      salt: new TextEncoder().encode("xmpp-p2p:identity-key:v1"),
+      iterations: 31e4
+    }, material, 256));
+    try {
+      return await generateKeyPairFromSeed("Ed25519", seed);
+    } finally {
+      seed.fill(0);
+      phraseBytes.fill(0);
+    }
+  }
   async function createBrowserXmppClient(options) {
-    const innerStorage = new IndexedDbStorage(options.dbName ?? "xmpp-p2p");
-    let storage2 = innerStorage;
+    const dbName = options.dbName ?? "xmpp-p2p";
+    const legacyStorage = new IndexedDbStorage(dbName);
+    let legacyRecords = legacyStorage;
     if (options.passphrase) {
-      const encrypted = new EncryptedStorage(innerStorage);
+      const encrypted = new EncryptedStorage(legacyStorage);
       const isEncrypted = await encrypted.isStorageEncrypted();
       if (!isEncrypted) {
         await encrypted.initialize(options.passphrase);
@@ -94616,21 +96368,89 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         }
         await encrypted.initialize(options.passphrase);
       }
-      storage2 = encrypted;
+      legacyRecords = encrypted;
     }
-    const libp2p = await createBrowserP2PNode({ bootstrapAddrs: options.bootstrapAddrs });
-    await libp2p.start();
-    const nodeOptions = {
-      nickname: options.nickname,
-      omemoModuleLoader: loadOmemoModule2
-    };
-    const xmppNode = new XmppNode(libp2p, storage2, nodeOptions);
-    await xmppNode.ready;
-    const bridge = new BrowserXmppRuntimeBridge(xmppNode);
-    if (typeof window !== "undefined") {
-      window.__XMPP_P2P_BRIDGE__ = bridge;
+    const activePeerMarker = storageMarkerKey(dbName, "active-peer-id");
+    const legacyOwnerMarker = storageMarkerKey(dbName, "legacy-owner-peer-id");
+    const activePeerId = options.passphrase || options.recoveryPhrase?.length ? null : readStorageMarker(activePeerMarker);
+    const activeStorage = activePeerId ? new IndexedDbStorage(`${dbName}:account:${activePeerId}`) : void 0;
+    const savedKey = activeStorage ? await activeStorage.getRecord("libp2p", "private-key") : await legacyRecords.getRecord("libp2p", "private-key");
+    if (activePeerId && !savedKey && !options.recoveryPhrase?.length) {
+      throw new Error("This browser is missing the saved identity key. Import the recovery phrase to restore this identity.");
     }
-    return { libp2p, xmppNode, bridge };
+    const privateKey = options.recoveryPhrase?.length ? await keyFromRecoveryPhrase(options.recoveryPhrase) : savedKey ? privateKeyFromProtobuf(import_buffer3.Buffer.from(savedKey, "base64")) : await generateKeyPair("Ed25519");
+    const peerId = peerIdFromPrivateKey(privateKey).toString();
+    if (activePeerId && activePeerId !== peerId) {
+      throw new Error("The saved browser identity key does not match the active profile. Import the matching recovery phrase.");
+    }
+    let storage2 = legacyRecords;
+    if (!options.passphrase) {
+      const accountStorage = activeStorage ?? new IndexedDbStorage(`${dbName}:account:${peerId}`);
+      let accountKey = await accountStorage.getRecord("libp2p", "private-key");
+      if (!accountKey) {
+        const legacyKey = await legacyStorage.getRecord("libp2p", "private-key");
+        const legacyPeerId = legacyKey ? peerIdFromPrivateKey(privateKeyFromProtobuf(import_buffer3.Buffer.from(legacyKey, "base64"))).toString() : void 0;
+        let legacyOwner = readStorageMarker(legacyOwnerMarker);
+        if (legacyOwner === null) {
+          legacyOwner = legacyPeerId ?? peerId;
+          writeStorageMarker(legacyOwnerMarker, legacyOwner);
+        }
+        if (legacyOwner === peerId && (!legacyPeerId || legacyPeerId === peerId)) {
+          await legacyStorage.copyAllTo(accountStorage);
+          accountKey = await accountStorage.getRecord("libp2p", "private-key");
+        }
+      }
+      if (accountKey) {
+        const storedPeerId = peerIdFromPrivateKey(privateKeyFromProtobuf(import_buffer3.Buffer.from(accountKey, "base64"))).toString();
+        if (storedPeerId !== peerId) throw new Error("Stored browser data belongs to a different identity.");
+      } else {
+        await accountStorage.putRecord(
+          "libp2p",
+          "private-key",
+          import_buffer3.Buffer.from(privateKeyToProtobuf(privateKey)).toString("base64"),
+          (/* @__PURE__ */ new Date()).toISOString()
+        );
+      }
+      writeStorageMarker(activePeerMarker, peerId);
+      storage2 = accountStorage;
+    } else if (!savedKey || options.recoveryPhrase?.length) {
+      await legacyRecords.putRecord(
+        "libp2p",
+        "private-key",
+        import_buffer3.Buffer.from(privateKeyToProtobuf(privateKey)).toString("base64"),
+        (/* @__PURE__ */ new Date()).toISOString()
+      );
+    }
+    const libp2p = await createBrowserP2PNode({ bootstrapAddrs: options.bootstrapAddrs, privateKey });
+    let xmppNode;
+    try {
+      await libp2p.start();
+      const nodeOptions = {
+        nickname: options.nickname,
+        omemoModuleLoader: loadOmemoModule2,
+        httpUploadServer: false
+      };
+      xmppNode = new XmppNode(libp2p, storage2, nodeOptions);
+      await xmppNode.ready;
+      const bridge = new BrowserXmppRuntimeBridge(xmppNode, async () => {
+        await libp2p.stop();
+      });
+      if (typeof window !== "undefined") {
+        window.__XMPP_P2P_BRIDGE__ = bridge;
+        window.dispatchEvent(new Event("xmpp-p2p:bridge-ready"));
+      }
+      return { libp2p, xmppNode, bridge };
+    } catch (error) {
+      if (xmppNode) {
+        await Promise.resolve(xmppNode.clientBridge.disconnect()).catch(() => {
+        });
+        await xmppNode.muc.close().catch(() => {
+        });
+      }
+      await Promise.resolve(libp2p.stop()).catch(() => {
+      });
+      throw error;
+    }
   }
 
   // src/tests/browser/fixture-bundle-entry.ts

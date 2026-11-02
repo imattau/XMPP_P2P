@@ -3,11 +3,12 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import {
   ArrowLeft, Heart, MessageCircle, Repeat2, Share2,
-  Bookmark, Hash, Users, Globe, Lock, Shield, MoreHorizontal,
-  Zap, Image, Smile, AtSign, Send, ChevronDown, Check, X,
+  Bookmark, Hash, Users, Globe, Lock, Shield, Copy,
+  Zap, Image, Smile, AtSign, Send, ChevronDown, Check, X, UserPlus, UserMinus,
 } from 'lucide-react'
-import { getBrowserXmppBridge } from '../bridge/runtime'
+import { getBrowserXmppBridge, useBrowserXmppBridge } from '../bridge/runtime'
 import { useFeedBridge } from '../bridge/feed/useFeedBridge'
+import { useIdentityBridge } from '../bridge/identity/useIdentityBridge'
 import { emitToast } from '../lib/toast-events'
 
 interface Author {
@@ -25,6 +26,7 @@ interface Reply {
   timestamp: string
   likes: number
   liked?: boolean
+  reposted?: boolean
   replies?: Reply[]
   depth?: number
 }
@@ -51,120 +53,14 @@ interface Post {
   sourceTopic?: string
 }
 
-const POSTS: Record<string, Post> = {
-  '1': {
-    id: '1',
-    author: { name: 'Maren Holdt', handle: 'maren', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=64&h=64&fit=crop&auto=format', verified: true, server: 'social.coop' },
-    content: 'The decentralized web is finally catching up to the UX expectations users have from centralized platforms. XMPP has been quietly powering this transition for years - it just never got the credit.\n\nThe protocol is mature, battle-tested, and extensible. What it lacked was a coherent product story. That\'s changing.',
-    timestamp: '2m', fullDate: '10:14 AM · Jun 19, 2026',
-    topic: 'DecentralWeb', topicColor: '#3b82f6',
-    likes: 284, comments: 31, reposts: 47, views: 8420,
-    liked: true, privacy: 'public',
-  },
-  '3': {
-    id: '3',
-    author: { name: 'Elif Şahin', handle: 'elif_dev', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=64&h=64&fit=crop&auto=format', server: 'mastodon.social' },
-    content: 'Hot take: the problem with federated social networks isn\'t tech, it\'s onboarding. Most people don\'t understand why they\'d choose a server. We need to abstract that entirely.\n\nThe server choice question should be opt-in for power users, not the default first interaction.',
-    timestamp: '38m', fullDate: '9:38 AM · Jun 19, 2026',
-    likes: 1420, comments: 203, reposts: 311, views: 42100,
-    bookmarked: true, privacy: 'public',
-  },
-  '7': {
-    id: '7',
-    author: { name: 'Yuki Tanaka', handle: 'yukitan', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=64&h=64&fit=crop&auto=format', server: 'infosec.exchange' },
-    content: 'End-to-end encryption in XMPP with OMEMO is underrated. Signal-level security, open protocol, no phone number required. Why aren\'t more people talking about this?\n\nOMEMO uses the Double Ratchet algorithm - the same one Signal uses. Your server literally cannot read your messages.',
-    timestamp: '4h', fullDate: '6:12 AM · Jun 19, 2026',
-    topic: 'Privacy', topicColor: '#a855f7',
-    likes: 2103, comments: 147, reposts: 489, views: 61800,
-    liked: true, bookmarked: true, privacy: 'public',
-  },
-}
-
-const REPLIES: Record<string, Reply[]> = {
-  '1': [
-    {
-      id: 'r1', depth: 0,
-      author: { name: 'Felix Bergström', handle: 'felixb', avatar: 'https://images.unsplash.com/photo-1463453091185-61582044d556?w=48&h=48&fit=crop&auto=format', server: 'chaos.social' },
-      content: 'Completely agree. The UX gap was always the biggest barrier, not the protocol itself. Prosody + a good client is already competitive with most commercial options.',
-      timestamp: '1m', likes: 34, liked: false,
-      replies: [
-        {
-          id: 'r1a', depth: 1,
-          author: { name: 'Maren Holdt', handle: 'maren', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=48&h=48&fit=crop&auto=format', verified: true, server: 'social.coop' },
-          content: 'Exactly - and Prosody\'s plugin ecosystem has matured massively in the last two years. mod_http_upload, MAM, push - it\'s all there.',
-          timestamp: 'just now', likes: 12, liked: true,
-        },
-      ],
-    },
-    {
-      id: 'r2', depth: 0,
-      author: { name: 'Kaspar Vold', handle: 'kvold', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=48&h=48&fit=crop&auto=format', verified: true, server: 'fosstodon.org' },
-      content: 'The RFC for push notifications is going to be a significant inflection point. Once mobile battery issues are solved properly, the last real objection disappears.',
-      timestamp: '1m', likes: 18,
-    },
-    {
-      id: 'r3', depth: 0,
-      author: { name: 'Amara Diallo', handle: 'amara_d', avatar: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=48&h=48&fit=crop&auto=format', server: 'blacktwitter.io' },
-      content: 'What clients are people actually recommending these days? I\'ve been on Conversations for Android but curious if something better has landed.',
-      timestamp: '2m', likes: 7,
-      replies: [
-        {
-          id: 'r3a', depth: 1,
-          author: { name: 'Ingrid Larsen', handle: 'ingridl', avatar: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=48&h=48&fit=crop&auto=format', server: 'sigmoid.social' },
-          content: 'Monal on iOS has been solid. Conversations is still king on Android imo. Dino on desktop if you\'re on Linux.',
-          timestamp: '1m', likes: 11,
-        },
-        {
-          id: 'r3b', depth: 1,
-          author: { name: 'Theo Nakashima', handle: 'theo_n', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=48&h=48&fit=crop&auto=format', server: 'hachyderm.io' },
-          content: 'Been building one actually. Go backend, React Native frontend. OMEMO from day one. Should have a beta in Q3.',
-          timestamp: 'just now', likes: 29, liked: true,
-        },
-      ],
-    },
-    {
-      id: 'r4', depth: 0,
-      author: { name: 'Yuki Tanaka', handle: 'yukitan', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=48&h=48&fit=crop&auto=format', server: 'infosec.exchange' },
-      content: 'The credit gap is partially a marketing problem. ActivityPub got Mastodon, XMPP never had a flagship product. That\'s what\'s missing - a reference implementation people actually want to use.',
-      timestamp: '3m', likes: 44,
-    },
-  ],
-  '3': [
-    {
-      id: 'r5', depth: 0,
-      author: { name: 'Felix Bergström', handle: 'felixb', avatar: 'https://images.unsplash.com/photo-1463453091185-61582044d556?w=48&h=48&fit=crop&auto=format', server: 'chaos.social' },
-      content: 'This is exactly why I moved everything to self-hosted. Once you stop thinking about which server and just pick one, it clicks immediately.',
-      timestamp: '30m', likes: 88, liked: true,
-    },
-    {
-      id: 'r6', depth: 0,
-      author: { name: 'Kaspar Vold', handle: 'kvold', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=48&h=48&fit=crop&auto=format', verified: true, server: 'fosstodon.org' },
-      content: 'The "pick a server" step is genuinely confusing. Even technical people second-guess themselves. A curated default with migration support would fix 80% of this.',
-      timestamp: '25m', likes: 203,
-      replies: [
-        {
-          id: 'r6a', depth: 1,
-          author: { name: 'Elif Şahin', handle: 'elif_dev', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=48&h=48&fit=crop&auto=format', server: 'mastodon.social' },
-          content: 'Exactly what I mean - migration support is the key. You should be able to move your account without losing your social graph.',
-          timestamp: '20m', likes: 67, liked: true,
-        },
-      ],
-    },
-  ],
-  '7': [
-    {
-      id: 'r7', depth: 0,
-      author: { name: 'Maren Holdt', handle: 'maren', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=48&h=48&fit=crop&auto=format', verified: true, server: 'social.coop' },
-      content: 'I\'ve been running OMEMO for two years. The UX in Conversations is actually really smooth - it just works. No key management headaches for end users.',
-      timestamp: '3h', likes: 156, liked: true,
-    },
-    {
-      id: 'r8', depth: 0,
-      author: { name: 'Kaspar Vold', handle: 'kvold', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=48&h=48&fit=crop&auto=format', verified: true, server: 'fosstodon.org' },
-      content: 'The Double Ratchet detail matters. People compare OMEMO to PGP but that\'s wrong - it\'s fundamentally different. Forward secrecy, break-in recovery. The security model is far superior to anything email-based.',
-      timestamp: '2h', likes: 89,
-    },
-  ],
+async function copyPostLink(postId: string) {
+  try {
+    const url = new URL(`/post/${encodeURIComponent(postId)}`, window.location.origin).toString()
+    await navigator.clipboard.writeText(url)
+    emitToast('Post link copied', 'success')
+  } catch {
+    emitToast('Could not copy the post link', 'error')
+  }
 }
 
 function formatNum(n: number) {
@@ -178,7 +74,7 @@ function PrivacyIcon({ privacy }: { privacy?: string }) {
   return <Globe size={11} className="text-muted-foreground" />
 }
 
-function ReplyThread({ reply, onLike, onReplySubmit }: { reply: Reply; onLike: (id: string) => void; onReplySubmit: (id: string, text: string, depth: number) => void }) {
+function ReplyThread({ reply, onLike, onRepost, onReplySubmit }: { reply: Reply; onLike: (id: string) => void; onRepost: (id: string) => void; onReplySubmit: (id: string, text: string, depth: number) => Promise<boolean> }) {
   const [collapsed, setCollapsed] = useState(false)
   const [isReplying, setIsReplying] = useState(false)
   const [localReplyText, setLocalReplyText] = useState('')
@@ -187,7 +83,7 @@ function ReplyThread({ reply, onLike, onReplySubmit }: { reply: Reply; onLike: (
 
   return (
     <div className={`${isNested ? 'ml-8 border-l-2 border-border pl-3' : ''}`}>
-      <div className="flex gap-2.5 py-3 px-4 hover:bg-white/[0.02] transition-colors cursor-pointer">
+      <div className="flex gap-2.5 py-3 px-4">
         <div className="flex-shrink-0 flex flex-col items-center gap-0 relative">
           <div className="w-8 h-8 rounded-full overflow-hidden bg-secondary border border-border flex-shrink-0">
             <img src={reply.author.avatar} alt={reply.author.name} className="w-full h-full object-cover" />
@@ -204,28 +100,28 @@ function ReplyThread({ reply, onLike, onReplySubmit }: { reply: Reply; onLike: (
             <span className="font-mono text-[11px] text-muted-foreground">@{reply.author.handle}</span>
             <span className="text-muted-foreground/40 text-xs">·</span>
             <span className="font-mono text-[11px] text-muted-foreground">{reply.timestamp}</span>
-            <button onClick={() => navigator.clipboard.writeText(window.location.origin + '/post/' + reply.id)}
+            <button onClick={() => { void copyPostLink(reply.id) }}
               className="ml-auto text-muted-foreground hover:text-foreground transition-colors" title="Copy link">
-              <MoreHorizontal size={13} />
+              <Copy size={13} />
             </button>
           </div>
 
           <p className="text-[13px] text-foreground/90 leading-relaxed mb-2">{reply.content}</p>
 
           <div className="flex items-center gap-4 -ml-1">
-            <button onClick={() => setIsReplying(!isReplying)} className="flex items-center gap-1 px-1 py-0.5 rounded text-muted-foreground hover:text-blue-400 hover:bg-blue-400/10 transition-all">
+            <button onClick={() => setIsReplying(!isReplying)} aria-label={isReplying ? 'Cancel reply' : `Reply to @${reply.author.handle}`} className="flex items-center gap-1 px-1 py-0.5 rounded text-muted-foreground hover:text-interaction hover:bg-interaction/10 transition-all">
               <MessageCircle size={13} />
               {hasChildren && <span className="font-mono text-[10px]">{reply.replies!.length}</span>}
             </button>
-            <button onClick={() => emitToast('Reply reposted', 'success')} className="flex items-center gap-1 px-1 py-0.5 rounded text-muted-foreground hover:text-emerald-400 hover:bg-emerald-400/10 transition-all">
+            <button onClick={() => onRepost(reply.id)} disabled={reply.reposted} aria-label={reply.reposted ? 'Reply reposted' : 'Repost reply'} className={`flex items-center gap-1 px-1 py-0.5 rounded transition-all disabled:cursor-default ${reply.reposted ? 'text-success' : 'text-muted-foreground hover:text-success hover:bg-success/10'}`}>
               <Repeat2 size={13} />
             </button>
-            <button onClick={() => onLike(reply.id)}
-              className={`flex items-center gap-1 px-1 py-0.5 rounded transition-all ${reply.liked ? 'text-rose-400' : 'text-muted-foreground hover:text-rose-400 hover:bg-rose-400/10'}`}>
+            <button onClick={() => onLike(reply.id)} disabled={reply.liked} aria-label={reply.liked ? 'Reply liked' : 'Like reply'}
+              className={`flex items-center gap-1 px-1 py-0.5 rounded transition-all ${reply.liked ? 'text-liked' : 'text-muted-foreground hover:text-liked hover:bg-liked/10'}`}>
               <Heart size={13} fill={reply.liked ? 'currentColor' : 'none'} />
               {reply.likes > 0 && <span className="font-mono text-[10px]">{formatNum(reply.likes)}</span>}
             </button>
-            <button onClick={() => navigator.clipboard.writeText(window.location.origin + '/post/' + reply.id)}
+            <button onClick={() => { void copyPostLink(reply.id) }} aria-label="Share reply"
               className="flex items-center gap-1 px-1 py-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-white/5 transition-all">
               <Share2 size={12} />
             </button>
@@ -238,6 +134,7 @@ function ReplyThread({ reply, onLike, onReplySubmit }: { reply: Reply; onLike: (
           <div className="flex-1 min-w-0">
             <textarea
               autoFocus
+              aria-label={`Reply to @${reply.author.handle}`}
               value={localReplyText}
               onChange={(e) => setLocalReplyText(e.target.value)}
               placeholder={`Reply to @${reply.author.handle}…`}
@@ -255,14 +152,13 @@ function ReplyThread({ reply, onLike, onReplySubmit }: { reply: Reply; onLike: (
                 Cancel
               </button>
               <button 
-                onClick={() => {
-                  if (localReplyText.trim()) {
-                    onReplySubmit(reply.id, localReplyText.trim(), reply.depth ?? 0)
+                onClick={async () => {
+                  if (localReplyText.trim() && await onReplySubmit(reply.id, localReplyText.trim(), reply.depth ?? 0)) {
                     setIsReplying(false)
                     setLocalReplyText('')
                   }
                 }}
-                className="px-2.5 py-1 bg-primary text-white text-[11px] font-semibold rounded hover:bg-primary/90 transition-colors"
+                className="px-2.5 py-1 bg-primary text-primary-foreground text-[11px] font-semibold rounded hover:bg-primary/90 transition-colors"
               >
                 Reply
               </button>
@@ -274,7 +170,7 @@ function ReplyThread({ reply, onLike, onReplySubmit }: { reply: Reply; onLike: (
       {hasChildren && !collapsed && (
         <div>
           {reply.replies!.map((child) => (
-            <ReplyThread key={child.id} reply={{ ...child, depth: (reply.depth ?? 0) + 1 }} onLike={onLike} onReplySubmit={onReplySubmit} />
+            <ReplyThread key={child.id} reply={{ ...child, depth: (reply.depth ?? 0) + 1 }} onLike={onLike} onRepost={onRepost} onReplySubmit={onReplySubmit} />
           ))}
         </div>
       )}
@@ -293,55 +189,126 @@ function ReplyThread({ reply, onLike, onReplySubmit }: { reply: Reply; onLike: (
 export default function PostPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { posts: feedPosts, likePost, bookmarkPost, repostPost } = useFeedBridge()
-
-  const [bridgePost, setBridgePost] = useState<Post | null>(null)
-
-  useEffect(() => {
-    if (!id) return
-    if (feedPosts.length > 0) {
-      const fp = feedPosts.find((p) => p.id === id)
-      if (fp) {
-        setBridgePost({
-          id: fp.id,
-          author: { name: fp.author.name, handle: fp.author.handle, avatar: fp.author.avatar, server: fp.author.server || '' },
-          content: fp.content,
-          timestamp: fp.timestamp,
-          fullDate: fp.timestamp,
-          likes: fp.likes,
-          comments: fp.comments,
-          reposts: fp.reposts,
-          views: 0,
-          liked: fp.liked,
-          bookmarked: fp.bookmarked,
-          reposted: fp.reposted,
-          topic: fp.topic,
-          topicColor: fp.topicColor || '#3b82f6',
-          privacy: fp.privacy,
-          sourceTopic: fp.sourceTopic,
-        })
-      }
+  const runtime = useBrowserXmppBridge()
+  const { identity } = useIdentityBridge()
+  const userInitial = identity?.displayName?.trim().charAt(0).toUpperCase() || 'Y'
+  const { posts: feedPosts, loading, loadError, likePost, bookmarkPost, repostPost, refresh } = useFeedBridge()
+  const bridgePost = React.useMemo<Post | null>(() => {
+    const fp = feedPosts.find((entry) => entry.id === id)
+    if (!fp) return null
+    return {
+      id: fp.id,
+      author: { name: fp.author.name, handle: fp.author.handle, avatar: fp.author.avatar, server: fp.author.server || '', verified: fp.author.verified },
+      content: fp.content,
+      timestamp: fp.timestamp,
+      fullDate: fp.timestamp,
+      likes: fp.likes,
+      comments: fp.comments,
+      reposts: fp.reposts,
+      views: 0,
+      liked: fp.liked,
+      bookmarked: fp.bookmarked,
+      reposted: fp.reposted,
+      topic: fp.topic,
+      topicColor: fp.topicColor || '#3b82f6',
+      privacy: fp.privacy,
+      sourceTopic: fp.sourceTopic,
     }
   }, [id, feedPosts])
 
-  const post = bridgePost ?? POSTS[id ?? ''] ?? POSTS['1']
+  const post: Post = bridgePost ?? {
+    id: id ?? '',
+    author: { name: '', handle: '', avatar: '', server: '' },
+    content: '',
+    timestamp: '',
+    fullDate: '',
+    likes: 0,
+    comments: 0,
+    reposts: 0,
+    views: 0,
+  }
   const [liked, setLiked] = useState(post.liked ?? false)
   const [likes, setLikes] = useState(post.likes)
   const [reposts, setReposts] = useState(post.reposts)
   const [reposted, setReposted] = useState(post.reposted ?? false)
   const [bookmarked, setBookmarked] = useState(post.bookmarked ?? false)
   const [replyText, setReplyText] = useState('')
-  // Feed replies are not persisted or transported by the current runtime.
-  // Never populate this from the static demo fixtures: doing so makes replies
-  // appear to come from the network and can attach post 1's replies to any
-  // unknown post.
+  const [submittingReply, setSubmittingReply] = useState(false)
+  const [followingAuthor, setFollowingAuthor] = useState(false)
+  const [changingFollow, setChangingFollow] = useState(false)
+  const replyTextareaRef = React.useRef<HTMLTextAreaElement>(null)
+  // Replies are populated from feed records after the current post is resolved.
+  // Start empty so demo fixtures can never be mistaken for live replies.
   const [replies, setReplies] = useState<Reply[]>([])
+
+  const authorPeerId = bridgePost?.author.handle
+  const authorPeerJid = authorPeerId ? `${authorPeerId}@p2p` : ''
+  const canFollowAuthor = Boolean(bridgePost && authorPeerId && bridgePost.author.server.toLowerCase() === 'p2p'
+    && authorPeerJid !== runtime?.getLocalJid?.())
+
+  useEffect(() => {
+    let active = true
+    setFollowingAuthor(false)
+    if (!runtime || !canFollowAuthor || !authorPeerId) return () => { active = false }
+    void runtime.getFeedSubscriptions().then((subscriptions) => {
+      if (active) setFollowingAuthor(subscriptions.some((subscription) => subscription.peerId === authorPeerId))
+    }).catch(() => {})
+    return () => { active = false }
+  }, [runtime, canFollowAuthor, authorPeerId])
+
+  const toggleFollowAuthor = async () => {
+    if (!runtime || !canFollowAuthor || !authorPeerJid || changingFollow) return
+    setChangingFollow(true)
+    try {
+      if (followingAuthor) {
+        await runtime.unsubscribeFeed(authorPeerJid)
+        setFollowingAuthor(false)
+        emitToast(`Unfollowed @${authorPeerId}`, 'success')
+      } else {
+        await runtime.subscribeFeed(authorPeerJid)
+        setFollowingAuthor(true)
+        emitToast(`Following @${authorPeerId}; new posts will appear in your feed`, 'success')
+      }
+    } catch (error) {
+      void runtime.getFeedSubscriptions().then((subscriptions) => {
+        setFollowingAuthor(subscriptions.some((subscription) => subscription.peerId === authorPeerId))
+      }).catch(() => {})
+      emitToast(error instanceof Error ? error.message : 'Could not update feed subscription', 'error')
+    } finally {
+      setChangingFollow(false)
+    }
+  }
+
+  const insertReplyText = (inserted: string) => {
+    const textarea = replyTextareaRef.current
+    if (!textarea) return
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const next = `${replyText.slice(0, start)}${inserted}${replyText.slice(end)}`.slice(0, 500)
+    const nextCursor = Math.min(start + inserted.length, next.length)
+    setReplyText(next)
+    requestAnimationFrame(() => {
+      textarea.focus()
+      textarea.setSelectionRange(nextCursor, nextCursor)
+    })
+  }
 
   useEffect(() => {
     if (!bridgePost) return
-    setReplies(feedPosts
-      .filter((feedPost) => feedPost.replyTo === bridgePost.id)
-      .map((feedPost) => ({
+    setLiked(bridgePost.liked ?? false)
+    setLikes(bridgePost.likes)
+    setReposts(bridgePost.reposts)
+    setReposted(bridgePost.reposted ?? false)
+    setBookmarked(bridgePost.bookmarked ?? false)
+  }, [bridgePost])
+
+  useEffect(() => {
+    if (!bridgePost) return
+    const toReply = (parentId: string, visited = new Set<string>()): Reply[] => feedPosts
+      .filter((feedPost) => feedPost.replyTo === parentId && !visited.has(feedPost.id))
+      .map((feedPost) => {
+        const nextVisited = new Set(visited).add(feedPost.id)
+        return {
         id: feedPost.id,
         author: {
           name: feedPost.author.name,
@@ -353,22 +320,42 @@ export default function PostPage() {
         content: feedPost.content,
         timestamp: feedPost.timestamp,
         likes: feedPost.likes,
-      })))
+        liked: feedPost.liked,
+        reposted: feedPost.reposted,
+        replies: toReply(feedPost.id, nextVisited),
+      }})
+    setReplies(toReply(bridgePost.id))
   }, [bridgePost, feedPosts])
 
-  const handleLikeReply = (replyId: string) => {
+  const handleLikeReply = async (replyId: string) => {
+    if (!(await likePost(replyId))) return
     const toggle = (list: Reply[]): Reply[] =>
       list.map((r) => {
-        if (r.id === replyId) return { ...r, liked: !r.liked, likes: r.liked ? r.likes - 1 : r.likes + 1 }
+        if (r.id === replyId) return { ...r, liked: true, likes: r.likes + 1 }
         if (r.replies) return { ...r, replies: toggle(r.replies) }
         return r
       })
     setReplies((prev) => toggle(prev))
   }
 
+  const handleRepostReply = async (replyId: string) => {
+    if (!(await repostPost(replyId))) return
+    const mark = (list: Reply[]): Reply[] => list.map((reply) => reply.id === replyId
+      ? { ...reply, reposted: true }
+      : { ...reply, replies: reply.replies ? mark(reply.replies) : undefined })
+    setReplies((prev) => mark(prev))
+    emitToast('Reply reposted', 'success')
+  }
+
   const handleSubmitReply = async () => {
-    if (!replyText.trim()) return
+    if (!replyText.trim() || submittingReply) return
+    setSubmittingReply(true)
     const runtime = getBrowserXmppBridge()
+    if (!runtime || !bridgePost?.sourceTopic) {
+      emitToast('Connect to the peer network to reply to this post', 'error')
+      setSubmittingReply(false)
+      return
+    }
     if (runtime && bridgePost) {
       const replyBody = replyText.trim()
       const authorServer = bridgePost.author.server.trim()
@@ -413,53 +400,60 @@ export default function PostPage() {
           throw deliveryError ?? new Error('No reply transport is available')
         }
         setReplyText('')
+        emitToast('Reply published', 'success')
+        await refresh()
       } catch (err) {
         emitToast(err instanceof Error ? err.message : 'Failed to publish reply', 'error')
+      } finally {
+        setSubmittingReply(false)
       }
       return
     }
-    const newReply: Reply = {
-      id: `new-${Date.now()}`, depth: 0,
-      author: { name: 'You', handle: 'you', avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=48&h=48&fit=crop&auto=format', verified: true, server: 'jabber.de' },
-      content: replyText.trim(),
-      timestamp: 'just now', likes: 0,
-    }
-    setReplies((prev) => [newReply, ...prev])
-    setReplyText('')
   }
 
-  const handleSubmitNestedReply = (targetId: string, text: string, targetDepth: number) => {
-    const newReply: Reply = {
-      id: `new-${Date.now()}`,
-      depth: targetDepth + 1,
-      author: { name: 'You', handle: 'you', avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=48&h=48&fit=crop&auto=format', verified: true, server: 'jabber.de' },
-      content: text,
-      timestamp: 'just now', likes: 0,
+  const handleSubmitNestedReply = async (targetId: string, text: string): Promise<boolean> => {
+    const runtime = getBrowserXmppBridge()
+    if (!runtime || !bridgePost?.sourceTopic) {
+      emitToast('Connect to the peer network to reply', 'error')
+      return false
     }
-    const insertNested = (list: Reply[]): Reply[] =>
-      list.map((r) => {
-        if (r.id === targetId) {
-          return { ...r, replies: [newReply, ...(r.replies ?? [])] }
-        }
-        if (r.replies) {
-          return { ...r, replies: insertNested(r.replies) }
-        }
-        return r
-      })
-    setReplies((prev) => insertNested(prev))
+    try {
+      await runtime.publishFeed(text, { topic: bridgePost.sourceTopic, replyTo: targetId })
+      emitToast('Reply published', 'success')
+      await refresh()
+      return true
+    } catch (error) {
+      emitToast(error instanceof Error ? error.message : 'Could not publish your reply', 'error')
+      return false
+    }
   }
 
-  const handleRepost = () => {
-    setReposted((v) => !v)
-    setReposts((count) => reposted ? count - 1 : count + 1)
+  const handleLike = async () => {
+    if (liked || !bridgePost) return
+    if (await likePost(post.id)) {
+      setLiked(true)
+      setLikes((count) => count + 1)
+    }
+  }
+
+  const handleRepost = async () => {
+    if (reposted || !bridgePost) return
+    if (await repostPost(post.id)) {
+      setReposted(true)
+      setReposts((count) => count + 1)
+    }
   }
 
   const handleShare = async () => {
     const url = window.location.href
-    if (navigator.share) {
-      await navigator.share({ title: post.author.name, text: post.content, url }).catch(() => {})
-    } else {
-      await navigator.clipboard.writeText(url)
+    try {
+      if (navigator.share) await navigator.share({ title: post.author.name, text: post.content, url })
+      else {
+        await navigator.clipboard.writeText(url)
+        emitToast('Post link copied', 'success')
+      }
+    } catch (error) {
+      if (!(error instanceof Error && error.name === 'AbortError')) emitToast('Could not share this post', 'error')
     }
   }
 
@@ -469,10 +463,35 @@ export default function PostPage() {
     el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }
 
+  if (!id || !bridgePost) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
+        {loading ? <div role="status" className="text-sm text-muted-foreground">Loading post…</div> : loadError ? (
+          <>
+            <p role="alert" className="max-w-sm text-sm text-destructive">Could not load this post: {loadError}</p>
+            <button type="button" onClick={() => void refresh()} className="rounded-lg bg-secondary px-3 py-2 text-xs font-medium text-foreground hover:bg-secondary/70">Try again</button>
+          </>
+        ) : !getBrowserXmppBridge() ? (
+          <>
+            <p className="text-sm font-medium text-foreground">The peer network is unavailable</p>
+            <p className="max-w-xs text-xs text-muted-foreground">Reconnect to the peer network to open this post.</p>
+            <button type="button" onClick={() => navigate('/settings')} className="rounded-lg bg-secondary px-3 py-2 text-xs font-medium text-foreground hover:bg-secondary/70">Open Settings</button>
+          </>
+        ) : (
+          <>
+            <p className="text-sm font-medium text-foreground">Post not found</p>
+            <p className="max-w-xs text-xs text-muted-foreground">This post is not in your feed or is no longer available.</p>
+            <button type="button" onClick={() => navigate('/')} className="rounded-lg bg-secondary px-3 py-2 text-xs font-medium text-foreground hover:bg-secondary/70">Go to feed</button>
+          </>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
       <header className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border flex-shrink-0 flex items-center gap-3 px-4 py-2.5">
-        <button onClick={() => navigate(-1)} className="p-1.5 -ml-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
+        <button onClick={() => navigate(-1)} aria-label="Go back" className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
           <ArrowLeft size={18} />
         </button>
         <span className="font-semibold text-sm">Post</span>
@@ -485,7 +504,7 @@ export default function PostPage() {
               <img src={post.author.avatar} alt={post.author.name} className="w-full h-full object-cover" />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5">
                 <span className="font-semibold text-sm text-foreground">{post.author.name}</span>
                 {post.author.verified && <Shield size={12} className="text-primary" />}
               </div>
@@ -495,9 +514,21 @@ export default function PostPage() {
                 <span className="font-mono text-[11px] text-muted-foreground">{post.author.server}</span>
               </div>
             </div>
-            <button onClick={() => navigator.clipboard.writeText(window.location.href)}
+              {canFollowAuthor && (
+                <button
+                  type="button"
+                  onClick={() => void toggleFollowAuthor()}
+                  disabled={!runtime || changingFollow}
+                  aria-pressed={followingAuthor}
+                  className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium transition-colors disabled:cursor-wait disabled:opacity-60 ${followingAuthor ? 'border-border text-muted-foreground hover:bg-secondary' : 'border-primary/40 text-primary hover:bg-primary/10'}`}
+                >
+                  {followingAuthor ? <UserMinus size={14} /> : <UserPlus size={14} />}
+                  {changingFollow ? 'Updating…' : followingAuthor ? 'Following' : 'Follow'}
+                </button>
+              )}
+            <button onClick={() => { void copyPostLink(post.id) }} aria-label="Copy link to post"
               className="text-muted-foreground hover:text-foreground transition-colors" title="Copy link to post">
-              <MoreHorizontal size={16} />
+              <Copy size={16} />
             </button>
           </div>
 
@@ -511,7 +542,7 @@ export default function PostPage() {
           )}
           {post.community && (
             <div className="mb-2">
-              <span className="inline-flex items-center gap-1 text-[11px] font-mono font-medium px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">
+              <span className="inline-flex items-center gap-1 text-[11px] font-mono font-medium px-1.5 py-0.5 rounded bg-warn/10 text-warn">
                 {post.communityIcon} {post.community}
               </span>
             </div>
@@ -547,24 +578,26 @@ export default function PostPage() {
           </div>
 
           <div className="flex items-center justify-between pt-1">
-            <button onClick={handleFocusReply} className="flex items-center gap-1.5 p-2 rounded-lg text-muted-foreground hover:text-blue-400 hover:bg-blue-400/10 transition-all">
+            <button onClick={handleFocusReply} aria-label="Write a reply" className="flex items-center gap-1.5 p-2 rounded-lg text-muted-foreground hover:text-interaction hover:bg-interaction/10 transition-all">
               <MessageCircle size={19} />
             </button>
             <button
               onClick={handleRepost}
-              className={`flex items-center gap-1.5 p-2 rounded-lg transition-all ${reposted ? 'text-emerald-400' : 'text-muted-foreground hover:text-emerald-400 hover:bg-emerald-400/10'}`}
+              disabled={reposted}
+              aria-label={reposted ? 'Post already reposted' : 'Repost'}
+              className={`flex items-center gap-1.5 p-2 rounded-lg transition-all disabled:cursor-default ${reposted ? 'text-success' : 'text-muted-foreground hover:text-success hover:bg-success/10'}`}
             >
               <Repeat2 size={19} />
             </button>
-            <button onClick={() => { const next = !liked; setLiked(next); setLikes((n) => next ? n + 1 : n - 1); if (bridgePost) likePost(post.id) }}
-              className={`flex items-center gap-1.5 p-2 rounded-lg transition-all ${liked ? 'text-rose-400' : 'text-muted-foreground hover:text-rose-400 hover:bg-rose-400/10'}`}>
+            <button onClick={() => void handleLike()} disabled={liked} aria-label={liked ? 'Post already liked' : 'Like post'} aria-pressed={liked}
+              className={`flex items-center gap-1.5 p-2 rounded-lg transition-all disabled:cursor-default ${liked ? 'text-liked' : 'text-muted-foreground hover:text-liked hover:bg-liked/10'}`}>
               <Heart size={19} fill={liked ? 'currentColor' : 'none'} />
             </button>
-            <button onClick={() => { const next = !bookmarked; setBookmarked(next); if (bridgePost) bookmarkPost(post.id) }}
+            <button onClick={() => { const next = !bookmarked; setBookmarked(next); if (bridgePost) bookmarkPost(post.id) }} aria-label={bookmarked ? 'Remove bookmark' : 'Bookmark post'} aria-pressed={bookmarked}
               className={`flex items-center gap-1.5 p-2 rounded-lg transition-all ${bookmarked ? 'text-primary' : 'text-muted-foreground hover:text-primary hover:bg-primary/10'}`}>
               <Bookmark size={19} fill={bookmarked ? 'currentColor' : 'none'} />
             </button>
-            <button onClick={handleShare} className="flex items-center gap-1.5 p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-all">
+            <button onClick={handleShare} aria-label="Share post" className="flex items-center gap-1.5 p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-all">
               <Share2 size={18} />
             </button>
           </div>
@@ -572,11 +605,15 @@ export default function PostPage() {
 
         <div className="px-4 py-3 border-b border-border flex gap-3 items-start">
           <div className="w-8 h-8 rounded-full overflow-hidden bg-secondary border border-border flex-shrink-0 mt-0.5">
-            <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=48&h=48&fit=crop&auto=format" alt="You" className="w-full h-full object-cover" />
+            <div aria-label="Your profile" className="flex h-full w-full items-center justify-center text-xs font-semibold text-foreground">
+              {userInitial}
+            </div>
           </div>
           <div className="flex-1 min-w-0">
             <textarea
               id="reply-textarea"
+              aria-label={`Reply to @${post.author.handle}`}
+              ref={replyTextareaRef}
               value={replyText}
               onChange={(e) => setReplyText(e.target.value)}
               placeholder={`Reply to @${post.author.handle}…`}
@@ -586,22 +623,22 @@ export default function PostPage() {
             {replyText.length > 0 && (
               <div className="flex items-center gap-2 mt-2">
                 <div className="flex items-center gap-0.5">
-                  <button onClick={() => { const ta = document.getElementById('reply-textarea') as HTMLTextAreaElement | null; if (ta) { const start = ta.selectionStart; ta.value = ta.value.slice(0, start) + '![](https://)' + ta.value.slice(ta.selectionEnd); ta.focus(); } }} className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
+                  <button type="button" onClick={() => insertReplyText('![](https://)')} aria-label="Insert image link" className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
                     <Image size={15} />
                   </button>
-                  <button onClick={() => { const ta = document.getElementById('reply-textarea') as HTMLTextAreaElement | null; if (ta) { const start = ta.selectionStart; ta.value = ta.value.slice(0, start) + '@' + ta.value.slice(ta.selectionEnd); ta.focus(); } }} className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
+                  <button type="button" onClick={() => insertReplyText('@')} aria-label="Insert mention" className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
                     <AtSign size={15} />
                   </button>
-                  <button onClick={() => { const ta = document.getElementById('reply-textarea') as HTMLTextAreaElement | null; if (ta) { const start = ta.selectionStart; ta.value = ta.value.slice(0, start) + '😊' + ta.value.slice(ta.selectionEnd); ta.focus(); } }} className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
+                  <button type="button" onClick={() => insertReplyText('😊')} aria-label="Insert emoji" className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
                     <Smile size={15} />
                   </button>
                 </div>
-                <span className={`font-mono text-[10px] ml-auto ${500 - replyText.length < 50 ? 'text-amber-400' : 'text-muted-foreground'}`}>
+                <span className={`font-mono text-[10px] ml-auto ${500 - replyText.length < 50 ? 'text-warn' : 'text-muted-foreground'}`}>
                   {500 - replyText.length}
                 </span>
-                <button onClick={handleSubmitReply}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-[12px] font-semibold rounded-lg hover:bg-primary/90 transition-colors">
-                  <Send size={12} />Reply
+                <button onClick={() => void handleSubmitReply()} disabled={submittingReply || !replyText.trim()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground text-[12px] font-semibold rounded-lg hover:bg-primary/90 transition-colors">
+                  <Send size={12} />{submittingReply ? 'Sending…' : 'Reply'}
                 </button>
               </div>
             )}
@@ -619,7 +656,7 @@ export default function PostPage() {
         <div>
           {replies.map((reply) => (
             <div key={reply.id} className="border-b border-border last:border-0">
-              <ReplyThread reply={reply} onLike={handleLikeReply} onReplySubmit={handleSubmitNestedReply} />
+              <ReplyThread reply={reply} onLike={(replyId) => { void handleLikeReply(replyId) }} onRepost={(replyId) => { void handleRepostReply(replyId) }} onReplySubmit={handleSubmitNestedReply} />
             </div>
           ))}
         </div>

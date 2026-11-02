@@ -29,13 +29,27 @@ export interface XmppMicroblogPostOptions {
   geoloc?: XmppAtomGeoloc
   alternateHref?: string
   replyTo?: string
+  displayContent?: string
+  articlePayload?: string
 }
 
 const XHTML_XMLNS = 'http://www.w3.org/1999/xhtml'
+const XHTML_BLOCK_ELEMENTS = new Set(['div', 'p', 'li', 'blockquote', 'pre'])
 
 const trimText = (value?: string) => value?.trim() ?? ''
 
 const collapseWhitespace = (value: string) => value.replace(/\s+/g, ' ').trim()
+
+const extractElementText = (element: Element): string => {
+  const text = (element.children as unknown[]).map((child) => {
+    if (typeof child === 'string' || typeof child === 'number') return String(child)
+    if (!(child instanceof Element)) return ''
+    if (child.name === 'br') return '\n'
+    const nested = extractElementText(child)
+    return XHTML_BLOCK_ELEMENTS.has(child.name) ? `\n${nested}\n` : nested
+  }).join('')
+  return text.replace(/[ \t]*\n[ \t]*/g, '\n').replace(/\n{2,}/g, '\n').trim()
+}
 
 /**
  * Derives a short display title from a body of text.
@@ -159,8 +173,9 @@ export function buildMicroblogEntry(post: XmppFeedPost, options: XmppMicroblogPo
     authorName || authorUri ? xml('author', {}, authorName ? xml('name', {}, authorName) : null, authorUri ? xml('uri', {}, authorUri) : null) : null,
     summary ? xml('summary', { type: 'text' }, summary) : null,
     options.contentType === 'xhtml'
-      ? xml('content', { type: 'xhtml' }, xml('div', { xmlns: XHTML_XMLNS }, post.body))
-      : xml('content', { type: 'text' }, post.body),
+      ? xml('content', { type: 'xhtml' }, xml('div', { xmlns: XHTML_XMLNS }, options.displayContent ?? post.body))
+      : xml('content', { type: 'text' }, options.displayContent ?? post.body),
+    options.articlePayload ? xml('article', { xmlns: 'urn:nexus:article:1' }, options.articlePayload) : null,
     ...categories.filter(Boolean).map(category => xml('category', { term: category })),
     ...links.filter(link => link.href).map(link => {
       const attrs: Record<string, string> = { href: link.href as string }
@@ -211,8 +226,15 @@ export function parseMicroblogEntry(topic: string, itemEl: Element, from: string
   const publishedEl = entryEl?.getChild('published')
   const updatedEl = entryEl?.getChild('updated')
   const replyEl = entryEl?.getChild('in-reply-to')
+  const articlePayloadEl = entryEl && (entryEl.children as any[]).find((child) => (
+    child?.name === 'article' && child.attrs?.xmlns === 'urn:nexus:article:1'
+  )) as Element | undefined
 
-  const body = trimText(contentEl?.text() || bodyEl?.text() || summaryEl?.text() || titleEl?.text())
+  const content = contentEl?.attrs.type === 'xhtml' && contentEl
+    ? extractElementText(contentEl)
+    : contentEl?.text()
+  const body = articlePayloadEl?.text()
+    || trimText(content || bodyEl?.text() || summaryEl?.text() || titleEl?.text())
   if (!body && !titleEl?.text()) {
     return undefined
   }
