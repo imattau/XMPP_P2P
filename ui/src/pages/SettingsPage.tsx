@@ -248,7 +248,7 @@ export default function SettingsPage() {
           {nostrConfigHasInvalidEntries && <p role="status" className="text-[11px] text-destructive">Use secure wss:// relay URLs (ws:// is allowed only on localhost).</p>}
           <div className="flex items-center justify-between gap-3">
             <p className="text-[11px] text-muted-foreground">{nostrSaved ? 'Saved. Reconnecting to the peer network…' : `${normalizedNostrConfig.relayUrls.length} relay(s) · any publisher using the Nexus bootstrap identifier`}</p>
-            <button type="submit" disabled={nostrSaved || nostrConfigHasInvalidEntries} className="min-h-11 shrink-0 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40">Save and reconnect</button>
+            <button type="submit" disabled={nostrSaved || nostrConfigHasInvalidEntries} className="min-h-11 shrink-0 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40">Save Nostr relays</button>
           </div>
         </form>
 
