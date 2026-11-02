@@ -77,7 +77,7 @@ export default function MediaViewer({
       aria-modal="true"
       aria-label={`${current.alt || 'Image'} viewer`}
       tabIndex={-1}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm"
+      className="safe-area-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm"
       onClick={onClose}
       onKeyDown={trapTabKey}
     >

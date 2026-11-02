@@ -209,8 +209,11 @@ address.
 Nostr relays can distribute signed, expiring libp2p bootstrap announcements. They
 are used only to find addresses; peer traffic still travels over libp2p. The app
 defaults to `relay.ditto.pub`, `nostr-01.yakihonne.com`, and `relay.primal.net`.
-Set `XMPP_P2P_NOSTR_RELAYS` to override the node's list; users can add, remove, or
-replace the relays used by their app in Settings. On first startup with browser
+The standalone node queries these relays at startup and feeds valid discovered
+multiaddresses to libp2p bootstrap discovery, which attempts connections in the
+background. No manual address copying is needed. Set `XMPP_P2P_NOSTR_RELAYS` to
+override the node's list; users can add, remove, or replace the relays used by
+their app in Settings. On first startup with browser
 bootstrap output enabled, the node creates a random publishing key and reuses it
 on later starts:
 

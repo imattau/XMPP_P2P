@@ -11,6 +11,7 @@ import { webRTC } from '@libp2p/webrtc'
 import { noise } from '@libp2p/noise'
 import { yamux } from '@libp2p/yamux'
 import { mdns } from '@libp2p/mdns'
+import { bootstrap } from '@libp2p/bootstrap'
 import { circuitRelayServer, circuitRelayTransport } from '@libp2p/circuit-relay-v2'
 import { createBaseLibp2pServices } from './p2p-base.js'
 
@@ -26,6 +27,7 @@ export interface CreateP2PNodeOptions {
   maxConnections?: number
   maxParallelDials?: number
   privateKey?: PrivateKey
+  bootstrapAddrs?: string[]
 }
 
 /**
@@ -38,6 +40,10 @@ export interface CreateP2PNodeOptions {
 export async function createP2PNode(port?: number, options: CreateP2PNodeOptions = {}): Promise<any> {
   const listenHost = options.host || '0.0.0.0'
   const peerDiscovery = []
+
+  if (options.bootstrapAddrs?.length) {
+    peerDiscovery.push(bootstrap({ list: options.bootstrapAddrs }))
+  }
 
   if (options.enableMdns !== false) {
     peerDiscovery.push(

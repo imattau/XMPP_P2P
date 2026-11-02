@@ -9,6 +9,7 @@ import { startTui } from './tui/index.js'
 import { loadOrCreateNostrBootstrapSecretKey } from './core/node-nostr-bootstrap-key.js'
 import {
   DEFAULT_NOSTR_RELAY_URLS,
+  discoverNostrBootstrapAddrs,
   normalizeNostrRelayUrls,
   nostrSecretKeyFromString,
   startNostrBootstrapPublisher,
@@ -42,10 +43,26 @@ const main = async () => {
   const sqlitePath = valueFor(args, '--sqlite-path') ?? join(process.cwd(), 'data', 'state.sqlite')
   await mkdir(dirname(sqlitePath), { recursive: true })
 
+  const nostrRelayUrls = normalizeNostrRelayUrls(
+    process.env.XMPP_P2P_NOSTR_RELAYS ?? [...DEFAULT_NOSTR_RELAY_URLS],
+  )
+  let bootstrapAddrs: string[] = []
+  if (nostrRelayUrls.length > 0) {
+    try {
+      bootstrapAddrs = await discoverNostrBootstrapAddrs({ relayUrls: nostrRelayUrls })
+      if (bootstrapAddrs.length > 0) {
+        console.log(`Discovered ${bootstrapAddrs.length} Nostr bootstrap address(es)`)
+      }
+    } catch (error) {
+      console.error(`Nostr bootstrap discovery failed: ${error instanceof Error ? error.message : error}`)
+    }
+  }
+
   const libp2p = await createP2PNode(port, {
     host: valueFor(args, '--host'),
     enableWebRTC: args.includes('--webrtc'),
-    enableRelay: args.includes('--relay')
+    enableRelay: args.includes('--relay'),
+    bootstrapAddrs,
   })
   const xmppNode = new XmppNode(libp2p, new NodeSqliteStorage(sqlitePath))
   await xmppNode.ready
@@ -53,9 +70,6 @@ const main = async () => {
   const bootstrapOutput = process.env.XMPP_P2P_BOOTSTRAP_OUTPUT
   if (bootstrapOutput) {
     try {
-      const nostrRelayUrls = normalizeNostrRelayUrls(
-        process.env.XMPP_P2P_NOSTR_RELAYS ?? [...DEFAULT_NOSTR_RELAY_URLS],
-      )
       let nostrSecretKey: Uint8Array | undefined
       if (process.env.XMPP_P2P_NOSTR_SECRET_KEY) {
         nostrSecretKey = nostrSecretKeyFromString(process.env.XMPP_P2P_NOSTR_SECRET_KEY)

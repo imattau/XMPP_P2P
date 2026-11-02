@@ -306,7 +306,7 @@ export default function Root() {
 
   if (isOnboarding) {
     return (
-      <div className="h-screen overflow-hidden bg-background text-foreground"
+      <div className="app-shell overflow-hidden bg-background text-foreground"
         style={{ fontFamily: "'Inter', system-ui, sans-serif" }}
       >
         <Suspense fallback={<PageLoader />}>
@@ -317,7 +317,7 @@ export default function Root() {
   }
 
   return (
-    <div className="h-screen overflow-hidden bg-background text-foreground flex flex-col"
+    <div className="app-shell overflow-hidden bg-background text-foreground flex flex-col"
       style={{ fontFamily: "'Inter', system-ui, sans-serif" }}
     >
       {!showDiscoveryWarning && (

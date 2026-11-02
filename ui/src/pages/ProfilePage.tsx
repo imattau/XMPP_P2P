@@ -525,7 +525,7 @@ export default function ProfilePage() {
       </main>
 
       {showQR && peerAddress && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowQR(false)}>
+        <div className="safe-area-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowQR(false)}>
           <div ref={qrDialogRef} role="dialog" aria-modal="true" aria-labelledby="profile-qr-title" tabIndex={-1}
             onKeyDown={trapQRFocus} className="bg-card border border-border rounded-xl p-6 flex flex-col items-center gap-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <p id="profile-qr-title" className="font-semibold text-sm text-foreground">Scan profile QR</p>

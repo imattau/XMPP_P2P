@@ -115,6 +115,22 @@ try {
     const discoveredNodeAddresses = await discoverNostrBootstrapAddrs({ relayUrls: [relayUrl] })
     assert.deepEqual(discoveredNodeAddresses, [nodeAddress])
 
+    const standalonePeer = await createP2PNode(0, {
+      enableMdns: false,
+      enableDht: false,
+      host: '127.0.0.1',
+      bootstrapAddrs: discoveredNodeAddresses,
+    })
+    try {
+      const dialDeadline = Date.now() + 10_000
+      while (standalonePeer.getConnections(nodePeer.peerId).length === 0 && Date.now() < dialDeadline) {
+        await new Promise((resolve) => setTimeout(resolve, 100))
+      }
+      assert(standalonePeer.getConnections(nodePeer.peerId).length > 0, 'standalone P2P node must connect to a peer discovered through Nostr bootstrap')
+    } finally {
+      await standalonePeer.stop()
+    }
+
     browserPeer = await createBrowserP2PNode({ bootstrapAddrs: discoveredNodeAddresses })
     await browserPeer.start()
     await browserPeer.dial(multiaddr(discoveredNodeAddresses[0]))

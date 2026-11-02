@@ -207,7 +207,7 @@ export default function DraftsPage() {
         const draft = drafts.find((item) => item.id === confirmDeleteId)
         const title = draft?.title.trim() || 'Untitled'
         return (
-          <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+          <div className="safe-area-overlay fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
             <div
               role="alertdialog"
               aria-modal="true"

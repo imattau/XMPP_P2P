@@ -59,7 +59,7 @@ export default function InsertBlockPicker({ onSelect, onClose }: InsertBlockPick
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50" onClick={onClose}>
+    <div className="safe-area-overlay fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50" onClick={onClose}>
       <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="insert-block-title" aria-describedby="insert-block-description" tabIndex={-1}
         onClick={(event) => event.stopPropagation()} onKeyDown={trapFocus}
         className="bg-background w-full max-w-md rounded-t-2xl sm:rounded-2xl border border-border p-5 max-h-[80vh] overflow-y-auto">
