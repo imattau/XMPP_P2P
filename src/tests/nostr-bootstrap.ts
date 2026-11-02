@@ -11,6 +11,7 @@ import { createBrowserP2PNode } from '../core/p2p-browser.js'
 import { loadOrCreateNostrBootstrapSecretKey } from '../core/node-nostr-bootstrap-key.js'
 import { useWebSocketImplementation } from 'nostr-tools/pool'
 import {
+  DEFAULT_NOSTR_RELAY_URLS,
   createNostrBootstrapEvent,
   discoverNostrBootstrapAddrs,
   normalizeNostrBootstrapConfig,
@@ -45,6 +46,8 @@ assert.deepEqual(nostrSecretKeyFromString(nsecEncode(secretKey)), secretKey)
 assert.deepEqual(normalizeNostrBootstrapConfig({ relayUrls: ['wss://relay.example.test', 'ws://remote.test'] }), {
   relayUrls: ['wss://relay.example.test'],
 })
+assert.deepEqual(normalizeNostrBootstrapConfig(undefined).relayUrls, [...DEFAULT_NOSTR_RELAY_URLS])
+assert.deepEqual(normalizeNostrBootstrapConfig({ relayUrls: [] }).relayUrls, [])
 assert.deepEqual(await discoverNostrBootstrapAddrs({ relayUrls: [] }), [])
 
 const configDirectory = await mkdtemp(join(tmpdir(), 'nostr-bootstrap-config-'))

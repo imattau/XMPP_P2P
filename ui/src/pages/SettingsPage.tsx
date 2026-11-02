@@ -144,8 +144,11 @@ export default function SettingsPage() {
   }, [])
 
   useEffect(() => {
-    const config = getNostrBootstrapConfig()
-    setNostrRelays(config.relayUrls.join('\n'))
+    let active = true
+    void getNostrBootstrapConfig().then((config) => {
+      if (active) setNostrRelays(config.relayUrls.join('\n'))
+    })
+    return () => { active = false }
   }, [])
 
   const handleSaveBootstrap = (event: React.FormEvent) => {

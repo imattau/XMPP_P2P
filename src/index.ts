@@ -1,4 +1,5 @@
 import { mkdir } from 'node:fs/promises'
+import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { createP2PNode } from './core/p2p.js'
 import { writeBrowserBootstrapConfig } from './core/browser-bootstrap-config.js'
@@ -7,6 +8,7 @@ import { XmppNode } from './core/xmpp-node.js'
 import { startTui } from './tui/index.js'
 import { loadOrCreateNostrBootstrapSecretKey } from './core/node-nostr-bootstrap-key.js'
 import {
+  DEFAULT_NOSTR_RELAY_URLS,
   normalizeNostrRelayUrls,
   nostrSecretKeyFromString,
   startNostrBootstrapPublisher,
@@ -26,7 +28,8 @@ const main = async () => {
     return
   }
   if (args.includes('--version') || args.includes('-v')) {
-    console.log('1.0.0')
+    const packageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }
+    console.log(packageJson.version)
     return
   }
 
@@ -50,7 +53,9 @@ const main = async () => {
   const bootstrapOutput = process.env.XMPP_P2P_BOOTSTRAP_OUTPUT
   if (bootstrapOutput) {
     try {
-      const nostrRelayUrls = normalizeNostrRelayUrls(process.env.XMPP_P2P_NOSTR_RELAYS ?? '')
+      const nostrRelayUrls = normalizeNostrRelayUrls(
+        process.env.XMPP_P2P_NOSTR_RELAYS ?? [...DEFAULT_NOSTR_RELAY_URLS],
+      )
       let nostrSecretKey: Uint8Array | undefined
       if (process.env.XMPP_P2P_NOSTR_SECRET_KEY) {
         nostrSecretKey = nostrSecretKeyFromString(process.env.XMPP_P2P_NOSTR_SECRET_KEY)

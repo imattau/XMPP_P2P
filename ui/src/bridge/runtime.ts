@@ -313,6 +313,20 @@ declare global {
 let browserClientStartup: Promise<XmppRuntimeBridge> | undefined
 let nostrDiscoveryCache: { key: string; expiresAt: number; promise: Promise<string[]> } | undefined
 
+async function getDeploymentBootstrapConfig(): Promise<{ bootstrapAddrs: string[]; nostrBootstrap?: NostrBootstrapConfig }> {
+  if (typeof window === 'undefined') return { bootstrapAddrs: [] }
+  if (!window.__XMPP_P2P_CONFIG_READY__) {
+    window.__XMPP_P2P_CONFIG_READY__ = fetch('/bootstrap-config.json')
+      .then(response => response.ok ? response.json() : { bootstrapAddrs: [], nostrBootstrap: undefined })
+      .catch(() => ({ bootstrapAddrs: [], nostrBootstrap: undefined }))
+      .then(config => {
+        window.__XMPP_P2P_CONFIG__ = config
+        return config
+      })
+  }
+  return window.__XMPP_P2P_CONFIG__ ?? await window.__XMPP_P2P_CONFIG_READY__
+}
+
 /** Start the browser node once and share its in-flight startup across routes. */
 export function ensureBrowserXmppClient(options: {
   bootstrapAddrs: string[]
@@ -358,17 +372,7 @@ export async function getBootstrapAddrs(): Promise<string[]> {
     }
   } catch { /* use the deployment-provided configuration below */ }
 
-  if (!window.__XMPP_P2P_CONFIG_READY__) {
-    window.__XMPP_P2P_CONFIG_READY__ = fetch('/bootstrap-config.json')
-      .then(response => response.ok ? response.json() : { bootstrapAddrs: [], nostrBootstrap: undefined })
-      .catch(() => ({ bootstrapAddrs: [], nostrBootstrap: undefined }))
-      .then(config => {
-        window.__XMPP_P2P_CONFIG__ = config
-        return config
-      })
-  }
-
-  const config = window.__XMPP_P2P_CONFIG__ ?? await window.__XMPP_P2P_CONFIG_READY__
+  const config = await getDeploymentBootstrapConfig()
   let savedNostr: Partial<NostrBootstrapConfig> | undefined
   try {
     const serialized = window.localStorage.getItem('xmpp-p2p:nostr-bootstrap')
@@ -397,13 +401,14 @@ export function saveBootstrapAddrs(addresses: string[]): void {
   window.dispatchEvent(new Event('xmpp-p2p:bootstrap-config-changed'))
 }
 
-export function getNostrBootstrapConfig(): NostrBootstrapConfig {
-  if (typeof window === 'undefined') return { relayUrls: [] }
+export async function getNostrBootstrapConfig(): Promise<NostrBootstrapConfig> {
+  if (typeof window === 'undefined') return normalizeNostrBootstrapConfig(undefined)
   try {
     const saved = window.localStorage.getItem('xmpp-p2p:nostr-bootstrap')
     if (saved) return normalizeNostrBootstrapConfig(JSON.parse(saved))
   } catch { /* use deployment config below */ }
-  return normalizeNostrBootstrapConfig(window.__XMPP_P2P_CONFIG__?.nostrBootstrap)
+  const config = await getDeploymentBootstrapConfig()
+  return normalizeNostrBootstrapConfig(config.nostrBootstrap)
 }
 
 export function saveNostrBootstrapConfig(config: Partial<NostrBootstrapConfig>): void {

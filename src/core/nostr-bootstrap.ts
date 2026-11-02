@@ -7,6 +7,11 @@ import type { Event, VerifiedEvent } from 'nostr-tools/core'
 export const NOSTR_BOOTSTRAP_KIND = 30078
 export const NOSTR_BOOTSTRAP_IDENTIFIER = 'xmpp-p2p-bootstrap-v1'
 export const NOSTR_BOOTSTRAP_TTL_SECONDS = 24 * 60 * 60
+export const DEFAULT_NOSTR_RELAY_URLS = [
+  'wss://relay.ditto.pub',
+  'wss://nostr-01.yakihonne.com',
+  'wss://relay.primal.net',
+] as const
 const MAX_NOSTR_RELAYS = 8
 const MAX_ANNOUNCEMENTS_PER_RELAY = 32
 const MAX_ADDRESSES_PER_EVENT = 16
@@ -81,7 +86,9 @@ export function normalizeNostrRelayUrls(value: string | string[]): string[] {
 }
 
 export function normalizeNostrBootstrapConfig(config: NostrBootstrapConfigInput | undefined): NostrBootstrapConfig {
-  return { relayUrls: normalizeNostrRelayUrls(config?.relayUrls ?? []) }
+  return {
+    relayUrls: normalizeNostrRelayUrls(config?.relayUrls ?? [...DEFAULT_NOSTR_RELAY_URLS]),
+  }
 }
 
 export function nostrSecretKeyFromString(value: string): Uint8Array {

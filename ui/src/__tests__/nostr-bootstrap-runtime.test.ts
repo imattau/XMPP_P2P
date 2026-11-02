@@ -13,6 +13,7 @@ import {
   saveNostrBootstrapConfig,
   watchBootstrapAddrs,
 } from '../bridge/runtime'
+import { DEFAULT_NOSTR_RELAY_URLS } from '../../../src/core/nostr-bootstrap.js'
 
 const deployedAddress = '/dns4/static.example.test/tcp/443/wss/p2p/12D3KooWJ5zq7gXxTSeK6pQZgUqUk9yJ2PZV5vVYz8dN1n8Q'
 const discoveredAddress = '/dns4/discovered.example.test/tcp/443/wss/p2p/12D3KooWJK5aG5cD9XQk3x8k4Y3h6dQ7bPq9uM8vJ2eR1sT'
@@ -27,7 +28,7 @@ describe('Nostr peer bootstrap runtime', () => {
 
   afterEach(() => vi.restoreAllMocks())
 
-  it('adds trusted Nostr-discovered peers to deployment bootstrap addresses', async () => {
+  it('adds signed Nostr-discovered peers to deployment bootstrap addresses', async () => {
     window.__XMPP_P2P_CONFIG__ = {
       bootstrapAddrs: [deployedAddress],
       nostrBootstrap: { relayUrls: ['wss://relay.example.test'] },
@@ -42,6 +43,19 @@ describe('Nostr peer bootstrap runtime', () => {
     )
   })
 
+  it('uses the built-in relay list when no local or deployment override is set', async () => {
+    window.__XMPP_P2P_CONFIG__ = { bootstrapAddrs: [deployedAddress] }
+    window.__XMPP_P2P_CONFIG_READY__ = Promise.resolve(window.__XMPP_P2P_CONFIG__)
+    discoverNostrBootstrapAddrs.mockResolvedValue([])
+
+    await expect(getNostrBootstrapConfig()).resolves.toEqual({ relayUrls: [...DEFAULT_NOSTR_RELAY_URLS] })
+    await expect(getBootstrapAddrs()).resolves.toEqual([deployedAddress])
+    expect(discoverNostrBootstrapAddrs).toHaveBeenCalledWith(
+      { relayUrls: [...DEFAULT_NOSTR_RELAY_URLS] },
+      { maxWaitMs: 2500 },
+    )
+  })
+
   it('uses saved discovery settings and keeps manual bootstrap addresses', async () => {
     window.__XMPP_P2P_CONFIG__ = { bootstrapAddrs: [deployedAddress] }
     window.__XMPP_P2P_CONFIG_READY__ = Promise.resolve(window.__XMPP_P2P_CONFIG__)
@@ -49,7 +63,7 @@ describe('Nostr peer bootstrap runtime', () => {
     saveNostrBootstrapConfig({ relayUrls: ['wss://saved-relay.example.test/'] })
     discoverNostrBootstrapAddrs.mockResolvedValue([deployedAddress, discoveredAddress])
 
-    expect(getNostrBootstrapConfig()).toEqual({
+    await expect(getNostrBootstrapConfig()).resolves.toEqual({
       relayUrls: ['wss://saved-relay.example.test'],
     })
     await expect(getBootstrapAddrs()).resolves.toEqual([discoveredAddress, deployedAddress])
