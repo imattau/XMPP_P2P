@@ -1,7 +1,6 @@
 import * as React from 'react'
 import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router'
-import { useRosterBridge } from '../bridge/useRosterBridge'
 import { useChatListBridge } from '../bridge/useChatListBridge'
 import {
   Search, Settings, Hash, Users, Shield, Lock,
@@ -183,7 +182,6 @@ export default function ChatsPage() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const { chats, onlineContacts } = useChatListBridge()
-  const { contacts } = useRosterBridge()
 
   const unread = {
     all: chats.reduce((a, c) => a + c.unread, 0),
@@ -300,8 +298,11 @@ export default function ChatsPage() {
 
       {(activeFilter === 'all' || activeFilter === 'direct') && !searchQuery && onlineContacts.length > 0 && (
         <div className="border-b border-border flex-shrink-0">
-          <div className="px-4 pt-2">
+          <div className="flex items-center justify-between px-4 pt-2">
             <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Online</span>
+            <NavLink to="/contacts" className="inline-flex min-h-11 items-center px-2 -my-1 font-mono text-[10px] text-primary hover:underline">
+              All contacts
+            </NavLink>
           </div>
           <div className="flex gap-4 px-4 py-2 overflow-x-auto scrollbar-hidden">
             {onlineContacts.map((c) => (
@@ -316,27 +317,6 @@ export default function ChatsPage() {
                   <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-accent border-[1.5px] border-background" />
                 </div>
                 <span className="text-[10px] font-mono text-muted-foreground truncate w-12 text-center">{c.name.split(' ')[0]}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {(activeFilter === 'all' || activeFilter === 'direct') && !searchQuery && contacts.length > 0 && (
-        <div className="border-b border-border flex-shrink-0">
-          <div className="px-4 pt-2">
-            <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Contacts</span>
-          </div>
-          <div className="flex gap-4 px-4 py-2 overflow-x-auto scrollbar-hidden">
-            {contacts.slice(0, 10).map((c) => (
-              <button key={c.jid} onClick={() => navigate(`/chat/${encodeURIComponent(c.jid)}`)} className="flex flex-col items-center gap-1.5 flex-shrink-0 group">
-                <div className="relative">
-                  <div className="w-11 h-11 rounded-full overflow-hidden border-2 border-transparent group-hover:border-border transition-colors bg-secondary flex items-center justify-center">
-                    <span className="text-sm font-semibold text-foreground">{(c.nickname || c.name || c.jid[0] || '?')[0].toUpperCase()}</span>
-                  </div>
-                  {c.online && <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-accent border-[1.5px] border-background" />}
-                </div>
-                <span className="text-[10px] font-mono text-muted-foreground truncate w-12 text-center">{c.nickname || c.name || c.jid.split('@')[0]}</span>
               </button>
             ))}
           </div>

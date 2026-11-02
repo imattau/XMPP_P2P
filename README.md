@@ -95,7 +95,9 @@ Desktop builds are intentionally **unsigned**. macOS will show Gatekeeper's
 SmartScreen ("More info" → "Run anyway").
 
 The desktop app runs a native libp2p node (TCP, mDNS, DHT) and SQLite storage
-in the Electron main process. The renderer is loaded from
+in the Electron main process. XMPP server accounts can connect over secure
+WebSockets or native XMPP TCP (`xmpp://` with required STARTTLS, or `xmpps://`
+with direct TLS). The renderer is loaded from
 `http://127.0.0.1:43117` so `crypto.subtle` works, and talks to the node over
 a context-isolated preload bridge.
 
@@ -116,6 +118,13 @@ The signing secrets are the same ones used by
 - `ANDROID_KEY_ALIAS`
 - `ANDROID_KEY_PASSWORD`
 - `ZAPSTORE_NSEC`
+
+The Android WebView uses a native TCP socket plugin for outbound libp2p TCP
+dials alongside WebSockets and WebRTC. It does not listen for inbound TCP
+connections; mobile peers generally need a reachable peer or circuit relay.
+Nostr bootstrap announcements may include root TCP addresses for Android as
+well as WebSocket addresses for browsers. A direct TCP address can also be
+entered in Android Settings as `/ip4/<public-ip>/tcp/<port>/p2p/<peer-id>`.
 
 Tag a release to build all platforms:
 
@@ -240,6 +249,22 @@ use `wss://`.
 
 Run the signed-event and validation checks with `npm run build && npm run
 test-nostr-bootstrap`.
+
+To make a public node discoverable to native Android TCP clients, publish its
+TCP multiaddress alongside the WebSocket address:
+
+```bash
+XMPP_P2P_BOOTSTRAP_OUTPUT='ui/dist/bootstrap-config.json' \
+XMPP_P2P_BOOTSTRAP_DOMAIN='app.example.org' \
+XMPP_P2P_BOOTSTRAP_WSS=true \
+npm start -- --port=4001 --relay \
+  --public-tcp-address=/ip4/<public-ip>/tcp/4001/p2p/<peer-id>
+```
+
+Use the node's actual Peer ID and ensure the TCP port is reachable from the
+internet. `XMPP_P2P_BOOTSTRAP_OUTPUT` must be configured so the node publishes
+its signed Nostr announcement. TCP addresses supplement the WebSocket address
+used by browser clients.
 
 The remote deploy script accepts `XMPP_P2P_NOSTR_RELAYS` and the optional
 `XMPP_P2P_NOSTR_SECRET_KEY` environment variables.

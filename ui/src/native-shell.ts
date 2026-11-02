@@ -37,6 +37,10 @@ export function isNativeShell(): boolean {
   return Boolean(capacitor?.isNativePlatform?.())
 }
 
+export function isElectronShell(): boolean {
+  return typeof window !== 'undefined' && Boolean(window.__XMPP_P2P_NATIVE__)
+}
+
 /**
  * Installs the native `createBrowserXmppClient` shim when the preload is
  * present. No-op on the web and in the browser bundle.

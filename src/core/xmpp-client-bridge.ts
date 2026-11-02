@@ -203,6 +203,38 @@ function normalizeXmppWebSocketUrl(value: string): string {
   return endpoint.toString()
 }
 
+function isNativeNodeRuntime(): boolean {
+  return typeof window === 'undefined'
+}
+
+function normalizeXmppTcpUrl(value: string): string {
+  let endpoint: URL
+  try {
+    endpoint = new URL(value)
+  } catch {
+    throw new Error('XMPP TCP service address is invalid')
+  }
+  if (!isNativeNodeRuntime()
+    || (endpoint.protocol !== 'xmpp:' && endpoint.protocol !== 'xmpps:')
+    || !endpoint.hostname
+    || endpoint.username
+    || endpoint.password
+    || (endpoint.pathname !== '' && endpoint.pathname !== '/')
+    || endpoint.search
+    || endpoint.hash) {
+    throw new Error('XMPP TCP connections are available only in native desktop runtimes and require an xmpp:// or xmpps:// address')
+  }
+  if (!endpoint.port) endpoint.port = endpoint.protocol === 'xmpps:' ? '5223' : '5222'
+  return endpoint.toString()
+}
+
+function normalizeXmppServiceUrl(value: string): string {
+  const protocol = value.slice(0, value.indexOf(':') + 1).toLowerCase()
+  return protocol === 'xmpp:' || protocol === 'xmpps:'
+    ? normalizeXmppTcpUrl(value)
+    : normalizeXmppWebSocketUrl(value)
+}
+
 export interface XmppClientCredentials {
   jid: string
   password: string
@@ -301,9 +333,9 @@ export class XmppClientBridge extends EventEmitter {
     const requestedService = credentials.service?.trim()
     let services: Array<{ url: string; timeoutMs: number }>
     if (requestedService && requestedService.includes('://')) {
-      // An explicit WebSocket URL is authoritative; never silently use another endpoint.
+      // Explicit service addresses are authoritative; never silently use another endpoint.
       try {
-        services = [{ url: normalizeXmppWebSocketUrl(requestedService), timeoutMs: 30000 }]
+        services = [{ url: normalizeXmppServiceUrl(requestedService), timeoutMs: 30000 }]
       } catch (error) {
         this.status = 'error'
         this.lastError = error instanceof Error ? error.message : String(error)
@@ -315,6 +347,12 @@ export class XmppClientBridge extends EventEmitter {
       const discovered = await this.discoverWebSocketUrl(domain)
       services = [...new Set([...(discovered ? [discovered] : []), ...this.defaultWsUrls(domain)])]
         .map((url, index) => ({ url, timeoutMs: discovered && index === 0 ? 20000 : 12000 }))
+      if (isNativeNodeRuntime()) {
+        services.push(
+          { url: `xmpp://${domain}:5222`, timeoutMs: 15000 },
+          { url: `xmpps://${domain}:5223`, timeoutMs: 15000 },
+        )
+      }
     }
 
     let lastError: Error | undefined
@@ -354,7 +392,9 @@ export class XmppClientBridge extends EventEmitter {
     service: string,
     timeoutMs: number
   ): Promise<void> {
-    service = normalizeXmppWebSocketUrl(service)
+    const protocol = service.slice(0, service.indexOf(':') + 1).toLowerCase()
+    const nativeTcp = protocol === 'xmpp:' || protocol === 'xmpps:'
+    service = normalizeXmppServiceUrl(service)
     this.client = xmppClient({
       domain: this.domain,
       username: jidObj.local,
@@ -362,6 +402,17 @@ export class XmppClientBridge extends EventEmitter {
       service,
     })
     const client = this.client
+
+    if (nativeTcp) {
+      // STARTTLS is mandatory for native TCP: never send SASL credentials or
+      // XMPP payloads over an unencrypted raw socket.
+      ;(client as any).middleware?.use((context: any, next: () => Promise<unknown>) => {
+        if (context.stanza?.is?.('features', 'http://etherx.jabber.org/streams') && !(client as any).isSecure()) {
+          throw new Error('The XMPP server did not establish TLS; refusing an unencrypted TCP session')
+        }
+        return next()
+      })
+    }
 
     client.on('online', () => {
       this.status = 'connected'

@@ -25,7 +25,7 @@ const valueFor = (args: string[], name: string) => {
 const main = async () => {
   const args = process.argv.slice(2)
   if (args.includes('--help') || args.includes('-h')) {
-    console.log('Usage: npm start -- [--port <port>] [--host <host>] [--sqlite-path <path>]')
+    console.log('Usage: npm start -- [--port <port>] [--host <host>] [--public-tcp-address <multiaddr>] [--sqlite-path <path>]')
     return
   }
   if (args.includes('--version') || args.includes('-v')) {
@@ -89,12 +89,15 @@ const main = async () => {
         nostrBootstrap,
       })
       if (bootstrapAddrs.length > 0) console.log(`Browser bootstrap address: ${bootstrapAddrs[0]}`)
-      if (bootstrapAddrs.length && nostrRelayUrls.length && nostrSecretKey) {
+      const publicTcpAddress = valueFor(args, '--public-tcp-address') ?? process.env.XMPP_P2P_PUBLIC_TCP_ADDRESS
+      const advertisedBootstrapAddrs = [...bootstrapAddrs, ...(publicTcpAddress ? [publicTcpAddress.trim()] : [])]
+      if (publicTcpAddress) console.log(`Native TCP peer address configured for Nostr: ${publicTcpAddress}`)
+      if (advertisedBootstrapAddrs.length && nostrRelayUrls.length && nostrSecretKey) {
         startNostrBootstrapPublisher({
           relayUrls: nostrRelayUrls,
           secretKey: nostrSecretKey,
           peerId: libp2p.peerId.toString(),
-          bootstrapAddrs,
+          bootstrapAddrs: advertisedBootstrapAddrs,
           onPublished: () => console.log('Published signed Nostr bootstrap announcement'),
           onError: (error) => console.error(`Could not publish Nostr bootstrap announcement: ${error.message}`),
         })

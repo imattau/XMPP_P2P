@@ -3,7 +3,6 @@
  * bundles, and encrypted pubsub payloads.
  */
 
-import { createCipheriv, createDecipheriv, randomBytes } from 'crypto'
 import { xml, Element } from '@xmpp/xml'
 import * as openpgp from 'openpgp'
 import type { Multiaddr } from '@multiformats/multiaddr'
@@ -17,6 +16,7 @@ import {
   jidFromPeerId
 } from './xmpp-records.js'
 import type { XmppOmemoBundle } from './xmpp-omemo-state.js'
+import { decryptAesGcm, encryptAesGcm, secureRandomBytes } from './xmpp-crypto.js'
 
 const OMEMO_XMLNS = 'urn:xmpp:omemo:2'
 const OPENPGP_XMLNS = 'urn:xmpp:openpgp:0'
@@ -104,18 +104,15 @@ export async function decryptOmemoKey(ctx: XmppSecureContext, remoteAddress: Ome
  * @param ivB64 - Base64-encoded initialization vector.
  * @returns The decrypted UTF-8 body.
  */
-export function decryptOmemoPayload(payload: string, payloadKey: ArrayBuffer, ivB64: string): string {
+export async function decryptOmemoPayload(payload: string, payloadKey: ArrayBuffer, ivB64: string): Promise<string> {
   const bytes = Buffer.from(payload, 'base64')
   if (bytes.byteLength < 16) {
     throw new Error('OMEMO payload is too short')
   }
 
-  const tag = bytes.subarray(bytes.byteLength - 16)
-  const ciphertext = bytes.subarray(0, bytes.byteLength - 16)
   const iv = Buffer.from(ivB64, 'base64')
-  const decipher = createDecipheriv('aes-128-gcm', Buffer.from(payloadKey), iv)
-  decipher.setAuthTag(tag)
-  return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8')
+  const plaintext = await decryptAesGcm(new Uint8Array(payloadKey), iv, bytes)
+  return new TextDecoder().decode(plaintext)
 }
 
 /**
@@ -298,7 +295,7 @@ export async function handleSecureMessageStanza(
       const remoteAddress = new omemo.OMEMOAddress(fromJid, sid)
       const encryptedKey = keyEl.text().trim()
       const payloadKey = await decryptOmemoKey(ctx, remoteAddress, encryptedKey)
-      const body = decryptOmemoPayload(payload, payloadKey, iv)
+      const body = await decryptOmemoPayload(payload, payloadKey, iv)
       ctx.emitMessage({
         from: fromJid,
         to: toJid,
@@ -396,13 +393,11 @@ export async function sendEncryptedMessage(
     throw new Error(`No OMEMO devices available for ${toJid}`)
   }
 
-  const payloadKeyBytes = randomBytes(16)
-  const iv = randomBytes(12)
-
-  const cipher = createCipheriv('aes-128-gcm', payloadKeyBytes, iv)
-  const ciphertext = Buffer.concat([cipher.update(body, 'utf8'), cipher.final()])
-  const authTag = cipher.getAuthTag()
-  const payload = Buffer.concat([ciphertext, authTag]).toString('base64')
+  const payloadKeyBytes = secureRandomBytes(16)
+  const iv = secureRandomBytes(12)
+  const plaintext = new TextEncoder().encode(body)
+  const ciphertext = await encryptAesGcm(payloadKeyBytes, iv, plaintext)
+  const payload = Buffer.from(ciphertext).toString('base64')
 
   const keys: Element[] = []
   for (const deviceId of devices) {
@@ -422,7 +417,7 @@ export async function sendEncryptedMessage(
         'header',
         { sid: String(ctx.getOmemoDeviceIdOrThrow()) },
         xml('keys', { jid: toJid }, ...keys),
-        xml('iv', {}, iv.toString('base64'))
+        xml('iv', {}, Buffer.from(iv).toString('base64'))
       ),
       xml('payload', {}, payload)
     )
