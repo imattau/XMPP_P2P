@@ -56,3 +56,9 @@ win:
       arch: [x64]
     - target: portable
       arch: [x64]
+
+nsis:
+  artifactName: ${productName}-${version}-win-${arch}-setup.${ext}
+
+portable:
+  artifactName: ${productName}-${version}-win-${arch}-portable.${ext}

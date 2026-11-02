@@ -207,9 +207,12 @@ address.
 #### Nostr peer discovery
 
 Nostr relays can distribute signed, expiring libp2p bootstrap announcements. They
-are used only to find addresses; peer traffic still travels over libp2p. Configure
-one or more Nostr WebSocket relays. On first configured startup, the node creates
-a random publishing key and reuses it on later starts:
+are used only to find addresses; peer traffic still travels over libp2p. The app
+defaults to `relay.ditto.pub`, `nostr-01.yakihonne.com`, and `relay.primal.net`.
+Set `XMPP_P2P_NOSTR_RELAYS` to override the node's list; users can add, remove, or
+replace the relays used by their app in Settings. On first startup with browser
+bootstrap output enabled, the node creates a random publishing key and reuses it
+on later starts:
 
 ```bash
 XMPP_P2P_NOSTR_RELAYS='wss://relay.example,wss://relay2.example' \
