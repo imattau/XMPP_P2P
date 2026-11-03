@@ -148,7 +148,7 @@ export default function ServerSetupPage() {
   const selectedServerInfo = servers.find(s => s.domain === selectedServer)
 
   const tabClass = (t: Tab) =>
-    `flex-1 py-2 text-sm font-medium text-center border-b-2 transition-colors cursor-pointer disabled:cursor-wait disabled:opacity-50 ${
+    `min-h-11 min-w-0 flex-1 px-1 py-2 text-xs font-medium text-center border-b-2 transition-colors cursor-pointer disabled:cursor-wait disabled:opacity-50 sm:text-sm ${
       tab === t
         ? 'border-primary text-foreground'
         : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -172,15 +172,17 @@ export default function ServerSetupPage() {
   return (
     <div className="mx-auto flex h-full w-full max-w-2xl flex-1 flex-col overflow-hidden">
       <header className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border flex-shrink-0 px-4 py-2.5">
-        <button onClick={() => navigate(-1)} aria-label="Go back" className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
-          <ArrowLeft size={18} />
-        </button>
-        <div className="mt-1">
-          <h1 className="text-heading font-semibold text-foreground">Connect to Servers</h1>
-          <p className="text-[12px] text-muted-foreground">Optional — connect to an XMPP server or skip and use P2P only</p>
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate(-1)} aria-label="Go back" className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
+            <ArrowLeft size={18} />
+          </button>
+          <div className="min-w-0">
+            <h1 className="text-heading font-semibold text-foreground">XMPP server setup</h1>
+            <p className="text-[12px] text-muted-foreground">Optional — add an XMPP account</p>
+          </div>
         </div>
-        <div className="mt-3">
-          <ProgressDots current={4} />
+        <div className="mt-2 pl-14">
+          <ProgressDots current={3} />
         </div>
       </header>
 
@@ -246,7 +248,7 @@ export default function ServerSetupPage() {
                 className={tabClass('register')}
                 onClick={() => selectTab('register')}
                 onKeyDown={(event) => handleTabKeyDown(event, 'register')}
-              >Create Account</button>
+              >Register</button>
               <button
                 ref={(element) => { serverTabRefs.current.skip = element }}
                 id="server-setup-tab-skip"
@@ -266,7 +268,7 @@ export default function ServerSetupPage() {
               <div role="status" className="mx-4 mt-4 flex items-start gap-2 rounded-xl border border-warn/30 bg-warn/10 p-3 text-left">
                 <AlertTriangle size={16} className="mt-0.5 flex-shrink-0 text-warn" />
                 <p className="text-xs leading-relaxed text-muted-foreground">
-                  Automatic peer discovery is not configured for this deployment. You can still connect using a peer’s full address; the app administrator needs to add bootstrap peers to enable discovery.
+                  Peer discovery isn’t configured. You can still connect using a peer’s full address.
                 </p>
               </div>
             )}
@@ -299,18 +301,23 @@ export default function ServerSetupPage() {
                     autoComplete="current-password"
                     className="w-full px-3 py-3 text-sm rounded-xl border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
                   />
-                  <input
-                    type="text"
-                    aria-label="XMPP server WebSocket URL (optional)"
-                    placeholder={isElectronShell() ? 'Server URL (wss://…, xmpp://… or xmpps://…)' : 'Server URL (optional, e.g. wss://example.com:5443/ws)'}
-                    value={serviceUrl}
-                    disabled={connecting}
-                    onChange={e => { setServiceUrl(e.target.value); setError('') }}
-                    className="w-full px-3 py-3 text-sm rounded-xl border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  />
-                  <p className="-mt-1 text-xs leading-relaxed text-muted-foreground">
-                    If discovery fails, enter the server’s secure XMPP endpoint. Electron supports xmpp:// (STARTTLS) and xmpps:// (direct TLS); browsers require wss://.
-                  </p>
+                  <details className="-mt-1 text-xs text-muted-foreground">
+                    <summary className="min-h-11 cursor-pointer py-3">Advanced connection settings</summary>
+                    <div className="space-y-2 pb-2">
+                      <input
+                        type="text"
+                        aria-label="XMPP server WebSocket URL (optional)"
+                        placeholder={isElectronShell() ? 'Server URL (wss://…, xmpp://… or xmpps://…)' : 'Server URL (optional, e.g. wss://example.com:5443/ws)'}
+                        value={serviceUrl}
+                        disabled={connecting}
+                        onChange={e => { setServiceUrl(e.target.value); setError('') }}
+                        className="w-full rounded-xl border border-border bg-background px-3 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      />
+                      <p className="leading-relaxed">
+                        If discovery fails, enter the server’s secure XMPP endpoint. Electron supports xmpp:// (STARTTLS) and xmpps:// (direct TLS); browsers require wss://.
+                      </p>
+                    </div>
+                  </details>
                   {error && <XmppConnectionError message={error} />}
                   <button
                     type="submit"
@@ -318,14 +325,6 @@ export default function ServerSetupPage() {
                     className="w-full bg-primary text-primary-foreground rounded-xl h-[50px] font-semibold text-sm transition-opacity hover:opacity-90 disabled:opacity-40 flex items-center justify-center gap-2"
                   >
                     {connecting ? <><Loader size={16} className="animate-spin" /> Connecting…</> : 'Connect'}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={connecting}
-                    onClick={handleContinue}
-                    className="w-full min-h-11 rounded-lg text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                  >
-                    Skip this step
                   </button>
                 </form>
               )}
@@ -371,7 +370,7 @@ export default function ServerSetupPage() {
                   )}
 
                   {selectedServerInfo?.supportsInBandRegistration === true && <>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col gap-2 sm:flex-row">
                     <input
                       type="text"
                       aria-label="New XMPP account username"
@@ -380,10 +379,10 @@ export default function ServerSetupPage() {
                       disabled={registering}
                       onChange={e => { setRegUsername(e.target.value.replace(/[^a-zA-Z0-9_\-.]/g, '')); setError('') }}
                       required
-                      className="flex-1 px-3 py-3 text-sm rounded-xl border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      className="min-w-0 flex-1 px-3 py-3 text-sm rounded-xl border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
                     />
-                    <div className="flex items-center text-sm text-muted-foreground px-2 bg-secondary rounded-xl">
-                      @{selectedServer}
+                    <div className="flex min-h-11 min-w-0 items-center rounded-xl bg-secondary px-3 text-sm text-muted-foreground sm:max-w-[45%] sm:truncate">
+                      <span className="shrink-0">@</span><span className="break-all sm:truncate">{selectedServer}</span>
                     </div>
                   </div>
 
@@ -413,7 +412,7 @@ export default function ServerSetupPage() {
                   />
 
                   <label className="block">
-                    <span className="mb-1 block text-xs text-muted-foreground">Email address (if required by the server)</span>
+                    <span className="mb-1 block text-xs text-muted-foreground">Email (if required by server)</span>
                     <input
                       type="email"
                       aria-label="Registration email address"
@@ -426,15 +425,18 @@ export default function ServerSetupPage() {
                     />
                   </label>
 
-                  <input
-                    type="text"
-                    aria-label="Registration server WebSocket URL (optional)"
-                    placeholder="Server URL (optional, e.g. wss://example.com:5443/ws)"
-                    value={regServiceUrl}
-                    disabled={registering}
-                    onChange={e => { setRegServiceUrl(e.target.value); setError('') }}
-                    className="w-full px-3 py-3 text-sm rounded-xl border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  />
+                  <details className="text-xs text-muted-foreground">
+                    <summary className="min-h-11 cursor-pointer py-3">Advanced connection settings</summary>
+                    <input
+                      type="text"
+                      aria-label="Registration server WebSocket URL (optional)"
+                      placeholder="Server URL (optional, e.g. wss://example.com:5443/ws)"
+                      value={regServiceUrl}
+                      disabled={registering}
+                      onChange={e => { setRegServiceUrl(e.target.value); setError('') }}
+                      className="mb-3 w-full px-3 py-3 text-sm rounded-xl border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    />
+                  </details>
 
                   {error && (
                     <p role="alert" className="text-xs text-destructive">
@@ -464,26 +466,17 @@ export default function ServerSetupPage() {
                   </button>
                   </>}
 
-                  <button
-                    type="button"
-                    disabled={registering}
-                    onClick={handleContinue}
-                    className="w-full min-h-11 rounded-lg text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                  >
-                    Skip this step
-                  </button>
                 </form>
               )}
 
               {tab === 'skip' && (
                 <div className="flex flex-col items-center pt-8 gap-4 text-center">
                   <p className="text-sm text-muted-foreground max-w-xs">
-                    You can connect to an XMPP server later from Settings to access the standard XMPP network.
-                    For now, you'll use the peer-to-peer network only.
+                    You can add an XMPP server later in Settings.
                   </p>
                   {bootstrapPeersAvailable === false && (
                     <p role="status" className="max-w-xs rounded-xl border border-warn/30 bg-warn/10 p-3 text-xs leading-relaxed text-muted-foreground">
-                      This deployment has no peer relay configured, so peer messaging will stay offline until you add a relay in Settings or the app operator configures one.
+                      Peer messaging needs a relay. Configure one in Settings.
                     </p>
                   )}
                   <button

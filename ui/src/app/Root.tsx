@@ -14,7 +14,7 @@ import { getPeerAddress } from '../lib/peer-addresses'
 
 function PageLoader() {
   return (
-    <div className="flex-1 flex items-center justify-center min-h-[400px]">
+    <div className="flex-1 flex items-center justify-center min-h-60 sm:min-h-[400px]">
       <div className="flex flex-col items-center gap-3">
         <Zap size={20} className="text-muted-foreground animate-pulse" />
         <span className="font-mono text-[10px] text-muted-foreground">Loading…</span>
@@ -25,10 +25,8 @@ function PageLoader() {
 
 const NAV = [
   { to: '/', icon: Home, label: 'Feed' },
-  { to: '/topics', icon: Hash, label: 'Topics' },
   { to: '/compose', icon: PlusSquare, label: 'Write' },
   { to: '/chats', icon: MessageCircle, label: 'Chats' },
-  { to: '/profile', icon: User, label: 'Profile' }
 ]
 
 export default function Root() {
@@ -36,6 +34,20 @@ export default function Root() {
   const { connected, connectedPeers, nodeAvailable } = useConnectionBridge()
   const navigate = useNavigate()
   const { pathname } = useLocation()
+  const hideMobileNavigation = pathname === '/compose'
+    || pathname.startsWith('/compose/')
+    || pathname.startsWith('/onboarding')
+    || pathname === '/chats/new'
+    || pathname === '/communities/new'
+    || pathname === '/communities/join'
+    || pathname === '/settings/recovery'
+    || pathname === '/search'
+    || pathname === '/chat'
+    || ['/chat/', '/post/', '/article/'].some((prefix) => pathname.startsWith(prefix))
+  useEffect(() => {
+    document.documentElement.classList.toggle('mobile-nav-hidden', hideMobileNavigation)
+    return () => document.documentElement.classList.remove('mobile-nav-hidden')
+  }, [hideMobileNavigation])
   const [showMobileMore, setShowMobileMore] = useState(false)
   const mobileMoreTriggerRef = useRef<HTMLButtonElement>(null)
   const mobileMoreMenuRef = useRef<HTMLDivElement>(null)
@@ -48,6 +60,22 @@ export default function Root() {
   const pendingBootstrapRestartRef = useRef(false)
   const showDiscoveryWarning = nodeAvailable && !connected && bootstrapPeersConfigured === false
   useNotifications()
+
+  useEffect(() => {
+    setShowMobileMore(false)
+  }, [pathname])
+
+  useEffect(() => {
+    if (!showMobileMore) return
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      const target = event.target
+      if (!(target instanceof Node)) return
+      if (mobileMoreMenuRef.current?.contains(target) || mobileMoreTriggerRef.current?.contains(target)) return
+      setShowMobileMore(false)
+    }
+    document.addEventListener('pointerdown', closeOnOutsidePointer)
+    return () => document.removeEventListener('pointerdown', closeOnOutsidePointer)
+  }, [showMobileMore])
 
   useEffect(() => {
     let active = true
@@ -89,18 +117,6 @@ export default function Root() {
       stopWatchingBootstrapAddrs()
     }
   }, [isOnboarding])
-
-  useEffect(() => {
-    if (!showMobileMore) return
-    const closeWhenClickingOutside = (event: PointerEvent) => {
-      const target = event.target
-      if (!(target instanceof Node)) return
-      if (mobileMoreMenuRef.current?.contains(target) || mobileMoreTriggerRef.current?.contains(target)) return
-      setShowMobileMore(false)
-    }
-    document.addEventListener('pointerdown', closeWhenClickingOutside)
-    return () => document.removeEventListener('pointerdown', closeWhenClickingOutside)
-  }, [showMobileMore])
 
   useEffect(() => {
     if (!bridge?.broadcastPresence) return
@@ -321,7 +337,7 @@ export default function Root() {
       style={{ fontFamily: "'Inter', system-ui, sans-serif" }}
     >
       {!showDiscoveryWarning && (
-        <div className="sticky top-0 z-50 flex-shrink-0 flex items-center gap-2 px-4 py-1 text-[10px] font-mono border-b border-border bg-background/80 backdrop-blur">
+        <div className="sticky top-0 z-50 hidden flex-shrink-0 items-center gap-2 border-b border-border bg-background/80 px-4 py-1 font-mono text-[10px] backdrop-blur md:flex">
           <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-accent' : nodeAvailable ? 'bg-warn' : 'bg-destructive'}`} />
           <span className="text-muted-foreground">
             {connected
@@ -331,25 +347,24 @@ export default function Root() {
         </div>
       )}
 
-      {showDiscoveryWarning && !pathname.startsWith('/settings') && (
+      {showDiscoveryWarning && !pathname.startsWith('/settings') && !isOnboarding && (
         <div role="status" className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-warn/20 bg-warn/5 px-4 py-2 text-xs md:hidden">
-          <span className="text-muted-foreground">
-            No relay configured. Add a peer or set up a relay.
+          <span className="min-w-0 flex-1 text-muted-foreground">
+            No peer relay configured.
           </span>
-          <div className="flex shrink-0 items-center gap-2">
-            <button onClick={() => navigate('/settings')} className="min-h-11 rounded-md px-2 font-medium text-foreground hover:bg-warn/10">
-              Set up relay
-            </button>
-            <button onClick={() => navigate('/contacts')} className="min-h-11 rounded-md border border-warn/30 px-3 font-medium text-foreground hover:bg-warn/10">
-              Add peer
-            </button>
-          </div>
+          {!showMobileMore && (
+            <div className="flex shrink-0 items-center">
+              <button onClick={() => navigate('/settings')} className="min-h-11 rounded-lg border border-warn/30 px-3 font-medium text-foreground hover:bg-warn/10">
+                Settings
+              </button>
+            </div>
+          )}
         </div>
       )}
 
       {(initializing || bridgeError) && (
         <div className={`flex items-center justify-between gap-3 px-4 py-2 text-xs border-b ${bridgeError ? 'border-destructive/30 bg-destructive/5 text-destructive' : 'border-border bg-card text-muted-foreground'}`}>
-          <span>{initializing ? 'Starting peer network…' : `Peer network unavailable: ${bridgeError}`}</span>
+          <span className="min-w-0 flex-1 break-words">{initializing ? 'Starting peer network…' : `Peer network unavailable: ${bridgeError}`}</span>
           {bridgeError && <button onClick={() => setRetryCount((count) => count + 1)} className="min-h-11 shrink-0 rounded-md border border-current/20 px-3 font-medium hover:bg-secondary">Retry</button>}
         </div>
       )}
@@ -365,7 +380,7 @@ export default function Root() {
             </Suspense>
           </div>
 
-          <nav
+          {!hideMobileNavigation && <nav
             aria-label="Mobile navigation"
             className="relative sticky bottom-0 border-t border-border bg-background/90 backdrop-blur z-30 flex-shrink-0 md:hidden"
             onKeyDown={(event) => {
@@ -376,7 +391,7 @@ export default function Root() {
               }
             }}
           >
-            <div className="flex items-center justify-around py-2">
+            <div className="flex items-center justify-around px-2 py-1.5">
               {NAV.map(({ to, icon: Icon, label }) => (
                 <NavLink
                   key={to}
@@ -384,11 +399,11 @@ export default function Root() {
                   end={to === '/'}
                   onClick={() => setShowMobileMore(false)}
                   className={({ isActive }) =>
-                    `flex min-h-11 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg px-1 transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`
+                    `flex min-h-12 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`
                   }
                 >
                   <Icon size={20} />
-                  <span className="text-[10px] font-mono">{label}</span>
+                  <span className="text-[11px] font-medium tracking-wide">{label}</span>
                 </NavLink>
               ))}
               <button
@@ -398,17 +413,19 @@ export default function Root() {
                 aria-controls="mobile-more-menu"
                 aria-expanded={showMobileMore}
                 onClick={() => setShowMobileMore((open) => !open)}
-                className={`flex min-h-11 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg px-1 transition-colors ${showMobileMore || ['/contacts', '/drafts', '/settings'].some((path) => pathname.startsWith(path)) ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                className={`flex min-h-12 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 transition-colors ${showMobileMore || ['/topics', '/contacts', '/drafts', '/profile', '/settings'].some((path) => pathname.startsWith(path)) ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 <MoreHorizontal size={20} />
-                <span className="text-[10px] font-mono">More</span>
+                <span className="text-[11px] font-medium tracking-wide">More</span>
               </button>
             </div>
             {showMobileMore && (
-              <div ref={mobileMoreMenuRef} id="mobile-more-menu" className="absolute bottom-full right-2 mb-2 w-52 rounded-xl border border-border bg-card p-1.5 shadow-xl">
+              <div ref={mobileMoreMenuRef} id="mobile-more-menu" className="absolute bottom-full right-2 mb-2 max-h-[min(65dvh,22rem)] w-52 overflow-y-auto overscroll-contain rounded-xl border border-border bg-card p-1.5 shadow-xl">
                 {[
+                  { to: '/topics', icon: Hash, label: 'Topics' },
                   { to: '/contacts', icon: Users, label: 'Contacts' },
                   { to: '/drafts', icon: FileText, label: 'Drafts' },
+                  { to: '/profile', icon: User, label: 'Profile' },
                   { to: '/settings', icon: Settings, label: 'Settings' },
                 ].map(({ to, icon: Icon, label }) => (
                   <NavLink
@@ -425,7 +442,7 @@ export default function Root() {
                 ))}
               </div>
             )}
-          </nav>
+          </nav>}
         </div>
       </div>
     </div>

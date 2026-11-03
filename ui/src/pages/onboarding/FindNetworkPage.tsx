@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useNavigate } from 'react-router'
-import { ArrowLeft, Check, Globe, Hash, Loader, Search, UserPlus, Users } from 'lucide-react'
+import { ArrowLeft, Check, ChevronDown, Globe, Hash, Loader, Search, UserPlus, Users } from 'lucide-react'
 import ProgressDots from '../../components/onboarding/ProgressDots'
 import { getBootstrapAddrs, saveBootstrapAddrs, useBrowserXmppBridge } from '../../bridge/runtime'
 import { useRosterBridge } from '../../bridge/useRosterBridge'
@@ -115,32 +115,42 @@ export default function FindNetworkPage() {
   return (
     <div className="mx-auto flex h-full w-full max-w-2xl flex-1 flex-col overflow-hidden">
       <header className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border flex-shrink-0 px-4 py-2.5">
-        <button onClick={() => navigate(-1)} aria-label="Go back" className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
-          <ArrowLeft size={18} />
-        </button>
-        <div className="mt-1">
-          <h1 className="text-heading font-semibold text-foreground">Find your network</h1>
-          <p className="text-[12px] text-muted-foreground">Connect using a contact or room address</p>
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate(-1)} aria-label="Go back" className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
+            <ArrowLeft size={18} />
+          </button>
+          <div className="min-w-0">
+            <h1 className="text-heading font-semibold text-foreground">Find your network</h1>
+            <p className="text-[12px] text-muted-foreground">No public directory</p>
+          </div>
         </div>
-        <div className="mt-3"><ProgressDots current={5} /></div>
+        <div className="mt-2 pl-14"><ProgressDots current={4} /></div>
       </header>
 
-      <main className="flex-1 overflow-y-auto px-4 py-4 space-y-5">
+      <main className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         <p className="text-xs leading-relaxed text-muted-foreground">
-          Nexus has no public people or community directory. Add someone with their P2P address or XMPP JID. Standard XMPP contacts need a connected server account; you can also connect one later in Settings. Join a P2P room using an ID shared with you.
+          Use an address or room ID shared with you.
         </p>
-        <form onSubmit={handleSaveBootstrap} className="rounded-xl border border-border bg-card p-4 space-y-3">
-          <div className="flex items-center gap-2 text-sm font-semibold text-foreground"><Globe size={16} className="text-primary" /> Peer network relay</div>
-          <p className="text-xs leading-relaxed text-muted-foreground">{nativeTcpAvailable ? 'A TCP or WebSocket address bootstraps the peer network. Native builds can dial root TCP addresses directly; browser clients need WebSockets.' : 'A relay address connects this browser to the P2P network and gives peers a route back to you. Ask your operator for a root WebSocket multiaddress; addresses with an HTTP path such as /ws cannot route WebRTC peer connections.'}</p>
-          <input value={bootstrapAddress} onChange={(event) => { setBootstrapAddress(event.target.value); setBootstrapSaved(false) }}
-            type="text" autoComplete="off" spellCheck={false} placeholder="/dns4/relay.example/tcp/443/wss/p2p/…" aria-label="Peer network relay address"
-            className="w-full rounded-lg border border-border bg-secondary px-3 py-2.5 font-mono text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50" />
-          {bootstrapAddressError && <p role="status" className="text-[11px] text-destructive">{bootstrapAddressError}</p>}
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-[11px] text-muted-foreground">{bootstrapSaved ? 'Saved. The peer network will reconnect with this relay when setup is complete.' : 'You can continue setup without a relay, but peer messaging will stay offline.'}</p>
-            <button type="submit" disabled={!validBootstrapAddress} className="shrink-0 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40">Save relay</button>
-          </div>
-        </form>
+        <details className="rounded-xl border border-border bg-card">
+          <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-semibold text-foreground">
+            <Globe size={16} className="text-primary" /> Peer network relay <span className="ml-auto text-[11px] font-normal text-muted-foreground">Optional</span>
+          </summary>
+          <form onSubmit={handleSaveBootstrap} className="space-y-3 px-4 pb-4">
+            <p className="text-xs leading-relaxed text-muted-foreground">Add your operator’s relay address to enable peer discovery.</p>
+            <details>
+              <summary className="min-h-11 cursor-pointer py-3 text-xs font-medium text-primary">Relay address help</summary>
+              <p className="pb-1 text-xs leading-relaxed text-muted-foreground">{nativeTcpAvailable ? 'Native apps accept root TCP or WebSocket addresses; browsers need WebSockets.' : 'Use a root WebSocket address. HTTP paths such as /ws cannot route peer connections.'}</p>
+            </details>
+            <input value={bootstrapAddress} onChange={(event) => { setBootstrapAddress(event.target.value); setBootstrapSaved(false) }}
+              type="text" autoComplete="off" spellCheck={false} placeholder="/dns4/relay.example/tcp/443/wss/p2p/…" aria-label="Peer network relay address"
+              className="min-h-11 w-full rounded-lg border border-border bg-secondary px-3 py-2.5 font-mono text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50" />
+            {bootstrapAddressError && <p role="status" className="text-[11px] text-destructive">{bootstrapAddressError}</p>}
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+              <p className="text-[11px] text-muted-foreground">{bootstrapSaved ? 'Saved. It will connect after setup.' : 'Without a relay, peer messaging stays offline.'}</p>
+              <button type="submit" disabled={!validBootstrapAddress} className="min-h-11 w-full shrink-0 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto">Save relay</button>
+            </div>
+          </form>
+        </details>
         {!runtime && <p role="status" className="rounded-lg border border-border bg-secondary/60 px-3 py-2 text-xs text-muted-foreground">The peer network is unavailable. You can continue setup and add contacts or join rooms later.</p>}
 
         <form onSubmit={(event) => void handleAddContact(event)} className="rounded-xl border border-border bg-card p-4 space-y-3">
@@ -148,41 +158,53 @@ export default function FindNetworkPage() {
           <label className="block">
             <span className="sr-only">Contact XMPP address</span>
             <input value={jid} onChange={(event) => { setJid(event.target.value); setError(''); setStatus('') }}
-              type="text" autoComplete="off" placeholder="name@example.org" aria-label="Contact XMPP address"
-              className="w-full rounded-lg border border-border bg-secondary px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50" />
+              type="text" autoComplete="off" placeholder="P2P address or user@example.org" aria-label="Contact P2P address or XMPP JID"
+              className="min-h-11 w-full rounded-lg border border-border bg-secondary px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50" />
           </label>
           <button type="submit" disabled={!validJid || contactAlreadyAdded || Boolean(working) || !runtime}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40">
+            className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40">
             {working === 'contact' ? <Loader size={15} className="animate-spin" /> : <UserPlus size={15} />}
             {working === 'contact' ? 'Adding contact…' : contactAlreadyAdded ? 'Already in contacts' : 'Add contact'}
           </button>
         </form>
 
-        <form onSubmit={(event) => void handleJoinRoom(event)} className="rounded-xl border border-border bg-card p-4 space-y-3">
-          <div className="flex items-center gap-2 text-sm font-semibold text-foreground"><Hash size={16} className="text-primary" /> Join a P2P room</div>
-          <p className="text-xs text-muted-foreground">Enter a room ID shared by its creator. Room IDs are public addresses.</p>
-          <label className="block">
-            <span className="sr-only">P2P room ID</span>
-            <input value={roomId} onChange={(event) => { setRoomId(event.target.value.toLowerCase()); setError(''); setStatus('') }}
-              type="text" autoComplete="off" placeholder="room-id or room-id@muc.p2p" aria-label="P2P room ID"
-              className="w-full rounded-lg border border-border bg-secondary px-3 py-2.5 font-mono text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50" />
-          </label>
-          <button type="submit" disabled={!validRoomId || Boolean(working) || !runtime}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-secondary px-3 py-2.5 text-sm font-semibold text-foreground hover:bg-secondary/80 disabled:cursor-not-allowed disabled:opacity-40">
-            {working === 'room' ? <Loader size={15} className="animate-spin" /> : <Users size={15} />}
-            {working === 'room' ? 'Joining…' : 'Join room'}
-          </button>
-        </form>
+        <details className="rounded-xl border border-border bg-card">
+          <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-semibold text-foreground">
+            <Hash size={16} className="text-primary" /> Join a P2P room
+            <span className="ml-auto text-[11px] font-normal text-muted-foreground">Optional</span>
+            <ChevronDown size={14} className="text-muted-foreground/50" />
+          </summary>
+          <form onSubmit={(event) => void handleJoinRoom(event)} className="space-y-3 px-4 pb-4">
+            <p className="text-xs text-muted-foreground">Enter a room ID shared by its creator. Room IDs are public addresses.</p>
+            <label className="block">
+              <span className="sr-only">P2P room ID</span>
+              <input value={roomId} onChange={(event) => { setRoomId(event.target.value.toLowerCase()); setError(''); setStatus('') }}
+                type="text" autoComplete="off" placeholder="room-id or room-id@muc.p2p" aria-label="P2P room ID"
+                className="min-h-11 w-full rounded-lg border border-border bg-secondary px-3 py-2.5 font-mono text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50" />
+            </label>
+            <button type="submit" disabled={!validRoomId || Boolean(working) || !runtime}
+              className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-secondary px-3 py-2.5 text-sm font-semibold text-foreground hover:bg-secondary/80 disabled:cursor-not-allowed disabled:opacity-40">
+              {working === 'room' ? <Loader size={15} className="animate-spin" /> : <Users size={15} />}
+              {working === 'room' ? 'Joining…' : 'Join room'}
+            </button>
+          </form>
+        </details>
 
-        <section>
-          <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground"><Users size={16} className="text-muted-foreground" /> Your contacts</div>
+        <details className="rounded-xl border border-border bg-card">
+          <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-semibold text-foreground">
+            <Users size={16} className="text-muted-foreground" />
+            <span>Your contacts</span>
+            <span className="ml-auto text-[11px] font-normal text-muted-foreground">{contacts.length}</span>
+            <ChevronDown size={14} className="text-muted-foreground/50" />
+          </summary>
+          <section className="space-y-2 border-t border-border p-3" aria-label="Your contacts">
           {available && loadError && (
             <div role="alert" className="mb-2 flex items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2">
-              <p className="text-xs text-destructive">{loadError}</p>
-              <button onClick={refresh} className="shrink-0 rounded-md border border-current/20 px-2 py-1 text-xs font-medium text-destructive hover:bg-destructive/10">Retry</button>
+              <p className="min-w-0 flex-1 break-words text-xs text-destructive">{loadError}</p>
+              <button onClick={refresh} className="min-h-11 shrink-0 rounded-md border border-current/20 px-3 text-xs font-medium text-destructive hover:bg-destructive/10">Retry</button>
             </div>
           )}
-          <div className="mb-2 flex items-center gap-2 rounded-lg bg-secondary px-3 py-2">
+          <div className="mb-2 flex min-h-11 items-center gap-2 rounded-lg bg-secondary px-3 py-2">
             <Search size={14} className="text-muted-foreground" />
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search your contacts…" aria-label="Search your contacts"
               className="min-w-0 flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none" />
@@ -208,10 +230,11 @@ export default function FindNetworkPage() {
                 ? 'Your contacts could not be loaded.'
                 : query
                   ? 'No contacts match your search.'
-                  : 'No contacts yet. Add someone by their XMPP address above.'}
+                  : 'No contacts yet. Add someone above to start connecting.'}
             </p>
           )}
-        </section>
+          </section>
+        </details>
 
         {(error || status) && <p role={error ? 'alert' : 'status'} className={`text-xs ${error ? 'text-destructive' : 'text-accent'}`}>{error || status}</p>}
       </main>

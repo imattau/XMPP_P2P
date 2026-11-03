@@ -42,14 +42,16 @@ export default function CreateIdentityPage() {
   return (
     <div className="mx-auto flex h-full w-full max-w-2xl flex-1 flex-col overflow-hidden">
       <header className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border flex-shrink-0 px-4 py-2.5">
-        <button onClick={() => navigate(-1)} aria-label="Go back" className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
-          <ArrowLeft size={18} />
-        </button>
-        <div className="mt-1">
-          <h1 className="text-heading font-semibold text-foreground">Create identity</h1>
-          <p className="text-[12px] text-muted-foreground">Your peer-network identity</p>
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate(-1)} aria-label="Go back" className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
+            <ArrowLeft size={18} />
+          </button>
+          <div className="min-w-0">
+            <h1 className="text-heading font-semibold text-foreground">Create identity</h1>
+            <p className="text-[12px] text-muted-foreground">Your peer-network identity</p>
+          </div>
         </div>
-        <div className="mt-3">
+        <div className="mt-2 pl-14">
           <ProgressDots current={1} />
         </div>
       </header>
@@ -89,33 +91,24 @@ export default function CreateIdentityPage() {
           {errors.handle && <p id="identity-handle-error" role="alert" className="flex items-center gap-1 mt-1 text-[11px] text-destructive"><AlertCircle size={11} />{errors.handle}</p>}
         </div>
 
-        <div>
-          <div className="text-[13px] font-semibold text-foreground mb-2">Identity preview</div>
-          <div className="bg-card rounded-xl p-5">
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 bg-blue2 rounded-full flex items-center justify-center flex-shrink-0">
-                {displayName.trim()
-                  ? <span aria-hidden="true" className="text-2xl font-bold text-primary">{displayName.trim().charAt(0).toUpperCase()}</span>
-                  : <UserRound aria-hidden="true" size={26} className="text-primary/70" />}
+        <section aria-label="Identity preview" className="rounded-xl bg-card p-3 sm:p-5">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-blue2 sm:h-16 sm:w-16">
+              {displayName.trim()
+                ? <span aria-hidden="true" className="text-lg font-bold text-primary sm:text-2xl">{displayName.trim().charAt(0).toUpperCase()}</span>
+                : <UserRound aria-hidden="true" size={20} className="text-primary/70 sm:h-[26px] sm:w-[26px]" />}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="break-words text-sm font-semibold text-foreground sm:text-base">{displayName || 'Your name'}</div>
+              <div className="mt-0.5 font-mono text-[12px] text-muted-foreground">
+                <span className="break-all">@{handle || 'handle'}</span>
               </div>
-              <div>
-                <div className="text-base font-semibold text-foreground">{displayName || 'Your name'}</div>
-                <div className="text-[12px] text-muted-foreground font-mono mt-0.5">
-                  @{handle || 'handle'}
-                </div>
-                <div className="text-[11px] text-muted-foreground mt-1">Profile handle · peer address created when Nexus opens</div>
-                <div className="text-[11px] text-accent bg-green2/20 px-2 py-0.5 rounded inline-block mt-1.5">
-                  Generated locally
-                </div>
+              <div className="mt-1 text-[11px] text-accent">
+                Local identity · address on launch
               </div>
             </div>
           </div>
-        </div>
-
-        <div className="bg-card rounded-xl px-4 py-4">
-          <div className="text-sm font-semibold text-foreground">How people find you</div>
-          <p className="text-xs leading-relaxed text-muted-foreground mt-1">Your handle is a profile label, not a network address. Open Nexus at the end of setup to create your peer address, then copy it from your profile to share with contacts. Nexus has no public handle directory.</p>
-        </div>
+        </section>
 
         <div className="sticky bottom-0 z-10 -mx-4 bg-background/95 px-4 pb-4 pt-3 backdrop-blur">
           <button

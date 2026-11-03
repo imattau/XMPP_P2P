@@ -101,6 +101,18 @@
   right: calc(1rem + env(safe-area-inset-right, 0px));
 }
 
+/* Keep focused form controls legible and prevent iOS zoom on small text fields. */
+@media (max-width: 767px) {
+  .safe-area-toast-container {
+    bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+    left: calc(0.75rem + env(safe-area-inset-left, 0px));
+    right: calc(0.75rem + env(safe-area-inset-right, 0px));
+  }
+  .mobile-nav-hidden .safe-area-toast-container {
+    bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
 @media (prefers-color-scheme: light) {
   html[data-theme='system'] {
     color-scheme: light;
@@ -141,6 +153,14 @@
 
 .scrollbar-hidden::-webkit-scrollbar {
   display: none;
+}
+
+@media (max-width: 767px) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']),
+  select,
+  textarea {
+    font-size: 16px;
+  }
 }
 
 @media (pointer: coarse) {

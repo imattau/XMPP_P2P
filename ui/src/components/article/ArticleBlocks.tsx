@@ -23,7 +23,7 @@ function ArticleImage({ url, alt, className }: { url: string; alt: string; class
     : <div className={`${className} bg-secondary flex items-center justify-center text-xs text-muted-foreground`}>
         {resolved.loading
           ? <span role="status">Loading image…</span>
-          : <button type="button" onClick={resolved.retry} className="hover:text-foreground">Image unavailable · Retry</button>}
+          : <button type="button" onClick={resolved.retry} className="min-h-11 rounded-lg px-3 hover:text-foreground">Image unavailable · Retry</button>}
       </div>
 }
 
@@ -37,7 +37,7 @@ function ArticleFile({ url, label, size }: { url: string; label: string; size?: 
           ? <a href={resolved.url} download={label || undefined} className="text-sm text-primary hover:underline truncate block">{label || 'Download file'}</a>
           : resolved.loading
             ? <p role="status" className="text-sm text-muted-foreground truncate">Loading {label || 'file'}…</p>
-            : <button type="button" onClick={resolved.retry} className="text-sm text-primary hover:underline truncate block">{label || 'File'} unavailable · Retry</button>}
+            : <button type="button" onClick={resolved.retry} className="min-h-11 max-w-full truncate text-left text-sm text-primary hover:underline">{label || 'File'} unavailable · Retry</button>}
         {size && <p className="text-[11px] text-muted-foreground">{size}</p>}
       </div>
     </div>
@@ -56,19 +56,19 @@ export default function ArticleBlocks({ blocks, readOnly = true }: ArticleBlocks
         switch (block.type) {
           case 'heading':
             return (
-              <h2 key={block.id} className="text-[21px] font-semibold text-foreground mt-8 mb-3 leading-snug">
+              <h2 key={block.id} className="mt-8 mb-3 break-words text-[21px] font-semibold leading-snug text-foreground">
                 {block.content || <span className="text-muted-foreground">Heading</span>}
               </h2>
             )
           case 'paragraph':
             return (
-              <p key={block.id} className="text-base text-foreground/90 leading-relaxed mb-4">
+              <p key={block.id} className="mb-4 break-words text-base leading-relaxed text-foreground/90">
                 {block.content || <span className="text-muted-foreground">Paragraph</span>}
               </p>
             )
           case 'quote':
             return (
-              <blockquote key={block.id} className="border-l-2 border-primary/30 pl-4 py-2 my-4 text-[15px] text-muted-foreground italic">
+              <blockquote key={block.id} className="my-4 break-words border-l-2 border-primary/30 py-2 pl-4 text-[15px] italic text-muted-foreground">
                 <p>{block.content || <span className="text-muted-foreground">Quote</span>}</p>
                 {!!block.meta?.attribution && (
                   <footer className="text-xs text-muted-foreground mt-2 not-italic">— {String(block.meta.attribution)}</footer>
@@ -108,7 +108,7 @@ export default function ArticleBlocks({ blocks, readOnly = true }: ArticleBlocks
             )
           case 'list':
             return (
-              <ul key={block.id} className="list-disc pl-6 text-base text-foreground/90 mb-4 space-y-1">
+              <ul key={block.id} className="mb-4 list-disc space-y-1 break-words pl-6 text-base text-foreground/90">
                 {block.meta?.items && Array.isArray(block.meta.items)
                   ? (block.meta.items as string[]).filter((item) => item.trim()).map((item, i) => <li key={i}>{item}</li>)
                   : <li>{block.content || 'List item'}</li>
@@ -123,7 +123,7 @@ export default function ArticleBlocks({ blocks, readOnly = true }: ArticleBlocks
             )
           case 'callout':
             return (
-              <div key={block.id} className="bg-blue2/50 border border-primary/20 rounded-xl p-4 my-4 text-sm text-foreground/90">
+              <div key={block.id} className="my-4 break-words rounded-xl border border-primary/20 bg-blue2/50 p-4 text-sm text-foreground/90">
                 {block.content || <span className="text-muted-foreground">Callout</span>}
               </div>
             )
@@ -134,8 +134,8 @@ export default function ArticleBlocks({ blocks, readOnly = true }: ArticleBlocks
               const rows = block.content.split('\n').map((row) => row.split('|').map((cell) => cell.trim())).filter((row) => row.some(Boolean))
               const [headers, ...bodyRows] = rows
               return (
-                <div key={block.id} className="my-4 overflow-x-auto">
-                  <table className="w-full border-collapse text-sm text-foreground/90">
+                <div key={block.id} role="region" aria-label="Scrollable article table" tabIndex={0} className="my-4 overflow-x-auto rounded-lg border border-border">
+                  <table className="w-max min-w-full border-collapse text-sm text-foreground/90">
                     {headers?.length > 0 && <thead><tr>{headers.map((cell, index) => <th key={index} className="border border-border p-2 text-left font-semibold">{cell}</th>)}</tr></thead>}
                     <tbody>{bodyRows.map((row, rowIndex) => <tr key={rowIndex}>{row.map((cell, index) => <td key={index} className="border border-border p-2">{cell}</td>)}</tr>)}</tbody>
                   </table>
@@ -148,11 +148,11 @@ export default function ArticleBlocks({ blocks, readOnly = true }: ArticleBlocks
               : <div key={block.id} className="bg-secondary rounded-xl p-4 my-4 text-sm text-muted-foreground">{block.content || 'File'}</div>
           case 'link':
             return safeWebUrl(block.meta?.href)
-              ? <a key={block.id} href={safeWebUrl(block.meta?.href)} className="text-primary hover:underline text-base" target="_blank" rel="noopener noreferrer">{block.content || 'Link'}</a>
-              : <span key={block.id} className="text-base text-foreground/90">{block.content || 'Link'}</span>
+              ? <a key={block.id} href={safeWebUrl(block.meta?.href)} className="break-words text-base text-primary hover:underline" target="_blank" rel="noopener noreferrer">{block.content || 'Link'}</a>
+              : <span key={block.id} className="break-words text-base text-foreground/90">{block.content || 'Link'}</span>
           default:
             return (
-              <p key={block.id} className="text-base text-foreground/90 leading-relaxed mb-4">
+              <p key={block.id} className="mb-4 break-words text-base leading-relaxed text-foreground/90">
                 {block.content}
               </p>
             )

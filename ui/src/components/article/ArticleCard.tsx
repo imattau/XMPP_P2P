@@ -28,21 +28,18 @@ export default function ArticleCard({ article, variant = 'compact', onBookmark, 
               ? <img src={coverImage.url} alt={article.title} className="w-full h-full object-cover" />
               : <CoverPlaceholder loading={coverImage.loading} feature />}
           </div>
-        ) : (
-          <div className="h-[126px] bg-secondary" />
-        )}
+        ) : null}
         <div className="p-4">
           {article.topic && (
-            <span className="text-[10px] font-semibold text-primary uppercase tracking-wide">#{article.topic}</span>
+            <span className="block min-w-0 truncate text-[11px] font-semibold text-primary uppercase tracking-wide">#{article.topic}</span>
           )}
           <h3 className="mt-1 leading-tight line-clamp-2"><button type="button" onClick={handleClick} className="min-h-11 text-left text-xl font-semibold text-foreground hover:text-primary focus-visible:outline-none focus-visible:underline">{article.title || 'Read article'}</button></h3>
           {article.subtitle && (
             <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{article.subtitle}</p>
           )}
-          <div className="flex items-center justify-between mt-3">
-            <span className="text-[11px] text-muted-foreground">
-              {article.author.name}{article.settings.showReadingTime ? ` · ${article.readTime}` : ''}
-            </span>
+          <div className="flex items-center gap-2 mt-3">
+            <span className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground">{article.author.name}</span>
+            {article.settings.showReadingTime && <span className="shrink-0 text-[11px] text-muted-foreground">{article.readTime}</span>}
             <button type="button" onClick={handleBookmark} aria-label={article.bookmarked ? 'Remove bookmark' : 'Bookmark article'} aria-pressed={article.bookmarked}
               className="flex h-11 w-11 items-center justify-center text-muted-foreground hover:text-primary transition-colors">
               <Bookmark size={18} fill={article.bookmarked ? 'currentColor' : 'none'} />
@@ -58,9 +55,9 @@ export default function ArticleCard({ article, variant = 'compact', onBookmark, 
       <div
         className="border-b border-border"
       >
-        <div className="flex gap-4 px-4 py-3">
+        <div className="flex gap-3 px-3 py-3 sm:gap-4 sm:px-4">
           {article.coverImage && (
-            <div className="w-20 h-20 rounded-xl overflow-hidden bg-secondary flex-shrink-0">
+            <div className="h-16 w-16 rounded-xl overflow-hidden bg-secondary flex-shrink-0 sm:h-20 sm:w-20">
               {coverImage.url
                 ? <img src={coverImage.url} alt="" className="w-full h-full object-cover" />
                 : <CoverPlaceholder loading={coverImage.loading} />}
@@ -68,22 +65,24 @@ export default function ArticleCard({ article, variant = 'compact', onBookmark, 
           )}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 mb-1">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-primary">Article</span>
+              <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wider text-primary">Article</span>
               {article.topic && (
-                <span className="text-[10px] font-mono text-muted-foreground">#{article.topic}</span>
+                <span className="min-w-0 truncate text-[11px] font-mono text-muted-foreground">#{article.topic}</span>
               )}
             </div>
-            <h4 className="text-sm font-semibold text-foreground leading-snug line-clamp-2"><button type="button" onClick={handleClick} className="min-h-11 text-left hover:text-primary focus-visible:outline-none focus-visible:underline">{article.title || 'Read article'}</button></h4>
-            <p className="text-[12px] text-muted-foreground mt-0.5 line-clamp-1">{article.subtitle}</p>
+            <h4 className="text-sm font-semibold text-foreground leading-snug line-clamp-2"><button type="button" onClick={handleClick} className="min-h-11 break-words text-left hover:text-primary focus-visible:outline-none focus-visible:underline">{article.title || 'Read article'}</button></h4>
+            {article.subtitle && <p className="text-[12px] text-muted-foreground mt-0.5 line-clamp-1">{article.subtitle}</p>}
             <div className="flex items-center gap-2 mt-1.5">
-              <span className="text-[10px] font-mono text-muted-foreground">{article.author.name}</span>
-              <span className="text-muted-foreground/30">·</span>
-              {article.settings.showReadingTime && <span className="text-[10px] font-mono text-muted-foreground">{article.readTime}</span>}
+              <span className="min-w-0 truncate text-[11px] font-mono text-muted-foreground">{article.author.name}</span>
+              {article.settings.showReadingTime && <>
+                <span className="text-muted-foreground/30">·</span>
+                <span className="shrink-0 text-[11px] font-mono text-muted-foreground">{article.readTime}</span>
+              </>}
             </div>
           </div>
           <button type="button" onClick={handleBookmark} aria-label={article.bookmarked ? 'Remove bookmark' : 'Bookmark article'} aria-pressed={article.bookmarked}
             className="self-start flex h-11 w-11 items-center justify-center text-muted-foreground hover:text-primary transition-colors flex-shrink-0">
-            <Bookmark size={14} fill={article.bookmarked ? 'currentColor' : 'none'} />
+            <Bookmark size={18} fill={article.bookmarked ? 'currentColor' : 'none'} />
           </button>
         </div>
       </div>
@@ -96,16 +95,15 @@ export default function ArticleCard({ article, variant = 'compact', onBookmark, 
     >
       <div className="p-4">
         {article.topic && (
-          <span className="text-[10px] font-semibold text-primary uppercase tracking-wide">#{article.topic}</span>
+          <span className="block min-w-0 truncate text-[11px] font-semibold text-primary uppercase tracking-wide">#{article.topic}</span>
         )}
         <h3 className="mt-1 leading-tight line-clamp-2"><button type="button" onClick={handleClick} className="min-h-11 text-left text-base font-semibold text-foreground hover:text-primary focus-visible:outline-none focus-visible:underline">{article.title || 'Read article'}</button></h3>
         {article.subtitle && (
           <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{article.subtitle}</p>
         )}
-        <div className="flex items-center justify-between mt-3">
-          <span className="text-[11px] text-muted-foreground">
-            {article.author.name}{article.settings.showReadingTime ? ` · ${article.readTime}` : ''}
-          </span>
+        <div className="flex items-center gap-2 mt-3">
+          <span className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground">{article.author.name}</span>
+          {article.settings.showReadingTime && <span className="shrink-0 text-[11px] text-muted-foreground">{article.readTime}</span>}
           <button type="button" onClick={handleBookmark} aria-label={article.bookmarked ? 'Remove bookmark' : 'Bookmark article'} aria-pressed={article.bookmarked}
             className="flex h-11 w-11 items-center justify-center text-muted-foreground hover:text-primary transition-colors">
             <Bookmark size={18} fill={article.bookmarked ? 'currentColor' : 'none'} />

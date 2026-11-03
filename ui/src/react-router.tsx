@@ -45,7 +45,7 @@ function backFallback(pathname: string) {
       '/onboarding/create': '/onboarding',
       '/onboarding/import': '/onboarding',
       '/onboarding/recovery': '/onboarding/create',
-      '/onboarding/permissions': '/onboarding/recovery',
+      '/onboarding/permissions': '/onboarding/network',
       '/onboarding/network': '/onboarding/recovery',
       '/onboarding/find-network': '/onboarding/network',
       '/onboarding/preferences': '/onboarding/find-network',

@@ -7,9 +7,9 @@ import ProgressDots from '../../components/onboarding/ProgressDots'
 import { decryptIdentityBackup } from '../../bridge/identity/backup'
 
 const OPTIONS = [
-  { key: 'phrase', icon: FileText, title: 'Recovery phrase', desc: 'Enter your saved recovery words' },
-  { key: 'backup', icon: FileArchive, title: 'Identity backup', desc: 'Import an encrypted backup file' },
-  { key: 'paste', icon: User, title: 'Paste identity JSON', desc: 'Restore from a profile export and recovery phrase' },
+  { key: 'phrase', icon: FileText, title: 'Recovery phrase' },
+  { key: 'backup', icon: FileArchive, title: 'Identity backup' },
+  { key: 'paste', icon: User, title: 'Paste JSON' },
 ]
 
 const INITIAL_METHOD = 'phrase'
@@ -183,21 +183,23 @@ export default function ImportIdentityPage() {
   return (
     <div className="mx-auto flex h-full w-full max-w-2xl flex-1 flex-col overflow-hidden">
       <header className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border flex-shrink-0 px-4 py-2.5">
-        <button onClick={() => navigate(-1)} aria-label="Go back" className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
-          <ArrowLeft size={18} />
-        </button>
-        <div className="mt-1">
-          <h1 className="text-heading font-semibold text-foreground">Import identity</h1>
-          <p className="text-[12px] text-muted-foreground">Restore an existing account</p>
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate(-1)} aria-label="Go back" className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
+            <ArrowLeft size={18} />
+          </button>
+          <div className="min-w-0">
+            <h1 className="text-heading font-semibold text-foreground">Import identity</h1>
+            <p className="text-[12px] text-muted-foreground">Restore an existing account</p>
+          </div>
         </div>
-        <div className="mt-3">
+        <div className="mt-2 pl-14">
           <ProgressDots current={1} />
         </div>
       </header>
 
       <main className="flex-1 overflow-y-auto px-4 pb-4 space-y-3">
-        <div role="radiogroup" aria-label="Import method" className="space-y-3">
-          {OPTIONS.map(({ key, icon: Icon, title, desc }) => (
+        <div role="radiogroup" aria-label="Import method" className="grid grid-cols-3 gap-2">
+          {OPTIONS.map(({ key, icon: Icon, title }) => (
             <button
               key={key}
               ref={(element) => { methodRefs.current[key] = element }}
@@ -208,16 +210,15 @@ export default function ImportIdentityPage() {
               disabled={importing}
               onClick={() => selectMethod(key)}
               onKeyDown={(event) => handleMethodKeyDown(event, key)}
-              className={`w-full rounded-xl px-4 py-4 flex items-center gap-3 text-left transition-colors disabled:cursor-wait disabled:opacity-60 ${
+              className={`flex min-h-[76px] w-full flex-col items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-center transition-colors disabled:cursor-wait disabled:opacity-60 sm:min-h-20 sm:gap-2 sm:px-3 ${
                 selected === key ? 'bg-blue2' : 'bg-card'
               }`}
             >
-              <Icon size={22} className={selected === key ? 'text-primary' : 'text-muted-foreground'} />
-              <div>
-                <div className={`text-sm font-semibold ${selected === key ? 'text-primary' : 'text-foreground'}`}>
+              <Icon size={20} className={`shrink-0 ${selected === key ? 'text-primary' : 'text-muted-foreground'}`} />
+              <div className="min-w-0">
+                <div className={`text-xs font-semibold leading-tight ${selected === key ? 'text-primary' : 'text-foreground'}`}>
                   {title}
                 </div>
-                <div className="text-[11px] text-muted-foreground mt-0.5">{desc}</div>
               </div>
             </button>
           ))}
@@ -263,30 +264,28 @@ export default function ImportIdentityPage() {
                 aria-describedby={phraseError ? 'import-recovery-phrase-error' : undefined}
                 value={phraseText}
                 onChange={(e) => { setPhraseText(e.target.value); setPhraseError(''); setError('') }}
-                placeholder="Enter your 12 recovery words separated by spaces"
+                placeholder="Separate words with spaces"
                 rows={3}
                 className="w-full bg-secondary rounded-xl p-4 text-foreground text-body outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/50 resize-none"
               />
               {phraseError && <p id="import-recovery-phrase-error" role="alert" className="flex items-center gap-1 mt-1 text-[11px] text-destructive"><AlertCircle size={11} />{phraseError}</p>}
             </div>
 
-            <p className="rounded-xl bg-card px-4 py-3 text-[11px] leading-relaxed text-muted-foreground">Nexus has no public handle directory. People can connect after you share your routable peer address.</p>
+            <p className="rounded-xl bg-card px-4 py-3 text-[11px] leading-relaxed text-muted-foreground">Share your peer address so people can connect.</p>
           </div>
         )}
 
         {selected === 'backup' && (
           <div className="bg-card rounded-xl p-4 space-y-3">
-            <div className="flex items-center gap-2 text-sm font-semibold"><FileArchive size={17} className="text-primary" /> Restore encrypted backup</div>
-            <label className="block text-[11px] text-muted-foreground">
+            <label className="block text-xs text-muted-foreground">
               Backup file
-              <input type="file" aria-label="Encrypted identity backup file" accept=".json,application/json" onChange={(event) => { setBackupFile(event.target.files?.[0] ?? null); setError('') }} className="mt-1 block w-full text-xs file:mr-3 file:rounded-lg file:border-0 file:bg-secondary file:px-3 file:py-2 file:text-xs file:font-semibold file:text-foreground" />
+              <input type="file" aria-label="Encrypted identity backup file" accept=".json,application/json" onChange={(event) => { setBackupFile(event.target.files?.[0] ?? null); setError('') }} className="mt-1 block w-full min-w-0 text-xs file:mr-3 file:min-h-11 file:rounded-lg file:border-0 file:bg-secondary file:px-3 file:py-2 file:text-xs file:font-semibold file:text-foreground" />
             </label>
             {backupFile && <p className="truncate text-[11px] text-muted-foreground">Selected: {backupFile.name}</p>}
-            <label className="block text-[11px] text-muted-foreground">
+            <label className="block text-xs text-muted-foreground">
               Backup passphrase
-              <input type="password" aria-label="Backup passphrase" autoComplete="current-password" value={backupPassphrase} onChange={(event) => { setBackupPassphrase(event.target.value); setError('') }} placeholder="Enter the passphrase used to encrypt this file" className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/40" />
+              <input type="password" aria-label="Backup passphrase" autoComplete="current-password" value={backupPassphrase} onChange={(event) => { setBackupPassphrase(event.target.value); setError('') }} placeholder="Passphrase" className="mt-1 min-h-11 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/40" />
             </label>
-            <p className="text-[10px] text-muted-foreground">The file is decrypted in this browser. Its contents are not uploaded.</p>
           </div>
         )}
 
@@ -302,8 +301,8 @@ export default function ImportIdentityPage() {
                 value={pastedData}
                 onChange={(e) => { setPastedData(e.target.value); setPasteError(''); setError('') }}
                 placeholder='{"handle": "maren", "displayName": "Maren Holdt", "recoveryPhrase": ["word1", "word2", "…"]}'
-                rows={6}
-                className="w-full bg-secondary rounded-xl p-4 text-foreground text-body outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/50 resize-none font-mono text-[12px]"
+                rows={4}
+                className="min-h-28 w-full resize-none rounded-xl bg-secondary p-4 font-mono text-[12px] text-foreground outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/50 sm:min-h-36"
               />
               {pasteError && <p id="import-identity-json-error" role="alert" className="flex items-center gap-1 mt-1 text-[11px] text-destructive"><AlertCircle size={11} />{pasteError}</p>}
             </div>
@@ -320,7 +319,7 @@ export default function ImportIdentityPage() {
 
       <div className="flex-shrink-0 border-t border-border bg-background px-4 pt-2 pb-4">
         <p className="mb-2 text-[11px] leading-relaxed text-center text-muted-foreground">
-          Import happens locally. Nothing is uploaded to a server.
+          Imported locally. Nothing is uploaded.
         </p>
         <button
           onClick={handleContinue}

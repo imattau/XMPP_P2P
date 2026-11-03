@@ -3,8 +3,8 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import {
   ArrowLeft, Heart, MessageCircle, Repeat2, Share2,
-  Bookmark, Hash, Users, Globe, Lock, Shield, Copy,
-  Zap, Image, Smile, AtSign, Send, ChevronDown, Check, X, UserPlus, UserMinus,
+  Bookmark, Hash, Users, Globe, Lock, Shield,
+  Zap, Image, Smile, AtSign, Send, ChevronDown, MoreHorizontal, Check, X, UserPlus, UserMinus,
 } from 'lucide-react'
 import { getBrowserXmppBridge, useBrowserXmppBridge } from '../bridge/runtime'
 import { useFeedBridge } from '../bridge/feed/useFeedBridge'
@@ -51,6 +51,7 @@ interface Post {
   privacy?: 'public' | 'followers' | 'community'
   media?: { url: string; alt: string }
   sourceTopic?: string
+  sourceProtocol?: 'p2p' | 'xmpp'
 }
 
 async function copyPostLink(postId: string) {
@@ -79,58 +80,61 @@ function ReplyThread({ reply, onLike, onRepost, onReplySubmit }: { reply: Reply;
   const [isReplying, setIsReplying] = useState(false)
   const [localReplyText, setLocalReplyText] = useState('')
   const hasChildren = reply.replies && reply.replies.length > 0
-  const isNested = (reply.depth ?? 0) > 0
+  const depth = reply.depth ?? 0
+  const rowPaddingClass = depth === 0 ? 'px-4' : depth === 1 ? 'px-2' : depth === 2 ? 'px-1' : 'px-0'
 
   return (
-    <div className={`${isNested ? 'ml-8 border-l-2 border-border pl-3' : ''}`}>
-      <div className="flex gap-2.5 py-3 px-4">
-        <div className="flex-shrink-0 flex flex-col items-center gap-0 relative">
-          <div className="w-8 h-8 rounded-full overflow-hidden bg-secondary border border-border flex-shrink-0">
-            <img src={reply.author.avatar} alt={reply.author.name} className="w-full h-full object-cover" />
+    <div className={`${depth === 1 ? 'ml-2 border-l-2 border-border pl-2 sm:ml-8 sm:pl-3' : depth === 2 ? 'border-l-2 border-border pl-1 sm:pl-3' : ''}`}>
+      <div className={`flex ${depth >= 2 ? 'gap-0' : 'gap-2.5'} py-3 ${rowPaddingClass}`}>
+        {depth < 2 && <div className="relative flex flex-shrink-0 flex-col items-center gap-0">
+          <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded-full border border-border bg-secondary">
+            <img src={reply.author.avatar} alt={reply.author.name} className="h-full w-full object-cover" />
           </div>
           {hasChildren && !collapsed && (
-            <div className="w-px flex-1 bg-border mt-1 min-h-[12px]" />
+            <div className="mt-1 min-h-[12px] w-px flex-1 bg-border" />
           )}
-        </div>
+        </div>}
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
-            <span className="font-semibold text-[13px] text-foreground leading-tight">{reply.author.name}</span>
+            <span className="break-words font-semibold text-[13px] text-foreground leading-tight">{reply.author.name}</span>
             {reply.author.verified && <Shield size={11} className="text-primary flex-shrink-0" />}
-            <span className="font-mono text-[11px] text-muted-foreground">@{reply.author.handle}</span>
+            <span className="break-all font-mono text-[11px] text-muted-foreground">@{reply.author.handle}</span>
             <span className="text-muted-foreground/40 text-xs">·</span>
             <span className="font-mono text-[11px] text-muted-foreground">{reply.timestamp}</span>
-            <button onClick={() => { void copyPostLink(reply.id) }}
-              className="ml-auto text-muted-foreground hover:text-foreground transition-colors" title="Copy link">
-              <Copy size={13} />
-            </button>
           </div>
 
-          <p className="text-[13px] text-foreground/90 leading-relaxed mb-2">{reply.content}</p>
+          <p className="mb-2 break-words text-[13px] leading-relaxed text-foreground/90">{reply.content}</p>
 
-          <div className="flex items-center gap-4 -ml-1">
-            <button onClick={() => setIsReplying(!isReplying)} aria-label={isReplying ? 'Cancel reply' : `Reply to @${reply.author.handle}`} className="flex items-center gap-1 px-1 py-0.5 rounded text-muted-foreground hover:text-interaction hover:bg-interaction/10 transition-all">
+          <div className="flex items-center gap-2 -ml-1">
+            <button onClick={() => setIsReplying(!isReplying)} aria-label={isReplying ? 'Cancel reply' : `Reply to @${reply.author.handle}`} className="flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-lg px-1 text-muted-foreground hover:text-interaction hover:bg-interaction/10 transition-all">
               <MessageCircle size={13} />
               {hasChildren && <span className="font-mono text-[10px]">{reply.replies!.length}</span>}
             </button>
-            <button onClick={() => onRepost(reply.id)} disabled={reply.reposted} aria-label={reply.reposted ? 'Reply reposted' : 'Repost reply'} className={`flex items-center gap-1 px-1 py-0.5 rounded transition-all disabled:cursor-default ${reply.reposted ? 'text-success' : 'text-muted-foreground hover:text-success hover:bg-success/10'}`}>
-              <Repeat2 size={13} />
-            </button>
-            <button onClick={() => onLike(reply.id)} disabled={reply.liked} aria-label={reply.liked ? 'Reply liked' : 'Like reply'}
-              className={`flex items-center gap-1 px-1 py-0.5 rounded transition-all ${reply.liked ? 'text-liked' : 'text-muted-foreground hover:text-liked hover:bg-liked/10'}`}>
+            <button onClick={() => onLike(reply.id)} disabled={reply.liked} aria-label={reply.liked ? `Reply liked, ${formatNum(reply.likes)} likes` : `Like reply, ${formatNum(reply.likes)} likes`}
+              className={`flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-lg px-1 transition-all ${reply.liked ? 'text-liked' : 'text-muted-foreground hover:text-liked hover:bg-liked/10'}`}>
               <Heart size={13} fill={reply.liked ? 'currentColor' : 'none'} />
-              {reply.likes > 0 && <span className="font-mono text-[10px]">{formatNum(reply.likes)}</span>}
+              {reply.likes > 0 && <span className="hidden font-mono text-[10px] sm:inline">{formatNum(reply.likes)}</span>}
             </button>
-            <button onClick={() => { void copyPostLink(reply.id) }} aria-label="Share reply"
-              className="flex items-center gap-1 px-1 py-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-white/5 transition-all">
-              <Share2 size={12} />
-            </button>
+            <details className="relative">
+              <summary aria-label="More reply actions" className="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground">
+                <MoreHorizontal size={16} />
+              </summary>
+              <div className="absolute bottom-full left-0 z-20 mb-1 min-w-40 rounded-xl border border-border bg-card p-1 shadow-xl">
+                <button type="button" disabled={reply.reposted} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); onRepost(reply.id) }} className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-left text-sm text-foreground hover:bg-secondary disabled:text-success">
+                  <Repeat2 size={15} />{reply.reposted ? 'Reposted' : 'Repost'}
+                </button>
+                <button type="button" onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); void copyPostLink(reply.id) }} className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-left text-sm text-foreground hover:bg-secondary">
+                  <Share2 size={15} /> Copy link
+                </button>
+              </div>
+            </details>
           </div>
         </div>
       </div>
 
       {isReplying && (
-        <div className="ml-10 mr-4 my-2 p-3 bg-secondary/30 rounded-lg border border-border flex gap-3 items-start">
+        <div className={`${depth < 2 ? 'ml-8 sm:ml-10' : ''} mr-4 my-2 flex items-start gap-3 rounded-lg border border-border bg-secondary/30 p-3`}>
           <div className="flex-1 min-w-0">
             <textarea
               autoFocus
@@ -147,7 +151,7 @@ function ReplyThread({ reply, onLike, onRepost, onReplySubmit }: { reply: Reply;
                   setIsReplying(false)
                   setLocalReplyText('')
                 }}
-                className="px-2.5 py-1 text-[11px] font-semibold rounded text-muted-foreground hover:bg-white/5 transition-colors ml-auto"
+                className="min-h-11 rounded-lg px-3 text-[11px] font-semibold text-muted-foreground hover:bg-white/5 transition-colors ml-auto"
               >
                 Cancel
               </button>
@@ -158,7 +162,7 @@ function ReplyThread({ reply, onLike, onRepost, onReplySubmit }: { reply: Reply;
                     setLocalReplyText('')
                   }
                 }}
-                className="px-2.5 py-1 bg-primary text-primary-foreground text-[11px] font-semibold rounded hover:bg-primary/90 transition-colors"
+                className="min-h-11 rounded-lg bg-primary px-3 text-[11px] font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
               >
                 Reply
               </button>
@@ -177,7 +181,7 @@ function ReplyThread({ reply, onLike, onRepost, onReplySubmit }: { reply: Reply;
 
       {hasChildren && (
         <button onClick={() => setCollapsed((v) => !v)}
-          className="ml-12 mb-1 flex items-center gap-1 text-[11px] font-mono text-primary hover:underline">
+          className={`${depth === 0 ? 'ml-12' : depth === 1 ? 'ml-8' : ''} mb-1 flex min-h-11 items-center gap-1 rounded-lg px-2 text-[11px] font-mono text-primary hover:bg-primary/5 hover:underline`}>
           <ChevronDown size={11} className={`transition-transform ${collapsed ? '' : 'rotate-180'}`} />
           {collapsed ? `Show ${reply.replies!.length} repl${reply.replies!.length > 1 ? 'ies' : 'y'}` : 'Collapse'}
         </button>
@@ -213,6 +217,7 @@ export default function PostPage() {
       topicColor: fp.topicColor || '#3b82f6',
       privacy: fp.privacy,
       sourceTopic: fp.sourceTopic,
+      sourceProtocol: fp.sourceProtocol,
     }
   }, [id, feedPosts])
 
@@ -227,6 +232,7 @@ export default function PostPage() {
     reposts: 0,
     views: 0,
   }
+  const supportsSocialActions = post.sourceProtocol !== 'xmpp'
   const [liked, setLiked] = useState(post.liked ?? false)
   const [likes, setLikes] = useState(post.likes)
   const [reposts, setReposts] = useState(post.reposts)
@@ -457,31 +463,25 @@ export default function PostPage() {
     }
   }
 
-  const handleFocusReply = () => {
-    const el = document.getElementById('reply-textarea')
-    el?.focus()
-    el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  }
-
   if (!id || !bridgePost) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
         {loading ? <div role="status" className="text-sm text-muted-foreground">Loading post…</div> : loadError ? (
           <>
             <p role="alert" className="max-w-sm text-sm text-destructive">Could not load this post: {loadError}</p>
-            <button type="button" onClick={() => void refresh()} className="rounded-lg bg-secondary px-3 py-2 text-xs font-medium text-foreground hover:bg-secondary/70">Try again</button>
+            <button type="button" onClick={() => void refresh()} className="min-h-11 rounded-lg bg-secondary px-3 text-xs font-medium text-foreground hover:bg-secondary/70">Try again</button>
           </>
         ) : !getBrowserXmppBridge() ? (
           <>
             <p className="text-sm font-medium text-foreground">The peer network is unavailable</p>
             <p className="max-w-xs text-xs text-muted-foreground">Reconnect to the peer network to open this post.</p>
-            <button type="button" onClick={() => navigate('/settings')} className="rounded-lg bg-secondary px-3 py-2 text-xs font-medium text-foreground hover:bg-secondary/70">Open Settings</button>
+            <button type="button" onClick={() => navigate('/settings')} className="min-h-11 rounded-lg bg-secondary px-3 text-xs font-medium text-foreground hover:bg-secondary/70">Open Settings</button>
           </>
         ) : (
           <>
             <p className="text-sm font-medium text-foreground">Post not found</p>
             <p className="max-w-xs text-xs text-muted-foreground">This post is not in your feed or is no longer available.</p>
-            <button type="button" onClick={() => navigate('/')} className="rounded-lg bg-secondary px-3 py-2 text-xs font-medium text-foreground hover:bg-secondary/70">Go to feed</button>
+            <button type="button" onClick={() => navigate('/')} className="min-h-11 rounded-lg bg-secondary px-3 text-xs font-medium text-foreground hover:bg-secondary/70">Go to feed</button>
           </>
         )}
       </div>
@@ -500,18 +500,19 @@ export default function PostPage() {
       <main className="flex-1 overflow-y-auto">
         <div className="px-4 pt-4 pb-3 border-b border-border">
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-full overflow-hidden bg-secondary border border-border flex-shrink-0">
-              <img src={post.author.avatar} alt={post.author.name} className="w-full h-full object-cover" />
+            <div className="relative flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-secondary text-sm font-semibold text-muted-foreground">
+              <span aria-hidden="true">{post.author.name.trim().charAt(0).toUpperCase() || '?'}</span>
+              {post.author.avatar && <img src={post.author.avatar} alt="" onError={(event) => { event.currentTarget.style.display = 'none' }} className="absolute inset-0 h-full w-full object-cover" />}
             </div>
             <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
-                <span className="font-semibold text-sm text-foreground">{post.author.name}</span>
+              <div className="flex min-w-0 items-center gap-1.5">
+                <span className="truncate font-semibold text-sm text-foreground">{post.author.name}</span>
                 {post.author.verified && <Shield size={12} className="text-primary" />}
               </div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-mono text-[11px] text-muted-foreground">@{post.author.handle}</span>
-                <span className="text-muted-foreground/40">·</span>
-                <span className="font-mono text-[11px] text-muted-foreground">{post.author.server}</span>
+              <div className="flex min-w-0 items-center gap-1.5">
+                <span className="max-w-[38vw] truncate font-mono text-[11px] text-muted-foreground">@{post.author.handle}</span>
+                <span className="hidden text-muted-foreground/40 sm:inline">·</span>
+                <span className="hidden min-w-0 truncate font-mono text-[11px] text-muted-foreground sm:inline">{post.author.server}</span>
               </div>
             </div>
               {canFollowAuthor && (
@@ -520,35 +521,31 @@ export default function PostPage() {
                   onClick={() => void toggleFollowAuthor()}
                   disabled={!runtime || changingFollow}
                   aria-pressed={followingAuthor}
-                  className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium transition-colors disabled:cursor-wait disabled:opacity-60 ${followingAuthor ? 'border-border text-muted-foreground hover:bg-secondary' : 'border-primary/40 text-primary hover:bg-primary/10'}`}
+                  className={`inline-flex min-h-11 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium transition-colors disabled:cursor-wait disabled:opacity-60 ${followingAuthor ? 'border-border text-muted-foreground hover:bg-secondary' : 'border-primary/40 text-primary hover:bg-primary/10'}`}
                 >
                   {followingAuthor ? <UserMinus size={14} /> : <UserPlus size={14} />}
                   {changingFollow ? 'Updating…' : followingAuthor ? 'Following' : 'Follow'}
                 </button>
               )}
-            <button onClick={() => { void copyPostLink(post.id) }} aria-label="Copy link to post"
-              className="text-muted-foreground hover:text-foreground transition-colors" title="Copy link to post">
-              <Copy size={16} />
-            </button>
           </div>
 
           {post.topic && (
             <div className="mb-2">
-              <span className="inline-flex items-center gap-0.5 text-[11px] font-mono font-medium px-1.5 py-0.5 rounded"
+              <span className="inline-flex min-w-0 max-w-full items-center gap-0.5 rounded px-1.5 py-0.5 font-mono text-[11px] font-medium"
                 style={{ color: post.topicColor, backgroundColor: post.topicColor + '1a' }}>
-                <Hash size={9} />{post.topic}
+                <Hash size={9} className="shrink-0" /><span className="min-w-0 truncate">{post.topic}</span>
               </span>
             </div>
           )}
           {post.community && (
             <div className="mb-2">
-              <span className="inline-flex items-center gap-1 text-[11px] font-mono font-medium px-1.5 py-0.5 rounded bg-warn/10 text-warn">
-                {post.communityIcon} {post.community}
+              <span className="inline-flex min-w-0 max-w-full items-center gap-1 rounded bg-warn/10 px-1.5 py-0.5 font-mono text-[11px] font-medium text-warn">
+                <span className="shrink-0">{post.communityIcon}</span><span className="min-w-0 truncate">{post.community}</span>
               </span>
             </div>
           )}
 
-          <p className="text-[15px] text-foreground leading-relaxed whitespace-pre-line mb-3">{post.content}</p>
+          <p className="mb-3 break-words whitespace-pre-line text-[15px] leading-relaxed text-foreground">{post.content}</p>
 
           {post.media && (
             <div className="mb-3 rounded-lg overflow-hidden border border-border bg-secondary">
@@ -556,54 +553,59 @@ export default function PostPage() {
             </div>
           )}
 
-          <div className="flex items-center gap-2 mb-3 pb-3 border-b border-border">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-3 pb-3 border-b border-border">
             <span className="font-mono text-[11px] text-muted-foreground">{post.fullDate}</span>
             <span className="text-border">·</span>
             <PrivacyIcon privacy={post.privacy} />
             <span className="font-mono text-[11px] text-muted-foreground capitalize">{post.privacy ?? 'public'}</span>
-            <span className="text-border">·</span>
-            <span className="font-mono text-[11px] text-muted-foreground">{formatNum(post.views)} views</span>
+            {supportsSocialActions && <>
+              <span className="hidden text-border sm:inline">·</span>
+              <span className="hidden font-mono text-[11px] text-muted-foreground sm:inline">{formatNum(post.views)} views</span>
+            </>}
           </div>
 
-          <div className="flex items-center gap-4 pb-3 border-b border-border">
-            <span className="text-[13px] text-foreground">
-              <span className="font-semibold">{formatNum(likes)}</span> <span className="text-muted-foreground">Likes</span>
-            </span>
-            <span className="text-[13px] text-foreground">
-              <span className="font-semibold">{formatNum(reposts)}</span> <span className="text-muted-foreground">Reposts</span>
-            </span>
-            <span className="text-[13px] text-foreground">
-              <span className="font-semibold">{formatNum(post.comments)}</span> <span className="text-muted-foreground">Replies</span>
-            </span>
-          </div>
-
-          <div className="flex items-center justify-between pt-1">
-            <button onClick={handleFocusReply} aria-label="Write a reply" className="flex items-center gap-1.5 p-2 rounded-lg text-muted-foreground hover:text-interaction hover:bg-interaction/10 transition-all">
-              <MessageCircle size={19} />
-            </button>
+          <div className={`flex items-center gap-2 pt-1 ${supportsSocialActions ? '' : 'justify-end'}`}>
+            {supportsSocialActions && <>
             <button
               onClick={handleRepost}
               disabled={reposted}
               aria-label={reposted ? 'Post already reposted' : 'Repost'}
-              className={`flex items-center gap-1.5 p-2 rounded-lg transition-all disabled:cursor-default ${reposted ? 'text-success' : 'text-muted-foreground hover:text-success hover:bg-success/10'}`}
+              className={`hidden min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-lg px-2 transition-all disabled:cursor-default md:flex ${reposted ? 'text-success' : 'text-muted-foreground hover:text-success hover:bg-success/10'}`}
             >
               <Repeat2 size={19} />
+              <span className="font-mono text-xs tabular-nums">{formatNum(reposts)}</span>
             </button>
             <button onClick={() => void handleLike()} disabled={liked} aria-label={liked ? 'Post already liked' : 'Like post'} aria-pressed={liked}
-              className={`flex items-center gap-1.5 p-2 rounded-lg transition-all disabled:cursor-default ${liked ? 'text-liked' : 'text-muted-foreground hover:text-liked hover:bg-liked/10'}`}>
+              className={`flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-lg px-2 transition-all disabled:cursor-default ${liked ? 'text-liked' : 'text-muted-foreground hover:text-liked hover:bg-liked/10'}`}>
               <Heart size={19} fill={liked ? 'currentColor' : 'none'} />
+              <span className="font-mono text-xs tabular-nums">{formatNum(likes)}</span>
             </button>
-            <button onClick={() => { const next = !bookmarked; setBookmarked(next); if (bridgePost) bookmarkPost(post.id) }} aria-label={bookmarked ? 'Remove bookmark' : 'Bookmark post'} aria-pressed={bookmarked}
-              className={`flex items-center gap-1.5 p-2 rounded-lg transition-all ${bookmarked ? 'text-primary' : 'text-muted-foreground hover:text-primary hover:bg-primary/10'}`}>
-              <Bookmark size={19} fill={bookmarked ? 'currentColor' : 'none'} />
-            </button>
-            <button onClick={handleShare} aria-label="Share post" className="flex items-center gap-1.5 p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-all">
-              <Share2 size={18} />
-            </button>
+            <span className="ml-auto font-mono text-[11px] text-muted-foreground">{formatNum(post.comments)} replies</span>
+            </>}
+            <details className="relative">
+              <summary aria-label="More post actions" className="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground">
+                <MoreHorizontal size={18} />
+              </summary>
+              <div className="absolute bottom-full right-0 z-20 mb-1 min-w-44 rounded-xl border border-border bg-card p-1 shadow-xl">
+                {supportsSocialActions && <button type="button" disabled={reposted} aria-pressed={reposted}
+                  onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); void handleRepost() }}
+                  className={`flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-left text-sm hover:bg-secondary disabled:cursor-default md:hidden ${reposted ? 'text-success' : 'text-foreground'}`}>
+                  <Repeat2 size={15} />{reposted ? 'Reposted' : 'Repost'}
+                </button>}
+                <button type="button" aria-pressed={bookmarked}
+                  onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); const next = !bookmarked; setBookmarked(next); if (bridgePost) bookmarkPost(post.id) }}
+                  className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-left text-sm text-foreground hover:bg-secondary">
+                  <Bookmark size={15} fill={bookmarked ? 'currentColor' : 'none'} />{bookmarked ? 'Remove bookmark' : 'Bookmark'}
+                </button>
+                <button type="button" onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); void handleShare() }} className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-left text-sm text-foreground hover:bg-secondary">
+                  <Share2 size={15} /> Share
+                </button>
+              </div>
+            </details>
           </div>
         </div>
 
-        <div className="px-4 py-3 border-b border-border flex gap-3 items-start">
+        {supportsSocialActions && <div className="px-4 py-3 border-b border-border flex gap-3 items-start">
           <div className="w-8 h-8 rounded-full overflow-hidden bg-secondary border border-border flex-shrink-0 mt-0.5">
             <div aria-label="Your profile" className="flex h-full w-full items-center justify-center text-xs font-semibold text-foreground">
               {userInitial}
@@ -622,47 +624,61 @@ export default function PostPage() {
             />
             {replyText.length > 0 && (
               <div className="flex items-center gap-2 mt-2">
-                <div className="flex items-center gap-0.5">
-                  <button type="button" onClick={() => insertReplyText('![](https://)')} aria-label="Insert image link" className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
+                <div className="hidden items-center gap-0.5 md:flex">
+                  <button type="button" onClick={() => insertReplyText('![](https://)')} aria-label="Insert image link" className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground hover:bg-white/5">
                     <Image size={15} />
                   </button>
-                  <button type="button" onClick={() => insertReplyText('@')} aria-label="Insert mention" className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
+                  <button type="button" onClick={() => insertReplyText('@')} aria-label="Insert mention" className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground hover:bg-white/5">
                     <AtSign size={15} />
                   </button>
-                  <button type="button" onClick={() => insertReplyText('😊')} aria-label="Insert emoji" className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
+                  <button type="button" onClick={() => insertReplyText('😊')} aria-label="Insert emoji" className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground hover:bg-white/5">
                     <Smile size={15} />
                   </button>
                 </div>
+                <details className="relative md:hidden">
+                  <summary aria-label="More reply tools" className="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground">
+                    <MoreHorizontal size={17} />
+                  </summary>
+                  <div className="absolute bottom-full left-0 z-20 mb-1 min-w-44 rounded-xl border border-border bg-card p-1 shadow-xl">
+                    <button type="button" onClick={(event) => { insertReplyText('![](https://)'); event.currentTarget.closest('details')?.removeAttribute('open') }} className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-left text-sm text-foreground hover:bg-secondary">
+                      <Image size={15} /> Insert image link
+                    </button>
+                    <button type="button" onClick={(event) => { insertReplyText('@'); event.currentTarget.closest('details')?.removeAttribute('open') }} className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-left text-sm text-foreground hover:bg-secondary">
+                      <AtSign size={15} /> Insert mention
+                    </button>
+                    <button type="button" onClick={(event) => { insertReplyText('😊'); event.currentTarget.closest('details')?.removeAttribute('open') }} className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-left text-sm text-foreground hover:bg-secondary">
+                      <Smile size={15} /> Insert emoji
+                    </button>
+                  </div>
+                </details>
                 <span className={`font-mono text-[10px] ml-auto ${500 - replyText.length < 50 ? 'text-warn' : 'text-muted-foreground'}`}>
                   {500 - replyText.length}
                 </span>
                 <button onClick={() => void handleSubmitReply()} disabled={submittingReply || !replyText.trim()}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground text-[12px] font-semibold rounded-lg hover:bg-primary/90 transition-colors">
+                  className="flex min-h-11 items-center gap-1.5 rounded-lg bg-primary px-3 text-[12px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90">
                   <Send size={12} />{submittingReply ? 'Sending…' : 'Reply'}
                 </button>
               </div>
             )}
           </div>
-        </div>
+        </div>}
 
-        {replies.length > 0 && (
-          <div className="px-4 py-2 flex items-center justify-between border-b border-border">
-            <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-              {replies.length} repl{replies.length !== 1 ? 'ies' : 'y'}
-            </span>
+        {supportsSocialActions && replies.length > 0 && (
+          <div className="border-b border-border px-4 py-2">
+            <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Replies</span>
           </div>
         )}
 
-        <div>
+        {supportsSocialActions && <div>
           {replies.map((reply) => (
             <div key={reply.id} className="border-b border-border last:border-0">
               <ReplyThread reply={reply} onLike={(replyId) => { void handleLikeReply(replyId) }} onRepost={(replyId) => { void handleRepostReply(replyId) }} onReplySubmit={handleSubmitNestedReply} />
             </div>
           ))}
-        </div>
+        </div>}
 
-        {replies.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-16 gap-3">
+        {supportsSocialActions && replies.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-12 gap-3 sm:py-16">
             <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center">
               <MessageCircle size={18} className="text-muted-foreground" />
             </div>

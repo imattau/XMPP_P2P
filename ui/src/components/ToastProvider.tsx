@@ -69,12 +69,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             ) : (
               <Info size={15} className="flex-shrink-0" />
             )}
-            <span className="flex-1 min-w-0 text-[13px] leading-tight">{toast.message}</span>
+            <span className="min-w-0 flex-1 break-words text-[13px] leading-tight">{toast.message}</span>
             <button
               type="button"
               aria-label={`Dismiss notification: ${toast.message}`}
               onClick={() => removeToast(toast.id)}
-              className="flex h-8 w-8 min-h-8 min-w-8 flex-shrink-0 items-center justify-center rounded-lg hover:bg-white/10 transition-colors"
+              className="flex h-11 w-11 min-h-11 min-w-11 flex-shrink-0 items-center justify-center rounded-lg hover:bg-white/10 transition-colors"
             >
               <X size={13} />
             </button>

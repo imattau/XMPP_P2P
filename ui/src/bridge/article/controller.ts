@@ -88,7 +88,6 @@ export function createNewArticle(overrides?: Partial<Article>): Article {
     subtitle: '',
     summary: '',
     blocks: [
-      { id: generateBlockId(), type: 'heading', content: '' },
       { id: generateBlockId(), type: 'paragraph', content: '' },
     ],
     author: {

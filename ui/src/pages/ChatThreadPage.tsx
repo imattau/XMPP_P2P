@@ -14,9 +14,9 @@ import {
   ArrowLeft, Info, X, Send, Smile, Paperclip,
   Mic, Shield, Lock, BellOff, Bell, Trash2, LogOut, Users,
   Hash, Globe, EyeOff, UserMinus,
-  CheckCheck, Check, Image, FileText, MoreHorizontal,
+  CheckCheck, Check, FileText, MoreHorizontal,
   MessageSquare, Key, Archive, ChevronRight, Crown, Gavel, CornerUpLeft,
-  Zap, Copy, AlertTriangle, Upload, ImagePlus, AtSign, RotateCcw, Square, Loader2, Clock3,
+  Zap, Copy, AlertTriangle, Upload, ImagePlus, AtSign, RotateCcw, Square, Loader2, Clock3, Edit3,
 } from 'lucide-react'
 
 type ChatType = 'direct' | 'group' | 'muc'
@@ -252,7 +252,7 @@ function Bubble({
   if (msg.kind === 'system') {
     return (
       <div className="flex justify-center my-3">
-        <span className="font-mono text-[10px] text-muted-foreground bg-secondary/60 px-3 py-1 rounded-full">{msg.content}</span>
+        <span className="max-w-[90%] break-words rounded-full bg-secondary/60 px-3 py-1 text-center font-mono text-[10px] text-muted-foreground">{msg.content}</span>
       </div>
     )
   }
@@ -278,9 +278,9 @@ function Bubble({
         <div className="w-7 flex-shrink-0" />
       ) : null}
 
-      <div className={`max-w-[78%] flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
+      <div className={`max-w-[88%] flex flex-col sm:max-w-[78%] ${isMine ? 'items-end' : 'items-start'}`}>
         {!isMine && (type === 'group' || type === 'muc') && showAvatar && (
-          <span className="font-mono text-[10px] text-muted-foreground mb-0.5 px-1">{msg.senderName}</span>
+          <span className="mb-0.5 max-w-full break-all px-1 font-mono text-[10px] text-muted-foreground">{msg.senderName}</span>
         )}
 
         {replyPreview && (
@@ -306,17 +306,17 @@ function Bubble({
                   />
                 ))}
               </div>
-              {parsedBody?.body ? <p className="whitespace-pre-wrap">{parsedBody.body}</p> : null}
+              {parsedBody?.body ? <p className="break-words whitespace-pre-wrap">{parsedBody.body}</p> : null}
             </div>
           ) : msg.kind === 'audio' ? (
             <>
               {msg.attachments?.find((attachment) => attachment.kind === 'file')
                 ? <AudioAttachment attachment={msg.attachments.find((attachment) => attachment.kind === 'file')!} />
-                : <><Mic size={14} className={isMine ? 'text-white/80' : 'text-muted-foreground'} /><span className="font-mono text-[12px]">{msg.fileName || msg.content}</span></>}
+                : <><Mic size={14} className={isMine ? 'shrink-0 text-white/80' : 'shrink-0 text-muted-foreground'} /><span className="min-w-0 break-all font-mono text-[12px]">{msg.fileName || msg.content}</span></>}
             </>
           ) : msg.kind === 'file' || fileAttachments.length > 0 ? (
             <div className="space-y-2">
-              {msg.content ? <p className="whitespace-pre-wrap">{msg.content}</p> : null}
+              {msg.content ? <p className="break-words whitespace-pre-wrap">{msg.content}</p> : null}
               <div className="space-y-2">
                 {(msg.attachments ?? []).filter((attachment) => attachment.kind === 'file').map((attachment) => (
                   <FileAttachment key={attachment.id} attachment={attachment} isMine={isMine} />
@@ -328,13 +328,13 @@ function Bubble({
               {parsedBody?.quote && (
                 <div className={`rounded-lg border-l-2 px-2.5 py-1.5 text-[11px] leading-relaxed ${isMine ? 'border-white/40 bg-white/10 text-primary-foreground/85' : 'border-primary bg-primary/5 text-muted-foreground'}`}>
                   <p className="font-mono mb-1 opacity-80">Quoted</p>
-                  <p className="whitespace-pre-wrap">{parsedBody.quote}</p>
+                  <p className="break-words whitespace-pre-wrap">{parsedBody.quote}</p>
                 </div>
               )}
               {parsedBody?.body ? (
-                <p className="whitespace-pre-wrap">{parsedBody.body}</p>
+                <p className="break-words whitespace-pre-wrap">{parsedBody.body}</p>
               ) : !parsedBody?.quote ? (
-                <p className="whitespace-pre-wrap">{msg.content}</p>
+                <p className="break-words whitespace-pre-wrap">{msg.content}</p>
               ) : null}
             </div>
           )}
@@ -363,23 +363,30 @@ function Bubble({
               <RotateCcw size={10} /> Retry
             </button>
           )}
+          <details className="relative md:hidden">
+            <summary aria-label="Message actions" className="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-primary">
+              <MoreHorizontal size={16} />
+            </summary>
+            <div className={`absolute bottom-full z-20 mb-1 min-w-40 rounded-xl border border-border bg-card p-1 shadow-xl ${isMine ? 'right-0' : 'left-0'}`}>
+              <button type="button" onClick={(event) => { onReply(msg); event.currentTarget.closest('details')?.removeAttribute('open') }} className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-left text-sm text-foreground hover:bg-secondary">
+                <CornerUpLeft size={15} /> Reply
+              </button>
+              {isMine && onEdit && (
+                <button type="button" onClick={(event) => { onEdit(msg.id); event.currentTarget.closest('details')?.removeAttribute('open') }} className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-left text-sm text-foreground hover:bg-secondary">
+                  <Edit3 size={15} /> Edit
+                </button>
+              )}
+            </div>
+          </details>
         </div>
 
-        <div className={`flex items-center gap-2 mt-1 ${isMine ? 'flex-row-reverse' : ''}`}>
-          <button
-            onClick={() => onReply(msg)}
-            className="inline-flex min-h-10 items-center gap-1 rounded-md px-2 font-mono text-xs text-muted-foreground hover:bg-secondary hover:text-primary transition-colors"
-          >
-            <CornerUpLeft size={10} />
-            Reply
+        <div className={`mt-0.5 hidden items-center md:flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+          <button onClick={() => onReply(msg)} aria-label="Reply to message" title="Reply" className="hidden h-11 w-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-primary md:inline-flex">
+            <CornerUpLeft size={14} />
           </button>
           {isMine && onEdit && (
-            <button
-              onClick={() => onEdit(msg.id)}
-              className="inline-flex min-h-10 items-center gap-1 rounded-md px-2 font-mono text-xs text-muted-foreground hover:bg-secondary hover:text-primary transition-colors"
-            >
-              <Zap size={10} />
-              Edit
+              <button onClick={() => onEdit(msg.id)} aria-label="Edit message" title="Edit" className="hidden h-11 w-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-primary md:inline-flex">
+              <Edit3 size={14} />
             </button>
           )}
         </div>
@@ -495,19 +502,8 @@ function DirectSettings({ chat }: { chat: ChatData }) {
 
   return (
     <div className="overflow-y-auto flex-1">
-      <div className="px-4 py-5 flex flex-col items-center gap-2 border-b border-border">
-        <div className="w-16 h-16 rounded-full overflow-hidden bg-secondary border border-border">
-          {chat.avatar ? <img src={chat.avatar} alt={chat.name} className="w-full h-full object-cover" /> : null}
-        </div>
-        <div className="text-center">
-          <p className="font-semibold text-sm text-foreground">{chat.name}</p>
-          <p className="font-mono text-[11px] text-muted-foreground">{chat.handle}</p>
-          <p className="font-mono text-[10px] text-muted-foreground">{other.server}</p>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className={`w-2 h-2 rounded-full ${chat.online ? 'bg-accent' : 'bg-muted-foreground/40'}`} />
-          <span className="font-mono text-[10px] text-muted-foreground">{chat.online ? 'Online' : 'Offline'}</span>
-        </div>
+      <div className="border-b border-border px-4 py-3">
+        <p className="break-all font-mono text-[11px] text-muted-foreground">{chat.handle || chat.id}</p>
       </div>
 
       <div className="px-4 py-3 border-b border-border">
@@ -555,9 +551,6 @@ function DirectSettings({ chat }: { chat: ChatData }) {
         <button ref={clearHistoryTriggerRef} onClick={() => { setClearHistoryError(''); setConfirmClearHistory(true) }} className="w-full flex items-center gap-3 px-4 py-3 border-b border-border hover:bg-secondary transition-colors text-left text-foreground/80">
           <Trash2 size={15} /><span className="text-sm">Clear message history</span>
         </button>
-        <div className="flex items-center gap-3 px-4 py-3 text-muted-foreground">
-          <AlertTriangle size={15} /><span className="text-sm">Contact blocking isn’t supported yet</span>
-        </div>
       </div>
 
       {confirmClearHistory && (
@@ -568,26 +561,26 @@ function DirectSettings({ chat }: { chat: ChatData }) {
             aria-labelledby="clear-chat-history-title"
             aria-describedby="clear-chat-history-description"
             onKeyDown={handleClearHistoryDialogKeyDown}
-            className="w-full max-w-md rounded-2xl border border-border bg-card p-5 shadow-2xl"
+            className="max-h-full w-full max-w-md overflow-y-auto rounded-2xl border border-border bg-card p-5 shadow-2xl"
           >
             <h2 id="clear-chat-history-title" className="text-base font-semibold text-foreground">Clear message history?</h2>
             <p id="clear-chat-history-description" className="mt-1 text-sm leading-relaxed text-muted-foreground">
               This permanently removes the messages saved on this device. It does not delete messages from the other person’s device.
             </p>
             {clearHistoryError && <p role="alert" className="mt-3 text-sm text-destructive">{clearHistoryError}</p>}
-            <div className="mt-5 flex justify-end gap-2">
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
               <button
                 type="button"
                 autoFocus
                 onClick={() => setConfirmClearHistory(false)}
-                className="rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground"
+                className="min-h-11 rounded-lg border border-border px-3 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={clearHistory}
-                className="rounded-lg bg-destructive px-3 py-2 text-sm font-semibold text-white hover:bg-destructive/90"
+                className="min-h-11 rounded-lg bg-destructive px-3 text-sm font-semibold text-white hover:bg-destructive/90"
               >
                 Clear history
               </button>
@@ -612,10 +605,10 @@ function GroupSettings({
 }) {
   return (
     <div className="overflow-y-auto flex-1">
-      <div className="px-4 py-4 border-b border-border">
-        <p className="font-semibold text-sm text-foreground mb-0.5">{chat.name}</p>
-        {chat.subject && <p className="text-[12px] text-muted-foreground leading-relaxed">{chat.subject}</p>}
-        <p className="font-mono text-[10px] text-muted-foreground mt-1">{chat.memberCount} {chat.memberCount === 1 ? 'member' : 'members'} · {chat.server}</p>
+      <div className="border-b border-border px-4 py-3">
+        <p className="break-all font-mono text-[11px] text-muted-foreground">{chat.handle || chat.id}</p>
+        {chat.subject && <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">{chat.subject}</p>}
+        <p className="mt-1 font-mono text-[10px] text-muted-foreground">{chat.server}</p>
       </div>
 
       <div className="px-4 py-3 border-b border-border">
@@ -631,9 +624,13 @@ function GroupSettings({
         </div>
       </div>
 
-      <div className="px-4 py-3 border-b border-border">
-        <div className="flex items-center justify-between mb-2">
-          <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Members</p>
+      <details className="border-b border-border">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-medium text-foreground">
+          <span className="flex-1">Members</span>
+          <span className="text-xs font-normal text-muted-foreground">{chat.participants.filter((p) => p.id !== ME).length}</span>
+          <ChevronDown size={14} className="text-muted-foreground/50" />
+        </summary>
+        <div className="px-4 pb-3">
           <button onClick={async () => {
             try {
               await navigator.clipboard.writeText(chat.handle || chat.id)
@@ -641,32 +638,32 @@ function GroupSettings({
             } catch {
               emitToast('Could not copy the room ID', 'error')
             }
-          }} className="flex items-center gap-1 text-[11px] font-mono text-primary hover:underline">
-            <Copy size={11} />Copy room ID
+          }} className="mb-2 flex min-h-11 w-full items-center gap-2 rounded-lg border border-border px-3 text-xs font-medium text-primary hover:bg-primary/10">
+            <Copy size={14} />Copy room ID
           </button>
-        </div>
-        <div className="flex flex-col gap-0">
+          <div className="max-h-[40vh] overflow-y-auto overscroll-contain sm:max-h-none">
           {chat.participants.filter((p) => p.id !== ME).map((p) => (
-            <div key={p.id} className="flex items-center gap-2.5 py-2 border-b border-border last:border-0">
-              <div className="w-7 h-7 rounded-full overflow-hidden bg-secondary flex-shrink-0">
-                {p.avatar ? <img src={p.avatar} alt={p.name} className="w-full h-full object-cover" />
-                  : <div className="w-full h-full flex items-center justify-center text-[10px] font-semibold">{p.name[0]}</div>}
+            <div key={p.id} className="flex items-center gap-2.5 border-b border-border py-2 last:border-0">
+              <div className="h-7 w-7 flex-shrink-0 overflow-hidden rounded-full bg-secondary">
+                {p.avatar ? <img src={p.avatar} alt={p.name} className="h-full w-full object-cover" />
+                  : <div className="flex h-full w-full items-center justify-center text-[10px] font-semibold">{p.name[0]}</div>}
               </div>
-              <div className="flex-1 min-w-0">
+              <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1">
-                  <span className="text-[12px] font-medium text-foreground truncate">{p.name}</span>
+                  <span className="truncate text-[12px] font-medium text-foreground">{p.name}</span>
                   <RoleIcon role={p.role} />
                 </div>
                 <span className="font-mono text-[10px] text-muted-foreground truncate">{p.handle}</span>
                 <span className="sr-only">{p.online ? 'Online' : 'Offline'}</span>
               </div>
               <div className="flex items-center gap-1">
-                <span aria-hidden="true" className={`w-1.5 h-1.5 rounded-full ${p.online ? 'bg-accent' : 'bg-muted-foreground/40'}`} />
+                <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${p.online ? 'bg-accent' : 'bg-muted-foreground/40'}`} />
               </div>
             </div>
           ))}
+          </div>
         </div>
-      </div>
+      </details>
 
       <div className="border-b border-border">
         {[
@@ -689,25 +686,21 @@ function MucSettings({ chat, onKick, onBan, onToggleMute, onLeave }: { chat: Cha
   const [showActionPicker, setShowActionPicker] = useState<{ type: 'kick' | 'ban' } | null>(null)
   const myRole = chat.participants.find((p) => p.id === ME)?.role
   const canModerate = myRole === 'owner' || myRole === 'admin' || myRole === 'moderator'
+  const onlineParticipants = chat.participants.filter((participant) => participant.online)
 
   return (
     <div className="overflow-y-auto flex-1">
-      <div className="px-4 py-4 border-b border-border">
-        <div className="flex items-center gap-2 mb-1">
-          <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center border border-primary/20 flex-shrink-0">
-            <Hash size={14} className="text-primary" />
-          </div>
-          <div className="min-w-0">
-            <p className="font-semibold text-sm text-foreground">{chat.name}</p>
-            <p className="font-mono text-[10px] text-muted-foreground truncate">{chat.handle}</p>
-          </div>
-        </div>
-        {chat.subject && <p className="text-[12px] text-muted-foreground leading-relaxed mt-2">{chat.subject}</p>}
+      <div className="border-b border-border px-4 py-3">
+        <p className="break-all font-mono text-[11px] text-muted-foreground">{chat.handle || chat.id}</p>
+        {chat.subject && <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">{chat.subject}</p>}
       </div>
 
-      <div className="px-4 py-3 border-b border-border">
-        <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-3">Room properties</p>
-        <div className="space-y-2">
+      <details className="border-b border-border">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center px-4 py-3 text-sm font-medium text-foreground">
+          <span className="flex-1">Room properties</span>
+          <ChevronDown size={14} className="text-muted-foreground/50" />
+        </summary>
+        <div className="space-y-2 px-4 pb-3">
           {[
             { label: 'Members', value: chat.memberCount?.toLocaleString() ?? '—' },
             { label: 'Persistent', value: chat.persistent ? 'Yes' : 'No' },
@@ -723,28 +716,27 @@ function MucSettings({ chat, onKick, onBan, onToggleMute, onLeave }: { chat: Cha
             </div>
           ))}
         </div>
-      </div>
+      </details>
 
-      <div className="px-4 py-3 border-b border-border">
-        <div className="flex items-center justify-between mb-2">
-          <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Online now</p>
-          <span className="font-mono text-[10px] text-muted-foreground">{chat.participants.filter((p) => p.online).length} visible</span>
-        </div>
-        {chat.participants.filter((p) => p.online).map((p) => (
-          <div key={p.id} className="flex items-center gap-2 py-1.5 border-b border-border last:border-0">
-            <div className="w-6 h-6 rounded-full overflow-hidden bg-secondary flex-shrink-0">
-              {p.avatar ? <img src={p.avatar} alt={p.name} className="w-full h-full object-cover" />
-                : <div className="w-full h-full flex items-center justify-center text-[9px] font-semibold">{p.name[0]}</div>}
+      {onlineParticipants.length > 0 && <details className="border-b border-border">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-medium text-foreground">
+          <span className="flex-1">Online now</span>
+          <span className="text-xs font-normal text-muted-foreground">{onlineParticipants.length}</span>
+          <ChevronDown size={14} className="text-muted-foreground/50" />
+        </summary>
+        <div className="px-4 pb-3">
+          {onlineParticipants.map((p) => (
+            <div key={p.id} className="flex items-center gap-2 py-1.5 border-b border-border last:border-0">
+              <div className="w-6 h-6 rounded-full overflow-hidden bg-secondary flex-shrink-0">
+                {p.avatar ? <img src={p.avatar} alt={p.name} className="w-full h-full object-cover" />
+                  : <div className="w-full h-full flex items-center justify-center text-[9px] font-semibold">{p.name[0]}</div>}
+              </div>
+              <span className="text-[12px] text-foreground/80 flex-1 truncate font-mono">{p.id === ME ? 'you' : p.handle.split('@')[0]}</span>
+              <RoleIcon role={p.role} />
             </div>
-            <span className="text-[12px] text-foreground/80 flex-1 truncate font-mono">{p.id === ME ? 'you' : p.handle.split('@')[0]}</span>
-            <RoleIcon role={p.role} />
-          </div>
-        ))}
-      </div>
-
-      <div className="border-b border-border px-4 py-3 text-xs text-muted-foreground">
-        Room configuration is managed by the peer network and is not available here.
-      </div>
+          ))}
+        </div>
+      </details>}
 
       <button onClick={onToggleMute} aria-pressed={chat.muted ?? false} className="w-full flex items-center gap-3 px-4 py-3 border-b border-border hover:bg-secondary transition-colors text-left text-foreground/80">
         {chat.muted ? <Bell size={15} /> : <BellOff size={15} />}
@@ -752,8 +744,11 @@ function MucSettings({ chat, onKick, onBan, onToggleMute, onLeave }: { chat: Cha
       </button>
 
       {canModerate && (
-        <div className="border-b border-border">
-          <p className="px-4 py-2 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Moderation</p>
+        <details className="border-b border-border">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-medium text-foreground">
+            <span className="flex-1">Moderation</span>
+            <ChevronDown size={14} className="text-muted-foreground/50" />
+          </summary>
           <button onClick={() => setShowActionPicker({ type: 'kick' })} className="w-full flex items-center gap-3 px-4 py-3 border-b border-border hover:bg-secondary transition-colors text-left text-foreground/80">
             <UserMinus size={15} /><span className="text-sm">Kick participant</span>
             <ChevronRight size={13} className="ml-auto text-muted-foreground/40" />
@@ -762,7 +757,7 @@ function MucSettings({ chat, onKick, onBan, onToggleMute, onLeave }: { chat: Cha
             <AlertTriangle size={15} /><span className="text-sm">Ban participant</span>
             <ChevronRight size={13} className="ml-auto text-muted-foreground/40" />
           </button>
-        </div>
+        </details>
       )}
 
       {showActionPicker && (
@@ -770,6 +765,7 @@ function MucSettings({ chat, onKick, onBan, onToggleMute, onLeave }: { chat: Cha
           <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-2">
             {showActionPicker.type === 'kick' ? 'Select participant to kick' : 'Select participant to ban'}
           </p>
+          <div className="max-h-[40vh] overflow-y-auto overscroll-contain sm:max-h-none">
           {chat.participants.filter((p) => p.id !== ME).map((p) => (
             <button
               key={p.id}
@@ -778,7 +774,7 @@ function MucSettings({ chat, onKick, onBan, onToggleMute, onLeave }: { chat: Cha
                 else onBan?.(p.handle || p.id)
                 setShowActionPicker(null)
               }}
-              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-secondary transition-colors rounded-lg text-left"
+              className="min-h-11 w-full flex items-center gap-2 px-3 py-2 hover:bg-secondary transition-colors rounded-lg text-left"
             >
               <div className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center text-[9px] font-semibold flex-shrink-0">
                 {p.name[0]}
@@ -786,7 +782,8 @@ function MucSettings({ chat, onKick, onBan, onToggleMute, onLeave }: { chat: Cha
               <span className="text-[12px] text-foreground/80 flex-1 font-mono">{p.handle}</span>
             </button>
           ))}
-          <button onClick={() => setShowActionPicker(null)} className="mt-2 text-[11px] font-mono text-muted-foreground hover:text-foreground">
+          </div>
+          <button onClick={() => setShowActionPicker(null)} className="mt-2 min-h-11 rounded-lg px-3 text-[11px] font-mono text-muted-foreground hover:bg-secondary hover:text-foreground">
             Cancel
           </button>
         </div>
@@ -1283,8 +1280,9 @@ function ChatThreadContent({ id, resolvedChat, initialMessages, historyLoading, 
       return (
         <div className="flex items-center gap-2.5 flex-1 min-w-0">
           <div className="relative flex-shrink-0">
-            <div className="w-8 h-8 rounded-full overflow-hidden bg-secondary border border-border">
-              {groupChatState.avatar && <img src={groupChatState.avatar} alt={groupChatState.name} className="w-full h-full object-cover" />}
+            <div className="relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border border-border bg-secondary text-[11px] font-semibold text-muted-foreground">
+              <span aria-hidden="true">{groupChatState.name.trim().charAt(0).toUpperCase() || '?'}</span>
+              {groupChatState.avatar && <img src={groupChatState.avatar} alt="" onError={(event) => { event.currentTarget.style.display = 'none' }} className="absolute inset-0 h-full w-full object-cover" />}
             </div>
             <span className={`absolute -bottom-px -right-px w-2.5 h-2.5 rounded-full border-2 border-background ${groupChatState.online ? 'bg-accent' : 'bg-muted-foreground/40'}`} />
           </div>
@@ -1294,18 +1292,22 @@ function ChatThreadContent({ id, resolvedChat, initialMessages, historyLoading, 
               {groupChatState.verified && <Shield size={11} className="text-primary flex-shrink-0" />}
               {groupChatState.encrypted && <Lock size={9} className="text-accent flex-shrink-0" />}
             </div>
-            <span className="font-mono text-[10px] text-muted-foreground">
-              {typingPeer ? (
-                <span className="flex items-center gap-1 text-accent">
+            {typingPeer ? (
+              <span className="flex min-w-0 items-center gap-1 truncate text-[10px] text-accent">
                   <span className="flex gap-0.5">
                     <span className="w-1 h-1 rounded-full bg-accent animate-bounce" style={{ animationDelay: '0ms' }} />
                     <span className="w-1 h-1 rounded-full bg-accent animate-bounce" style={{ animationDelay: '150ms' }} />
                     <span className="w-1 h-1 rounded-full bg-accent animate-bounce" style={{ animationDelay: '300ms' }} />
                   </span>
                   typing…
-                </span>
-              ) : groupChatState.online ? 'Online' : groupChatState.handle}
-            </span>
+              </span>
+            ) : (
+              <span className="block truncate font-mono text-[10px] text-muted-foreground">
+                {groupChatState.online
+                  ? 'Online'
+                  : <><span className="sm:hidden">Offline</span><span className="hidden sm:inline">{groupChatState.handle}</span></>}
+              </span>
+            )}
           </div>
         </div>
       )
@@ -1362,11 +1364,6 @@ function ChatThreadContent({ id, resolvedChat, initialMessages, historyLoading, 
           </div>
         </div>
 
-          {groupChatState.subject && !showInfo && (
-          <div className="px-4 py-1.5 border-t border-border bg-secondary/30">
-            <p className="font-mono text-[10px] text-muted-foreground truncate">{groupChatState.subject}</p>
-          </div>
-        )}
       </header>
 
       <div className="flex flex-1 overflow-hidden">
@@ -1375,7 +1372,7 @@ function ChatThreadContent({ id, resolvedChat, initialMessages, historyLoading, 
             <div role="alert" className="mb-2 flex items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2.5">
               <div className="min-w-0">
                 <p className="text-xs font-medium text-destructive">Could not load {historyLabel} history.</p>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">Showing messages saved on this device where available. {historyError}</p>
+                <p className="mt-0.5 break-words text-[11px] text-muted-foreground">Showing messages saved on this device where available. {historyError}</p>
               </div>
               <button onClick={historyErrorIsOlder ? beginOlderHistoryLoad : refreshHistory} aria-label={historyErrorIsOlder ? 'Retry loading older messages' : `Retry loading ${historyLabel} history`} className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-md border border-destructive/30 text-destructive hover:bg-destructive/10">
                 <RotateCcw size={14} />
@@ -1553,7 +1550,6 @@ function ChatThreadContent({ id, resolvedChat, initialMessages, historyLoading, 
                 <div className="flex items-center gap-2 flex-1 bg-secondary rounded-lg px-2.5 py-1.5">
                   <span className="text-[13px]">🔍</span>
                   <input
-                    autoFocus
                     aria-label="Search emoji"
                     value={emojiSearch}
                     onChange={(e) => {
@@ -1561,18 +1557,19 @@ function ChatThreadContent({ id, resolvedChat, initialMessages, historyLoading, 
                       if (e.target.value) setEmojiCategory('')
                     }}
                     placeholder="Search emoji…"
-                    className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
+                    className="min-w-0 flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
                   />
-                  {emojiSearch && (
-                    <button onClick={() => { setEmojiSearch(''); setEmojiCategory('recent') }} aria-label="Clear emoji search" className="text-muted-foreground hover:text-foreground">
-                      <X size={12} />
-                    </button>
-                  )}
+                  <button onClick={() => {
+                    if (emojiSearch) {
+                      setEmojiSearch('')
+                      setEmojiCategory('recent')
+                    } else {
+                      setShowEmojiPicker(false)
+                    }
+                  }} aria-label={emojiSearch ? 'Clear emoji search' : 'Close emoji picker'} className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground">
+                    <X size={15} />
+                  </button>
                 </div>
-                <button onClick={() => { setShowEmojiPicker(false); setEmojiSearch('') }} aria-label="Close emoji picker"
-                  className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
-                  <X size={15} />
-                </button>
               </div>
 
               {!emojiSearch && (
@@ -1583,7 +1580,7 @@ function ChatThreadContent({ id, resolvedChat, initialMessages, historyLoading, 
                         onClick={() => setEmojiCategory(cat.id)}
                         aria-label={`${cat.label} emoji`}
                         aria-pressed={emojiCategory === cat.id}
-                        className={`flex-shrink-0 px-3 py-2 text-base transition-colors relative ${emojiCategory === cat.id ? 'opacity-100' : 'opacity-50 hover:opacity-75'}`}
+                        className={`flex h-11 min-w-11 flex-shrink-0 items-center justify-center px-3 text-base transition-colors relative ${emojiCategory === cat.id ? 'opacity-100' : 'opacity-50 hover:opacity-75'}`}
                         title={cat.label}
                     >
                       {cat.icon}
@@ -1601,17 +1598,17 @@ function ChatThreadContent({ id, resolvedChat, initialMessages, historyLoading, 
                     ? EMOJI_CATEGORIES.flatMap((c) => c.emojis).filter((e, i, arr) => arr.indexOf(e) === i)
                     : (EMOJI_CATEGORIES.find((c) => c.id === emojiCategory)?.emojis ?? [])
                   return (
-                    <div className="grid grid-cols-9 gap-0">
+                    <div className="grid grid-cols-6 gap-0 sm:grid-cols-9">
                       {emojis.map((emoji, i) => (
                         <button key={`${emoji}-${i}`}
                           onClick={() => insertEmoji(emoji)}
                           aria-label={`Insert ${emoji}`}
-                          className="text-xl p-1.5 rounded hover:bg-secondary transition-colors leading-none aspect-square flex items-center justify-center">
+                          className="flex min-h-11 w-full items-center justify-center rounded text-xl leading-none transition-colors hover:bg-secondary">
                           {emoji}
                         </button>
                       ))}
                       {emojis.length === 0 && (
-                        <div className="col-span-9 py-6 text-center text-sm text-muted-foreground">No results</div>
+                        <div className="col-span-6 py-6 text-center text-sm text-muted-foreground sm:col-span-9">No results</div>
                       )}
                     </div>
                   )
@@ -1634,23 +1631,28 @@ function ChatThreadContent({ id, resolvedChat, initialMessages, historyLoading, 
                     onClick={() => fileInputRef.current?.click()}
                     disabled={!permissions.photosAndFiles || uploadingAttachments || uploadingVoice}
                     title={!permissions.photosAndFiles ? 'Enable Photos and files in Settings to attach files' : undefined}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-mono text-muted-foreground hover:text-foreground bg-secondary hover:bg-secondary/80 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    aria-label="Choose files"
+                    className="flex h-11 w-11 items-center justify-center rounded-lg bg-secondary text-muted-foreground transition-colors hover:bg-secondary/80 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     {uploadingAttachments ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
-                    {uploadingAttachments ? 'Uploading…' : 'Choose files'}
                   </button>
-                  <button onClick={() => setShowImagePicker(false)} aria-label="Close attachment picker"
-                    disabled={uploadingAttachments}
-                    className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
-                    <X size={15} />
+                  <button
+                    type="button"
+                    onClick={() => { setShowImagePicker(false); void startVoiceRecording() }}
+                    disabled={!permissions.photosAndFiles || uploadingVoice || startingVoice || uploadingAttachments}
+                    aria-label={startingVoice ? 'Requesting microphone access' : 'Record voice message'}
+                    title={!permissions.photosAndFiles ? 'Enable Photos and files in Settings to send voice messages' : 'Record voice message'}
+                    className="flex h-11 w-11 items-center justify-center rounded-lg bg-secondary text-muted-foreground transition-colors hover:bg-secondary/80 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {uploadingVoice || startingVoice ? <Loader2 size={15} className="animate-spin" /> : <Mic size={16} />}
                   </button>
                 </div>
               </div>
               <p className="px-4 py-2 text-[10px] text-muted-foreground">
-                Choose up to {MAX_ATTACHMENTS} photos or files from your device. Each file can be up to 50 MiB.
+                Up to {MAX_ATTACHMENTS} files · 50 MiB each.{' '}
                 {isExternalXmppDirect
-                  ? ' Files use your XMPP server’s upload service. Anyone with the download link may access them; file contents are not end-to-end encrypted.'
-                  : ' Files are uploaded to the peer network when you choose them.'}
+                  ? 'On XMPP, anyone with the link can access files; contents aren’t end-to-end encrypted.'
+                  : 'Files upload to the peer network when selected.'}
               </p>
 
               <input
@@ -1709,18 +1711,6 @@ function ChatThreadContent({ id, resolvedChat, initialMessages, historyLoading, 
 
               {uploadingAttachments && <p role="status" aria-live="polite" className="px-4 pb-2 text-[11px] text-muted-foreground">Uploading files… Sending is available when the upload finishes.</p>}
 
-              {selectedAttachments.length === 0 && (
-                <div className="mx-3 mb-3 rounded-lg border border-dashed border-border px-4 py-5 text-center">
-                  <Image size={18} className="mx-auto text-muted-foreground" />
-                  <p className="mt-2 text-xs font-medium text-foreground">Your selected files will appear here</p>
-                  <p className="mt-1 text-[10px] text-muted-foreground">
-                    {isExternalXmppDirect
-                      ? 'Files use your XMPP server’s upload service. Anyone with the download link may access them; file contents are not end-to-end encrypted.'
-                      : 'They are uploaded to the peer network when you choose them.'}
-                  </p>
-                </div>
-              )}
-
               {selectedAttachments.length > 0 && (
                 <div className="px-4 py-2.5 border-t border-border flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
                   {selectedAttachments.map((asset) => (
@@ -1738,7 +1728,7 @@ function ChatThreadContent({ id, resolvedChat, initialMessages, historyLoading, 
                       <button
                         onClick={() => removeAttachment(asset.id)}
                         aria-label={`Remove ${asset.alt}`}
-                        className="absolute top-1 right-1 w-5 h-5 rounded-full bg-background/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute right-1 top-1 flex h-10 w-10 items-center justify-center rounded-full bg-background/90 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
                       >
                         <X size={10} className="text-foreground" />
                       </button>
@@ -1763,27 +1753,15 @@ function ChatThreadContent({ id, resolvedChat, initialMessages, historyLoading, 
           )}
           {uploadingVoice && <div role="status" className="border-t border-border px-4 py-2 text-xs text-muted-foreground">Preparing voice message…</div>}
           <div className="border-t border-border bg-background/95 backdrop-blur flex-shrink-0 px-3 py-2.5 flex items-end gap-2">
-            {!recordingVoice && (
-              <button
-                type="button"
-                onClick={() => void startVoiceRecording()}
-                disabled={!permissions.photosAndFiles || uploadingVoice || startingVoice}
-                aria-label={startingVoice ? 'Requesting microphone access' : 'Record voice message'}
-                title={!permissions.photosAndFiles ? 'Enable Photos and files in Settings to send voice messages' : 'Record voice message (microphone permission is requested when you start)'}
-                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors flex-shrink-0 disabled:opacity-50 disabled:cursor-wait"
-              >
-                {uploadingVoice || startingVoice ? <Loader2 size={18} className="animate-spin" /> : <Mic size={18} />}
-              </button>
-            )}
             <button
               onClick={() => toggleImagePicker()}
               aria-label={showImagePicker ? 'Close attachment picker' : 'Attach files'}
               aria-expanded={showImagePicker}
               disabled={!permissions.photosAndFiles || uploadingAttachments || uploadingVoice}
               title={!permissions.photosAndFiles ? 'Enable Photos and files in Settings to attach files' : 'Attach files'}
-              className={`p-2 rounded-lg transition-colors flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed ${showImagePicker ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-white/5'}`}
+              className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${showImagePicker ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-white/5'}`}
             >
-              <Paperclip size={18} />
+              {showImagePicker ? <X size={18} /> : <Paperclip size={18} />}
             </button>
 
             <div className="flex-1 min-w-0 bg-secondary rounded-2xl px-3 py-2 flex items-end gap-2">
@@ -1826,14 +1804,14 @@ function ChatThreadContent({ id, resolvedChat, initialMessages, historyLoading, 
                 placeholder={chat.type === 'muc' ? `Message ${chat.name}…` : `Message ${chat.name.split(' ')[0]}…`}
                 rows={1}
                 disabled={sending}
-                className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none resize-none leading-relaxed max-h-28 disabled:opacity-60"
+                className="min-w-0 flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none resize-none leading-relaxed max-h-28 disabled:opacity-60"
                 style={{ overflowY: input.split('\n').length > 3 ? 'auto' : 'hidden' }}
               />
               <button
                 onClick={() => toggleEmojiPicker()}
                 aria-label={showEmojiPicker ? 'Close emoji picker' : 'Open emoji picker'}
                 aria-expanded={showEmojiPicker}
-                className={`text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 pb-0.5 ${showEmojiPicker ? 'text-primary' : ''}`}
+                className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground transition-colors ${showEmojiPicker ? 'text-primary bg-primary/10' : ''}`}
               >
                 <Smile size={17} />
               </button>
@@ -1843,7 +1821,7 @@ function ChatThreadContent({ id, resolvedChat, initialMessages, historyLoading, 
               onClick={() => void sendMessage()}
                 aria-label={sending ? 'Sending message' : uploadingAttachments || uploadingVoice ? 'Preparing attachments' : 'Send message'}
                 disabled={sending || uploadingAttachments || uploadingVoice || (!input.trim() && selectedAttachments.length === 0)}
-              className={`p-2.5 rounded-full flex-shrink-0 transition-all disabled:opacity-50 disabled:cursor-wait ${input.trim() || selectedAttachments.length > 0 ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'bg-secondary text-muted-foreground'}`}
+              className={`flex h-11 w-11 items-center justify-center rounded-full flex-shrink-0 transition-all disabled:opacity-50 disabled:cursor-wait ${input.trim() || selectedAttachments.length > 0 ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'bg-secondary text-muted-foreground'}`}
             >
               {uploadingAttachments || uploadingVoice ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
             </button>

@@ -12,7 +12,6 @@ export default function ReadyPage() {
   const [error, setError] = React.useState('')
   const [peerDiscoveryConfigured, setPeerDiscoveryConfigured] = React.useState<boolean | null>(null)
   const displayName = identity?.displayName ?? 'User'
-  const handle = identity?.handle ?? 'user'
 
   React.useEffect(() => {
     let active = true
@@ -52,50 +51,28 @@ export default function ReadyPage() {
     <div className="mx-auto flex h-full w-full max-w-2xl flex-1 flex-col overflow-hidden">
       <header className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border flex-shrink-0 px-4 py-2.5">
         <div>
-          <h1 className="text-heading font-semibold text-foreground">You are ready</h1>
-          <p className="text-[12px] text-muted-foreground">Your identity is active</p>
+          <h1 className="text-heading font-semibold text-foreground">Setup complete</h1>
         </div>
         <div className="mt-3">
-          <ProgressDots current={7} />
+          <ProgressDots current={6} />
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto px-4 pb-4 flex flex-col items-center pt-8">
-        <div className="w-[140px] h-[140px] bg-green2 rounded-full flex items-center justify-center">
-          <Check size={48} className="text-accent" />
+      <main className="flex-1 overflow-y-auto px-4 pb-4 flex flex-col items-center pt-5 sm:pt-8">
+        <div className="flex h-24 w-24 items-center justify-center rounded-full bg-green2 sm:h-[140px] sm:w-[140px]">
+          <Check size={36} className="text-accent sm:h-12 sm:w-12" />
         </div>
 
-        <h2 className="text-[25px] font-semibold text-foreground text-center mt-6">
-          Welcome to Nexus
+        <h2 className="mt-4 break-words text-[22px] font-semibold text-foreground text-center sm:mt-6 sm:text-[25px]">
+          You’re ready, {displayName}
         </h2>
         <p className="text-body text-muted-foreground text-center max-w-xs mt-2 leading-relaxed">
           {peerDiscoveryConfigured === null
-            ? 'Your identity is ready. Checking peer network configuration…'
+            ? 'Checking peer network configuration…'
             : peerDiscoveryConfigured
-              ? 'Your identity is ready. The app will look for peers when it opens.'
-              : 'Your identity is ready. Add a peer relay in Settings or connect to an XMPP server to get started.'}
+              ? 'Peer discovery will start when Nexus opens.'
+              : 'Add a peer relay in Settings or connect to an XMPP server to find people.'}
         </p>
-
-        <div className="bg-card rounded-xl p-6 w-full max-w-sm mt-8">
-          <div className="flex flex-col items-center text-center">
-            <div className="w-14 h-14 bg-blue2 rounded-full flex items-center justify-center">
-              <span className="text-xl font-bold text-primary">
-                {displayName.charAt(0).toUpperCase()}
-              </span>
-            </div>
-            <div className="text-[17px] font-semibold text-foreground mt-3">{displayName}</div>
-            <div className="text-[12px] text-muted-foreground font-mono mt-0.5">@{handle}</div>
-            <div className="text-[11px] text-muted-foreground mt-1">Profile handle</div>
-            <div className="flex items-center gap-3 mt-4">
-              <span className="bg-green2 rounded-lg px-3 py-1.5 text-[11px] font-semibold text-accent">
-                Identity ready
-              </span>
-              <span className="text-[11px] text-muted-foreground">
-                {peerDiscoveryConfigured === null ? 'Checking peer network…' : peerDiscoveryConfigured ? 'Peer discovery starts on open' : 'No peer relay configured'}
-              </span>
-            </div>
-          </div>
-        </div>
 
         {error && (
           <p role="alert" className="text-[11px] text-destructive mt-3 text-center">{error}</p>

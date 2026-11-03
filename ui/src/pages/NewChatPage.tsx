@@ -10,8 +10,8 @@ import { normalizeXmppJid } from '../lib/xmpp-input'
 import { savePeerAddress } from '../lib/peer-addresses'
 import { emitToast } from '../lib/toast-events'
 import {
-  ArrowLeft, Search, User, Users, Hash, X, Plus, Check, UserPlus,
-  Shield, Zap, ChevronRight,
+  ArrowLeft, Search, User, Users, Hash, X, Check, UserPlus,
+  Shield, ChevronDown, ChevronRight,
 } from 'lucide-react'
 
 type FlowType = 'direct' | 'group' | 'muc'
@@ -28,7 +28,7 @@ interface Contact {
 
 function ContactRow({ contact, onOpen }: { contact: Contact; onOpen: () => void }) {
   return (
-    <button onClick={onOpen} className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-secondary transition-colors text-left border-b border-border last:border-0">
+    <button onClick={onOpen} aria-label={`Start conversation with ${contact.name}, ${contact.handle}`} className="min-h-14 w-full flex items-center gap-3 px-4 py-2.5 hover:bg-secondary transition-colors text-left border-b border-border last:border-0">
       <div className="relative flex-shrink-0">
         <div className="w-9 h-9 rounded-full overflow-hidden bg-secondary border border-border">
           {contact.avatar
@@ -36,14 +36,14 @@ function ContactRow({ contact, onOpen }: { contact: Contact; onOpen: () => void 
             : <div className="w-full h-full flex items-center justify-center text-sm font-semibold text-foreground">{contact.name[0]}</div>
           }
         </div>
-        <span aria-hidden="true" className={`absolute -bottom-px -right-px w-2.5 h-2.5 rounded-full border-2 border-background ${contact.online ? 'bg-accent' : 'bg-muted-foreground/40'}`} />
+        {contact.online && <span aria-hidden="true" className="absolute -bottom-px -right-px h-2.5 w-2.5 rounded-full border-2 border-background bg-accent" />}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1">
           <span className="text-sm font-medium text-foreground truncate">{contact.name}</span>
           {contact.verified && <Shield size={11} className="text-primary flex-shrink-0" />}
         </div>
-        <span className="font-mono text-[10px] text-muted-foreground truncate block">{contact.handle}</span>
+        <span className="hidden truncate font-mono text-[10px] text-muted-foreground sm:block">{contact.handle}</span>
         <span className="sr-only">{contact.online ? 'Online' : 'Offline'}</span>
       </div>
       <ChevronRight size={14} aria-hidden="true" className="text-muted-foreground/40 flex-shrink-0" />
@@ -86,6 +86,9 @@ function DirectFlow() {
   const canStartChat = !isServerJid || serverConnected
   const canAddContact = !isServerJid || serverConnected
   const isContact = contacts.some((contact) => canonicalDirectChatId(contact.jid) === canonicalDirectChatId(bareJid))
+  const visibleContacts = filtered.filter((contact) =>
+    !(isJid && canonicalDirectChatId(contact.handle) === canonicalDirectChatId(bareJid))
+  )
 
   const handleAddContact = async () => {
     if (!isJid || isContact || addingContact) return
@@ -106,12 +109,12 @@ function DirectFlow() {
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
       <div className="px-4 py-3 border-b border-border flex-shrink-0">
-        <div className="flex items-center gap-2 bg-secondary rounded-lg px-3 py-2">
+        <div className="flex min-h-11 items-center gap-2 bg-secondary rounded-lg px-3 py-2">
           <Search size={14} className="text-muted-foreground flex-shrink-0" />
-          <input autoFocus aria-label="Search contacts, enter a JID, or paste a peer address" value={query} onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search contacts, enter a JID, or paste a peer address…"
-            className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none" />
-          {query && <button onClick={() => setQuery('')} aria-label="Clear contact search" className="text-muted-foreground hover:text-foreground"><X size={13} /></button>}
+          <input aria-label="Search contacts, enter a JID, or paste a peer address" value={query} onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search, JID, or peer address"
+          className="min-w-0 flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none" />
+          {query && <button onClick={() => setQuery('')} aria-label="Clear contact search" className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground"><X size={13} /></button>}
         </div>
       </div>
 
@@ -130,7 +133,7 @@ function DirectFlow() {
               </div>
               <ChevronRight size={14} className="text-primary flex-shrink-0" />
             </button>
-            <p className="px-1 text-[11px] leading-relaxed text-muted-foreground">This address is used for the first connection. Encrypted messaging may require the peer’s P2P ID contact first.</p>
+            <p className="px-1 text-[11px] leading-relaxed text-muted-foreground">Encrypted chat may require adding the peer’s P2P ID first.</p>
           </div>
         )}
         {isJid && (
@@ -142,7 +145,7 @@ function DirectFlow() {
                 <User size={16} className="text-primary" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground">{bareJid}</p>
+                <p className="break-all text-sm font-medium text-foreground">{bareJid}</p>
                 <p className="font-mono text-[10px] text-muted-foreground">{canStartChat ? 'Start conversation with this JID' : 'Connect an XMPP server to message this JID'}</p>
               </div>
               <ChevronRight size={14} className="text-primary flex-shrink-0" />
@@ -171,16 +174,16 @@ function DirectFlow() {
               {query ? 'Results' : 'Recent contacts'}
             </span>
           </div>
-          {filtered.map((c) => (
+          {visibleContacts.map((c) => (
             <ContactRow key={c.id} contact={c} onOpen={() => navigate(`/chat/${encodeURIComponent(c.handle)}`)} />
           ))}
-          {filtered.length === 0 && (
+          {visibleContacts.length === 0 && !isJid && (
             <div className="px-4 py-8 text-center">
-              <p className="text-sm text-muted-foreground">No contacts found.</p>
-              <p className="font-mono text-[11px] text-muted-foreground mt-1">
+              <p className="text-sm text-foreground">{query ? 'No matching contacts' : 'No contacts yet'}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
                 {serverConnected
-                  ? 'Enter a full JID or paste a peer address to start a conversation.'
-                  : 'Enter a full JID or paste a peer address. Connect an XMPP server in Settings to message server contacts.'}
+                  ? 'Enter a JID or paste a peer address above to start a conversation.'
+                  : 'Enter a JID or peer address above. XMPP contacts need a server connection.'}
               </p>
             </div>
           )}
@@ -230,18 +233,25 @@ function GroupFlow() {
         <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Group name</p>
         <input aria-label="Group name" value={groupName} onChange={(e) => setGroupName(e.target.value)}
           placeholder="e.g. Protocol Working Group"
-          className="w-full bg-secondary border border-border rounded-lg px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 transition-colors" />
+          className="min-h-11 w-full bg-secondary border border-border rounded-lg px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 transition-colors" />
       </div>
       <div className="flex-1 px-4 py-5">
-        <div className="rounded-xl border border-border bg-card p-4">
-          <div className="flex items-center gap-2 text-sm font-medium text-foreground"><Users size={16} className="text-primary" /> P2P group room</div>
-          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">Create the room first, then share its room ID with people you want to join. Anyone who learns the ID can try to join; the network does not support invitations or private membership lists.</p>
-          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">Secure mode is on by default. It encrypts messages but does not restrict who can join. Sending requires a joined member to have an OMEMO device, and members without one cannot read secure messages.</p>
-        </div>
+        <details className="group rounded-xl border border-border bg-card">
+          <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-medium text-foreground">
+            <Users size={16} className="text-primary" />
+            <span className="flex-1">About this room</span>
+            <span className="hidden text-[11px] font-normal text-muted-foreground sm:inline">Public · encrypted</span>
+            <ChevronDown size={14} className="text-muted-foreground transition-transform group-open:rotate-180" aria-hidden="true" />
+          </summary>
+          <div className="space-y-2 border-t border-border px-4 py-3">
+            <p className="text-xs leading-relaxed text-muted-foreground">Anyone with the room ID can join. Rooms have no invitations or private member list.</p>
+            <p className="text-xs leading-relaxed text-muted-foreground">Encrypted by default. Members need OMEMO to send or read messages.</p>
+          </div>
+        </details>
       </div>
       <div className="px-4 py-3 border-t border-border flex-shrink-0">
         <button disabled={!canCreate} onClick={() => void handleCreate()}
-          className="w-full py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed">
+          className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40">
           <Users size={15} /> {creating ? 'Creating…' : 'Create group room'}
         </button>
       </div>
@@ -343,63 +353,56 @@ function MucFlow() {
 
   return (
     <div className="flex flex-col flex-1 overflow-y-auto">
-      <form className="px-4 py-5 border-b border-border" onSubmit={(event) => { event.preventDefault(); void handleJoin() }}>
-        <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Join a room</p>
-        <p className="text-xs text-muted-foreground mb-3">Enter a P2P room ID, or a full XMPP room JID such as <span className="font-mono">room@conference.example.org</span>. XMPP rooms require a connected server account.</p>
+      <form className="px-4 py-4 border-b border-border" onSubmit={(event) => { event.preventDefault(); void handleJoin() }}>
+        <p className="text-xs text-muted-foreground mb-3">Enter a P2P room ID or XMPP room JID. XMPP needs a connected server.</p>
         <div className="flex gap-2">
-          <div className="flex-1 flex items-center bg-secondary border border-border rounded-lg overflow-hidden focus-within:border-primary/50 transition-colors">
+          <div className="min-w-0 flex-1 flex items-center bg-secondary border border-border rounded-lg overflow-hidden focus-within:border-primary/50 transition-colors">
             <Hash size={13} className="ml-3 text-muted-foreground flex-shrink-0" />
             <input value={roomInput} onChange={(event) => setRoomInput(event.target.value.toLowerCase())}
-              placeholder="room-id or room-id@muc.p2p"
+              placeholder="Room ID or JID"
               aria-label="P2P room ID or XMPP room JID"
-              className="flex-1 bg-transparent px-2 py-2.5 text-sm font-mono text-foreground placeholder:text-muted-foreground outline-none" />
+              className="min-h-11 min-w-0 flex-1 bg-transparent px-2 py-2.5 text-sm font-mono text-foreground placeholder:text-muted-foreground outline-none" />
           </div>
           <button type="submit" disabled={!isValidRoom || joining}
-            className="px-4 py-2 rounded-lg text-sm font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+            className="min-h-11 shrink-0 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
             {joining ? 'Joining…' : 'Join'}
           </button>
         </div>
-        {error && <p role="alert" className="text-xs text-destructive mt-2">{error}</p>}
+        {error && <p role="alert" className="mt-2 break-words text-xs text-destructive">{error}</p>}
       </form>
-      <div className="space-y-3 px-4 py-5">
-        <button type="button" onClick={() => void handleBrowseRooms()} disabled={discoveringRooms || joining}
-          className="w-full flex items-center gap-3 px-3 py-3 rounded-lg border border-border bg-card hover:bg-secondary transition-all text-left disabled:cursor-wait disabled:opacity-60">
-          <div className="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0">
-            <Search size={15} className="text-muted-foreground" />
+      <div className="px-4 py-4">
+        <details
+          onToggle={(event) => {
+            if (event.currentTarget.open && !discoveringRooms && serverRooms.length === 0) void handleBrowseRooms()
+          }}
+          className="group rounded-lg border border-border bg-card"
+        >
+          <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 px-3 py-2 text-left hover:bg-secondary">
+            <Search size={15} className="flex-shrink-0 text-muted-foreground" />
+            <span className="flex-1 text-sm font-medium text-foreground">{discoveringRooms ? 'Browsing XMPP rooms…' : 'Browse XMPP rooms'}</span>
+            <ChevronDown size={14} className="flex-shrink-0 text-muted-foreground/50 transition-transform group-open:rotate-180" />
+          </summary>
+          <div className="space-y-3 border-t border-border px-3 py-3">
+            <p className="text-[10px] text-muted-foreground">Find public rooms on your connected server.</p>
+            {browseMessage && <p role="status" className="text-xs leading-relaxed text-muted-foreground">{browseMessage}</p>}
+            {discoveringRooms && <p role="status" className="text-xs text-muted-foreground">Loading rooms…</p>}
+            {serverRooms.length > 0 && (
+              <div className="rounded-lg border border-border" aria-label="XMPP rooms">
+                {serverRooms.map((room) => (
+                  <button key={`${room.serviceJid}:${room.roomJid}`} type="button" onClick={() => { setRoomInput(room.roomJid); void handleJoin(room.roomJid) }} disabled={joining}
+                    className="flex w-full items-center gap-3 border-b border-border px-3 py-2.5 text-left last:border-b-0 hover:bg-secondary disabled:cursor-wait disabled:opacity-60">
+                    <Hash size={14} className="text-primary flex-shrink-0" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium text-foreground">{room.name}</span>
+                      <span className="block truncate font-mono text-[10px] text-muted-foreground">{room.roomJid}</span>
+                    </span>
+                    <ChevronRight size={14} className="text-muted-foreground/50 flex-shrink-0" />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-          <div className="flex-1">
-            <p className="text-sm font-medium text-foreground">{discoveringRooms ? 'Browsing XMPP rooms…' : 'Browse XMPP rooms'}</p>
-            <p className="font-mono text-[10px] text-muted-foreground">Find public rooms on your connected server</p>
-          </div>
-          <ChevronRight size={14} className="text-muted-foreground/50 flex-shrink-0" />
-        </button>
-        {browseMessage && <p role="status" className="px-1 text-xs leading-relaxed text-muted-foreground">{browseMessage}</p>}
-        {serverRooms.length > 0 && (
-          <div className="overflow-hidden rounded-lg border border-border" aria-label="XMPP rooms">
-            {serverRooms.map((room) => (
-              <button key={`${room.serviceJid}:${room.roomJid}`} type="button" onClick={() => { setRoomInput(room.roomJid); void handleJoin(room.roomJid) }} disabled={joining}
-                className="flex w-full items-center gap-3 border-b border-border px-3 py-2.5 text-left last:border-b-0 hover:bg-secondary disabled:cursor-wait disabled:opacity-60">
-                <Hash size={14} className="text-primary flex-shrink-0" />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium text-foreground">{room.name}</span>
-                  <span className="block truncate font-mono text-[10px] text-muted-foreground">{room.roomJid}</span>
-                </span>
-                <ChevronRight size={14} className="text-muted-foreground/50 flex-shrink-0" />
-              </button>
-            ))}
-          </div>
-        )}
-        <button onClick={() => navigate('/communities/new')}
-          className="w-full flex items-center gap-3 px-3 py-3 rounded-lg border border-dashed border-border hover:border-primary/40 hover:bg-primary/5 transition-all text-left group">
-          <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center border border-primary/20 flex-shrink-0">
-            <Plus size={15} className="text-primary" />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">Create a room</p>
-            <p className="font-mono text-[10px] text-muted-foreground">Create a room on the peer network</p>
-          </div>
-          <ChevronRight size={14} className="ml-auto text-muted-foreground/40 group-hover:text-primary transition-colors" />
-        </button>
+        </details>
       </div>
     </div>
   )
@@ -438,12 +441,7 @@ export default function NewChatPage() {
         <button onClick={() => navigate(-1)} aria-label="Go back" className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
           <ArrowLeft size={18} />
         </button>
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded bg-primary flex items-center justify-center">
-            <Zap size={12} className="text-white" />
-          </div>
-          <h1 className="font-semibold text-sm">New conversation</h1>
-        </div>
+        <h1 className="font-semibold text-sm">New conversation</h1>
       </header>
 
       <div role="tablist" aria-label="Conversation type" className="flex border-b border-border flex-shrink-0">
@@ -454,8 +452,8 @@ export default function NewChatPage() {
             <button key={f.id} ref={(element) => { flowTabRefs.current[f.id] = element }} id={`new-chat-tab-${f.id}`}
               type="button" role="tab" aria-selected={active} aria-controls="new-chat-panel" tabIndex={active ? 0 : -1}
               onClick={() => setFlow(f.id)} onKeyDown={(event) => handleFlowKeyDown(event, f.id)}
-              className={`min-h-11 flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium transition-colors relative ${active ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
-              <Icon size={15} />
+              className={`min-h-11 flex-1 flex items-center justify-center gap-2 px-2 text-xs font-medium transition-colors relative ${active ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
+              <Icon size={14} />
               {f.label}
               {active && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-primary rounded-t-full" />}
             </button>

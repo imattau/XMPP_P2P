@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
-import { Search } from 'lucide-react'
+import { Search, X } from 'lucide-react'
 import { useArticleBridge } from '../bridge/article/useArticleBridge'
 import ArticleCard from '../components/article/ArticleCard'
 
@@ -50,18 +50,15 @@ export default function TopicsPage() {
         <div className="flex items-center justify-between px-4 py-2.5">
           <div>
             <h1 className="text-xl font-semibold text-foreground">Topics</h1>
-            <p className="text-xs text-muted-foreground">Read ideas by subject</p>
           </div>
-          <button
-            onClick={() => setSearchOpen(!searchOpen)}
-            aria-label={searchOpen ? 'Close article search' : 'Search articles'}
+          {!searchOpen && <button
+            onClick={() => setSearchOpen(true)}
+            aria-label="Search articles"
             aria-expanded={searchOpen}
-            className={`flex h-11 w-11 items-center justify-center rounded-lg transition-colors ${
-              searchOpen ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
-            }`}
+            className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-white/5 hover:text-foreground"
           >
             <Search size={18} />
-          </button>
+          </button>}
         </div>
 
         {searchOpen && (
@@ -69,25 +66,25 @@ export default function TopicsPage() {
             <div className="flex items-center gap-2 bg-secondary rounded-lg px-3 py-2">
               <Search size={14} className="text-muted-foreground flex-shrink-0" />
               <input
-                autoFocus
                 aria-label="Search articles"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search articles…"
-                className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
+                className="min-w-0 flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
               />
-              {searchQuery && (
-                <button onClick={() => setSearchQuery('')} aria-label="Clear article search" className="min-h-11 min-w-11 text-muted-foreground hover:text-foreground text-xs">
-                  Clear
-                </button>
-              )}
+              <button onClick={() => {
+                if (searchQuery) setSearchQuery('')
+                else setSearchOpen(false)
+              }} aria-label={searchQuery ? 'Clear article search' : 'Close article search'} className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground">
+                <X size={16} />
+              </button>
             </div>
           </div>
         )}
 
         <div className="h-px bg-border" />
 
-        <div role="group" aria-label="Article filters" className="flex items-center gap-2 px-4 py-2.5">
+        <div role="group" aria-label="Article filters" className="flex items-center gap-2 overflow-x-auto px-4 py-2.5 scrollbar-hidden">
           {([
             { id: 'for-you', label: 'For you' },
             { id: 'following', label: 'Following' },
@@ -98,7 +95,7 @@ export default function TopicsPage() {
               type="button"
               aria-pressed={activeFilter === f.id}
               onClick={() => setActiveFilter(f.id)}
-              className={`min-h-11 px-4 rounded-lg text-xs font-semibold transition-colors ${
+              className={`min-h-11 flex-shrink-0 whitespace-nowrap px-4 rounded-lg text-xs font-semibold transition-colors ${
                 activeFilter === f.id
                   ? 'bg-blue2 text-primary'
                   : 'bg-secondary text-muted-foreground hover:text-foreground'
@@ -113,12 +110,12 @@ export default function TopicsPage() {
 
       <main className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
         {loading && published.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3" role="status">
+          <div className="flex flex-col items-center justify-center py-12 gap-3 sm:py-20" role="status">
             <span className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
             <p className="text-sm text-muted-foreground">Loading articles…</p>
           </div>
         ) : displayArticles.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
+          <div className="flex flex-col items-center justify-center py-12 gap-3 sm:py-20">
             <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
               <Search size={20} className="text-muted-foreground" />
             </div>
@@ -130,7 +127,7 @@ export default function TopicsPage() {
                 </button>
               </>
             ) : (
-              <p className="text-sm text-muted-foreground">
+              <p className="break-words px-4 text-center text-sm text-muted-foreground">
                 {activeFilter === 'following'
                   ? 'No articles from followed topics yet'
                   : searchQuery
@@ -140,21 +137,6 @@ export default function TopicsPage() {
             )}
             {!loadError && !searchQuery && activeFilter !== 'following' && published.length === 0 && (
               <p className="max-w-sm text-center text-xs text-muted-foreground">Topics appear when posts include a topic tag. Follow an XMPP microblog in Feed or connect to the peer network to discover more.</p>
-            )}
-            {!loadError && !searchQuery && activeFilter !== 'following' && published.length === 0 && (
-              <button onClick={() => navigate('/')} className="min-h-11 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary">
-                Explore feed
-              </button>
-            )}
-            {!loadError && !searchQuery && activeFilter !== 'following' && published.length === 0 && (
-              <button onClick={() => navigate('/compose')} className="min-h-11 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90">
-                Write an article
-              </button>
-            )}
-            {!loadError && !searchQuery && activeFilter !== 'following' && published.length === 0 && (
-              <button onClick={() => navigate('/settings')} className="min-h-11 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground">
-                Open peer settings
-              </button>
             )}
           </div>
         ) : (
@@ -173,7 +155,7 @@ export default function TopicsPage() {
             <section>
               {!searchQuery && (
                 <h2 className="text-base font-semibold text-foreground mb-3">
-                  {activeFilter === 'latest' ? 'Latest articles' : 'Latest articles'}
+                  {activeFilter === 'latest' ? 'Latest articles' : activeFilter === 'following' ? 'From followed topics' : 'For you'}
                 </h2>
               )}
 

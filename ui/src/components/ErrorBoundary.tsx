@@ -29,19 +29,23 @@ export default class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       if (this.props.fallback) return this.props.fallback
       return (
-        <div className="flex flex-col items-center justify-center min-h-[400px] gap-4 px-6">
+        <div className="flex min-h-60 flex-col items-center justify-center gap-4 px-6 sm:min-h-[400px]">
           <div className="w-14 h-14 rounded-2xl bg-destructive/10 flex items-center justify-center">
             <Zap size={24} className="text-destructive" />
           </div>
           <div className="text-center">
             <h2 className="text-base font-semibold text-foreground mb-1">Something went wrong</h2>
-            <p className="text-sm text-muted-foreground max-w-sm">
-              {this.state.error?.message ?? 'An unexpected error occurred'}
-            </p>
+            <p className="max-w-sm text-sm text-muted-foreground">Reload the app to continue.</p>
           </div>
+          {this.state.error?.message && (
+            <details className="max-w-sm text-center">
+              <summary className="min-h-11 cursor-pointer py-3 text-xs text-muted-foreground">Technical details</summary>
+              <p className="break-words rounded-lg bg-secondary px-3 py-2 text-left text-xs text-muted-foreground">{this.state.error.message}</p>
+            </details>
+          )}
           <button
             onClick={() => window.location.reload()}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-mono hover:bg-primary/90 transition-colors"
+            className="flex min-h-11 items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-xs font-mono text-primary-foreground hover:bg-primary/90 transition-colors"
           >
             <RefreshCw size={14} />
             Reload page

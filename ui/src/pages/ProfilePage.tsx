@@ -2,9 +2,9 @@ import * as React from 'react'
 import { useState, useRef, useEffect } from 'react'
 import { NavLink, useNavigate } from 'react-router'
 import {
-  Settings, Shield, Lock, Globe, Hash, Users, Heart,
+  Shield, Lock, Hash, Users, Heart,
   MessageCircle, Repeat2, Bookmark, Edit3, Link2,
-  MapPin, Calendar, Zap, ChevronRight, Copy, Check,
+  MapPin, Calendar, ChevronRight, Copy, Check, MoreHorizontal,
   QrCode, Camera, Loader2,
 } from 'lucide-react'
 import { useProfileBridge, type EditableVCard } from '../bridge/useProfileBridge'
@@ -39,7 +39,6 @@ const TABS: { id: ProfileTab; label: string }[] = [
 export default function ProfilePage() {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<ProfileTab>('posts')
-  const [copied, setCopied] = useState(false)
   const [copiedPeerAddress, setCopiedPeerAddress] = useState(false)
   const [peerAddresses, setPeerAddresses] = useState<string[]>([])
   const [showEdit, setShowEdit] = useState(false)
@@ -50,6 +49,8 @@ export default function ProfilePage() {
   const [profileDataError, setProfileDataError] = useState('')
   const [showQR, setShowQR] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const editTriggerRef = useRef<HTMLButtonElement>(null)
+  const editCancelRef = useRef<HTMLButtonElement>(null)
   const qrDialogRef = useRef<HTMLDivElement>(null)
   const qrCloseRef = useRef<HTMLButtonElement>(null)
   const tabRefs = useRef<Record<ProfileTab, HTMLButtonElement | null>>({
@@ -62,6 +63,12 @@ export default function ProfilePage() {
   const { vCard, loading, saving, save } = useProfileBridge()
   const feedBridge = useFeedBridge()
   const runtime = useBrowserXmppBridge()
+
+  useEffect(() => {
+    if (!showEdit) return
+    editCancelRef.current?.focus()
+    return () => editTriggerRef.current?.focus()
+  }, [showEdit])
 
   useEffect(() => {
     if (!runtime?.getLocalPeerAddresses) {
@@ -110,7 +117,6 @@ export default function ProfilePage() {
     return Boolean(localPart && p.author.handle === localPart)
   })
   const bookmarkedPosts = feedBridge.posts.filter((p) => p.bookmarked)
-  const uniqueTopics = new Set(subscriptions.map((s) => s.topic.split(':').pop() || s.topic))
 
   const openEdit = () => {
     setEditForm(vCard ? { ...vCard } : { fn: '', nickname: '' })
@@ -200,17 +206,6 @@ export default function ProfilePage() {
     }
   }
 
-  const handleCopy = async () => {
-    const text = identity?.handle || (handle.startsWith('@') ? handle.slice(1) : handle)
-    try {
-      await navigator.clipboard.writeText(text)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
-    } catch {
-      emitToast('Could not copy your handle', 'error')
-    }
-  }
-
   const handleCopyPeerAddress = async () => {
     if (!peerAddress) return
     try {
@@ -229,68 +224,60 @@ export default function ProfilePage() {
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
-      <header className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border flex-shrink-0 flex items-center justify-between px-4 py-2.5">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded bg-primary flex items-center justify-center">
-            <Zap size={14} className="text-white" />
-          </div>
-          <span className="font-semibold text-sm tracking-tight">Profile</span>
-        </div>
-        <div className="flex items-center gap-0.5">
-          <button onClick={() => peerAddress && setShowQR(true)} disabled={!peerAddress} aria-label="Show peer address QR code" title={peerAddress ? 'Show peer address QR code' : 'A routable peer address is not available'} className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors disabled:cursor-not-allowed disabled:opacity-50">
-            <QrCode size={17} />
-          </button>
-          <button onClick={() => navigate('/settings')} aria-label="Open settings"
-            className="flex h-11 w-11 items-center justify-center rounded-lg transition-colors text-muted-foreground hover:text-foreground hover:bg-white/5">
-            <Settings size={17} />
-          </button>
-        </div>
+      <header className={`sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border flex-shrink-0 flex items-center px-4 py-2.5 ${showEdit ? 'hidden md:flex' : ''}`}>
+        <span className="font-semibold text-sm tracking-tight">{showEdit ? 'Edit profile' : 'Profile'}</span>
       </header>
 
       {showEdit && editForm && (
-        <div className="border-b border-border bg-card flex-shrink-0 px-4 py-3 space-y-3">
-          {editError && <p role="alert" className="text-destructive text-xs font-mono">{editError}</p>}
-          <InlineEdit label="Display Name" value={editForm.fn} onChange={(e: any) => setEditForm((prev: any) => prev ? { ...prev, fn: e.target.value } : prev)} placeholder="Your display name" />
-          <InlineEdit label="Nickname" value={editForm.nickname} onChange={(e: any) => setEditForm((prev: any) => prev ? { ...prev, nickname: e.target.value } : prev)} placeholder="Your nickname" />
-          <InlineEdit label="Bio" value={editForm.desc || ''} onChange={(e: any) => setEditForm((prev: any) => prev ? { ...prev, desc: e.target.value } : prev)} placeholder="Tell us about yourself" />
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-mono text-muted-foreground">Avatar</label>
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full overflow-hidden bg-secondary border border-border flex-shrink-0">
-                {editForm.photo ? (
-                  <img src={`data:${editForm.photo.type};base64,${editForm.photo.binval}`} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-muted-foreground"><Camera size={16} /></div>
+        <div className="fixed inset-0 z-[60] flex min-h-0 flex-col bg-background pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] md:relative md:inset-auto md:z-auto md:flex-1 md:border-b md:border-border md:bg-card md:py-0">
+          <div className="flex min-h-14 flex-shrink-0 items-center justify-between border-b border-border px-4 md:hidden">
+            <span className="text-sm font-semibold text-foreground">Edit profile</span>
+              <button ref={editCancelRef} type="button" onClick={handleCancel} className="min-h-11 rounded-lg px-3 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground">Cancel</button>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3 space-y-3">
+            {editError && <p role="alert" className="break-words text-destructive text-xs font-mono">{editError}</p>}
+            <InlineEdit label="Display Name" value={editForm.fn} onChange={(e: any) => setEditForm((prev: any) => prev ? { ...prev, fn: e.target.value } : prev)} placeholder="Your display name" />
+            <InlineEdit label="Nickname" value={editForm.nickname} onChange={(e: any) => setEditForm((prev: any) => prev ? { ...prev, nickname: e.target.value } : prev)} placeholder="Your nickname" />
+            <InlineEdit label="Bio" multiline value={editForm.desc || ''} onChange={(e: any) => setEditForm((prev: any) => prev ? { ...prev, desc: e.target.value } : prev)} placeholder="Tell us about yourself" />
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-mono text-muted-foreground">Avatar</label>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="w-12 h-12 rounded-full overflow-hidden bg-secondary border border-border flex-shrink-0">
+                  {editForm.photo ? (
+                    <img src={`data:${editForm.photo.type};base64,${editForm.photo.binval}`} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-muted-foreground"><Camera size={16} /></div>
+                  )}
+                </div>
+                <button disabled={!permissions.photosAndFiles} onClick={() => fileInputRef.current?.click()} className="min-h-11 min-w-0 max-w-full whitespace-normal break-words px-2 text-left text-xs font-mono text-primary hover:underline disabled:opacity-40 disabled:cursor-not-allowed">
+                  {permissions.photosAndFiles ? (editForm.photo ? 'Change' : 'Upload photo') : 'Enable Photos and files in Settings'}
+                </button>
+                {editForm.photo && (
+                  <button onClick={() => setEditForm((prev: any) => prev ? { ...prev, photo: null } : prev)} className="min-h-11 px-2 text-xs font-mono text-destructive hover:underline">
+                    Remove
+                  </button>
                 )}
               </div>
-              <button disabled={!permissions.photosAndFiles} onClick={() => fileInputRef.current?.click()} className="min-h-11 px-2 text-xs font-mono text-primary hover:underline disabled:opacity-40 disabled:cursor-not-allowed">
-                {permissions.photosAndFiles ? (editForm.photo ? 'Change' : 'Upload photo') : 'Enable Photos and files in Settings'}
-              </button>
-              {editForm.photo && (
-                <button onClick={() => setEditForm((prev: any) => prev ? { ...prev, photo: null } : prev)} className="min-h-11 px-2 text-xs font-mono text-destructive hover:underline">
-                  Remove
-                </button>
-              )}
             </div>
+            <input ref={fileInputRef} type="file" aria-label="Choose profile photo" accept="image/*" disabled={!permissions.photosAndFiles} className="hidden" onChange={handleAvatarPick} />
           </div>
-          <input ref={fileInputRef} type="file" aria-label="Choose profile photo" accept="image/*" disabled={!permissions.photosAndFiles} className="hidden" onChange={handleAvatarPick} />
-          <div className="flex items-center gap-2 pt-1">
+          <div className="flex flex-shrink-0 items-center gap-2 border-t border-border bg-background/95 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur">
             <button onClick={handleSave} disabled={saving}
-              className="flex min-h-11 items-center gap-1.5 px-4 rounded-lg bg-primary text-primary-foreground text-xs font-mono hover:bg-primary/90 transition-colors disabled:opacity-50">
+              className="flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary px-4 text-xs font-mono text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 md:flex-none">
               {saving && <Loader2 size={12} className="animate-spin" />}
               {saving ? 'Saving...' : 'Save'}
             </button>
-            <button onClick={handleCancel} className="min-h-11 px-4 rounded-lg border border-border text-xs font-mono text-muted-foreground hover:text-foreground transition-colors">
+            <button onClick={handleCancel} className="hidden min-h-11 flex-1 rounded-lg border border-border px-4 text-xs font-mono text-muted-foreground hover:text-foreground transition-colors md:flex md:flex-none">
               Cancel
             </button>
           </div>
         </div>
       )}
 
-      <main className="flex-1 overflow-y-auto">
+      <main className={`flex-1 overflow-y-auto ${showEdit ? 'hidden' : ''}`}>
         {loading ? (
           <div className="animate-pulse">
-            <div className="h-28 bg-secondary border-b border-border" />
+            <div className="h-20 bg-secondary border-b border-border sm:h-28" />
             <div className="px-4 pb-4">
               <div className="flex items-end justify-between -mt-6 mb-3">
                 <div className="w-16 h-16 rounded-full border-4 border-background bg-secondary" />
@@ -301,13 +288,12 @@ export default function ProfilePage() {
                 <div className="h-4 bg-secondary rounded w-1/4" />
                 <div className="h-4 bg-secondary rounded w-1/2" />
               </div>
-              <div className="grid grid-cols-3 gap-0 rounded-lg border border-border overflow-hidden h-16 bg-secondary" />
             </div>
           </div>
         ) : (
         <>
         <div className="relative">
-          <div className="h-28 bg-gradient-to-br from-primary/20 via-accent/10 to-purple-500/10 border-b border-border" />
+          <div className="h-20 border-b border-border bg-gradient-to-br from-primary/20 via-accent/10 to-purple-500/10 sm:h-28" />
           <div className="px-4 pb-4">
             <div className="flex items-end justify-between -mt-6 mb-3">
               <div className="relative">
@@ -321,79 +307,75 @@ export default function ProfilePage() {
                   )}
                 </div>
               </div>
-              <button onClick={openEdit} className="flex min-h-11 items-center gap-1.5 px-3 rounded-lg border border-border text-[12px] font-mono text-muted-foreground hover:text-foreground hover:border-foreground/20 transition-colors">
+              <button ref={editTriggerRef} onClick={openEdit} className="flex min-h-11 items-center gap-1.5 px-3 rounded-lg border border-border text-[12px] font-mono text-muted-foreground hover:text-foreground hover:border-foreground/20 transition-colors">
                 <Edit3 size={12} />Edit
               </button>
             </div>
 
             <div className="mb-3">
               <div className="flex items-center gap-1.5 mb-0.5">
-                <h1 className="text-base font-bold text-foreground leading-tight">{displayName}</h1>
+                <h1 className="break-words text-base font-bold text-foreground leading-tight">{displayName}</h1>
               </div>
-              <div className="flex items-center gap-1 mb-2">
-                <span className="font-mono text-xs text-muted-foreground">{handle}</span>
-                <button onClick={handleCopy} aria-label={copied ? 'Handle copied' : 'Copy profile handle'} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded text-muted-foreground hover:text-foreground transition-colors">
-                  {copied ? <Check size={11} className="text-accent" /> : <Copy size={11} />}
-                </button>
+              <div className="flex min-w-0 items-center gap-1 mb-2">
+                <span className="min-w-0 break-all font-mono text-xs text-muted-foreground">{handle}</span>
               </div>
               {vCard?.desc && (
-                <p className="text-sm text-foreground/80 leading-relaxed">{vCard.desc}</p>
+                <p className="break-words text-sm text-foreground/80 leading-relaxed">{vCard.desc}</p>
               )}
             </div>
 
-            <div className="flex flex-wrap gap-x-3 gap-y-1 mb-3">
-              {joinDate && (
+            {joinDate && (
+              <div className="mb-3 flex flex-wrap gap-x-3 gap-y-1">
                 <span className="flex items-center gap-1 font-mono text-[11px] text-muted-foreground">
                   <Calendar size={11} />Joined {joinDate}
                 </span>
-              )}
-              {localJid && (
-                <span className="flex items-center gap-1 font-mono text-[11px] text-muted-foreground">
-                  <Globe size={11} />Peer ID · {localJid}
-                </span>
-              )}
-            </div>
+              </div>
+            )}
 
             <div className="mb-3 rounded-lg border border-border bg-card/60 px-3 py-2.5">
               <div className="flex items-center justify-between gap-3">
-                <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Shareable peer address</span>
-                {peerAddress && (
+                <span className="min-w-0 flex-1 truncate font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Peer address</span>
+                {peerAddress && <div className="flex shrink-0 items-center gap-1">
                   <button type="button" onClick={() => void handleCopyPeerAddress()} aria-label={copiedPeerAddress ? 'Peer address copied' : 'Copy peer address'}
-                    className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded px-2 text-[11px] text-primary hover:bg-primary/10">
+                    className="inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-[11px] text-primary hover:bg-primary/10">
                     {copiedPeerAddress ? <Check size={12} /> : <Copy size={12} />}{copiedPeerAddress ? 'Copied' : 'Copy'}
                   </button>
-                )}
+                  <button type="button" onClick={() => setShowQR(true)} aria-label="Show peer address QR code" title="Show peer address QR code"
+                    className="hidden h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground sm:flex">
+                    <QrCode size={16} />
+                  </button>
+                </div>}
               </div>
               {peerAddress ? (
-                <p className="mt-1 break-all font-mono text-[10px] leading-relaxed text-foreground/80">{peerAddress}</p>
+                <details className="mt-1">
+                  <summary className="min-h-11 cursor-pointer py-3 text-[11px] font-mono text-muted-foreground">View address &amp; QR code</summary>
+                  <div className="flex items-start gap-2 pb-2">
+                    <p className="min-w-0 flex-1 break-all font-mono text-[10px] leading-relaxed text-foreground/80">{peerAddress}</p>
+                    <button type="button" onClick={() => setShowQR(true)} aria-label="Show peer address QR code"
+                      className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground sm:hidden">
+                      <QrCode size={16} />
+                    </button>
+                  </div>
+                </details>
               ) : (
-                <p className="mt-1 text-xs text-muted-foreground">No internet-routable address yet. Connect to a configured relay or make a public address reachable with port forwarding.</p>
+                <details className="mt-1">
+                  <summary className="min-h-11 cursor-pointer py-3 text-xs text-muted-foreground">No address available</summary>
+                  <p className="pb-2 text-xs leading-relaxed text-muted-foreground">Connect to a configured relay or make a public address reachable with port forwarding.</p>
+                </details>
               )}
             </div>
 
-            <div className="grid grid-cols-3 gap-0 rounded-lg border border-border overflow-hidden">
-              {[
-                { label: 'Posts', value: formatCount(myPosts.length) },
-                { label: 'Following', value: formatCount(subscriptions.length) },
-                { label: 'Topics', value: String(uniqueTopics.size) },
-              ].map(({ label, value }) => (
-                <div key={label} className="flex flex-col items-center py-2.5 border-r border-border last:border-0">
-                  <span className="font-semibold text-sm text-foreground">{value}</span>
-                  <span className="font-mono text-[10px] text-muted-foreground">{label}</span>
-                </div>
-              ))}
-            </div>
           </div>
         </div>
 
         <div className="sticky top-[52px] z-20 bg-background/95 backdrop-blur border-b border-border flex-shrink-0">
-          <div role="tablist" aria-label="Profile sections" className="flex">
+          <div role="tablist" aria-label="Profile sections" className="flex overflow-x-auto scrollbar-hidden px-2">
             {TABS.map((t) => (
               <button key={t.id} ref={(element) => { tabRefs.current[t.id] = element }} id={`profile-tab-${t.id}`}
                 type="button" role="tab" aria-selected={activeTab === t.id} aria-controls="profile-tabpanel"
                 tabIndex={activeTab === t.id ? 0 : -1}
                 onClick={() => setActiveTab(t.id)} onKeyDown={(event) => handleTabKeyDown(event, t.id)}
-                className={`min-h-11 flex-1 py-2.5 text-[11px] font-medium transition-colors relative ${activeTab === t.id ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
+                className={`min-h-11 min-w-max flex-1 px-3 py-2.5 text-xs font-medium transition-colors relative ${activeTab === t.id ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
                 {t.label}
                 {activeTab === t.id && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-primary rounded-t-full" />}
               </button>
@@ -418,25 +400,38 @@ export default function ProfilePage() {
                       <Hash size={9} />{post.topic}
                     </span>
                   )}
-                  <p className="text-sm text-foreground/90 leading-relaxed mb-2">{post.content}</p>
+                  <p className="mb-2 break-words text-sm leading-relaxed text-foreground/90">{post.content}</p>
                   </NavLink>
                   <div className="flex items-center justify-between -ml-1">
-                    <button onClick={(event) => { event.stopPropagation(); navigate(`/post/${encodeURIComponent(post.id)}`) }} className="flex items-center gap-1 px-1.5 py-1 rounded text-muted-foreground hover:text-interaction hover:bg-interaction/10 transition-all">
-                      <MessageCircle size={14} />
-                      <span className="font-mono text-[11px]">{formatCount(post.comments)}</span>
-                    </button>
+                    <span className="inline-flex min-h-11 items-center gap-1 px-1.5 text-muted-foreground" title={`${formatCount(post.comments)} replies`}>
+                      <MessageCircle size={14} aria-hidden="true" />
+                      <span className="font-mono text-[11px] tabular-nums">{formatCount(post.comments)}</span>
+                      <span className="sr-only">replies</span>
+                    </span>
                     <button
                       onClick={(event) => { event.stopPropagation(); void feedBridge.repostPost(post.id) }}
-                      className={`flex items-center gap-1 px-1.5 py-1 rounded transition-all ${post.reposted ? 'text-success' : 'text-muted-foreground hover:text-success hover:bg-success/10'}`}
+                      aria-label={post.reposted ? `Reposted ${formatCount(post.reposts)} times` : `Repost, ${formatCount(post.reposts)} reposts`} className={`hidden min-h-11 min-w-11 items-center justify-center gap-1 rounded-lg px-1.5 transition-all md:flex ${post.reposted ? 'text-success' : 'text-muted-foreground hover:text-success hover:bg-success/10'}`}
                     >
                       <Repeat2 size={14} />
-                      <span className="font-mono text-[11px]">{formatCount(post.reposts)}</span>
+                      <span className="hidden font-mono text-[11px] sm:inline">{formatCount(post.reposts)}</span>
                     </button>
                     <button onClick={(event) => { event.stopPropagation(); void feedBridge.likePost(post.id) }}
-                      className={`flex items-center gap-1 px-1.5 py-1 rounded transition-all ${post.liked ? 'text-liked' : 'text-muted-foreground hover:text-liked hover:bg-liked/10'}`}>
+                      aria-label={post.liked ? `Liked, ${formatCount(post.likes)} likes` : `Like, ${formatCount(post.likes)} likes`} className={`flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-lg px-1.5 transition-all ${post.liked ? 'text-liked' : 'text-muted-foreground hover:text-liked hover:bg-liked/10'}`}>
                       <Heart size={14} fill={post.liked ? 'currentColor' : 'none'} />
-                      <span className="font-mono text-[11px]">{formatCount(post.likes)}</span>
+                      <span className="hidden font-mono text-[11px] sm:inline">{formatCount(post.likes)}</span>
                     </button>
+                    <details className="relative md:hidden">
+                      <summary aria-label="More post actions" className="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground">
+                        <MoreHorizontal size={16} />
+                      </summary>
+                      <div className="absolute bottom-full right-0 z-20 mb-1 min-w-40 rounded-xl border border-border bg-card p-1 shadow-xl">
+                        <button type="button" onClick={(event) => { event.stopPropagation(); event.currentTarget.closest('details')?.removeAttribute('open'); void feedBridge.repostPost(post.id) }}
+                          aria-label={post.reposted ? `Reposted ${formatCount(post.reposts)} times` : `Repost, ${formatCount(post.reposts)} reposts`}
+                          className={`flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-left text-sm hover:bg-secondary ${post.reposted ? 'text-success' : 'text-foreground'}`}>
+                          <Repeat2 size={15} />{post.reposted ? `Reposted · ${formatCount(post.reposts)}` : `Repost · ${formatCount(post.reposts)}`}
+                        </button>
+                      </div>
+                    </details>
                     <span className="font-mono text-[10px] text-muted-foreground ml-auto">{post.timestamp}</span>
                   </div>
                 </article>
@@ -462,8 +457,7 @@ export default function ProfilePage() {
                       <Hash size={15} style={{ color: '#3b82f6' }} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground">#{topicName}</p>
-                      <p className="font-mono text-[10px] text-muted-foreground">Subscribed</p>
+                      <p className="truncate text-sm font-medium text-foreground">#{topicName}</p>
                     </div>
                     <ChevronRight size={14} className="text-muted-foreground/40" />
                   </button>
@@ -487,10 +481,9 @@ export default function ProfilePage() {
                     ⚙️
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground">{c.name || c.topic}</p>
-                    <p className="font-mono text-[10px] text-muted-foreground">{c.members.length} members</p>
+                    <p className="truncate text-sm font-medium text-foreground">{c.name || c.topic}</p>
+                    <p className="shrink-0 font-mono text-[10px] text-muted-foreground">{c.members.length} members</p>
                   </div>
-                  <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-secondary text-muted-foreground">Member</span>
                 </div>
               ))
             )}
@@ -509,7 +502,7 @@ export default function ProfilePage() {
             ) : (
               bookmarkedPosts.map((post) => (
                 <button key={post.id} onClick={() => navigate(`/post/${encodeURIComponent(post.id)}`)} className="w-full border-b border-border px-4 py-3 hover:bg-white/[0.02] transition-colors text-left">
-                  <p className="text-sm text-foreground/90 leading-relaxed mb-2">{post.content}</p>
+                  <p className="mb-2 break-words text-sm leading-relaxed text-foreground/90">{post.content}</p>
                   <div className="flex items-center gap-2">
                     <Bookmark size={12} className="text-primary" />
                     <span className="font-mono text-[10px] text-muted-foreground">Saved {post.timestamp} ago</span>
@@ -527,7 +520,7 @@ export default function ProfilePage() {
       {showQR && peerAddress && (
         <div className="safe-area-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowQR(false)}>
           <div ref={qrDialogRef} role="dialog" aria-modal="true" aria-labelledby="profile-qr-title" tabIndex={-1}
-            onKeyDown={trapQRFocus} className="bg-card border border-border rounded-xl p-6 flex flex-col items-center gap-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            onKeyDown={trapQRFocus} className="mx-4 flex max-h-full w-[calc(100%-2rem)] max-w-xs flex-col items-center gap-4 overflow-y-auto rounded-xl border border-border bg-card p-4 shadow-2xl sm:p-6" onClick={(e) => e.stopPropagation()}>
             <p id="profile-qr-title" className="font-semibold text-sm text-foreground">Scan profile QR</p>
               <QRCode value={peerAddress} size={180} />
             <p className="font-mono text-[10px] text-muted-foreground break-all text-center max-w-[240px]">{peerAddress}</p>
@@ -535,7 +528,7 @@ export default function ProfilePage() {
               ref={qrCloseRef}
               type="button"
               onClick={() => setShowQR(false)}
-              className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-mono hover:bg-primary/90 transition-colors"
+              className="min-h-11 w-full rounded-lg bg-primary px-4 text-xs font-mono text-primary-foreground transition-colors hover:bg-primary/90"
             >
               Close
             </button>

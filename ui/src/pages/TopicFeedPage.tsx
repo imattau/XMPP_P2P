@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
-import { ArrowLeft, Search } from 'lucide-react'
+import { ArrowLeft, ChevronDown, Search, X } from 'lucide-react'
 import { useArticleBridge } from '../bridge/article/useArticleBridge'
 import ArticleCard from '../components/article/ArticleCard'
 
@@ -54,37 +54,16 @@ export default function TopicFeedPage() {
             <ArrowLeft size={18} />
           </button>
           <div className="flex-1 min-w-0">
-            <span className="font-semibold text-sm text-foreground">#{topicTag}</span>
+            <span className="truncate font-semibold text-sm text-foreground">#{topicTag}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => {
-                const nextOpen = !searchOpen
-                setSearchOpen(nextOpen)
-                if (!nextOpen) setSearchQuery('')
-              }}
-              aria-label={searchOpen ? 'Close topic search' : `Search #${topicTag}`}
-              aria-expanded={searchOpen}
-              className={`flex h-11 w-11 items-center justify-center rounded-lg transition-colors ${
-                searchOpen ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
-              }`}
-            >
-              <Search size={16} />
-            </button>
-            <button
-              type="button"
-              aria-pressed={following}
-              aria-label={`${following ? 'Unfollow' : 'Follow'} #${topicTag}`}
-              onClick={toggleFollowing}
-              className={`min-h-11 px-3 rounded-lg text-xs font-semibold transition-colors ${
-                following
-                  ? 'bg-blue2 text-primary'
-                  : 'bg-secondary text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              {following ? 'Following' : 'Follow'}
-            </button>
-          </div>
+          {!searchOpen && <button
+            onClick={() => setSearchOpen(true)}
+            aria-label={`Search #${topicTag}`}
+            aria-expanded={searchOpen}
+            className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-white/5 hover:text-foreground"
+          >
+            <Search size={16} />
+          </button>}
         </div>
 
         {searchOpen && (
@@ -92,37 +71,53 @@ export default function TopicFeedPage() {
             <div className="flex items-center gap-2 bg-secondary rounded-lg px-3 py-2">
               <Search size={14} className="text-muted-foreground flex-shrink-0" />
               <input
-                autoFocus
                 aria-label={`Search #${topicTag}`}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={`Search in #${topicTag}…`}
-                className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
+                className="min-w-0 flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
               />
-              {searchQuery && (
-                <button onClick={() => setSearchQuery('')} aria-label="Clear topic search" className="min-h-11 min-w-11 text-muted-foreground hover:text-foreground text-xs">
-                  Clear
-                </button>
-              )}
+              <button onClick={() => {
+                if (searchQuery) setSearchQuery('')
+                else setSearchOpen(false)
+              }} aria-label={searchQuery ? 'Clear topic search' : 'Close topic search'} className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground">
+                <X size={16} />
+              </button>
             </div>
           </div>
         )}
       </header>
 
       <main className="flex-1 overflow-y-auto">
-        <div className="mx-4 mt-4 p-5 rounded-2xl bg-blue2">
-          <h2 className="text-[28px] font-bold text-primary">{topicTag}</h2>
-          <p className="text-sm text-foreground/80 mt-1 max-w-xs">{topicDescription}</p>
+        <div className="mx-4 mt-3 flex items-start gap-2">
+          <details className="group min-w-0 flex-1 rounded-xl bg-blue2">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-3 py-2 text-xs font-medium text-foreground/80">
+              <span className="flex-1">About this topic</span>
+              <ChevronDown size={14} className="text-muted-foreground transition-transform group-open:rotate-180" />
+            </summary>
+            <p className="px-3 pb-3 text-sm leading-relaxed text-foreground/80">{topicDescription}</p>
+          </details>
+          <button
+            type="button"
+            aria-pressed={following}
+            aria-label={`${following ? 'Unfollow' : 'Follow'} #${topicTag}`}
+            onClick={toggleFollowing}
+            className={`min-h-11 shrink-0 rounded-lg px-3 text-xs font-semibold transition-colors ${
+              following ? 'bg-blue2 text-primary' : 'bg-secondary text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {following ? 'Following' : 'Follow'}
+          </button>
         </div>
 
         <div className="px-4 py-4 space-y-4">
           {loading && topicArticles.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 gap-3" role="status">
+            <div className="flex flex-col items-center justify-center py-12 gap-3 sm:py-16" role="status">
               <span className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
               <p className="text-sm text-muted-foreground">Loading articles…</p>
             </div>
           ) : filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 gap-3">
+            <div className="flex flex-col items-center justify-center py-12 gap-3 sm:py-16">
               <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
                 <Search size={20} className="text-muted-foreground" />
               </div>
@@ -134,7 +129,7 @@ export default function TopicFeedPage() {
                   </button>
                 </>
               ) : (
-                <p className="text-sm text-muted-foreground">
+                <p className="break-words px-4 text-center text-sm text-muted-foreground">
                   {searchQuery
                     ? `No articles matching "${searchQuery}"`
                     : 'No articles in this topic yet'}

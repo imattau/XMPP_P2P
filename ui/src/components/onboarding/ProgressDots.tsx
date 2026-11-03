@@ -5,7 +5,7 @@ interface ProgressDotsProps {
   total?: number
 }
 
-const ProgressDots: FC<ProgressDotsProps> = ({ current, total = 7 }) => (
+const ProgressDots: FC<ProgressDotsProps> = ({ current, total = 6 }) => (
   <div
     role="progressbar"
     aria-label="Onboarding progress"
@@ -25,7 +25,10 @@ const ProgressDots: FC<ProgressDotsProps> = ({ current, total = 7 }) => (
         />
       ))}
     </div>
-    <span aria-hidden="true" className="shrink-0 text-[11px] text-muted-foreground">
+    <span aria-hidden="true" className="shrink-0 text-[11px] text-muted-foreground sm:hidden">
+      {current} / {total}
+    </span>
+    <span aria-hidden="true" className="hidden shrink-0 text-[11px] text-muted-foreground sm:inline">
       Step {current} of {total}
     </span>
   </div>

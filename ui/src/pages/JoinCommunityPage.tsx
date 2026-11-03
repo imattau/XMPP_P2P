@@ -37,35 +37,36 @@ export default function JoinCommunityPage() {
         <button type="button" onClick={() => navigate(-1)} aria-label="Go back" className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
           <ArrowLeft size={18} />
         </button>
-        <div className="flex-1">
+        <div className="min-w-0 flex-1">
           <h1 className="text-sm font-semibold text-foreground">Join a community</h1>
-          <p className="text-[11px] text-muted-foreground">Subscribe to its shared post collection</p>
         </div>
-        <button type="button" disabled={!validId || joining} onClick={() => void handleJoin()}
-          className="flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed">
-          {joining ? <Loader size={15} className="animate-spin" /> : 'Join'}
-        </button>
       </header>
 
-      <main className="flex-1 overflow-y-auto px-4 py-5 space-y-5">
-        <label className="block">
-          <span className="block text-xs font-medium text-foreground mb-1.5">Community ID</span>
-          <div className="flex items-center bg-secondary border border-border rounded-lg overflow-hidden focus-within:border-primary/50">
-            <Hash size={14} className="ml-3 text-muted-foreground" />
-            <input value={communityId} onChange={(event) => setCommunityId(event.target.value.toLowerCase().trim())}
-              onKeyDown={(event) => { if (event.key === 'Enter') void handleJoin() }}
-              placeholder="community-name" autoFocus aria-label="Community ID"
-              className="min-h-11 min-w-0 flex-1 bg-transparent px-2 py-2.5 text-sm font-mono text-foreground placeholder:text-muted-foreground outline-none" />
-            <span className="px-3 py-2.5 border-l border-border text-[11px] font-mono text-muted-foreground">P2P</span>
-          </div>
-          {communityId && !validId && <span className="block mt-1 text-xs text-destructive">Use lowercase letters, numbers, dots, underscores, or hyphens.</span>}
-        </label>
+      <main className="flex-1 overflow-y-auto">
+        <form id="join-community-form" onSubmit={(event) => { event.preventDefault(); void handleJoin() }} className="mx-auto w-full max-w-2xl space-y-5 px-4 py-5">
+          <label className="block">
+            <span className="block text-xs font-medium text-foreground mb-1.5">Community ID</span>
+            <div className="flex items-center bg-secondary border border-border rounded-lg overflow-hidden focus-within:border-primary/50">
+              <Hash size={14} className="ml-3 text-muted-foreground" />
+              <input value={communityId} onChange={(event) => setCommunityId(event.target.value.toLowerCase().trim())}
+                placeholder="community-name" aria-label="Community ID"
+                className="min-h-11 min-w-0 flex-1 bg-transparent px-2 py-2.5 text-sm font-mono text-foreground placeholder:text-muted-foreground outline-none" />
+            </div>
+            {communityId && !validId && <span className="block mt-1 text-xs text-destructive">Use lowercase letters, numbers, dots, underscores, or hyphens.</span>}
+          </label>
 
-        <div className="flex gap-2 rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs leading-relaxed text-muted-foreground">
-          <Info size={15} className="mt-0.5 flex-shrink-0 text-primary" />
-          <p>Ask a community member for its ID. Joining subscribes this device to new community posts and starts loading its recent posts from connected peers.</p>
-        </div>
+          <div className="flex gap-2 rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs leading-relaxed text-muted-foreground">
+            <Info size={15} className="mt-0.5 flex-shrink-0 text-primary" />
+            <p>Ask a member for this ID. Posts load from connected peers.</p>
+          </div>
+        </form>
       </main>
+      <footer className="flex-shrink-0 border-t border-border bg-background/95 px-4 py-3 backdrop-blur">
+        <button type="submit" form="join-community-form" disabled={!validId || joining}
+          className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed">
+          {joining && <Loader size={15} className="animate-spin" />}{joining ? 'Joining…' : 'Join community'}
+        </button>
+      </footer>
     </div>
   )
 }

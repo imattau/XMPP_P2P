@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router'
-import { ArrowLeft, MoreHorizontal, FileText, Plus } from 'lucide-react'
+import { FileText, MoreHorizontal, Trash2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useArticleBridge } from '../bridge/article/useArticleBridge'
 import { createNewArticle } from '../bridge/article/controller'
@@ -12,9 +12,8 @@ export default function DraftsPage() {
   const { drafts, deleteDraft, saveDraft } = useArticleBridge()
   const { identity } = useIdentityBridge()
   const { vCard } = useProfileBridge()
-  const [menuOpen, setMenuOpen] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
-  const menuTriggerRef = useRef<HTMLButtonElement>(null)
+  const menuTriggerRef = useRef<HTMLElement | null>(null)
   const dialogWasOpen = useRef(false)
 
   useEffect(() => {
@@ -55,7 +54,6 @@ export default function DraftsPage() {
     try {
       deleteDraft(confirmDeleteId)
       setConfirmDeleteId(null)
-      setMenuOpen(null)
     } catch (error) {
       emitToast(error instanceof Error ? error.message : 'Could not delete this draft.', 'error')
     }
@@ -84,27 +82,26 @@ export default function DraftsPage() {
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
       <header className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border flex-shrink-0">
-        <div className="flex items-center gap-3 px-4 py-2.5">
-          <button onClick={() => navigate(-1)} aria-label="Go back" className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
-            <ArrowLeft size={18} />
-          </button>
-          <div>
-            <h1 className="font-semibold text-sm text-foreground">Drafts</h1>
-            <p className="text-xs text-muted-foreground">{drafts.length} unpublished {drafts.length === 1 ? 'article' : 'articles'}</p>
-          </div>
+        <div className="flex items-center gap-2 px-4 py-2.5">
+          <h1 className="text-xl font-semibold text-foreground">Drafts</h1>
+          <span title={`${drafts.length} unpublished ${drafts.length === 1 ? 'article' : 'articles'}`}
+            className="rounded-full bg-secondary px-2 py-0.5 text-xs tabular-nums text-muted-foreground">
+            <span aria-hidden="true">{drafts.length}</span>
+            <span className="sr-only">{drafts.length} unpublished {drafts.length === 1 ? 'article' : 'articles'}</span>
+          </span>
         </div>
       </header>
 
       <main className="flex-1 overflow-y-auto">
         {drafts.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
+          <div className="flex flex-col items-center justify-center py-12 gap-3 sm:py-20">
             <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
               <FileText size={20} className="text-muted-foreground" />
             </div>
             <p className="text-sm text-muted-foreground">No drafts yet</p>
             <button
               onClick={handleNewArticle}
-              className="mt-2 min-h-11 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+              className="mt-2 inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
             >
               New article
             </button>
@@ -117,7 +114,7 @@ export default function DraftsPage() {
                 return (
                   <article
                     key={draft.id}
-                    className="bg-card rounded-xl border border-border p-4"
+                    className="bg-card rounded-xl border border-border p-3 sm:p-4"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <button
@@ -144,61 +141,31 @@ export default function DraftsPage() {
                           )}
                         </div>
                       </button>
-                      <div className="relative flex-shrink-0">
-                        <button
-                          type="button"
-                          aria-label={`More options for ${draft.title || 'Untitled'}`}
-                          aria-controls={menuOpen === draft.id ? `draft-options-${draft.id}` : undefined}
-                          aria-expanded={menuOpen === draft.id}
-                          onClick={(event) => {
-                            menuTriggerRef.current = event.currentTarget
-                            setMenuOpen(menuOpen === draft.id ? null : draft.id)
-                          }}
-                          className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground"
-                        >
+                      <details className="relative flex-shrink-0">
+                        <summary aria-label={`More actions for ${draft.title || 'Untitled'} draft`} className="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
                           <MoreHorizontal size={18} />
-                        </button>
-                        {menuOpen === draft.id && (
-                          <div id={`draft-options-${draft.id}`} onKeyDown={(event) => {
-                            if (event.key === 'Escape') {
-                              event.preventDefault()
-                              event.stopPropagation()
-                              setMenuOpen(null)
-                              event.currentTarget.parentElement?.querySelector<HTMLButtonElement>('[aria-expanded]')?.focus()
-                            }
-                          }} className="absolute right-0 top-full mt-1 w-32 rounded-lg bg-card border border-border shadow-lg z-10 overflow-hidden">
-                            <button
-                              type="button"
-                              onClick={() => handleEdit(draft.id)}
-                              className="w-full min-h-11 text-left px-3 py-2 text-xs text-foreground hover:bg-secondary transition-colors"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => { setConfirmDeleteId(draft.id); setMenuOpen(null) }}
-                              className="w-full min-h-11 text-left px-3 py-2 text-xs text-destructive hover:bg-destructive/10 transition-colors"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        )}
-                      </div>
+                        </summary>
+                        <div className="absolute right-0 top-full z-20 min-w-40 rounded-xl border border-border bg-card p-1 shadow-xl">
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              const menu = event.currentTarget.closest('details')
+                              menuTriggerRef.current = menu?.querySelector('summary') ?? null
+                              menu?.removeAttribute('open')
+                              setConfirmDeleteId(draft.id)
+                            }}
+                            className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-left text-sm text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 size={15} /> Delete draft
+                          </button>
+                        </div>
+                      </details>
                     </div>
                   </article>
                 )
               })}
             </div>
 
-            <div className="px-4 pb-6">
-              <button
-                onClick={handleNewArticle}
-                className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
-              >
-                <Plus size={16} />
-                New article
-              </button>
-            </div>
           </>
         )}
       </main>
@@ -214,25 +181,25 @@ export default function DraftsPage() {
               aria-labelledby="delete-draft-title"
               aria-describedby="delete-draft-description"
               onKeyDown={handleDeleteDialogKeyDown}
-              className="w-full max-w-md rounded-2xl border border-border bg-card p-5 shadow-2xl"
+              className="max-h-full w-full max-w-md overflow-y-auto rounded-2xl border border-border bg-card p-5 shadow-2xl"
             >
               <h2 id="delete-draft-title" className="text-base font-semibold text-foreground">Delete this draft?</h2>
               <p id="delete-draft-description" className="mt-1 text-sm leading-relaxed text-muted-foreground">
                 “{title}” will be permanently removed from your drafts.
               </p>
-              <div className="mt-5 flex justify-end gap-2">
+              <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
                 <button
                   type="button"
                   autoFocus
                   onClick={() => setConfirmDeleteId(null)}
-                  className="min-h-11 rounded-lg border border-border px-3 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  className="min-h-11 w-full rounded-lg border border-border px-3 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground sm:w-auto"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   onClick={handleDelete}
-                  className="min-h-11 rounded-lg bg-destructive px-3 text-sm font-semibold text-white hover:bg-destructive/90"
+                  className="min-h-11 w-full rounded-lg bg-destructive px-3 text-sm font-semibold text-white hover:bg-destructive/90 sm:w-auto"
                 >
                   Delete draft
                 </button>

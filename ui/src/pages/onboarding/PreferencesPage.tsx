@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useNavigate } from 'react-router'
-import { ArrowLeft, Sun, Moon } from 'lucide-react'
+import { ArrowLeft, Sun, Moon, Image } from 'lucide-react'
 import { useIdentityBridge } from '../../bridge/identity/useIdentityBridge'
 import ProgressDots from '../../components/onboarding/ProgressDots'
 import Toggle from '../../components/onboarding/Toggle'
@@ -23,6 +23,7 @@ export default function PreferencesPage() {
     feedNotifications: preferences.feedNotifications && notificationsGranted,
   }))
   const [localTheme, setLocalTheme] = React.useState(preferences.theme)
+  const [allowPhotosAndFiles, setAllowPhotosAndFiles] = React.useState(permissions.photosAndFiles)
   const [permissionPending, setPermissionPending] = React.useState(false)
   const [saveError, setSaveError] = React.useState('')
 
@@ -51,6 +52,10 @@ export default function PreferencesPage() {
 
   const handleContinue = () => {
     setSaveError('')
+    if (!setPermissions({ photosAndFiles: allowPhotosAndFiles })) {
+      setSaveError('Could not save permissions in this browser. Check available storage and try again.')
+      return
+    }
     if (!setPreferences({ ...localPrefs, theme: localTheme })) {
       setSaveError('Could not save your preferences in this browser. Check available storage and try again.')
       return
@@ -61,22 +66,24 @@ export default function PreferencesPage() {
   return (
     <div className="mx-auto flex h-full w-full max-w-2xl flex-1 flex-col overflow-hidden">
       <header className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border flex-shrink-0 px-4 py-2.5">
-        <button onClick={() => navigate(-1)} aria-label="Go back" className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
-          <ArrowLeft size={18} />
-        </button>
-        <div className="mt-1">
-          <h1 className="text-heading font-semibold text-foreground">Preferences</h1>
-          <p className="text-[12px] text-muted-foreground">Set up your default experience</p>
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate(-1)} aria-label="Go back" className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
+            <ArrowLeft size={18} />
+          </button>
+          <div className="min-w-0">
+            <h1 className="text-heading font-semibold text-foreground">Preferences</h1>
+            <p className="text-[12px] text-muted-foreground">Set up your default experience</p>
+          </div>
         </div>
-        <div className="mt-3">
-          <ProgressDots current={6} />
+        <div className="mt-2 pl-14">
+          <ProgressDots current={5} />
         </div>
       </header>
 
       <main className="flex-1 overflow-y-auto px-4 pb-4 space-y-3">
         {TOGGLES.map(({ key, label, desc }) => (
-          <div key={key} className="bg-card rounded-xl px-4 py-4 flex items-center justify-between">
-            <div>
+          <div key={key} className="bg-card rounded-xl px-4 py-3 flex items-start justify-between gap-3">
+            <div className="min-w-0">
               <div className="text-sm font-semibold text-foreground">{label}</div>
               <div className="text-[11px] text-muted-foreground mt-0.5">{desc}</div>
             </div>
@@ -101,37 +108,44 @@ export default function PreferencesPage() {
         {saveError && <p role="alert" className="text-[11px] text-destructive px-1">{saveError}</p>}
 
         <div className="pt-2">
+          <div className="text-[13px] font-semibold text-foreground mb-2">Files and media</div>
+          <div className="bg-card rounded-xl px-4 py-3 flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                <Image size={15} className="text-primary" /> Photos and files
+              </div>
+              <div className="text-[11px] text-muted-foreground mt-0.5">Uploads for chats, articles, and your profile</div>
+            </div>
+            <Toggle
+              label="Photos and files"
+              checked={allowPhotosAndFiles}
+              onChange={() => setAllowPhotosAndFiles((enabled) => !enabled)}
+            />
+          </div>
+        </div>
+
+        <div className="pt-2">
           <div className="text-[13px] font-semibold text-foreground mb-2">Appearance</div>
-
-          <button
-            onClick={() => handleThemeChange('system')}
-            className={`w-full rounded-xl px-4 py-4 flex items-center gap-3 text-left transition-colors ${
-              localTheme === 'system' ? 'bg-blue2' : 'bg-card'
-            }`}
-          >
-            <Sun size={22} className={localTheme === 'system' ? 'text-primary' : 'text-muted-foreground'} />
-            <div>
-              <div className={`text-sm font-semibold ${localTheme === 'system' ? 'text-primary' : 'text-foreground'}`}>
-                Use system theme
-              </div>
-              <div className="text-[11px] text-muted-foreground mt-0.5">Match device appearance</div>
-            </div>
-          </button>
-
-          <button
-            onClick={() => handleThemeChange('dark')}
-            className={`w-full rounded-xl px-4 py-4 flex items-center gap-3 text-left transition-colors mt-2 ${
-              localTheme === 'dark' ? 'bg-blue2' : 'bg-card'
-            }`}
-          >
-            <Moon size={22} className={localTheme === 'dark' ? 'text-primary' : 'text-muted-foreground'} />
-            <div>
-              <div className={`text-sm font-semibold ${localTheme === 'dark' ? 'text-primary' : 'text-foreground'}`}>
-                Dark theme
-              </div>
-              <div className="text-[11px] text-muted-foreground mt-0.5">Always use the dark interface</div>
-            </div>
-          </button>
+          <div role="group" aria-label="Appearance" className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              aria-pressed={localTheme === 'system'}
+              onClick={() => handleThemeChange('system')}
+              className={`flex min-h-12 items-center justify-center gap-2 rounded-xl border px-3 text-xs font-semibold transition-colors ${localTheme === 'system' ? 'border-primary bg-blue2 text-primary' : 'border-border bg-card text-foreground'}`}
+            >
+              <Sun size={16} className={localTheme === 'system' ? 'text-primary' : 'text-muted-foreground'} />
+              System
+            </button>
+            <button
+              type="button"
+              aria-pressed={localTheme === 'dark'}
+              onClick={() => handleThemeChange('dark')}
+              className={`flex min-h-12 items-center justify-center gap-2 rounded-xl border px-3 text-xs font-semibold transition-colors ${localTheme === 'dark' ? 'border-primary bg-blue2 text-primary' : 'border-border bg-card text-foreground'}`}
+            >
+              <Moon size={16} className={localTheme === 'dark' ? 'text-primary' : 'text-muted-foreground'} />
+              Dark
+            </button>
+          </div>
         </div>
       </main>
 

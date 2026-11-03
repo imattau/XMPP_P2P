@@ -1,8 +1,7 @@
-import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, MoreHorizontal, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import type { ArticleBlock, ArticleBlockType } from '../../bridge/article/types'
 import { generateBlockId } from '../../bridge/article/controller'
-import BlockEditorToolbar from './BlockEditorToolbar'
 import InsertBlockPicker from './InsertBlockPicker'
 
 interface BlockEditorProps {
@@ -16,7 +15,7 @@ const BLOCK_LABELS: Record<ArticleBlockType, string> = {
   callout: 'Callout', divider: 'Divider', file: 'File', link: 'Link',
 }
 
-const fieldClass = 'w-full bg-secondary/50 rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-primary/30'
+const fieldClass = 'min-h-11 w-full bg-secondary/50 rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-primary/30'
 
 function createEmptyBlock(type: ArticleBlockType): ArticleBlock {
   return { id: generateBlockId(), type, content: '' }
@@ -97,16 +96,33 @@ export default function BlockEditor({ blocks, onChange }: BlockEditorProps) {
 
   return (
     <div className="space-y-2">
-      <BlockEditorToolbar onInsertBlock={handleInsertBlock} />
       <div className="space-y-2">
         {blocks.map((block, index) => (
           <section key={block.id} aria-label={`${BLOCK_LABELS[block.type]} block`} className="bg-card rounded-xl border border-border p-3">
             <div className="flex items-center gap-2 mb-2">
               <span className="text-xs font-semibold text-primary">{BLOCK_LABELS[block.type]}</span>
-              <div className="flex-1" />
-              <button type="button" aria-label="Move block up" disabled={index === 0} onClick={() => moveBlock(block.id, -1)} className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground disabled:opacity-30"><ArrowUp size={14} /></button>
-              <button type="button" aria-label="Move block down" disabled={index === blocks.length - 1} onClick={() => moveBlock(block.id, 1)} className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground disabled:opacity-30"><ArrowDown size={14} /></button>
-              <button type="button" aria-label={`Remove ${BLOCK_LABELS[block.type]} block`} disabled={blocks.length <= 1} onClick={() => onChange(blocks.filter((item) => item.id !== block.id))} className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-destructive disabled:opacity-30"><Trash2 size={14} /></button>
+              {blocks.length > 1 && (
+                <details className="group relative ml-auto">
+                  <summary aria-label={`${BLOCK_LABELS[block.type]} block actions`} className="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground">
+                    <MoreHorizontal size={18} />
+                  </summary>
+                  <div className="absolute right-0 top-full z-20 min-w-44 rounded-xl border border-border bg-card p-1 shadow-xl">
+                    {index > 0 && (
+                      <button type="button" onClick={(event) => { moveBlock(block.id, -1); event.currentTarget.closest('details')?.removeAttribute('open') }} className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-left text-sm text-foreground hover:bg-secondary">
+                        <ArrowUp size={15} /> Move up
+                      </button>
+                    )}
+                    {index < blocks.length - 1 && (
+                      <button type="button" onClick={(event) => { moveBlock(block.id, 1); event.currentTarget.closest('details')?.removeAttribute('open') }} className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-left text-sm text-foreground hover:bg-secondary">
+                        <ArrowDown size={15} /> Move down
+                      </button>
+                    )}
+                    <button type="button" onClick={() => onChange(blocks.filter((item) => item.id !== block.id))} className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-left text-sm text-destructive hover:bg-destructive/10">
+                      <Trash2 size={15} /> Remove block
+                    </button>
+                  </div>
+                </details>
+              )}
             </div>
             {renderEditor(block)}
           </section>

@@ -14,7 +14,7 @@ interface InlineEditTextarea extends InlineEditBase, TextareaHTMLAttributes<HTML
 
 type InlineEditProps = InlineEditInput | InlineEditTextarea
 
-const inputClass = 'w-full bg-secondary border border-border rounded-lg px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 transition-colors font-mono'
+const inputClass = 'min-h-11 w-full bg-secondary border border-border rounded-lg px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 transition-colors font-mono'
 
 export function InlineEdit(props: InlineEditProps) {
   const { label, multiline, ...rest } = props
