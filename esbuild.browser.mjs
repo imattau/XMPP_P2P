@@ -33,12 +33,19 @@ const nodeShims = {
 const externalModules = [
   '@xmpp/component',
   '@xmpp/component-core',
-  '@xmpp/connection-tcp',
 ]
 
 const shimPlugin = {
   name: 'node-shims',
   setup(build) {
+    // @xmpp/client marks its TCP, TLS, and STARTTLS packages as unavailable in
+    // browser builds. Android runs this bundle in a Capacitor WebView, where
+    // the net/tls shims are backed by the NativeTcp plugin.
+    for (const mod of ['@xmpp/tcp', '@xmpp/tls', '@xmpp/starttls']) {
+      build.onResolve({ filter: new RegExp(`^${mod.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}$`) }, () => ({
+        path: path.resolve(__dirname, 'node_modules', mod, 'index.js')
+      }))
+    }
     for (const [mod, shimPath] of Object.entries(nodeShims)) {
       build.onResolve({ filter: new RegExp(`^${mod.replace(/[.*+?^${}()|[\]\\\/]/g, '\\$&')}$`) }, () => ({
         path: path.resolve(__dirname, shimPath)

@@ -2,6 +2,7 @@ import { EventEmitter } from 'events'
 import { client as xmppClient, xml, jid as xmppJid } from '@xmpp/client'
 import { Element } from '@xmpp/xml'
 import { buildXepElements, parseXepMetadata, RECEIPTS_XMLNS } from './xmpp-xep-helpers.js'
+import { isAndroidNative } from './native-platform.js'
 
 declare var WebSocket: any
 
@@ -204,7 +205,7 @@ function normalizeXmppWebSocketUrl(value: string): string {
 }
 
 function isNativeNodeRuntime(): boolean {
-  return typeof window === 'undefined'
+  return typeof window === 'undefined' || isAndroidNative()
 }
 
 function normalizeXmppTcpUrl(value: string): string {
@@ -222,7 +223,7 @@ function normalizeXmppTcpUrl(value: string): string {
     || (endpoint.pathname !== '' && endpoint.pathname !== '/')
     || endpoint.search
     || endpoint.hash) {
-    throw new Error('XMPP TCP connections are available only in native desktop runtimes and require an xmpp:// or xmpps:// address')
+    throw new Error('XMPP TCP connections are available only in native desktop and Android runtimes and require an xmpp:// or xmpps:// address')
   }
   if (!endpoint.port) endpoint.port = endpoint.protocol === 'xmpps:' ? '5223' : '5222'
   return endpoint.toString()

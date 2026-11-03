@@ -120,8 +120,12 @@ The signing secrets are the same ones used by
 - `ZAPSTORE_NSEC`
 
 The Android WebView uses a native TCP socket plugin for outbound libp2p TCP
-dials alongside WebSockets and WebRTC. It does not listen for inbound TCP
-connections; mobile peers generally need a reachable peer or circuit relay.
+dials and XMPP server connections alongside WebSockets and WebRTC. XMPP server
+accounts try secure WebSocket endpoints first, then native TCP on ports 5222
+(required STARTTLS) and 5223 (direct TLS). You can enter `xmpp://host:5222` or
+`xmpps://host:5223` in Settings to select a specific endpoint. Android does not
+listen for inbound TCP connections; mobile peers generally need a reachable
+peer or circuit relay.
 Nostr bootstrap announcements may include root TCP addresses for Android as
 well as WebSocket addresses for browsers. A direct TCP address can also be
 entered in Android Settings as `/ip4/<public-ip>/tcp/<port>/p2p/<peer-id>`.

@@ -66,7 +66,7 @@ export default function SettingsPage() {
     setAddError('')
     try {
       const { jid: normalizedJid } = normalizeXmppJid(jid)
-      await connectServer(normalizedJid, password, getOptionalWebSocketUrl(serviceUrl, isElectronShell()))
+      await connectServer(normalizedJid, password, getOptionalWebSocketUrl(serviceUrl, isAndroidNative() || isElectronShell()))
       setShowAddForm(false)
       setJid('')
       setPassword('')
@@ -336,8 +336,8 @@ export default function SettingsPage() {
                     <summary className="min-h-11 cursor-pointer py-3">Advanced connection settings</summary>
                     <input
                       type="text"
-                      aria-label="XMPP server WebSocket URL (optional)"
-                      placeholder={isElectronShell() ? 'Server URL (wss://…, xmpp://… or xmpps://…)' : 'Server URL (optional, e.g. wss://example.com:5443/ws)'}
+                      aria-label="XMPP server URL (optional)"
+                      placeholder={isAndroidNative() || isElectronShell() ? 'Server URL (wss://…, xmpp://… or xmpps://…)' : 'Server URL (optional, e.g. wss://example.com:5443/ws)'}
                       value={serviceUrl}
                       onChange={e => setServiceUrl(e.target.value)}
                       className="mb-2 w-full rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"

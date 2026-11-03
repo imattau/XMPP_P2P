@@ -9,6 +9,7 @@ import { ensureBrowserXmppClient, getBootstrapAddrs, getBrowserXmppBridge } from
 import { fetchPublicServers, PublicServer } from '../../constants'
 import { getOptionalWebSocketUrl, normalizeXmppJid } from '../../lib/xmpp-input'
 import { isElectronShell } from '../../native-shell'
+import { isAndroidNative } from '../../../../src/core/native-platform.js'
 
 type Tab = 'login' | 'register' | 'skip'
 
@@ -93,7 +94,7 @@ export default function ServerSetupPage() {
       const { jid: normalizedJid, domain: jidDomain } = normalizeXmppJid(jid)
       const bridge = getBrowserXmppBridge()
       if (!bridge?.connectServer) throw new Error('Bridge not available')
-      await bridge.connectServer(normalizedJid, password, getOptionalWebSocketUrl(serviceUrl, isElectronShell()))
+      await bridge.connectServer(normalizedJid, password, getOptionalWebSocketUrl(serviceUrl, isAndroidNative() || isElectronShell()))
       setConnectedDomain(jidDomain)
       setConnected(true)
     } catch (err) {
@@ -306,15 +307,15 @@ export default function ServerSetupPage() {
                     <div className="space-y-2 pb-2">
                       <input
                         type="text"
-                        aria-label="XMPP server WebSocket URL (optional)"
-                        placeholder={isElectronShell() ? 'Server URL (wss://…, xmpp://… or xmpps://…)' : 'Server URL (optional, e.g. wss://example.com:5443/ws)'}
+                        aria-label="XMPP server URL (optional)"
+                        placeholder={isAndroidNative() || isElectronShell() ? 'Server URL (wss://…, xmpp://… or xmpps://…)' : 'Server URL (optional, e.g. wss://example.com:5443/ws)'}
                         value={serviceUrl}
                         disabled={connecting}
                         onChange={e => { setServiceUrl(e.target.value); setError('') }}
                         className="w-full rounded-xl border border-border bg-background px-3 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
                       />
                       <p className="leading-relaxed">
-                        If discovery fails, enter the server’s secure XMPP endpoint. Electron supports xmpp:// (STARTTLS) and xmpps:// (direct TLS); browsers require wss://.
+                        If discovery fails, enter the server’s secure XMPP endpoint. Android and Electron support xmpp:// (STARTTLS) and xmpps:// (direct TLS); browsers require wss://.
                       </p>
                     </div>
                   </details>

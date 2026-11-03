@@ -10,6 +10,10 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
+import javax.net.ssl.SSLParameters;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSocketFactory;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -17,7 +21,12 @@ import java.util.concurrent.Executors;
 
 @CapacitorPlugin(name = "NativeTcp")
 public class NativeTcpPlugin extends Plugin {
-    private final ConcurrentHashMap<String, Socket> sockets = new ConcurrentHashMap<>();
+    private static final class SocketState {
+        volatile Socket socket;
+        final Object ioLock = new Object();
+        SocketState(Socket socket) { this.socket = socket; }
+    }
+    private final ConcurrentHashMap<String, SocketState> sockets = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Object> outputLocks = new ConcurrentHashMap<>();
     private final ExecutorService io = Executors.newCachedThreadPool();
 
@@ -37,8 +46,9 @@ public class NativeTcpPlugin extends Plugin {
             try {
                 socket.setTcpNoDelay(true);
                 socket.setKeepAlive(true);
+                socket.setSoTimeout(500);
                 socket.connect(new InetSocketAddress(host, port), timeout);
-                sockets.put(id, socket);
+                sockets.put(id, new SocketState(socket));
                 outputLocks.put(id, new Object());
 
                 JSObject result = new JSObject();
@@ -57,9 +67,9 @@ public class NativeTcpPlugin extends Plugin {
     public void write(PluginCall call) {
         String id = call.getString("socketId");
         String encoded = call.getString("data");
-        Socket socket = id == null ? null : sockets.get(id);
+        SocketState state = id == null ? null : sockets.get(id);
         Object lock = id == null ? null : outputLocks.get(id);
-        if (socket == null || lock == null || encoded == null) {
+        if (state == null || lock == null || encoded == null) {
             call.reject("TCP socket is not open");
             return;
         }
@@ -67,13 +77,50 @@ public class NativeTcpPlugin extends Plugin {
             try {
                 byte[] bytes = Base64.decode(encoded, Base64.DEFAULT);
                 synchronized (lock) {
-                    OutputStream output = socket.getOutputStream();
-                    output.write(bytes);
-                    output.flush();
+                    synchronized (state.ioLock) {
+                        OutputStream output = state.socket.getOutputStream();
+                        output.write(bytes);
+                        output.flush();
+                    }
                 }
                 call.resolve();
             } catch (Exception error) {
                 call.reject("TCP write failed: " + error.getMessage(), error);
+            }
+        });
+    }
+
+    @PluginMethod
+    public void startTls(PluginCall call) {
+        String id = call.getString("socketId");
+        String host = call.getString("host");
+        SocketState state = id == null ? null : sockets.get(id);
+        if (state == null || host == null || host.trim().isEmpty()) {
+            call.reject("An open TCP socket and TLS hostname are required");
+            return;
+        }
+        io.execute(() -> {
+            try {
+                String protocol;
+                synchronized (state.ioLock) {
+                    SSLSocket ssl = (SSLSocket) SSLSocketFactory.getDefault()
+                        .createSocket(state.socket, host, state.socket.getPort(), true);
+                    ssl.setUseClientMode(true);
+                    SSLParameters parameters = ssl.getSSLParameters();
+                    parameters.setEndpointIdentificationAlgorithm("HTTPS");
+                    ssl.setSSLParameters(parameters);
+                    ssl.setSoTimeout(15000);
+                    ssl.startHandshake();
+                    protocol = ssl.getSession().getProtocol();
+                    ssl.setSoTimeout(500);
+                    state.socket = ssl;
+                }
+                JSObject result = new JSObject();
+                result.put("protocol", protocol);
+                call.resolve(result);
+            } catch (Exception error) {
+                closeSocket(id);
+                call.reject("TLS negotiation failed: " + error.getMessage(), error);
             }
         });
     }
@@ -88,20 +135,29 @@ public class NativeTcpPlugin extends Plugin {
     private void readSocket(String id, Socket socket) {
         byte[] buffer = new byte[32 * 1024];
         try {
-            InputStream input = socket.getInputStream();
-            int count;
-            while ((count = input.read(buffer)) >= 0) {
-                if (count == 0) continue;
-                byte[] chunk = new byte[count];
-                System.arraycopy(buffer, 0, chunk, 0, count);
-                JSObject event = new JSObject();
-                event.put("socketId", id);
-                event.put("data", Base64.encodeToString(chunk, Base64.NO_WRAP));
-                notifyListeners("tcpData", event);
+            SocketState state = sockets.get(id);
+            while (state != null) {
+                try {
+                    int count;
+                    synchronized (state.ioLock) {
+                        count = state.socket.getInputStream().read(buffer);
+                    }
+                    if (count < 0) break;
+                    if (count == 0) continue;
+                    byte[] chunk = new byte[count];
+                    System.arraycopy(buffer, 0, chunk, 0, count);
+                    JSObject event = new JSObject();
+                    event.put("socketId", id);
+                    event.put("data", Base64.encodeToString(chunk, Base64.NO_WRAP));
+                    notifyListeners("tcpData", event);
+                } catch (SocketTimeoutException timeout) {
+                    state = sockets.get(id);
+                }
             }
             notifyClosed(id, null);
         } catch (Exception error) {
-            if (!socket.isClosed()) notifyClosed(id, error.getMessage());
+            SocketState state = sockets.get(id);
+            if (state != null && !state.socket.isClosed()) notifyClosed(id, error.getMessage());
         } finally {
             closeSocket(id);
         }
@@ -116,10 +172,11 @@ public class NativeTcpPlugin extends Plugin {
 
     private void closeSocket(String id) {
         if (id == null) return;
-        Socket socket = sockets.remove(id);
+        SocketState state = sockets.remove(id);
         outputLocks.remove(id);
-        if (socket != null) {
-            try { socket.close(); } catch (Exception ignored) { }
+        if (state != null) {
+            notifyClosed(id, null);
+            try { state.socket.close(); } catch (Exception ignored) { }
         }
     }
 
