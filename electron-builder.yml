@@ -18,6 +18,7 @@ executableName: nexus
 artifactName: ${productName}-${version}-${os}-${arch}.${ext}
 
 mac:
+  icon: build/icon.png
   category: public.app-category.social-networking
   identity: null
   hardenedRuntime: false
@@ -51,6 +52,7 @@ flatpak:
   branch: stable
 
 win:
+  icon: build/icon.ico
   target:
     - target: nsis
       arch: [x64]

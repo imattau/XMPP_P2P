@@ -192,6 +192,7 @@ import type {
   OmemoDirection
 } from './omemo-runtime.js'
 import { multiaddr, Multiaddr } from '@multiformats/multiaddr'
+import { isPrivate } from '@libp2p/utils'
 import { TopicValidatorResult } from '@libp2p/gossipsub'
 import { buildVCard } from './xmpp-vcard.js'
 
@@ -528,7 +529,8 @@ export class XmppNode extends EventEmitter {
       jid: this.jid,
       ready: this.ready,
       loadOmemoModule: this.omemoModuleLoader,
-      getOrCreateStream: this.getOrCreateStream.bind(this),      sendIqRequest: this.sendIqRequest.bind(this),
+      getOrCreateStream: this.getOrCreateStream.bind(this),
+      sendIqRequest: this.sendIqRequest.bind(this),
       emitMessage: (message) => {
         void this.recordChatMessage(message).catch(err => this.emit('error', err))
         this.emit('message', message)
@@ -731,14 +733,30 @@ export class XmppNode extends EventEmitter {
 
   getLocalPeerAddresses(): string[] {
     const peerId = this.libp2p.peerId.toString()
-    return this.libp2p.getMultiaddrs().map((address) => {
+    const candidates = this.libp2p.getMultiaddrs().flatMap((address) => {
       const value = address.toString()
+      const host = address.getComponents().find(({ name }) => name === 'ip4' || name === 'ip6')?.value?.toLowerCase()
+      // Wildcard and loopback binds are local implementation details, never
+      // useful peer addresses. In particular, do not show 127.0.0.1 as a
+      // shareable address in the desktop profile.
+      if (host === '::' || host === '::1' || host === '0:0:0:0:0:0:0:0' || host === '0:0:0:0:0:0:0:1'
+        || host === '0.0.0.0' || host?.startsWith('0.') || host?.startsWith('127.')) return []
+      if (address.getComponents().some(({ name, value }) => name.startsWith('dns') && typeof value === 'string'
+        && (value === 'localhost' || value.endsWith('.localhost')))) return []
+      // A relay on a private address is no more internet-routable than a
+      // private interface address, so do not present either as public.
+      if (isPrivate(address)) return []
       if (value.includes('/p2p-circuit')) {
         const relayAddress = value.split('/p2p-circuit')[0]
-        return `${relayAddress}/p2p-circuit/webrtc/p2p/${peerId}`
+        return [{ value: `${relayAddress}/p2p-circuit/webrtc/p2p/${peerId}`, relay: true }]
       }
-      return value.includes(`/p2p/${peerId}`) ? value : `${value}/p2p/${peerId}`
+      return [{
+        value: value.includes(`/p2p/${peerId}`) ? value : `${value}/p2p/${peerId}`,
+        relay: false,
+      }]
     })
+    candidates.sort((a, b) => Number(b.relay) - Number(a.relay))
+    return [...new Set(candidates.map(({ value }) => value))]
   }
 
   private subscriptionToFlags(subscription: XmppRosterSubscription): { to: boolean; from: boolean } {

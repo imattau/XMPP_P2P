@@ -124,4 +124,5 @@ export interface NativeStartOptions {
   recoveryPhrase?: string[]
   nickname?: string
   dbName?: string
+  bootstrapAddrs?: string[]
 }
