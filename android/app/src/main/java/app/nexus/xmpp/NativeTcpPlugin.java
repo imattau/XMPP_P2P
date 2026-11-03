@@ -103,7 +103,8 @@ public class NativeTcpPlugin extends Plugin {
             try {
                 String protocol;
                 synchronized (state.ioLock) {
-                    SSLSocket ssl = (SSLSocket) SSLSocketFactory.getDefault()
+                    SSLSocketFactory factory = (SSLSocketFactory) SSLSocketFactory.getDefault();
+                    SSLSocket ssl = (SSLSocket) factory
                         .createSocket(state.socket, host, state.socket.getPort(), true);
                     ssl.setUseClientMode(true);
                     SSLParameters parameters = ssl.getSSLParameters();
