@@ -88,6 +88,7 @@ import {
   type XmppSecureContext
 } from './xmpp-secure.js'
 import { XmppMucManager, type XmppMucContext } from './xmpp-muc.js'
+import { loadOmemoModule as loadNodeOmemoModule, type OmemoModule } from './omemo-runtime.js'
 import {
   readDhtJson,
   writeDhtJson,
@@ -228,6 +229,7 @@ export interface XmppNodeOptions {
  */
 export class XmppNode extends EventEmitter {
   private readonly httpUploadAvailable: boolean
+  private readonly omemoModuleLoader: () => Promise<OmemoModule>
   private libp2p: Libp2p
   private streams = new Map<string, XmppStream>()
   private peerAddrs = new Map<string, Multiaddr>()
@@ -290,12 +292,13 @@ export class XmppNode extends EventEmitter {
       this.rejectReady = reject
     })
     this.libp2p = libp2p
+    this.omemoModuleLoader = options.omemoModuleLoader ?? loadNodeOmemoModule
     this.httpUploadAvailable = options.httpUploadServer !== false
     this.jid = `${this.libp2p.peerId.toString()}@p2p`
     this.storage = storage
     this.uploadHost = (typeof process !== 'undefined' ? process.env?.XMPP_UPLOAD_HOST : undefined) ?? '127.0.0.1'
     this.uploadPort = Number.parseInt((typeof process !== 'undefined' ? process.env?.XMPP_UPLOAD_PORT : undefined) ?? '0', 10) || 0
-    this.omemoStateManager = new XmppOmemoStateManager(storage, options.omemoModuleLoader)
+    this.omemoStateManager = new XmppOmemoStateManager(storage, this.omemoModuleLoader)
     this.openPgpStateManager = new XmppOpenPgpStateManager(storage, this.jid)
     this.muc = new XmppMucManager(this.getMucContext())
     this.uploads = new XmppUploadManager(this)
@@ -524,8 +527,8 @@ export class XmppNode extends EventEmitter {
     return {
       jid: this.jid,
       ready: this.ready,
-      getOrCreateStream: this.getOrCreateStream.bind(this),
-      sendIqRequest: this.sendIqRequest.bind(this),
+      loadOmemoModule: this.omemoModuleLoader,
+      getOrCreateStream: this.getOrCreateStream.bind(this),      sendIqRequest: this.sendIqRequest.bind(this),
       emitMessage: (message) => {
         void this.recordChatMessage(message).catch(err => this.emit('error', err))
         this.emit('message', message)
@@ -550,6 +553,7 @@ export class XmppNode extends EventEmitter {
   private getMucContext(): XmppMucContext {
     return {
       jid: this.jid,
+      loadOmemoModule: this.omemoModuleLoader,
       libp2p: this.libp2p,
       storage: this.storage,
       ready: this.ready,

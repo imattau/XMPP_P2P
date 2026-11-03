@@ -7,7 +7,7 @@ import { xml, Element } from '@xmpp/xml'
 import * as openpgp from 'openpgp'
 import type { Multiaddr } from '@multiformats/multiaddr'
 import { PUBSUB_EVENT_XMLNS } from './xmpp-discovery.js'
-import { loadOmemoModule, type OmemoAddress } from './omemo-runtime.js'
+import type { OmemoAddress, OmemoModule } from './omemo-runtime.js'
 import { parseXepMetadata, buildXepElements, RECEIPTS_XMLNS } from './xmpp-xep-helpers.js'
 import type { XmppStream } from './xmpp-stream.js'
 import {
@@ -54,6 +54,7 @@ export interface XmppOmemoStore {
 export interface XmppSecureContext {
   jid: string
   ready: Promise<void>
+  loadOmemoModule(): Promise<OmemoModule>
   getOrCreateStream(peerAddr: string | Multiaddr): Promise<XmppStream>
   sendIqRequest(target: string | Multiaddr, stanza: Element, timeoutMs?: number): Promise<Element>
   emitMessage(message: XmppMessage): void
@@ -83,7 +84,7 @@ export interface XmppSecureContext {
  * @returns The decrypted payload bytes.
  */
 export async function decryptOmemoKey(ctx: XmppSecureContext, remoteAddress: OmemoAddress, payload: string): Promise<ArrayBuffer> {
-  const omemo = await loadOmemoModule()
+  const omemo = await ctx.loadOmemoModule()
   const sessionCipher = new omemo.SessionCipher(ctx.getOmemoStore(), remoteAddress)
   try {
     return await sessionCipher.decryptPreKeyWhisperMessage(payload, 'base64')
@@ -126,7 +127,7 @@ export async function decryptOmemoPayload(payload: string, payloadKey: ArrayBuff
 export async function ensureOmemoSession(ctx: XmppSecureContext, peerAddr: string | Multiaddr, deviceId: number): Promise<void> {
   const xmppStream = await ctx.getOrCreateStream(peerAddr)
   const peerJid = jidFromPeerId(xmppStream.remotePeer.toString())
-  const omemo = await loadOmemoModule()
+  const omemo = await ctx.loadOmemoModule()
   const remoteAddress = new omemo.OMEMOAddress(peerJid, deviceId)
   const store = ctx.getOmemoStore()
   const sessionCipher = new omemo.SessionCipher(store, remoteAddress)
@@ -291,7 +292,7 @@ export async function handleSecureMessageStanza(
       .find((child: Element) => Number(child.attrs.rid ?? 0) === rid)
 
     if (headerEl && payload && iv && keyEl && Number.isFinite(sid) && sid > 0) {
-      const omemo = await loadOmemoModule()
+      const omemo = await ctx.loadOmemoModule()
       const remoteAddress = new omemo.OMEMOAddress(fromJid, sid)
       const encryptedKey = keyEl.text().trim()
       const payloadKey = await decryptOmemoKey(ctx, remoteAddress, encryptedKey)
@@ -402,7 +403,7 @@ export async function sendEncryptedMessage(
   const keys: Element[] = []
   for (const deviceId of devices) {
     await ensureOmemoSession(ctx, peerAddr, deviceId)
-    const omemo = await loadOmemoModule()
+    const omemo = await ctx.loadOmemoModule()
     const remoteAddress = new omemo.OMEMOAddress(toJid, deviceId)
     const sessionCipher = new omemo.SessionCipher(ctx.getOmemoStore(), remoteAddress)
     const encryptedKey = await sessionCipher.encrypt(payloadKeyBytes)

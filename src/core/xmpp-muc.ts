@@ -4,7 +4,7 @@
  */
 
 import { xml, Element, Parser } from '@xmpp/xml'
-import { loadOmemoModule } from './omemo-runtime.js'
+import type { OmemoModule } from './omemo-runtime.js'
 import { decryptOmemoKey, decryptOmemoPayload, ensureOmemoSession } from './xmpp-secure.js'
 import { encryptAesGcm, secureRandomBytes } from './xmpp-crypto.js'
 import { TopicValidatorResult } from '@libp2p/gossipsub'
@@ -76,6 +76,7 @@ export interface MucRoomSettings {
  */
 export interface XmppMucContext {
   jid: string
+  loadOmemoModule(): Promise<OmemoModule>
   libp2p: any
   storage: XmppStorage
   ready: Promise<void>
@@ -591,7 +592,7 @@ export class XmppMucManager {
       const keys: Element[] = []
       for (const deviceId of devices) {
         await ensureOmemoSession(this.ctx.getSecureContext(), targetJid, deviceId)
-        const omemo = await loadOmemoModule()
+        const omemo = await this.ctx.loadOmemoModule()
         const remoteAddress = new omemo.OMEMOAddress(targetJid, deviceId)
         const sessionCipher = new omemo.SessionCipher(this.ctx.getOmemoStore(), remoteAddress)
         const encryptedKey = await sessionCipher.encrypt(payloadKeyBytes)
@@ -608,7 +609,11 @@ export class XmppMucManager {
       await addOmemoKey(occupant.jid)
     }
     if (keysMap.size === 0) {
-      throw new Error('No occupants have available OMEMO devices')
+      const connectedOccupants = [...roomState.occupants.values()].filter((occupant) => occupant.jid !== this.ctx.jid)
+      if (connectedOccupants.length === 0) {
+        throw new Error('No other group members are currently connected. Ask a member to open the app and join before sending an OMEMO message.')
+      }
+      throw new Error('None of the connected group members advertises an OMEMO device. Ask a member to connect with OMEMO enabled before sending securely.')
     }
 
     const keysElements: Element[] = []
@@ -977,7 +982,7 @@ export class XmppMucManager {
             : undefined
 
           if (headerEl && payload && iv && keyEl && Number.isFinite(sid) && sid > 0) {
-            const omemo = await loadOmemoModule()
+            const omemo = await this.ctx.loadOmemoModule()
             const senderJid = `${fromPeerId}@p2p`
             const remoteAddress = new omemo.OMEMOAddress(senderJid, sid)
             const encryptedKey = keyEl.text().trim()
