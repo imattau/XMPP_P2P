@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
-import { Search, ArrowLeft, User, ChevronRight, X, MessageCircle, UserMinus, LoaderCircle, Check } from 'lucide-react'
+import { Search, ArrowLeft, User, ChevronRight, X, MessageCircle, UserMinus, UserPlus, LoaderCircle, Check } from 'lucide-react'
 import { useRosterBridge } from '../bridge/useRosterBridge'
+import { useDiscoveredPeers } from '../bridge/useDiscoveredPeers'
 import type { RosterContact } from '../bridge/useRosterBridge'
 import { emitToast } from '../lib/toast-events'
 
@@ -50,10 +51,12 @@ function ContactRow({ contact, removeContact, onOpen }: {
 
 export default function ContactsPage() {
   const navigate = useNavigate()
-  const { contacts, serverSubscriptionRequests, answerServerSubscriptionRequest, loading, loadError, available, refresh, removeContact } = useRosterBridge()
+  const { contacts, serverSubscriptionRequests, answerServerSubscriptionRequest, loading, loadError, available, refresh, addContact, removeContact } = useRosterBridge()
+  const discoveredPeers = useDiscoveredPeers()
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [answeringRequest, setAnsweringRequest] = useState<string | null>(null)
+  const [addingPeer, setAddingPeer] = useState<string | null>(null)
 
   const handleSubscriptionRequest = async (jid: string, approve: boolean) => {
     setAnsweringRequest(jid)
@@ -79,6 +82,25 @@ export default function ContactsPage() {
 
   const online = filtered.filter((c) => c.online)
   const offline = filtered.filter((c) => !c.online)
+  const savedContactIds = new Set(contacts.map((contact) => contact.jid.toLowerCase().split('/')[0]))
+  const availablePeers = discoveredPeers.filter((peer) => {
+    if (savedContactIds.has(peer.jid.toLowerCase())) return false
+    if (!searchQuery) return true
+    const query = searchQuery.toLowerCase()
+    return peer.jid.toLowerCase().includes(query) || (peer.nickname || '').toLowerCase().includes(query)
+  })
+
+  const handleAddDiscoveredPeer = async (peer: { jid: string; nickname?: string }) => {
+    setAddingPeer(peer.jid)
+    try {
+      await addContact(peer.jid, peer.nickname || peer.jid.split('@')[0])
+      emitToast('Peer added to contacts', 'success')
+    } catch (error) {
+      emitToast(error instanceof Error ? error.message : 'Could not add peer', 'error')
+    } finally {
+      setAddingPeer(null)
+    }
+  }
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
@@ -168,13 +190,13 @@ export default function ContactsPage() {
               </div>
             ))}
           </div>
-        ) : filtered.length === 0 && !searchQuery && loadError ? null : filtered.length === 0 ? (
+        ) : filtered.length === 0 && availablePeers.length === 0 && !searchQuery && loadError ? null : filtered.length === 0 && availablePeers.length === 0 ? (
           <div className="flex flex-col items-center justify-center px-6 py-20 gap-3 text-center">
             <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
               <User size={20} className="text-muted-foreground" />
             </div>
             <p className="text-sm text-muted-foreground">
-              {searchQuery ? 'No contacts match your search' : 'No contacts yet'}
+              {searchQuery ? 'No contacts or available peers match your search' : 'No contacts yet'}
             </p>
             {!searchQuery && (
               <>
@@ -193,6 +215,36 @@ export default function ContactsPage() {
           </div>
         ) : (
           <>
+            {availablePeers.length > 0 && (
+              <section aria-labelledby="available-peers-title" className="border-b border-border">
+                <div className="px-4 py-3">
+                  <h2 id="available-peers-title" className="text-sm font-semibold text-foreground">Available on P2P · {availablePeers.length}</h2>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Connected peers you haven’t added to your contacts.</p>
+                </div>
+                {availablePeers.map((peer) => {
+                  const label = peer.nickname || peer.peerId
+                  const isAdding = addingPeer === peer.jid
+                  return (
+                    <div key={peer.peerId} className="flex items-center gap-3 border-t border-border px-4 py-2">
+                      <div aria-hidden="true" className="relative flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-border bg-secondary text-sm font-semibold text-foreground">
+                        {label[0]?.toUpperCase() || '?'}
+                        <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-[1.5px] border-background bg-accent" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-foreground">{label}</p>
+                        <p className="truncate font-mono text-[10px] text-muted-foreground">{peer.jid}</p>
+                      </div>
+                      <button type="button" onClick={() => void handleAddDiscoveredPeer(peer)} disabled={addingPeer !== null}
+                        aria-label={`Add ${label} to contacts`} title="Add to contacts"
+                        className="flex min-h-11 min-w-11 flex-shrink-0 items-center justify-center gap-1.5 rounded-lg border border-border px-2 text-xs font-medium text-foreground hover:bg-secondary disabled:opacity-50">
+                        {isAdding ? <LoaderCircle size={15} className="animate-spin" /> : <UserPlus size={15} />}
+                        <span className="sr-only">Add</span>
+                      </button>
+                    </div>
+                  )
+                })}
+              </section>
+            )}
             {online.length > 0 && (
               <div className="px-4 py-2 border-b border-border flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-accent" />

@@ -52,9 +52,10 @@ export async function createBrowserP2PNode(options: CreateBrowserP2PNodeOptions)
     // Some bootstrap peers are ordinary WebSocket nodes, though, so their
     // failed HOP reservation must not prevent direct WebSocket startup.
     addresses: {
-      // The Android TCP transport is outbound-only. Only WebSocket bootstrap
-      // peers can be used as relay paths for this node's advertised address.
-      listen: bootstrapAddrs.filter((address) => /\/ws(?:\/|$)|\/wss(?:\/|$)/.test(address)).map((address) =>
+      // Android cannot accept direct inbound TCP, but its outbound TCP
+      // transport can still connect to a relay and reserve a circuit route.
+      // Browser builds have already filtered this list to WebSocket peers.
+      listen: bootstrapAddrs.map((address) =>
         address.includes('/p2p-circuit') ? address : `${address}/p2p-circuit`
       )
     },

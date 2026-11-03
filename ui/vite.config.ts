@@ -17,17 +17,17 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: null,
-      includeAssets: ['icon-192.svg', 'icon-512.svg'],
+      includeAssets: ['icon-192.svg', 'icon-512.svg', 'icon-192.png', 'icon-512.png'],
       manifest: {
         name: 'Nexus — XMPP P2P',
         short_name: 'Nexus',
         description: 'Decentralized, serverless messaging over XMPP P2P',
-        theme_color: '#77a0ff',
-        background_color: '#080b12',
+        theme_color: '#0b1120',
+        background_color: '#0b1120',
         display: 'standalone',
         icons: [
-          { src: '/icon-192.svg', sizes: '192x192', type: 'image/svg+xml' },
-          { src: '/icon-512.svg', sizes: '512x512', type: 'image/svg+xml' },
+          { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
         ],
       },
       workbox: {

@@ -4,7 +4,7 @@
  */
 
 import { createLibp2p, type ConnectionManagerInit } from 'libp2p'
-import type { PrivateKey } from '@libp2p/interface'
+import { FaultTolerance, type PrivateKey } from '@libp2p/interface'
 import { tcp } from '@libp2p/tcp'
 import { webSockets } from '@libp2p/websockets'
 import { webRTC } from '@libp2p/webrtc'
@@ -81,6 +81,11 @@ export async function createP2PNode(port?: number, options: CreateP2PNodeOptions
   }
 
   const transports: any[] = [tcp(), webSockets()]
+  const relayListenAddresses = options.enableWebRTC
+    ? [...new Set((options.bootstrapAddrs ?? []).map((address) =>
+      address.includes('/p2p-circuit') ? address : `${address}/p2p-circuit`
+    ))]
+    : []
 
   if (options.enableWebRTC) {
     transports.push(webRTC(), circuitRelayTransport())
@@ -94,8 +99,12 @@ export async function createP2PNode(port?: number, options: CreateP2PNodeOptions
   const node = await createLibp2p({
     privateKey: options.privateKey,
     addresses: {
-      listen: listenAddresses
+      // Configured bootstrap peers may provide circuit relay reservations.
+      // Treat failed reservations as optional so an ordinary bootstrap node
+      // does not prevent direct TCP/WebSocket startup.
+      listen: [...listenAddresses, ...relayListenAddresses]
     },
+    ...(relayListenAddresses.length > 0 ? { transportManager: { faultTolerance: FaultTolerance.NO_FATAL } } : {}),
     transports,
     connectionEncrypters: [noise()],
     streamMuxers: [yamux()],

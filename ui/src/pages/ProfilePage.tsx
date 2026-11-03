@@ -367,7 +367,7 @@ export default function ProfilePage() {
               {peerAddress ? (
                 <p className="mt-1 break-all font-mono text-[10px] leading-relaxed text-foreground/80">{peerAddress}</p>
               ) : (
-                <p className="mt-1 text-xs text-muted-foreground">No routable address yet. Connect to a configured relay to share your profile.</p>
+                <p className="mt-1 text-xs text-muted-foreground">No internet-routable address yet. Connect to a configured relay or make a public address reachable with port forwarding.</p>
               )}
             </div>
 

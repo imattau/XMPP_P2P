@@ -18,6 +18,7 @@ type NativeShellApi = {
     recoveryPhrase?: string[]
     nickname?: string
     dbName?: string
+    bootstrapAddrs?: string[]
   }) => Promise<NativeClientResult>
 }
 
@@ -54,7 +55,8 @@ export function installNativeShell(): void {
       const result = await native.createClient({
         recoveryPhrase: options.recoveryPhrase,
         nickname: options.nickname,
-        dbName: options.dbName
+        dbName: options.dbName,
+        bootstrapAddrs: options.bootstrapAddrs
       })
 
       const raw = result.bridge

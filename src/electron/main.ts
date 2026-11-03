@@ -59,9 +59,12 @@ async function startXmpp(options: NativeStartOptions): Promise<{ jid: string }> 
   const privateKey = await loadIdentityKey(storage, options.recoveryPhrase)
 
   const node = await createP2PNode(0, {
-    host: '127.0.0.1',
+    // The desktop peer must accept connections from other devices. The UI
+    // renderer itself remains isolated on its own localhost HTTP server.
+    host: '0.0.0.0',
     enableDht: true,
     enableWebRTC: true,
+    bootstrapAddrs: options.bootstrapAddrs,
     privateKey
   }) as Libp2p
 
