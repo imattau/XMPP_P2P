@@ -209,14 +209,14 @@ function isNativeNodeRuntime(): boolean {
   return typeof window === 'undefined' || isElectronMain || isAndroidNative()
 }
 
-function normalizeXmppTcpUrl(value: string): string {
+function normalizeXmppTcpUrl(value: string, allowNativeTcp = isNativeNodeRuntime()): string {
   let endpoint: URL
   try {
     endpoint = new URL(value)
   } catch {
     throw new Error('XMPP TCP service address is invalid')
   }
-  if (!isNativeNodeRuntime()
+  if (!allowNativeTcp
     || (endpoint.protocol !== 'xmpp:' && endpoint.protocol !== 'xmpps:')
     || !endpoint.hostname
     || endpoint.username
@@ -230,10 +230,10 @@ function normalizeXmppTcpUrl(value: string): string {
   return endpoint.toString()
 }
 
-function normalizeXmppServiceUrl(value: string): string {
+function normalizeXmppServiceUrl(value: string, allowNativeTcp = isNativeNodeRuntime()): string {
   const protocol = value.slice(0, value.indexOf(':') + 1).toLowerCase()
   return protocol === 'xmpp:' || protocol === 'xmpps:'
-    ? normalizeXmppTcpUrl(value)
+    ? normalizeXmppTcpUrl(value, allowNativeTcp)
     : normalizeXmppWebSocketUrl(value)
 }
 
@@ -244,6 +244,10 @@ export interface XmppClientCredentials {
 }
 
 export class XmppClientBridge extends EventEmitter {
+  constructor(private readonly allowNativeTcp = isNativeNodeRuntime()) {
+    super()
+  }
+
   private client: ReturnType<typeof xmppClient> | null = null
   private status: ServerConnectionInfo['status'] = 'disconnected'
   private domain: string = ''
@@ -337,7 +341,7 @@ export class XmppClientBridge extends EventEmitter {
     if (requestedService && requestedService.includes('://')) {
       // Explicit service addresses are authoritative; never silently use another endpoint.
       try {
-        services = [{ url: normalizeXmppServiceUrl(requestedService), timeoutMs: 30000 }]
+        services = [{ url: normalizeXmppServiceUrl(requestedService, this.allowNativeTcp), timeoutMs: 30000 }]
       } catch (error) {
         this.status = 'error'
         this.lastError = error instanceof Error ? error.message : String(error)
@@ -349,7 +353,7 @@ export class XmppClientBridge extends EventEmitter {
       const discovered = await this.discoverWebSocketUrl(domain)
       services = [...new Set([...(discovered ? [discovered] : []), ...this.defaultWsUrls(domain)])]
         .map((url, index) => ({ url, timeoutMs: discovered && index === 0 ? 20000 : 12000 }))
-      if (isNativeNodeRuntime()) {
+      if (this.allowNativeTcp) {
         services.push(
           { url: `xmpp://${domain}:5222`, timeoutMs: 15000 },
           { url: `xmpps://${domain}:5223`, timeoutMs: 15000 },
@@ -396,7 +400,7 @@ export class XmppClientBridge extends EventEmitter {
   ): Promise<void> {
     const protocol = service.slice(0, service.indexOf(':') + 1).toLowerCase()
     const nativeTcp = protocol === 'xmpp:' || protocol === 'xmpps:'
-    service = normalizeXmppServiceUrl(service)
+    service = normalizeXmppServiceUrl(service, this.allowNativeTcp)
     this.client = xmppClient({
       domain: this.domain,
       username: jidObj.local,

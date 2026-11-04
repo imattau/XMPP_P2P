@@ -75,7 +75,10 @@ async function startXmpp(options: NativeStartOptions): Promise<{ jid: string }> 
   }
 
   try {
-    const xmpp = new XmppNode(node, storage, { nickname: options.nickname })
+    const xmpp = new XmppNode(node, storage, {
+      nickname: options.nickname,
+      allowNativeXmppTcp: true
+    })
     await xmpp.ready
     const runtimeBridge = new BrowserXmppRuntimeBridge(xmpp, async () => { await node.stop() })
 

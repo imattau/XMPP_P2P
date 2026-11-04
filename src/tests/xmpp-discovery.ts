@@ -55,7 +55,29 @@ async function run(): Promise<void> {
     const insecureUrl = await new XmppClientBridge().discoverWebSocketUrl('example.test')
     assert(insecureUrl === null, 'discovery must reject insecure WebSocket URLs')
 
-    console.log('XMPP host-meta discovery: PASS (JSON, XML fallback, secure URL enforcement)')
+    const tcpEnabled = new XmppClientBridge(true)
+    tcpEnabled.discoverWebSocketUrl = async () => null
+    const tcpAttempts: string[] = []
+    ;(tcpEnabled as any).connectToService = async (_credentials: unknown, _jid: unknown, service: string) => {
+      tcpAttempts.push(service)
+      throw new Error('offline')
+    }
+    await tcpEnabled.connect({ jid: 'alice@example.test', password: 'unused' }).catch(() => {})
+    assert(tcpAttempts.includes('xmpp://example.test:5222'), 'native TCP capability should add the STARTTLS XMPP fallback')
+    assert(tcpAttempts.includes('xmpps://example.test:5223'), 'native TCP capability should add the direct TLS XMPP fallback')
+
+    const tcpDisabled = new XmppClientBridge(false)
+    tcpDisabled.discoverWebSocketUrl = async () => null
+    const webAttempts: string[] = []
+    ;(tcpDisabled as any).connectToService = async (_credentials: unknown, _jid: unknown, service: string) => {
+      webAttempts.push(service)
+      throw new Error('offline')
+    }
+    await tcpDisabled.connect({ jid: 'alice@example.test', password: 'unused' }).catch(() => {})
+    assert(!webAttempts.some((service) => service.startsWith('xmpp:') || service.startsWith('xmpps:')),
+      'browser capability should not add native TCP fallbacks')
+
+    console.log('XMPP host-meta discovery and native TCP fallback selection: PASS')
   } finally {
     globalThis.fetch = originalFetch
   }

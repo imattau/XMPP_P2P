@@ -223,6 +223,8 @@ export interface XmppNodeOptions {
   nickname?: string
   omemoModuleLoader?: () => Promise<import('./omemo-runtime.js').OmemoModule>
   httpUploadServer?: boolean
+  /** Enable native XMPP TCP in a runtime whose environment globals are ambiguous. */
+  allowNativeXmppTcp?: boolean
 }
 
 /**
@@ -303,7 +305,7 @@ export class XmppNode extends EventEmitter {
     this.openPgpStateManager = new XmppOpenPgpStateManager(storage, this.jid)
     this.muc = new XmppMucManager(this.getMucContext())
     this.uploads = new XmppUploadManager(this)
-    this.clientBridge = new XmppClientBridge()
+    this.clientBridge = new XmppClientBridge(options.allowNativeXmppTcp)
     this.forwardClientBridgeEvents()
     this.chat = new XmppChatManager({
       libp2p: this.libp2p,
