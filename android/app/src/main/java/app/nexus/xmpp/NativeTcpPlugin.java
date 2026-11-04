@@ -17,13 +17,15 @@ import javax.net.ssl.SSLSocketFactory;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.Executors;
 
 @CapacitorPlugin(name = "NativeTcp")
 public class NativeTcpPlugin extends Plugin {
     private static final class SocketState {
         volatile Socket socket;
-        final Object ioLock = new Object();
+        // Fair so a blocking read cannot starve the STARTTLS upgrade; writes do not take it.
+        final ReentrantLock ioLock = new ReentrantLock(true);
         SocketState(Socket socket) { this.socket = socket; }
     }
     private final ConcurrentHashMap<String, SocketState> sockets = new ConcurrentHashMap<>();
@@ -76,12 +78,12 @@ public class NativeTcpPlugin extends Plugin {
         io.execute(() -> {
             try {
                 byte[] bytes = Base64.decode(encoded, Base64.DEFAULT);
+                // Never take ioLock here: the reader holds it during blocking reads,
+                // which would delay the client's stream open until the read timed out.
                 synchronized (lock) {
-                    synchronized (state.ioLock) {
-                        OutputStream output = state.socket.getOutputStream();
-                        output.write(bytes);
-                        output.flush();
-                    }
+                    OutputStream output = state.socket.getOutputStream();
+                    output.write(bytes);
+                    output.flush();
                 }
                 call.resolve();
             } catch (Exception error) {
@@ -102,7 +104,8 @@ public class NativeTcpPlugin extends Plugin {
         io.execute(() -> {
             try {
                 String protocol;
-                synchronized (state.ioLock) {
+                state.ioLock.lock();
+                try {
                     SSLSocketFactory factory = (SSLSocketFactory) SSLSocketFactory.getDefault();
                     SSLSocket ssl = (SSLSocket) factory
                         .createSocket(state.socket, host, state.socket.getPort(), true);
@@ -115,6 +118,8 @@ public class NativeTcpPlugin extends Plugin {
                     protocol = ssl.getSession().getProtocol();
                     ssl.setSoTimeout(500);
                     state.socket = ssl;
+                } finally {
+                    state.ioLock.unlock();
                 }
                 JSObject result = new JSObject();
                 result.put("protocol", protocol);
@@ -140,8 +145,11 @@ public class NativeTcpPlugin extends Plugin {
             while (state != null) {
                 try {
                     int count;
-                    synchronized (state.ioLock) {
+                    state.ioLock.lock();
+                    try {
                         count = state.socket.getInputStream().read(buffer);
+                    } finally {
+                        state.ioLock.unlock();
                     }
                     if (count < 0) break;
                     if (count == 0) continue;

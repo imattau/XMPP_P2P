@@ -372,7 +372,7 @@ export class XmppClientBridge extends EventEmitter {
         await this.connectToService(credentials, jidObj, service.url, service.timeoutMs)
         return
       } catch (error) {
-        lastError = error instanceof Error ? error : new Error(String(error))
+        lastError = this.describeConnectionError(error)
         if (this.isAuthenticationFailure(lastError)) break
       }
     }
@@ -388,8 +388,24 @@ export class XmppClientBridge extends EventEmitter {
     throw new Error(`Failed to connect: ${this.lastError}`)
   }
 
+  /**
+   * Servers such as ejabberd put <text/> before the condition in SASL failures,
+   * so @xmpp/error reports the bare message "text". Recover the real condition.
+   */
+  private describeConnectionError(error: unknown): Error {
+    const err = error instanceof Error ? error : new Error(String(error))
+    if (err.name !== 'SASLError') return err
+    const { condition, application, text } = err as Error & { condition?: string; application?: { name?: string }; text?: string }
+    const real = condition === 'text' ? application?.name : condition
+    if (!real && err.message !== 'text') return err
+    const described = new Error(`Authentication failed (${real ?? 'not-authorized'})${text ? ` - ${text}` : ''}. Check your username and password`)
+    described.name = 'SASLError'
+    return described
+  }
+
   private isAuthenticationFailure(error: Error): boolean {
-    return /not[- ]authorized|invalid credentials|authentication failed|account[- ]disabled|temporary-auth-failure|mechanism-too-weak/i.test(error.message)
+    return error.name === 'SASLError'
+      || /not[- ]authorized|invalid credentials|authentication failed|account[- ]disabled|temporary-auth-failure|mechanism-too-weak/i.test(error.message)
   }
 
   private async connectToService(
