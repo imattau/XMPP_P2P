@@ -101,23 +101,6 @@ with direct TLS). The renderer is loaded from
 `http://127.0.0.1:43117` so `crypto.subtle` works, and talks to the node over
 a context-isolated preload bridge.
 
-**Android (Capacitor + ZapStore)**
-
-```bash
-npm run android:sync       # build the web UI and copy it into android/
-npm run dist:android       # local signed release build (requires a keystore)
-```
-
-Android releases are built and signed in CI and published to
-[ZapStore](https://zapstore.dev/) from `.github/workflows/release.yml`.
-The signing secrets are the same ones used by
-[imattau/Mangatsu](https://github.com/imattau/Mangatsu/settings/secrets/actions):
-
-- `ANDROID_KEYSTORE_BASE64`
-- `ANDROID_KEYSTORE_PASSWORD`
-- `ANDROID_KEY_ALIAS`
-- `ANDROID_KEY_PASSWORD`
-- `ZAPSTORE_NSEC`
 
 The Android WebView uses a native TCP socket plugin for outbound libp2p TCP
 dials and XMPP server connections alongside WebSockets and WebRTC. XMPP server
