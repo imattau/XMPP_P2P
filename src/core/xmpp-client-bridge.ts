@@ -205,7 +205,8 @@ function normalizeXmppWebSocketUrl(value: string): string {
 }
 
 function isNativeNodeRuntime(): boolean {
-  return typeof window === 'undefined' || isAndroidNative()
+  const isElectronMain = typeof process !== 'undefined' && Boolean(process.versions?.electron)
+  return typeof window === 'undefined' || isElectronMain || isAndroidNative()
 }
 
 function normalizeXmppTcpUrl(value: string): string {
