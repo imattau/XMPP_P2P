@@ -40,6 +40,51 @@
 <pre><code class="bash"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">run</span><span class="hl-1"> </span><span class="hl-2">build</span>
 </code><button type="button">Copy</button></pre>
 
+<h3 id="cross-platform-builds" class="tsd-anchor-link">Cross-platform builds<a href="#cross-platform-builds" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<p>The same <code>ui/dist</code> bundle ships as a PWA, an Electron desktop app and an
+Android app (via Capacitor).</p>
+<p><strong>Web / PWA</strong></p>
+<pre><code class="bash"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">run</span><span class="hl-1"> </span><span class="hl-2">build:web</span><span class="hl-1">          </span><span class="hl-3"># esbuild browser bundle + Vite build -&gt; ui/dist</span><br/><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">run</span><span class="hl-1"> </span><span class="hl-2">ui:preview</span><span class="hl-1">         </span><span class="hl-3"># serve the production build locally</span>
+</code><button type="button">Copy</button></pre>
+
+<p><strong>Desktop (Electron)</strong></p>
+<pre><code class="bash"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">run</span><span class="hl-1"> </span><span class="hl-2">electron:dev</span><span class="hl-1">       </span><span class="hl-3"># build the web UI + Electron main/preload, then launch</span><br/><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">run</span><span class="hl-1"> </span><span class="hl-2">dist:desktop</span><span class="hl-1">       </span><span class="hl-3"># unsigned installers in release/</span>
+</code><button type="button">Copy</button></pre>
+
+<p>Release artifacts:</p>
+<ul>
+<li><strong>Linux</strong>: AppImage, <code>.deb</code> (apt), <code>.rpm</code>, <code>.flatpak</code> (runtime <code>org.freedesktop.Platform//25.08</code>)</li>
+<li><strong>Windows</strong>: NSIS installer and portable <code>.exe</code></li>
+<li><strong>macOS</strong>: <code>.dmg</code> and <code>.zip</code> (x64 + arm64)</li>
+</ul>
+<p>Linux install examples:</p>
+<pre><code class="bash"><span class="hl-0">sudo</span><span class="hl-1"> </span><span class="hl-2">apt</span><span class="hl-1"> </span><span class="hl-2">install</span><span class="hl-1"> </span><span class="hl-2">./Nexus-</span><span class="hl-4">*</span><span class="hl-2">.deb</span><br/><span class="hl-0">sudo</span><span class="hl-1"> </span><span class="hl-2">dnf</span><span class="hl-1"> </span><span class="hl-2">install</span><span class="hl-1"> </span><span class="hl-2">./Nexus-</span><span class="hl-4">*</span><span class="hl-2">.rpm</span><br/><span class="hl-0">flatpak</span><span class="hl-1"> </span><span class="hl-2">install</span><span class="hl-1"> </span><span class="hl-4">--user</span><span class="hl-1"> </span><span class="hl-2">./Nexus-</span><span class="hl-4">*</span><span class="hl-2">.flatpak</span>
+</code><button type="button">Copy</button></pre>
+
+<p>Desktop builds are intentionally <strong>unsigned</strong>. macOS will show Gatekeeper's
+&quot;unidentified developer&quot; prompt (right-click → Open, or
+<code>xattr -dr com.apple.quarantine /Applications/Nexus.app</code>); Windows shows
+SmartScreen (&quot;More info&quot; → &quot;Run anyway&quot;).</p>
+<p>The desktop app runs a native libp2p node (TCP, mDNS, DHT) and SQLite storage
+in the Electron main process. XMPP server accounts can connect over secure
+WebSockets or native XMPP TCP (<code>xmpp://</code> with required STARTTLS, or <code>xmpps://</code>
+with direct TLS). The renderer is loaded from
+<code>http://127.0.0.1:43117</code> so <code>crypto.subtle</code> works, and talks to the node over
+a context-isolated preload bridge.</p>
+<p>The Android WebView uses a native TCP socket plugin for outbound libp2p TCP
+dials and XMPP server connections alongside WebSockets and WebRTC. XMPP server
+accounts try secure WebSocket endpoints first, then native TCP on ports 5222
+(required STARTTLS) and 5223 (direct TLS). You can enter <code>xmpp://host:5222</code> or
+<code>xmpps://host:5223</code> in Settings to select a specific endpoint. Android does not
+listen for inbound TCP connections; mobile peers generally need a reachable
+peer or circuit relay.
+Nostr bootstrap announcements may include root TCP addresses for Android as
+well as WebSocket addresses for browsers. A direct TCP address can also be
+entered in Android Settings as <code>/ip4/&lt;public-ip&gt;/tcp/&lt;port&gt;/p2p/&lt;peer-id&gt;</code>.</p>
+<p>Tag a release to build all platforms:</p>
+<pre><code class="bash"><span class="hl-0">git</span><span class="hl-1"> </span><span class="hl-2">tag</span><span class="hl-1"> </span><span class="hl-2">v1.0.0</span><br/><span class="hl-0">git</span><span class="hl-1"> </span><span class="hl-2">push</span><span class="hl-1"> </span><span class="hl-2">origin</span><span class="hl-1"> </span><span class="hl-2">v1.0.0</span>
+</code><button type="button">Copy</button></pre>
+
 <h3 id="documentation" class="tsd-anchor-link">Documentation<a href="#documentation" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <p>Generated API documentation is checked into the repo at <code>docs/</code> and published on GitHub Pages:</p>
 <ul>
@@ -48,22 +93,22 @@
 </ul>
 <hr>
 <h2 id="running-the-application" class="tsd-anchor-link">Running the Application<a href="#running-the-application" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
-<h3 id="starting-the-cli" class="tsd-anchor-link">Starting the CLI<a href="#starting-the-cli" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<p>Start an interactive CLI node on a specific port:</p>
-<pre><code class="bash"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">start</span><span class="hl-1"> </span><span class="hl-3">--</span><span class="hl-1"> </span><span class="hl-3">--port=9001</span>
+<h3 id="starting-the-terminal-client" class="tsd-anchor-link">Starting the terminal client<a href="#starting-the-terminal-client" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<p>Start the interactive terminal client on a specific port:</p>
+<pre><code class="bash"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">start</span><span class="hl-1"> </span><span class="hl-4">--</span><span class="hl-1"> </span><span class="hl-4">--port=9001</span>
 </code><button type="button">Copy</button></pre>
 
-<p>You can optionally define the hostname and roster path:</p>
-<pre><code class="bash"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">start</span><span class="hl-1"> </span><span class="hl-3">--</span><span class="hl-1"> </span><span class="hl-3">--port=9001</span><span class="hl-1"> </span><span class="hl-3">--host=127.0.0.1</span><span class="hl-1"> </span><span class="hl-3">--roster-file=/path/to/roster.json</span>
+<p>You can optionally define the hostname and SQLite state path:</p>
+<pre><code class="bash"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">start</span><span class="hl-1"> </span><span class="hl-4">--</span><span class="hl-1"> </span><span class="hl-4">--port=9001</span><span class="hl-1"> </span><span class="hl-4">--host=127.0.0.1</span><span class="hl-1"> </span><span class="hl-4">--sqlite-path=/path/to/state.sqlite</span>
 </code><button type="button">Copy</button></pre>
 
 <p>To see the startup flags without launching the node:</p>
-<pre><code class="bash"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">start</span><span class="hl-1"> </span><span class="hl-3">--</span><span class="hl-1"> </span><span class="hl-3">--help</span><br/><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">start</span><span class="hl-1"> </span><span class="hl-3">--</span><span class="hl-1"> </span><span class="hl-3">--version</span>
+<pre><code class="bash"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">start</span><span class="hl-1"> </span><span class="hl-4">--</span><span class="hl-1"> </span><span class="hl-4">--help</span><br/><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">start</span><span class="hl-1"> </span><span class="hl-4">--</span><span class="hl-1"> </span><span class="hl-4">--version</span>
 </code><button type="button">Copy</button></pre>
 
-<p>Once started, the CLI will output your local Peer ID, JID, and listen addresses, and drop you into an interactive <code>xmpp-p2p&gt;</code> prompt.</p>
+<p>Once started, the terminal client will output your local Peer ID, JID, and listen addresses, then open the TUI.</p>
 <h3 id="starting-the-frontend" class="tsd-anchor-link">Starting the Frontend<a href="#starting-the-frontend" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<p>The Figma-based web frontend lives in <code>ui/</code>. Run it with:</p>
+<p>The web frontend lives in <code>ui/</code>. Run it with:</p>
 <pre><code class="bash"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">run</span><span class="hl-1"> </span><span class="hl-2">ui:dev</span>
 </code><button type="button">Copy</button></pre>
 
@@ -75,6 +120,69 @@
 <pre><code class="bash"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">run</span><span class="hl-1"> </span><span class="hl-2">ui:preview</span>
 </code><button type="button">Copy</button></pre>
 
+<h3 id="browser-peer-connectivity" class="tsd-anchor-link">Browser peer connectivity<a href="#browser-peer-connectivity" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<p>Browser peers need a reachable libp2p relay over a trusted WebSocket connection. A
+local web build intentionally ships with an empty <code>ui/public/bootstrap-config.json</code>;
+without a relay, onboarding and Settings report that peer discovery is unavailable
+and the browser has no routable peer address to share. Peer messaging needs a
+reachable peer address or relay. Connecting an XMPP account is a separate path and
+does not provide a P2P relay.</p>
+<p>For a managed deployment, install Caddy, point the domain at the server, allow
+HTTP/HTTPS traffic for certificate issuance, and enable the relay behind the
+Caddy TLS proxy:</p>
+<pre><code class="bash"><span class="hl-0">scripts/deploy-remote.sh</span><span class="hl-1"> </span><span class="hl-4">--host</span><span class="hl-1"> </span><span class="hl-2">user@server</span><span class="hl-1"> </span><span class="hl-5">\</span><br/><span class="hl-1">  </span><span class="hl-4">--proxy</span><span class="hl-1"> </span><span class="hl-2">caddy</span><span class="hl-1"> </span><span class="hl-4">--domain</span><span class="hl-1"> </span><span class="hl-2">app.example.org</span><span class="hl-1"> </span><span class="hl-4">--relay</span>
+</code><button type="button">Copy</button></pre>
+
+<p>The daemon writes its root WebSocket multiaddress to the deployed
+<code>ui/dist/bootstrap-config.json</code> when it starts. If a deployment uses another
+operator-managed relay, add its root <code>/.../wss/p2p/&lt;peer-id&gt;</code> multiaddress in
+Nexus Settings. Addresses with an HTTP path such as <code>/ws</code> cannot be used for
+browser WebRTC peer routes. If the deploy script warns that it could not add
+its snippet to an unmanaged Caddyfile, import the generated snippet and reload
+Caddy before relying on the generated address. Never add an untrusted relay
+address.</p>
+<h4 id="nostr-peer-discovery" class="tsd-anchor-link">Nostr peer discovery<a href="#nostr-peer-discovery" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
+<p>Nostr relays can distribute signed, expiring libp2p bootstrap announcements. They
+are used only to find addresses; peer traffic still travels over libp2p. The app
+defaults to <code>relay.ditto.pub</code>, <code>nostr-01.yakihonne.com</code>, and <code>relay.primal.net</code>.
+The standalone node queries these relays at startup and feeds valid discovered
+multiaddresses to libp2p bootstrap discovery, which attempts connections in the
+background. No manual address copying is needed. Set <code>XMPP_P2P_NOSTR_RELAYS</code> to
+override the node's list; users can add, remove, or replace the relays used by
+their app in Settings. On first startup with browser
+bootstrap output enabled, the node creates a random publishing key and reuses it
+on later starts:</p>
+<pre><code class="bash"><span class="hl-6">XMPP_P2P_NOSTR_RELAYS</span><span class="hl-1">=</span><span class="hl-2">&#39;wss://relay.example,wss://relay2.example&#39;</span><span class="hl-1"> </span><span class="hl-0">\</span><br/><span class="hl-1">XMPP_P2P_BOOTSTRAP_OUTPUT=</span><span class="hl-2">&#39;ui/dist/bootstrap-config.json&#39;</span><span class="hl-1"> </span><span class="hl-5">\</span><br/><span class="hl-1">XMPP_P2P_BOOTSTRAP_DOMAIN=</span><span class="hl-2">&#39;app.example.org&#39;</span><span class="hl-1"> </span><span class="hl-5">\</span><br/><span class="hl-1">XMPP_P2P_BOOTSTRAP_WSS=true </span><span class="hl-5">\</span><br/><span class="hl-1">npm </span><span class="hl-2">start</span><span class="hl-1"> </span><span class="hl-4">--</span><span class="hl-1"> </span><span class="hl-4">--relay</span>
+</code><button type="button">Copy</button></pre>
+
+<p>By default, the key is stored in <code>data/nostr-bootstrap-key</code> beside the node's
+SQLite database with mode 0600. <code>XMPP_P2P_NOSTR_KEY_PATH</code> selects another path.
+Set <code>XMPP_P2P_NOSTR_SECRET_KEY</code> only when importing a key you already manage;
+that value takes precedence over the generated key file.</p>
+<p>The browser config contains the Nostr relay URLs, not the publisher key. The node
+uses its key to sign a kind 30078 announcement and refreshes it every 12 hours.
+Discovery filters by the Nexus-specific event kind and <code>d</code> identifier, validates
+the event signature and expiration, then treats matching addresses as candidates;
+it does not maintain a publisher allowlist. In Settings, users only need to enter
+Nostr relay URLs. Local <code>ws://</code> relays are allowed for testing; remote relays must
+use <code>wss://</code>.</p>
+<p>Run the signed-event and validation checks with <code>npm run build &amp;&amp; npm run test-nostr-bootstrap</code>.</p>
+<p>To make a public node discoverable to native Android TCP clients, publish its
+TCP multiaddress alongside the WebSocket address:</p>
+<pre><code class="bash"><span class="hl-6">XMPP_P2P_BOOTSTRAP_OUTPUT</span><span class="hl-1">=</span><span class="hl-2">&#39;ui/dist/bootstrap-config.json&#39;</span><span class="hl-1"> </span><span class="hl-0">\</span><br/><span class="hl-1">XMPP_P2P_BOOTSTRAP_DOMAIN=</span><span class="hl-2">&#39;app.example.org&#39;</span><span class="hl-1"> </span><span class="hl-5">\</span><br/><span class="hl-1">XMPP_P2P_BOOTSTRAP_WSS=true </span><span class="hl-5">\</span><br/><span class="hl-1">npm </span><span class="hl-2">start</span><span class="hl-1"> </span><span class="hl-4">--</span><span class="hl-1"> </span><span class="hl-4">--port=4001</span><span class="hl-1"> </span><span class="hl-4">--relay</span><span class="hl-1"> </span><span class="hl-5">\</span><br/><span class="hl-1">  </span><span class="hl-4">--public-tcp-address=/ip4/</span><span class="hl-1">&lt;</span><span class="hl-4">public-ip</span><span class="hl-1">&gt;</span><span class="hl-4">/tcp/4001/p2p/</span><span class="hl-1">&lt;</span><span class="hl-4">peer-id</span><span class="hl-1">&gt;</span>
+</code><button type="button">Copy</button></pre>
+
+<p>Use the node's actual Peer ID and ensure the TCP port is reachable from the
+internet. <code>XMPP_P2P_BOOTSTRAP_OUTPUT</code> must be configured so the node publishes
+its signed Nostr announcement. TCP addresses supplement the WebSocket address
+used by browser clients.</p>
+<p>The remote deploy script accepts <code>XMPP_P2P_NOSTR_RELAYS</code> and the optional
+<code>XMPP_P2P_NOSTR_SECRET_KEY</code> environment variables.
+It transfers the signing key over SSH in a mode-0600 temporary file, then installs
+it in <code>/etc/xmpp-p2p/nostr.env</code> as root-owned mode 0640 for the service group.
+Without an imported key, the daemon generates one in <code>/var/lib/xmpp-p2p</code>, which
+survives application redeploys. The key is not printed in deploy output or placed
+in the browser config.</p>
 <h3 id="running-verification-tests" class="tsd-anchor-link">Running Verification Tests<a href="#running-verification-tests" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <p>The codebase includes an extensive suite of automated verification scripts checking all the XEP implementations. To run the full test suite (which automatically builds the project first):</p>
 <pre><code class="bash"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">test</span>
@@ -94,74 +202,25 @@
 <li><strong>HTTP File Uploads</strong>: <code>npm run test-uploads</code></li>
 <li><strong>Service Discovery</strong>: <code>npm run test-disco</code></li>
 </ul>
+<h4 id="browser-checks-against-a-real-xmpp-server" class="tsd-anchor-link">Browser checks against a real XMPP server<a href="#browser-checks-against-a-real-xmpp-server" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
+<p>The opt-in browser integration test connects through Settings, exchanges a
+direct message and a room message, and publishes/follows XMPP PEP posts. The
+Settings connection check needs <code>XMPP_TEST_JID</code>, <code>XMPP_TEST_PASSWORD</code>, and
+<code>XMPP_TEST_SERVICE</code>. The two-client checks also need a second, distinct account
+in <code>XMPP_TEST_PEER_JID</code> and <code>XMPP_TEST_PEER_PASSWORD</code>. The paired checks are
+skipped when that second account is not configured.</p>
+<pre><code class="bash"><span class="hl-6">XMPP_TEST_JID</span><span class="hl-1">=</span><span class="hl-2">alice@example.test</span><span class="hl-1"> </span><span class="hl-0">\</span><br/><span class="hl-1">XMPP_TEST_PASSWORD=</span><span class="hl-2">&#39;local-test-password&#39;</span><span class="hl-1"> </span><span class="hl-5">\</span><br/><span class="hl-1">XMPP_TEST_PEER_JID=bob@example.test </span><span class="hl-5">\</span><br/><span class="hl-1">XMPP_TEST_PEER_PASSWORD=</span><span class="hl-2">&#39;another-test-password&#39;</span><span class="hl-1"> </span><span class="hl-5">\</span><br/><span class="hl-1">XMPP_TEST_SERVICE=wss://xmpp.example.test/xmpp-websocket </span><span class="hl-5">\</span><br/><span class="hl-1">npm </span><span class="hl-2">run</span><span class="hl-1"> </span><span class="hl-2">test-browser-e2e</span><span class="hl-1"> </span><span class="hl-4">--</span><span class="hl-1"> </span><span class="hl-2">tests-e2e/xmpp-live-bridge.spec.ts</span>
+</code><button type="button">Copy</button></pre>
+
+<p>Certificate errors are ignored only for <code>localhost</code> and loopback endpoints used
+by local test servers. Public WebSocket endpoints must have a valid certificate.</p>
 <hr>
-<h2 id="cli-commands-reference" class="tsd-anchor-link">CLI Commands Reference<a href="#cli-commands-reference" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
-<p>Type <code>help</code> in the CLI to see all available commands. You can also use scoped help like <code>help feed</code>, <code>help feed post</code>, or <code>help profile set</code> to narrow the output. The main command categories are:</p>
-<table>
-<thead>
-<tr>
-<th>Category</th>
-<th>Commands</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>System</strong></td>
-<td><code>id</code>, <code>peers</code>, <code>dial</code>, <code>ping</code>, <code>help</code>, <code>exit</code></td>
-<td>View local identifiers, discover peers, manually connect, and test latency.</td>
-</tr>
-<tr>
-<td><strong>Messaging</strong></td>
-<td><code>msg &lt;peer&gt; &lt;text&gt;</code> <br> <code>msg secure &lt;peer&gt; &lt;text&gt;</code> <br> <code>msg correct [secure] &lt;peer&gt; &lt;id&gt; &lt;text&gt;</code> <br> <code>msg state &lt;peer&gt; &lt;state&gt;</code></td>
-<td>Send plaintext or OMEMO-encrypted direct messages, correct previous messages, or send chat states.</td>
-</tr>
-<tr>
-<td><strong>Presence &amp; Profile</strong></td>
-<td><code>presence &lt;status&gt;</code> <br> <code>presence subscribe/unsubscribe &lt;peer&gt;</code> <br> <code>presence send &lt;peer&gt; [type] [--show &lt;show&gt;] [--status &lt;msg&gt;]</code> <br> <code>profile [show]</code> <br> <code>profile set [--fn &lt;name&gt;] [--nick &lt;nickname&gt;] [--photo &lt;path&gt;] [--photo-type &lt;mime&gt;]</code> <br> <code>profile clear-photo</code> <br> <code>nick &lt;name&gt;</code></td>
-<td>Broadcast custom status, send direct presence stanzas, view or update local profile details, manage presence subscriptions, or set nickname.</td>
-</tr>
-<tr>
-<td><strong>Roster</strong></td>
-<td><code>roster list</code> <br> <code>roster add &lt;jid&gt; [name]</code> <br> <code>roster remove &lt;jid&gt;</code> <br> <code>roster fetch &lt;peer&gt;</code></td>
-<td>Manage and retrieve contact roster.</td>
-</tr>
-<tr>
-<td><strong>Feeds</strong></td>
-<td><code>feed post &lt;msg&gt; [--title &lt;title&gt;] [--tag &lt;tag&gt;] [--cover &lt;path&gt;]</code> <br> <code>feed article &lt;msg&gt; [--title &lt;title&gt;] [--tag &lt;tag&gt;] [--cover &lt;path&gt;] [--cover-target &lt;peer&gt;]</code> <br> <code>feed subscribe &lt;peer&gt; [public/private]</code> <br> <code>feed public</code> <br> <code>feed list</code> <br> <code>feed followers &lt;peer&gt;</code></td>
-<td>Publish feed updates and articles, follow peers, inspect public subscriptions, view posts, and track followers.</td>
-</tr>
-<tr>
-<td><strong>Collections</strong></td>
-<td><code>collection create &lt;id&gt; [name]</code> <br> <code>collection join &lt;id&gt;</code> <br> <code>collection leave &lt;id&gt;</code> <br> <code>collection post &lt;id&gt; &lt;msg&gt;</code> <br> <code>collection subscriptions</code> <br> <code>collection posts [id]</code></td>
-<td>Group multiple user feeds into unified channels and publish community posts.</td>
-</tr>
-<tr>
-<td><strong>Discovery</strong></td>
-<td><code>disco info &lt;peer&gt; [node]</code> <br> <code>disco items &lt;peer&gt; [node]</code> <br> <code>disco caps &lt;peer&gt; [node]</code></td>
-<td>Query service discovery info, items, and capabilities.</td>
-</tr>
-<tr>
-<td><strong>MUC Rooms</strong></td>
-<td><code>muc-join &lt;room&gt; &lt;nick&gt;</code> <br> <code>muc-send &lt;room&gt; &lt;msg&gt;</code> <br> <code>muc-send-secure &lt;room&gt; &lt;msg&gt;</code> <br> <code>muc-roster &lt;room&gt;</code></td>
-<td>Decentralized multi-user group chat rooms.</td>
-</tr>
-<tr>
-<td><strong>OMEMO / PGP</strong></td>
-<td><code>omemo key</code>, <code>omemo fetch &lt;peer&gt;</code> <br> <code>openpgp key</code>, <code>openpgp fetch &lt;peer&gt;</code></td>
-<td>View local cryptographic keys or fetch keys from a remote peer.</td>
-</tr>
-<tr>
-<td><strong>PubSub</strong></td>
-<td><code>pubsub-sub &lt;topic&gt;</code>, <code>pubsub-pub &lt;topic&gt; &lt;msg&gt;</code> <br> <code>pubsub-react &lt;topic&gt; &lt;id&gt; &lt;emoji&gt;</code> <br> <code>pubsub-attachments [topic]</code></td>
-<td>Generic PubSub topic subscriptions, emoji reactions, and attachment logs.</td>
-</tr>
-</tbody>
-</table>
+<h2 id="terminal-ui" class="tsd-anchor-link">Terminal UI<a href="#terminal-ui" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<p>The terminal client opens the feed, topics, compose, chats, profile, and settings views. Use <code>Tab</code> to focus navigation, <code>Escape</code> to go back, and <code>q</code> or <code>Ctrl-C</code> to exit.</p>
 <hr>
 <h2 id="project-structure" class="tsd-anchor-link">Project Structure<a href="#project-structure" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
 <ul>
-<li><code>src/index.ts</code>: CLI entry point.</li>
+<li><code>src/index.ts</code>: Terminal client entry point.</li>
 <li><code>src/core/</code>: Protocol logic and core network nodes.
 <ul>
 <li><code>p2p.ts</code>: Configures and constructs the underlying libp2p node (transports, Noise, Yamux, Gossipsub, DHT).</li>
@@ -172,7 +231,7 @@
 <li><code>xmpp-omemo.ts</code> &amp; <code>xmpp-omemo-state.ts</code>: Handle cryptographic sessions and key bundle management for OMEMO E2EE.</li>
 </ul>
 </li>
-<li><code>src/cli/</code>: Handles CLI parsing, interactive keyboard sessions, events, and print formatting.</li>
+<li><code>src/tui/</code>: Handles the terminal UI, pages, events, and state bridge.</li>
 <li><code>src/tests/</code>: Executable verification scripts for testing features across mock nodes.</li>
 </ul>
-</div></div><div class="col-sidebar"><div class="page-menu"><div class="tsd-navigation settings"><details class="tsd-accordion"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-chevronDown"></use></svg><h3>Settings</h3></summary><div class="tsd-accordion-details"><div class="tsd-filter-visibility"><span class="settings-label">Member Visibility</span><ul id="tsd-filter-options"><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-protected" name="protected"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Protected</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-external" name="external"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>External</span></label></li></ul></div><div class="tsd-theme-toggle"><label class="settings-label" for="tsd-theme">Theme</label><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div><details open class="tsd-accordion tsd-page-navigation"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-chevronDown"></use></svg><h3>On This Page</h3></summary><div class="tsd-accordion-details"><a href="#xmpp-p2p-xmpp-over-libp2p"><span>XMPP <wbr/>P2<wbr/>P (<wbr/>XMPP over libp2p)</span></a><ul><li><a href="#project-overview"><span>Project <wbr/>Overview</span></a></li><li><a href="#features"><span>Features</span></a></li><li><a href="#setup-building"><span>Setup &amp; <wbr/>Building</span></a></li><li><ul><li><a href="#prerequisites"><span>Prerequisites</span></a></li><li><a href="#installation"><span>Installation</span></a></li><li><a href="#building-the-project"><span>Building the <wbr/>Project</span></a></li><li><a href="#documentation"><span>Documentation</span></a></li></ul></li><li><a href="#running-the-application"><span>Running the <wbr/>Application</span></a></li><li><ul><li><a href="#starting-the-cli"><span>Starting the <wbr/>CLI</span></a></li><li><a href="#starting-the-frontend"><span>Starting the <wbr/>Frontend</span></a></li><li><a href="#running-verification-tests"><span>Running <wbr/>Verification <wbr/>Tests</span></a></li></ul></li><li><a href="#cli-commands-reference"><span>CLI <wbr/>Commands <wbr/>Reference</span></a></li><li><a href="#project-structure"><span>Project <wbr/>Structure</span></a></li></ul></div></details></div><div class="site-menu"><nav class="tsd-navigation"><a href="modules.html">xmpp_p2p</a><ul class="tsd-small-nested-navigation" id="tsd-nav-container"><li>Loading...</li></ul></nav></div></div></div><footer><p class="tsd-generator">Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></footer><div class="overlay"></div></body></html>
+</div></div><div class="col-sidebar"><div class="page-menu"><div class="tsd-navigation settings"><details class="tsd-accordion"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-chevronDown"></use></svg><h3>Settings</h3></summary><div class="tsd-accordion-details"><div class="tsd-filter-visibility"><span class="settings-label">Member Visibility</span><ul id="tsd-filter-options"><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-protected" name="protected"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Protected</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-external" name="external"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>External</span></label></li></ul></div><div class="tsd-theme-toggle"><label class="settings-label" for="tsd-theme">Theme</label><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div><details open class="tsd-accordion tsd-page-navigation"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-chevronDown"></use></svg><h3>On This Page</h3></summary><div class="tsd-accordion-details"><a href="#xmpp-p2p-xmpp-over-libp2p"><span>XMPP <wbr/>P2<wbr/>P (<wbr/>XMPP over libp2p)</span></a><ul><li><a href="#project-overview"><span>Project <wbr/>Overview</span></a></li><li><a href="#features"><span>Features</span></a></li><li><a href="#setup-building"><span>Setup &amp; <wbr/>Building</span></a></li><li><ul><li><a href="#prerequisites"><span>Prerequisites</span></a></li><li><a href="#installation"><span>Installation</span></a></li><li><a href="#building-the-project"><span>Building the <wbr/>Project</span></a></li><li><a href="#cross-platform-builds"><span>Cross-<wbr/>platform builds</span></a></li><li><a href="#documentation"><span>Documentation</span></a></li></ul></li><li><a href="#running-the-application"><span>Running the <wbr/>Application</span></a></li><li><ul><li><a href="#starting-the-terminal-client"><span>Starting the terminal client</span></a></li><li><a href="#starting-the-frontend"><span>Starting the <wbr/>Frontend</span></a></li><li><a href="#browser-peer-connectivity"><span>Browser peer connectivity</span></a></li><li><ul><li><a href="#nostr-peer-discovery"><span>Nostr peer discovery</span></a></li></ul></li><li><a href="#running-verification-tests"><span>Running <wbr/>Verification <wbr/>Tests</span></a></li><li><ul><li><a href="#browser-checks-against-a-real-xmpp-server"><span>Browser checks against a real <wbr/>XMPP server</span></a></li></ul></li></ul></li><li><a href="#terminal-ui"><span>Terminal <wbr/>UI</span></a></li><li><a href="#project-structure"><span>Project <wbr/>Structure</span></a></li></ul></div></details></div><div class="site-menu"><nav class="tsd-navigation"><a href="modules.html">xmpp_p2p</a><ul class="tsd-small-nested-navigation" id="tsd-nav-container"><li>Loading...</li></ul></nav></div></div></div><footer><p class="tsd-generator">Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></footer><div class="overlay"></div></body></html>
