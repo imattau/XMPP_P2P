@@ -44,8 +44,8 @@ jobs:
       - name: Install Playwright Browser
         run: npx playwright install --with-deps chromium
 
-      - name: Run Browser E2E Tests
-        run: npm run test-browser-e2e
+      - name: Run Browser Smoke Tests
+        run: npm run test-browser-smoke
 
   deploy-docs:
     needs: build-and-test

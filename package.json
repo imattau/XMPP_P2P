@@ -52,6 +52,7 @@
     "test-xmpp-discovery": "node dist/tests/xmpp-discovery.js",
     "test": "npm run build && npm run test-nodes && npm run test-pubsub && npm run test-dht && npm run test-dht-mailbox && npm run test-omemo && npm run test-roster && npm run test-feed && npm run test-server-microblog-publish && npm run test-attachments && npm run test-uploads && npm run test-subscriptions && npm run test-disco && npm run test-protocol && npm run test-collection && npm run test-muc && npm run test-muc-omemo && npm run test-reliability && npm run test-reconnect && npm run test-server-bridge-routing && npm run test-xmpp-discovery && npm run test-storage-node-sqlite && npm run test-storage-indexeddb && npm run test-p2p-browser && npm run test-nostr-bootstrap && npm run test-persistence-storage && npm run test-openpgp-storage && npm run test-omemo-state-storage && npm run test-uploads-storage && npm run test-omemo-runtime-browser",
     "pretest-browser-e2e": "npm run ui:build && node esbuild.fixture.mjs",
+    "test-browser-smoke": "playwright test tests-e2e/topic-source-follow.spec.ts tests-e2e/ui-onboarding.spec.ts --grep \"Topics discover P2P and XMPP sources|shows welcome page for unauthenticated users\"",
     "test-browser-e2e": "npx playwright test",
     "test:electron": "npx playwright test tests-e2e/electron.spec.ts",
     "docs": "typedoc --out docs --entryPointStrategy expand src"
