@@ -239,14 +239,13 @@ describe('getReadTime', () => {
 })
 
 describe('createNewArticle', () => {
-  it('creates a default article with two blocks', () => {
+  it('creates a default article with an empty paragraph block', () => {
     const article = createNewArticle()
     expect(article.id).toBeTruthy()
     expect(article.title).toBe('')
     expect(article.status).toBe('draft')
-    expect(article.blocks.length).toBe(2)
-    expect(article.blocks[0].type).toBe('heading')
-    expect(article.blocks[1].type).toBe('paragraph')
+    expect(article.blocks).toHaveLength(1)
+    expect(article.blocks[0]).toMatchObject({ type: 'paragraph', content: '' })
   })
 
   it('applies overrides', () => {
