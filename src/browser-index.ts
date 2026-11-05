@@ -18,25 +18,38 @@ import { keyFromRecoveryPhrase, type IdentityKeyStore } from './core/identity-ke
 import type { RssFeedFetcher } from './core/rss-feeds.js'
 
 /** Use native HTTP on Android/iOS so feed servers do not need WebView CORS headers. */
-const rssFeedFetcher: RssFeedFetcher | undefined = Capacitor.isNativePlatform()
-  ? async (url, init) => {
-      const response = await CapacitorHttp.request({
-        url,
-        method: 'GET',
-        headers: Object.fromEntries(new Headers(init.headers).entries()),
-        responseType: 'text',
-        connectTimeout: 12_000,
-        readTimeout: 12_000,
-        disableRedirects: true,
-      })
-      const headers = new Headers()
-      for (const [name, value] of Object.entries(response.headers)) headers.set(name, value)
-      return new Response(typeof response.data === 'string' ? response.data : String(response.data ?? ''), {
-        status: response.status,
-        headers,
-      })
-    }
-  : undefined
+const rssFeedFetcher: RssFeedFetcher = async (url, init) => {
+  // Check at request time because the Capacitor bridge may initialize after this
+  // module is evaluated in the WebView.
+  if (!Capacitor.isNativePlatform()) {
+    return fetch(url, init)
+  }
+
+  const requestHeaders = Object.fromEntries(new Headers(init.headers).entries())
+  requestHeaders.accept ??= 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*'
+  const response = await CapacitorHttp.request({
+    url,
+    method: 'GET',
+    headers: requestHeaders,
+    responseType: 'text',
+    connectTimeout: 12_000,
+    readTimeout: 12_000,
+    disableRedirects: true,
+  })
+  const headers = new Headers()
+  for (const [name, value] of Object.entries(response.headers)) {
+    // Android's HttpURLConnection includes a null-key HTTP status line.
+    if (name.toLowerCase() !== 'null') headers.set(name, value)
+  }
+  const nativeResponse = new Response(typeof response.data === 'string' ? response.data : String(response.data ?? ''), {
+    status: response.status,
+    headers,
+  })
+  // A native client may return the final URL if the server ignored the manual
+  // redirect setting; preserve it so feed identity uses the canonical address.
+  if (response.url) Object.defineProperty(nativeResponse, 'url', { value: response.url })
+  return nativeResponse
+}
 
 export interface CreateBrowserXmppClientOptions {
   bootstrapAddrs: string[]
