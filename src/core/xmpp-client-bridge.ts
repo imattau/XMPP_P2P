@@ -52,7 +52,7 @@ export interface ServerPubsubEvent {
   payload?: { body?: string; entry?: Element }
 }
 
-export type ServerPubsubSubscriptionStatus = 'subscribed' | 'pending' | 'unconfigured'
+export type ServerPubsubSubscriptionStatus = 'subscribed' | 'pending' | 'unconfigured' | 'polling'
 
 export interface ServerDiscoInfoResult {
   identities: Array<{ category: string; type: string; name?: string }>
@@ -987,11 +987,24 @@ export class XmppClientBridge extends EventEmitter {
   }
 
   async pubsubSubscribe(nodeJid: string, node: string): Promise<ServerPubsubSubscriptionStatus> {
-    const result = await this.sendIQ(nodeJid, 'set',
-      xml('pubsub', { xmlns: NS_PUBSUB },
-        xml('subscribe', { node, jid: this.client?.jid?.toString().split('/')[0] || '' })
-      ), 10_000
-    )
+    let result: Element
+    try {
+      result = await this.sendIQ(nodeJid, 'set',
+        xml('pubsub', { xmlns: NS_PUBSUB },
+          xml('subscribe', { node, jid: this.client?.jid?.toString().split('/')[0] || '' })
+        ), 10_000
+      )
+    } catch (subscriptionError) {
+      // Some servers allow reading a contact's PEP node but reject explicit
+      // push subscriptions. In that case, let the caller follow it locally via
+      // periodic item retrieval instead of failing the whole operation.
+      try {
+        await this.pubsubGetItems(nodeJid, node, 1, 5_000)
+        return 'polling'
+      } catch {
+        throw subscriptionError
+      }
+    }
     const subscription = result.getChild('pubsub')?.getChild('subscription')
     const state = subscription?.attrs.subscription
     if (state === 'pending') return 'pending'

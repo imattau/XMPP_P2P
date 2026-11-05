@@ -21,7 +21,7 @@ import { getAccountScopedStorageKey } from '../lib/account-storage'
 
 const SERVER_MICROBLOGS_KEY = 'xmpp-p2p:server-microblog-subscriptions'
 const SERVER_MICROBLOG_STATUSES_KEY = 'xmpp-p2p:server-microblog-statuses'
-type ServerMicroblogStatus = 'subscribed' | 'pending' | 'unconfigured'
+type ServerMicroblogStatus = 'subscribed' | 'pending' | 'unconfigured' | 'polling'
 
 function serverMicroblogsStorageKey() {
   return getAccountScopedStorageKey(SERVER_MICROBLOGS_KEY)
@@ -43,7 +43,7 @@ function readServerMicroblogStatuses(): Record<string, ServerMicroblogStatus> {
     const parsed = raw ? JSON.parse(raw) : {}
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
     return Object.fromEntries(Object.entries(parsed).filter((entry): entry is [string, ServerMicroblogStatus] =>
-      entry[1] === 'subscribed' || entry[1] === 'pending' || entry[1] === 'unconfigured'
+      entry[1] === 'subscribed' || entry[1] === 'pending' || entry[1] === 'unconfigured' || entry[1] === 'polling'
     ))
   } catch { return {} }
 }
@@ -397,6 +397,21 @@ export default function FeedPage() {
     }
   }, [identity?.jid, serverConnected, serverMicroblogBridge, serverMicroblogStatuses, serverMicroblogSubscriptions])
 
+  useEffect(() => {
+    if (!serverConnected || !serverMicroblogBridge?.refreshServerMicroblog) return
+    const pollingJids = serverMicroblogSubscriptions.filter((jid) => serverMicroblogStatuses[jid] === 'polling')
+    if (pollingJids.length === 0) return
+    const refreshPollingFeeds = () => {
+      for (const jid of pollingJids) {
+        void serverMicroblogBridge.refreshServerMicroblog!(jid).catch((error) => {
+          console.warn(`[XMPP] Could not refresh followed microblog ${jid}:`, error)
+        })
+      }
+    }
+    const interval = window.setInterval(refreshPollingFeeds, 60_000)
+    return () => window.clearInterval(interval)
+  }, [serverConnected, serverMicroblogBridge, serverMicroblogStatuses, serverMicroblogSubscriptions])
+
   const serverMicroblogContacts = contacts.filter((contact) => {
     const jid = contact.jid.split('/')[0].toLowerCase()
     return jid.includes('@') && !jid.endsWith('@p2p')
@@ -433,7 +448,13 @@ export default function FeedPage() {
       try {
         if (identity?.jid) refreshedServerMicroblogs.current.add(`${identity.jid.toLowerCase()}::${bareJid}`)
         const imported = await bridge.refreshServerMicroblog(bareJid)
-        emitToast(imported ? `Following ${bareJid}; loaded ${imported} recent post${imported === 1 ? '' : 's'}` : `Following ${bareJid}; no recent posts were available`, 'success')
+        if (subscriptionStatus === 'polling') {
+          emitToast(imported
+            ? `Following ${bareJid} with periodic refresh; loaded ${imported} recent post${imported === 1 ? '' : 's'}`
+            : `Following ${bareJid} with periodic refresh; no recent posts were available`, 'success')
+        } else {
+          emitToast(imported ? `Following ${bareJid}; loaded ${imported} recent post${imported === 1 ? '' : 's'}` : `Following ${bareJid}; no recent posts were available`, 'success')
+        }
       } catch (error) {
         emitToast(`Following ${bareJid}, but recent posts could not be loaded: ${error instanceof Error ? error.message : 'request failed'}`, 'error')
       }
@@ -450,7 +471,9 @@ export default function FeedPage() {
     const bareJid = jid.split('/')[0].toLowerCase()
     setServerMicroblogBusy((current) => ({ ...current, [bareJid]: 'unfollow' }))
     try {
-      await bridge.unsubscribeServerMicroblog(bareJid)
+      if (serverMicroblogStatuses[bareJid] !== 'polling') {
+        await bridge.unsubscribeServerMicroblog(bareJid)
+      }
       const next = serverMicroblogSubscriptions.filter((item) => item !== bareJid)
       const nextStatuses = { ...serverMicroblogStatuses }
       delete nextStatuses[bareJid]
@@ -473,7 +496,7 @@ export default function FeedPage() {
     try {
       if (identity?.jid) refreshedServerMicroblogs.current.add(`${identity.jid.toLowerCase()}::${bareJid}`)
       const imported = await bridge.refreshServerMicroblog(bareJid)
-      if (serverMicroblogStatuses[bareJid] !== 'subscribed') {
+      if (serverMicroblogStatuses[bareJid] !== 'subscribed' && serverMicroblogStatuses[bareJid] !== 'polling') {
         const nextStatuses = { ...serverMicroblogStatuses, [bareJid]: 'subscribed' as const }
         setServerMicroblogStatuses(nextStatuses)
         saveServerMicroblogSubscriptions(serverMicroblogSubscriptions, nextStatuses)
@@ -828,6 +851,7 @@ export default function FeedPage() {
                             <p className="truncate text-xs font-medium text-foreground">{contact?.name || contact?.nickname || jid}</p>
                             <p className="hidden truncate font-mono text-[10px] text-muted-foreground sm:block">{jid}</p>
                             {followed && serverMicroblogStatuses[jid] === 'pending' && <p role="status" className="text-[10px] text-warn">Awaiting approval from this contact</p>}
+                            {followed && serverMicroblogStatuses[jid] === 'polling' && <p role="status" className="text-[10px] text-muted-foreground">Push subscriptions unavailable; refreshing every minute while Feed is open</p>}
                             {!followed && serverMicroblogStatuses[jid] === 'unconfigured' && <p role="status" className="text-[10px] text-warn">The server requires subscription options; the follow request was not accepted</p>}
                           </div>
                           {followed ? (

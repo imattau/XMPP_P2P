@@ -250,7 +250,7 @@ export interface XmppRuntimeBridge {
   queryServerChatHistory?(withJid: string, before?: string): Promise<{ before?: string; hasMore: boolean }>
   queryServerMucHistory?(roomJid: string, before?: string): Promise<{ before?: string; hasMore: boolean }>
   discoverServerMucRooms?(): Promise<BridgeServerMucRoom[]>
-  subscribeServerMicroblog?(jid: string): Promise<'subscribed' | 'pending' | 'unconfigured'>
+  subscribeServerMicroblog?(jid: string): Promise<'subscribed' | 'pending' | 'unconfigured' | 'polling'>
   unsubscribeServerMicroblog?(jid: string): Promise<void>
   refreshServerMicroblog?(jid: string): Promise<number>
   publishServerMicroblog?(body: string, options?: { itemId?: string; title?: string; summary?: string; categories?: string[]; author?: string; displayContent?: string; articlePayload?: string }): Promise<string>

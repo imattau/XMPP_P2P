@@ -290,7 +290,7 @@ export class BrowserXmppRuntimeBridge {
     return this.xmppNode.discoverServerMucRooms()
   }
 
-  async subscribeServerMicroblog(jid: string): Promise<'subscribed' | 'pending' | 'unconfigured'> {
+  async subscribeServerMicroblog(jid: string): Promise<'subscribed' | 'pending' | 'unconfigured' | 'polling'> {
     await this.xmppNode.ready
     return this.xmppNode.subscribeServerMicroblog(jid)
   }
