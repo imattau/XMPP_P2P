@@ -352,6 +352,7 @@ export default function FeedPage() {
   const [rssFeeds, setRssFeeds] = useState<BridgeRssFeedSource[]>([])
   const [showAddRssFeed, setShowAddRssFeed] = useState(false)
   const [rssFeedUrl, setRssFeedUrl] = useState('')
+  const [shareRssToP2P, setShareRssToP2P] = useState(false)
   const [rssPreviews, setRssPreviews] = useState<BridgeRssFeedPreview[]>([])
   const [selectedRssPreview, setSelectedRssPreview] = useState('')
   const [rssFeedBusy, setRssFeedBusy] = useState(false)
@@ -769,13 +770,14 @@ export default function FeedPage() {
     setRssFeedBusy(true)
     setRssFeedError('')
     try {
-      const source = await serverMicroblogBridge.addRssFeed(selectedRssPreview)
+      const source = await serverMicroblogBridge.addRssFeed(selectedRssPreview, { shareToP2P: shareRssToP2P })
       await reloadRssFeeds()
       setShowAddRssFeed(false)
       setRssFeedUrl('')
       setRssPreviews([])
       setSelectedRssPreview('')
-      emitToast(`Added ${source.title}`, 'success')
+      setShareRssToP2P(false)
+      emitToast(source.shareError ? `Added ${source.title}; some posts could not be shared` : `Added ${source.title}${source.shareToP2P ? ' and shared its latest posts to P2P' : ''}`, source.shareError ? 'error' : 'success')
       void refresh()
     } catch (error) {
       setRssFeedError(error instanceof Error ? error.message : 'Could not add this feed.')
@@ -803,6 +805,17 @@ export default function FeedPage() {
       await serverMicroblogBridge.setRssFeedPaused(source.id, source.status !== 'paused')
       await reloadRssFeeds()
     } catch (error) { emitToast(error instanceof Error ? error.message : 'Could not update feed source', 'error') }
+    finally { setRssFeedActions((current) => ({ ...current, [source.id]: false })) }
+  }
+
+  const toggleRssSourceSharing = async (source: BridgeRssFeedSource) => {
+    if (!serverMicroblogBridge?.setRssFeedSharing) return
+    setRssFeedActions((current) => ({ ...current, [source.id]: true }))
+    try {
+      await serverMicroblogBridge.setRssFeedSharing(source.id, !source.shareToP2P)
+      await reloadRssFeeds()
+      emitToast(source.shareToP2P ? `Stopped sharing new posts from ${source.title}` : `Sharing ${source.title} over P2P`, 'success')
+    } catch (error) { emitToast(error instanceof Error ? error.message : 'Could not update P2P sharing', 'error') }
     finally { setRssFeedActions((current) => ({ ...current, [source.id]: false })) }
   }
 
@@ -1015,7 +1028,7 @@ export default function FeedPage() {
                   Follow author feeds or add an RSS/Atom source. Topic follows are local filters; adding a feed subscribes to that external source.
                 </p>
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-[11px] text-muted-foreground">Feeds refresh while Feed is open. Their posts stay local and aren’t republished.</p>
+                  <p className="text-[11px] text-muted-foreground">Feeds refresh while Feed is open. Sharing is off unless you opt in for a source.</p>
                   <button type="button" onClick={() => { setShowAddRssFeed((open) => !open); setRssFeedError('') }} aria-expanded={showAddRssFeed}
                     className="min-h-11 rounded-md bg-primary px-3 text-[11px] font-semibold text-primary-foreground hover:bg-primary/90">
                     {showAddRssFeed ? 'Close add feed' : 'Add RSS/Atom feed'}
@@ -1047,6 +1060,10 @@ export default function FeedPage() {
                             {preview.entries[0] && <span className="mt-2 block truncate text-xs text-muted-foreground">Latest: {preview.entries[0].title}{preview.entries[0].summary ? ` — ${preview.entries[0].summary}` : ''}</span>}
                           </button>
                         ))}
+                        <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-border bg-card p-3 text-xs text-foreground">
+                          <input type="checkbox" checked={shareRssToP2P} onChange={(event) => setShareRssToP2P(event.target.checked)} className="mt-0.5 accent-primary" />
+                          <span><span className="block font-semibold">Share posts over P2P</span><span className="mt-0.5 block text-[11px] text-muted-foreground">Republish up to 30 latest entries now and new entries on future refreshes to your public P2P feed, with a link to the original.</span></span>
+                        </label>
                         <button type="button" onClick={() => void subscribeRssFeed()} disabled={!selectedRssPreview || rssFeedBusy}
                           className="min-h-11 rounded-lg bg-primary px-4 text-xs font-semibold text-primary-foreground disabled:opacity-50">
                           {rssFeedBusy ? 'Adding…' : 'Subscribe to feed'}
@@ -1064,8 +1081,9 @@ export default function FeedPage() {
                           <div className="min-w-0 flex-1 basis-40">
                             <p className="truncate text-xs font-medium text-foreground">{source.title}</p>
                             <p className="truncate font-mono text-[10px] text-muted-foreground">{source.url}</p>
-                            <p className={`text-[10px] ${source.status === 'error' ? 'text-destructive' : 'text-muted-foreground'}`}>
+                            <p className={`text-[10px] ${source.status === 'error' || source.shareError ? 'text-destructive' : 'text-muted-foreground'}`}>
                               {source.status === 'paused' ? 'Paused' : source.status === 'error' ? source.lastError || 'Could not refresh' : `${source.format.toUpperCase()}${source.lastFetchedAt ? ` · Updated ${new Date(source.lastFetchedAt).toLocaleString()}` : ''}`}
+                              {source.status !== 'paused' && ` · ${source.shareToP2P ? source.shareError ? `P2P sharing issue: ${source.shareError}` : 'Sharing to P2P' : 'Local only'}`}
                             </p>
                           </div>
                           <button type="button" disabled={rssFeedActions[source.id] || source.status === 'paused'} onClick={() => void refreshRssSource(source)}
@@ -1075,6 +1093,9 @@ export default function FeedPage() {
                             <div className="absolute right-0 top-full z-20 min-w-48 rounded-xl border border-border bg-card p-1 shadow-xl">
                               <button type="button" disabled={rssFeedActions[source.id]} onClick={() => void toggleRssSourcePaused(source)} className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-xs hover:bg-secondary">
                                 {source.status === 'paused' ? 'Resume updates' : 'Pause updates'}
+                              </button>
+                              <button type="button" disabled={rssFeedActions[source.id]} onClick={() => void toggleRssSourceSharing(source)} className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-xs hover:bg-secondary">
+                                {source.shareToP2P ? 'Stop sharing new posts' : 'Share posts over P2P'}
                               </button>
                               <button type="button" disabled={rssFeedActions[source.id]} onClick={() => void removeRssSource(source, true)} className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-xs hover:bg-secondary">
                                 Remove source, keep posts

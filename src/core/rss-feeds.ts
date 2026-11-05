@@ -25,6 +25,11 @@ export type RssFeedSource = {
   failureCount?: number
   etag?: string
   lastModified?: string
+  /** Whether newly fetched items are republished to this account's P2P feed. */
+  shareToP2P?: boolean
+  /** Item ids already published, retained to make retries idempotent. */
+  sharedEntryIds?: string[]
+  shareError?: string
   updatedAt: string
 }
 
@@ -59,6 +64,7 @@ type ParsedEntry = {
 type ParsedFeed = { title: string; siteUrl?: string; format: RssFeedFormat; entries: ParsedEntry[] }
 type FeedResponse = { status: number; headers: Headers; text: string; url: string }
 export type RssFeedFetcher = (url: string, init: RequestInit) => Promise<Response>
+export type RssFeedPublisher = (post: RssFeedPost, itemId: string) => Promise<void>
 
 const SOURCE_NS = 'rss-feed-sources'
 const ITEM_NS = 'rss-feed-items'
@@ -201,7 +207,12 @@ export class RssFeedManager {
   private readonly listeners = new Set<(post: RssFeedPost) => void>()
   private readonly inFlight = new Map<string, Promise<number>>()
 
-  constructor(private readonly storage: XmppStorage, accountId: string, fetcher: RssFeedFetcher = (url, init) => fetch(url, init)) {
+  constructor(
+    private readonly storage: XmppStorage,
+    accountId: string,
+    fetcher: RssFeedFetcher = (url, init) => fetch(url, init),
+    private readonly publisher?: RssFeedPublisher
+  ) {
     this.sourceKey = accountId.toLowerCase()
     this.itemKey = `${this.sourceKey}:`
     this.fetcher = fetcher
@@ -246,7 +257,7 @@ export class RssFeedManager {
     throw new Error('No RSS or Atom feed was found at that URL. Try a direct feed URL or a website that advertises one.')
   }
 
-  async subscribe(inputUrl: string): Promise<RssFeedSource> {
+  async subscribe(inputUrl: string, options: { shareToP2P?: boolean } = {}): Promise<RssFeedSource> {
     const url = safeUrl(inputUrl)
     const response = await this.request(url)
     const feed = parseFeed(response.text)
@@ -260,13 +271,24 @@ export class RssFeedManager {
       siteUrl: safeOptionalUrl(feed.siteUrl, response.url),
       format: feed.format,
       status: 'active',
+      shareToP2P: options.shareToP2P === true,
+      sharedEntryIds: [],
       lastFetchedAt: now,
       updatedAt: now,
       etag: response.headers.get('etag') ?? undefined,
       lastModified: response.headers.get('last-modified') ?? undefined,
     }
     const existing = (await this.listSources()).find((item) => item.id === id)
-    if (existing) return existing
+    if (existing) {
+      if (options.shareToP2P && !existing.shareToP2P) {
+        existing.shareToP2P = true
+        existing.sharedEntryIds ??= []
+        existing.updatedAt = new Date().toISOString()
+        await this.shareNewEntries(existing)
+        await this.saveSource(existing)
+      }
+      return existing
+    }
     if ((await this.listSources()).length >= MAX_SOURCES_PER_ACCOUNT) throw new Error(`You can follow up to ${MAX_SOURCES_PER_ACCOUNT} RSS/Atom feeds.`)
     await this.saveSource(source)
     await this.saveEntries(source, feed.entries)
@@ -288,6 +310,17 @@ export class RssFeedManager {
     source.lastError = undefined
     source.retryAt = undefined
     source.updatedAt = new Date().toISOString()
+    await this.saveSource(source)
+  }
+
+  async setSharing(id: string, shareToP2P: boolean): Promise<void> {
+    const source = await this.findSource(id)
+    if (!source) throw new Error('Feed source was removed.')
+    source.shareToP2P = shareToP2P
+    source.sharedEntryIds ??= []
+    source.updatedAt = new Date().toISOString()
+    if (shareToP2P) await this.shareNewEntries(source)
+    else source.shareError = undefined
     await this.saveSource(source)
   }
 
@@ -317,6 +350,7 @@ export class RssFeedManager {
         source.retryAt = undefined
         source.failureCount = 0
         source.updatedAt = now
+        await this.shareNewEntries(source)
         await this.saveSource(source)
         return 0
       }
@@ -373,7 +407,28 @@ export class RssFeedManager {
         await this.storage.deleteRecord(ITEM_NS, item.key)
       }
     }
+    if (source.shareToP2P) await this.shareNewEntries(source)
+    await this.saveSource(source)
     return added
+  }
+
+  private async shareNewEntries(source: RssFeedSource): Promise<void> {
+    if (!source.shareToP2P || !this.publisher) return
+    const shared = new Set(source.sharedEntryIds ?? [])
+    const posts = (await this.listPosts()).filter((post) => post.topic === `rss:${source.id}`)
+    let lastError: string | undefined
+    for (const post of posts.reverse()) {
+      if (shared.has(post.id)) continue
+      try {
+        const itemId = `rss-${await this.idForUrl(`${source.id}:${post.id}`)}`
+        await this.publisher(post, itemId)
+        shared.add(post.id)
+        source.sharedEntryIds = [...shared].slice(-MAX_STORED_ITEMS_PER_ACCOUNT)
+      } catch (error) {
+        lastError = error instanceof Error ? error.message : 'Could not share a feed item over P2P.'
+      }
+    }
+    source.shareError = lastError
   }
 
   private async request(url: string, headers: Record<string, string> = {}): Promise<FeedResponse> {

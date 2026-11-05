@@ -57,6 +57,7 @@ export const ASYNC_METHODS = [
   'getRssFeeds',
   'refreshRssFeed',
   'setRssFeedPaused',
+  'setRssFeedSharing',
   'removeRssFeed',
   'getPublicFeedSubscriptions',
   'watchFeedFollowers',

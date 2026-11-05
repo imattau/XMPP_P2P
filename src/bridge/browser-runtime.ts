@@ -36,7 +36,17 @@ export class BrowserXmppRuntimeBridge {
     private readonly stopNetwork: () => Promise<void> = async () => {},
     rssFeedFetcher?: RssFeedFetcher
   ) {
-    this.rssFeeds = new RssFeedManager(xmppNode.storage, xmppNode.jid, rssFeedFetcher)
+    this.rssFeeds = new RssFeedManager(xmppNode.storage, xmppNode.jid, rssFeedFetcher, async (post, itemId) => {
+      const originalUrl = post.links?.find((link) => link.rel === 'alternate')?.href ?? post.sourceUrl
+      await xmppNode.publishFeed(post.body, {
+        itemId,
+        title: post.title,
+        summary: post.summary,
+        author: post.author || post.sourceName,
+        categories: post.categories,
+        links: [{ rel: 'related', href: originalUrl, title: `Original from ${post.sourceName}` }],
+      })
+    })
     this.hookEvents()
   }
 
@@ -385,8 +395,8 @@ export class BrowserXmppRuntimeBridge {
     return this.rssFeeds.discover(url)
   }
 
-  addRssFeed(url: string): Promise<RssFeedSource> {
-    return this.rssFeeds.subscribe(url)
+  addRssFeed(url: string, options?: { shareToP2P?: boolean }): Promise<RssFeedSource> {
+    return this.rssFeeds.subscribe(url, options)
   }
 
   getRssFeeds(): Promise<RssFeedSource[]> {
@@ -399,6 +409,10 @@ export class BrowserXmppRuntimeBridge {
 
   setRssFeedPaused(id: string, paused: boolean): Promise<void> {
     return this.rssFeeds.setPaused(id, paused)
+  }
+
+  setRssFeedSharing(id: string, shareToP2P: boolean): Promise<void> {
+    return this.rssFeeds.setSharing(id, shareToP2P)
   }
 
   removeRssFeed(id: string, keepEntries = true): Promise<void> {

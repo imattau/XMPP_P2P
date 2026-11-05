@@ -132,6 +132,8 @@ export type BridgeRssFeedSource = {
   lastFetchedAt?: string
   lastError?: string
   retryAt?: string
+  shareToP2P?: boolean
+  shareError?: string
   updatedAt: string
 }
 
@@ -205,10 +207,11 @@ export interface XmppRuntimeBridge {
   followFeedSource?(source: BridgeFeedSourceRef): Promise<'subscribed' | 'pending' | 'unconfigured' | 'polling'>
   unfollowFeedSource?(source: BridgeFeedSourceRef): Promise<void>
   discoverRssFeeds?(url: string): Promise<BridgeRssFeedPreview[]>
-  addRssFeed?(url: string): Promise<BridgeRssFeedSource>
+  addRssFeed?(url: string, options?: { shareToP2P?: boolean }): Promise<BridgeRssFeedSource>
   getRssFeeds?(): Promise<BridgeRssFeedSource[]>
   refreshRssFeed?(id: string): Promise<number>
   setRssFeedPaused?(id: string, paused: boolean): Promise<void>
+  setRssFeedSharing?(id: string, shareToP2P: boolean): Promise<void>
   removeRssFeed?(id: string, keepEntries?: boolean): Promise<void>
   getPublicFeedSubscriptions(): Promise<BridgeFeedSubscriptionRecord[]>
   watchFeedFollowers(peerAddr: string): Promise<{ peerId: string; topic: string; watchedAt: string }>
