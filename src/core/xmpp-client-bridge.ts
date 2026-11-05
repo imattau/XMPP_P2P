@@ -351,8 +351,13 @@ export class XmppClientBridge extends EventEmitter {
     } else {
       const domain = requestedService || this.domain
       const discovered = await this.discoverWebSocketUrl(domain)
-      services = [...new Set([...(discovered ? [discovered] : []), ...this.defaultWsUrls(domain)])]
-        .map((url, index) => ({ url, timeoutMs: discovered && index === 0 ? 20000 : 12000 }))
+      const srvServices = this.allowNativeTcp ? await this.discoverTcpSrvServices(domain) : []
+      const websocketFallbacks = this.defaultWsUrls(domain).filter((url) => url !== discovered)
+      services = [
+        ...(discovered ? [{ url: discovered, timeoutMs: 20000 }] : []),
+        ...srvServices.map(({ url }) => ({ url, timeoutMs: 15000 })),
+        ...websocketFallbacks.map((url) => ({ url, timeoutMs: 12000 })),
+      ]
       if (this.allowNativeTcp) {
         services.push(
           { url: `xmpp://${domain}:5222`, timeoutMs: 15000 },
@@ -386,6 +391,33 @@ export class XmppClientBridge extends EventEmitter {
       .join('. ')
     this.emit('connection', { ...this.connectionInfo, status: 'error', error: this.lastError })
     throw new Error(`Failed to connect: ${this.lastError}`)
+  }
+
+  /** Resolve the XMPP client SRV records on native desktop runtimes. */
+  private async discoverTcpSrvServices(domain: string): Promise<Array<{ url: string; priority: number; weight: number }>> {
+    // Android's Capacitor WebView uses a DNS shim without SRV support. Its
+    // native connection path can still use an explicitly configured service.
+    if (typeof window !== 'undefined' || typeof process === 'undefined' || !process.versions?.electron) return []
+
+    try {
+      const { resolveSrv } = await import('node:dns/promises')
+      const queries = await Promise.all([
+        resolveSrv(`_xmpps-client._tcp.${domain}`).catch(() => []),
+        resolveSrv(`_xmpp-client._tcp.${domain}`).catch(() => []),
+      ])
+      const schemes = ['xmpps:', 'xmpp:'] as const
+      return queries.flatMap((records, index) => records
+        .filter((record) => record.name && record.name !== '.' && Number.isInteger(record.port) && record.port > 0 && record.port <= 65535)
+        .map((record) => ({
+          url: `${schemes[index]}//${record.name.replace(/\.$/, '')}:${record.port}`,
+          priority: record.priority,
+          weight: record.weight,
+        })))
+        .sort((a, b) => a.priority - b.priority || b.weight - a.weight)
+    } catch {
+      // SRV is optional; retain the standard well-known endpoint fallbacks.
+      return []
+    }
   }
 
   /**
