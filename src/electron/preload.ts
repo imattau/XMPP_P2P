@@ -74,6 +74,10 @@ function createBridge(): Record<string, unknown> {
 }
 
 contextBridge.exposeInMainWorld('__XMPP_P2P_NATIVE__', {
+  getXmppCredentials: async () => await ipcRenderer.invoke('xmpp-credentials:get'),
+  saveXmppCredentials: async (credentials: { jid: string; password: string; service?: string }) =>
+    await ipcRenderer.invoke('xmpp-credentials:save', credentials),
+  clearXmppCredentials: async () => await ipcRenderer.invoke('xmpp-credentials:clear'),
   createClient: async (options: NativeStartOptions) => {
     const result = await ipcRenderer.invoke(IPC.start, options)
     return { bridge: createBridge(), jid: result?.jid }

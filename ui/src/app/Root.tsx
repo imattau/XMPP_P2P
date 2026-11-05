@@ -11,6 +11,7 @@ import { flushOutbox, getPendingMessages } from '../lib/message-queue'
 import { appendGroupChatMessage, getGroupChatSession, isActiveGroupChat, markActiveGroupChatRead, updateGroupChatSession } from '../pages/chat-session'
 import { getMessageKind, parseAttachmentReferences } from '../bridge/chat/attachments'
 import { getPeerAddress } from '../lib/peer-addresses'
+import { loadSavedXmppCredentials } from '../lib/xmpp-credential-vault'
 
 function PageLoader() {
   return (
@@ -233,6 +234,12 @@ export default function Root() {
         if (bootstrapRevision !== bootstrapRevisionRef.current) {
           await startedBridge.disconnect()
           if (active) setRetryCount(count => count + 1)
+          return
+        }
+        const savedCredentials = await loadSavedXmppCredentials()
+        if (active && savedCredentials) {
+          void startedBridge.connectServer(savedCredentials.jid, savedCredentials.password, savedCredentials.service)
+            .catch((error: unknown) => console.warn('[XMPP] Could not restore the saved server connection:', error))
         }
       } catch (error: unknown) {
         if (active) setBridgeError(error instanceof Error ? error.message : 'Could not start the peer network')
@@ -369,12 +376,12 @@ export default function Root() {
         </div>
       )}
 
-      <div className="flex flex-1 min-h-0">
+      <div className="flex min-w-0 flex-1 min-h-0">
         <NavigationSidebar bootstrapPeersConfigured={bootstrapPeersConfigured} />
 
         <div className="flex-1 flex flex-col min-w-0 relative max-w-full">
           <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-primary/10 via-transparent to-transparent pointer-events-none" />
-          <div className="flex-1 flex flex-col min-h-0 relative">
+          <div className="flex min-w-0 flex-1 flex-col min-h-0 relative">
             <Suspense fallback={<PageLoader />}>
               <Outlet />
             </Suspense>

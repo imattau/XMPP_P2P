@@ -96,7 +96,7 @@ function ChatRow({ chat, searching = false }: { chat: Chat; searching?: boolean 
   const hasUnread = chat.unread > 0
   const chatPath = `/chat/${encodeURIComponent(chat.id)}`
   return (
-    <NavLink to={chatPath} className={`flex items-center gap-3 px-4 py-2.5 border-b border-border transition-colors md:py-3 ${hasUnread ? 'bg-white/[0.025]' : 'hover:bg-white/[0.02]'}`}>
+    <NavLink to={chatPath} className={`flex min-w-0 items-center gap-3 px-4 py-2.5 border-b border-border transition-colors md:py-3 ${hasUnread ? 'bg-white/[0.025]' : 'hover:bg-white/[0.02]'}`}>
       <div className="relative flex-shrink-0">
         {chat.type === 'direct' ? (
           <div className="relative w-10 h-10">
@@ -205,7 +205,7 @@ export default function ChatsPage() {
     && !(filtered.length === 0 && !searchQuery && (activeFilter === 'groups' || activeFilter === 'channels'))
 
   return (
-    <div className="flex flex-1 min-h-0">
+    <div className="flex min-w-0 flex-1 min-h-0">
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         <header className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border flex-shrink-0">
         <div className="flex items-center justify-between px-4 py-2.5">

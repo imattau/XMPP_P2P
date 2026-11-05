@@ -6,7 +6,7 @@
  * IPC bridge keeps a single peer identity and avoids a second browser node.
  */
 
-import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Menu, safeStorage, shell } from 'electron'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Buffer } from 'node:buffer'
@@ -36,6 +36,41 @@ let bridgeHost: IpcBridgeHost | undefined
 let stopping = false
 
 const storagePath = () => path.join(app.getPath('userData'), 'state.sqlite')
+const xmppCredentialPath = () => path.join(app.getPath('userData'), 'xmpp-credentials.enc')
+
+function assertSecureCredentialStorage(): void {
+  if (process.platform === 'linux' && safeStorage.getSelectedStorageBackend() === 'basic_text') {
+    throw new Error('Secure XMPP password storage is unavailable. Configure a system keyring (GNOME Keyring or KWallet) and restart Nexus.')
+  }
+}
+
+async function getSavedXmppCredentials(): Promise<{ jid: string; password: string; service?: string } | undefined> {
+  const file = xmppCredentialPath()
+  try {
+    const encrypted = await import('node:fs/promises').then(fs => fs.readFile(file))
+    assertSecureCredentialStorage()
+    if (!await safeStorage.isAsyncEncryptionAvailable()) throw new Error('The operating system secure storage is unavailable')
+    const { result } = await safeStorage.decryptStringAsync(encrypted)
+    const credentials = JSON.parse(result) as { jid?: unknown; password?: unknown; service?: unknown }
+    if (typeof credentials.jid !== 'string' || typeof credentials.password !== 'string') return undefined
+    return { jid: credentials.jid, password: credentials.password, service: typeof credentials.service === 'string' ? credentials.service : undefined }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined
+    throw error
+  }
+}
+
+async function saveXmppCredentials(credentials: { jid: string; password: string; service?: string }): Promise<boolean> {
+  assertSecureCredentialStorage()
+  if (!await safeStorage.isAsyncEncryptionAvailable()) throw new Error('The operating system secure storage is unavailable')
+  const encrypted = await safeStorage.encryptStringAsync(JSON.stringify(credentials))
+  const fs = await import('node:fs/promises')
+  const file = xmppCredentialPath()
+  const temporary = `${file}.tmp`
+  await fs.writeFile(temporary, encrypted, { mode: 0o600 })
+  await fs.rename(temporary, file)
+  return true
+}
 
 async function loadIdentityKey(storage: NodeSqliteStorage, recoveryPhrase?: string[]) {
   if (recoveryPhrase?.length) {
@@ -161,6 +196,18 @@ async function createWindow(): Promise<void> {
 }
 
 function registerIpc(): void {
+  ipcMain.handle('xmpp-credentials:get', async () => await getSavedXmppCredentials())
+  ipcMain.handle('xmpp-credentials:save', async (_event, credentials: { jid: string; password: string; service?: string }) => {
+    if (!credentials || typeof credentials.jid !== 'string' || typeof credentials.password !== 'string') {
+      throw new Error('Valid XMPP credentials are required')
+    }
+    return await saveXmppCredentials(credentials)
+  })
+  ipcMain.handle('xmpp-credentials:clear', async () => {
+    const fs = await import('node:fs/promises')
+    await fs.rm(xmppCredentialPath(), { force: true })
+  })
+
   ipcMain.handle(IPC.start, async (event, options: NativeStartOptions = {}) => {
     const result = await startXmpp(options)
     const window = BrowserWindow.fromWebContents(event.sender) ?? mainWindow

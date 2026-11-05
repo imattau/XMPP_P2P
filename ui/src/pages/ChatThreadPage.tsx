@@ -252,7 +252,7 @@ function Bubble({
   if (msg.kind === 'system') {
     return (
       <div className="flex justify-center my-3">
-        <span className="max-w-[90%] break-words rounded-full bg-secondary/60 px-3 py-1 text-center font-mono text-[10px] text-muted-foreground">{msg.content}</span>
+        <span className="max-w-[90%] rounded-full bg-secondary/60 px-3 py-1 text-center font-mono text-[10px] text-muted-foreground [overflow-wrap:anywhere]">{msg.content}</span>
       </div>
     )
   }
@@ -264,7 +264,7 @@ function Bubble({
   const fileAttachments = msg.attachments?.filter((attachment) => attachment.kind === 'file') ?? []
 
   return (
-    <div className={`flex gap-2 mb-1 ${isMine ? 'flex-row-reverse' : 'flex-row'}`}>
+    <div className={`flex w-full min-w-0 gap-2 mb-1 ${isMine ? 'flex-row-reverse' : 'flex-row'}`}>
       {!isMine && (type === 'group' || type === 'muc') ? (
         <div className="w-7 h-7 rounded-full overflow-hidden bg-secondary border border-border flex-shrink-0 self-end mb-1">
           {showAvatar && msg.senderAvatar
@@ -278,7 +278,7 @@ function Bubble({
         <div className="w-7 flex-shrink-0" />
       ) : null}
 
-      <div className={`max-w-[88%] flex flex-col sm:max-w-[78%] ${isMine ? 'items-end' : 'items-start'}`}>
+      <div className={`min-w-0 max-w-[88%] flex flex-col sm:max-w-[78%] ${isMine ? 'items-end' : 'items-start'}`}>
         {!isMine && (type === 'group' || type === 'muc') && showAvatar && (
           <span className="mb-0.5 max-w-full break-all px-1 font-mono text-[10px] text-muted-foreground">{msg.senderName}</span>
         )}
@@ -290,7 +290,7 @@ function Bubble({
           </div>
         )}
 
-        <div className={`px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${
+        <div className={`min-w-0 max-w-full px-3 py-2 rounded-2xl text-sm leading-relaxed [overflow-wrap:anywhere] ${
           isMine
             ? 'bg-primary text-primary-foreground rounded-tr-sm'
             : 'bg-secondary text-foreground rounded-tl-sm'
@@ -306,7 +306,7 @@ function Bubble({
                   />
                 ))}
               </div>
-              {parsedBody?.body ? <p className="break-words whitespace-pre-wrap">{parsedBody.body}</p> : null}
+              {parsedBody?.body ? <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{parsedBody.body}</p> : null}
             </div>
           ) : msg.kind === 'audio' ? (
             <>
@@ -316,7 +316,7 @@ function Bubble({
             </>
           ) : msg.kind === 'file' || fileAttachments.length > 0 ? (
             <div className="space-y-2">
-              {msg.content ? <p className="break-words whitespace-pre-wrap">{msg.content}</p> : null}
+              {msg.content ? <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{msg.content}</p> : null}
               <div className="space-y-2">
                 {(msg.attachments ?? []).filter((attachment) => attachment.kind === 'file').map((attachment) => (
                   <FileAttachment key={attachment.id} attachment={attachment} isMine={isMine} />
@@ -328,13 +328,13 @@ function Bubble({
               {parsedBody?.quote && (
                 <div className={`rounded-lg border-l-2 px-2.5 py-1.5 text-[11px] leading-relaxed ${isMine ? 'border-white/40 bg-white/10 text-primary-foreground/85' : 'border-primary bg-primary/5 text-muted-foreground'}`}>
                   <p className="font-mono mb-1 opacity-80">Quoted</p>
-                  <p className="break-words whitespace-pre-wrap">{parsedBody.quote}</p>
+                  <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{parsedBody.quote}</p>
                 </div>
               )}
               {parsedBody?.body ? (
-                <p className="break-words whitespace-pre-wrap">{parsedBody.body}</p>
+                <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{parsedBody.body}</p>
               ) : !parsedBody?.quote ? (
-                <p className="break-words whitespace-pre-wrap">{msg.content}</p>
+                <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{msg.content}</p>
               ) : null}
             </div>
           )}
@@ -1347,7 +1347,7 @@ function ChatThreadContent({ id, resolvedChat, initialMessages, historyLoading, 
   }
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden">
+    <div className="flex min-w-0 w-full flex-col flex-1 overflow-hidden">
       <header className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border flex-shrink-0">
         <div className="flex items-center gap-2 px-3 py-2.5">
           <button onClick={() => navigate(-1)} aria-label="Go back" className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
@@ -1366,8 +1366,8 @@ function ChatThreadContent({ id, resolvedChat, initialMessages, historyLoading, 
 
       </header>
 
-      <div className="flex flex-1 overflow-hidden">
-        <main ref={historyScrollRef} className={`flex-1 overflow-y-auto px-3 py-3 flex flex-col gap-0.5 ${showInfo ? 'hidden' : ''}`}>
+      <div className="flex min-w-0 flex-1 overflow-hidden">
+        <main ref={historyScrollRef} className={`min-w-0 flex-1 overflow-y-auto px-3 py-3 flex flex-col gap-0.5 ${showInfo ? 'hidden' : ''}`}>
           {historyError && (
             <div role="alert" className="mb-2 flex items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2.5">
               <div className="min-w-0">
@@ -1394,7 +1394,7 @@ function ChatThreadContent({ id, resolvedChat, initialMessages, historyLoading, 
             </div>
           )}
           {messages.map((msg, i) => (
-            <div key={msg.id} id={`message-${encodeURIComponent(msg.id)}`} className={`rounded-2xl transition-shadow ${highlightedMessageId === msg.id ? 'ring-2 ring-primary/60' : ''}`}>
+            <div key={msg.id} id={`message-${encodeURIComponent(msg.id)}`} className={`min-w-0 max-w-full rounded-2xl transition-shadow ${highlightedMessageId === msg.id ? 'ring-2 ring-primary/60' : ''}`}>
               <Bubble
                 msg={msg}
                 isMine={isMine(msg)}

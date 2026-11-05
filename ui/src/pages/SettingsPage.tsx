@@ -19,6 +19,21 @@ import { normalizeBootstrapAddress } from '../lib/bootstrap-address'
 import { normalizeNostrBootstrapConfig, normalizeNostrRelayUrl } from '../../../src/core/nostr-bootstrap.js'
 import { isElectronShell } from '../native-shell'
 import { isAndroidNative } from '../../../src/core/native-platform.js'
+import { clearSavedXmppCredentials, saveXmppCredentials } from '../lib/xmpp-credential-vault'
+
+const XMPP_ACCOUNT_SETTINGS_KEY = 'xmpp-p2p:server-account-settings'
+
+function loadXmppAccountSettings(): { jid: string; serviceUrl: string } | undefined {
+  try {
+    const raw = localStorage.getItem(XMPP_ACCOUNT_SETTINGS_KEY)
+    if (!raw) return undefined
+    const value = JSON.parse(raw) as { jid?: unknown; serviceUrl?: unknown }
+    if (typeof value.jid !== 'string') return undefined
+    return { jid: value.jid, serviceUrl: typeof value.serviceUrl === 'string' ? value.serviceUrl : '' }
+  } catch {
+    return undefined
+  }
+}
 
 export default function SettingsPage() {
   const navigate = useNavigate()
@@ -53,6 +68,13 @@ export default function SettingsPage() {
   const signOutDialogWasOpen = useRef(false)
 
   useEffect(() => {
+    const saved = loadXmppAccountSettings()
+    if (!saved) return
+    setJid(saved.jid)
+    setServiceUrl(saved.serviceUrl)
+  }, [])
+
+  useEffect(() => {
     if (confirmSignOut) {
       signOutDialogWasOpen.current = true
     } else if (signOutDialogWasOpen.current) {
@@ -66,7 +88,26 @@ export default function SettingsPage() {
     setAddError('')
     try {
       const { jid: normalizedJid } = normalizeXmppJid(jid)
-      await connectServer(normalizedJid, password, getOptionalWebSocketUrl(serviceUrl, isAndroidNative() || isElectronShell()))
+      const normalizedService = getOptionalWebSocketUrl(serviceUrl, isAndroidNative() || isElectronShell())
+      await connectServer(normalizedJid, password, normalizedService)
+      let securePasswordSaved = false
+      try {
+        securePasswordSaved = await saveXmppCredentials({ jid: normalizedJid, password, service: normalizedService })
+      } catch (error) {
+        console.warn('[XMPP] Connected, but could not securely save the password:', error)
+      }
+      try {
+        localStorage.setItem(XMPP_ACCOUNT_SETTINGS_KEY, JSON.stringify({ jid: normalizedJid, serviceUrl: normalizedService ?? '' }))
+      } catch {
+        // Keep the active XMPP connection even if browser storage is unavailable.
+      }
+      if (!securePasswordSaved) {
+        setServerActionError('Connected, but the XMPP password could not be saved securely. You will need to reconnect after restarting.')
+        setShowAddForm(false)
+        setCollapsed(false)
+        setPassword('')
+        return
+      }
       setShowAddForm(false)
       setJid('')
       setPassword('')
@@ -80,6 +121,7 @@ export default function SettingsPage() {
     setServerActionError('')
     try {
       await disconnectServer()
+      await clearSavedXmppCredentials()
     } catch (error) {
       setServerActionError(error instanceof Error ? error.message : 'Could not disconnect from the XMPP server.')
     }
@@ -91,6 +133,8 @@ export default function SettingsPage() {
     setSignOutError('')
     try {
       await getBrowserXmppBridge()?.disconnect()
+      await clearSavedXmppCredentials()
+      try { localStorage.removeItem(XMPP_ACCOUNT_SETTINGS_KEY) } catch { /* optional saved account label */ }
       identityController.resetIdentity()
       navigate('/onboarding')
     } catch (error) {
@@ -368,7 +412,7 @@ export default function SettingsPage() {
                   className="min-h-11 w-full flex items-center gap-3 px-4 py-3 border-b border-border transition-colors hover:bg-secondary text-left text-muted-foreground hover:text-foreground text-sm"
                 >
                   <Plus size={16} />
-                  <span>Connect to XMPP server</span>
+                  <span>{jid ? `Connect to ${jid}` : 'Connect to XMPP server'}</span>
                 </button>
               ))}
 
