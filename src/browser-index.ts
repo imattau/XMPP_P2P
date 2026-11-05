@@ -4,6 +4,7 @@
  */
 
 import type { Libp2p } from 'libp2p'
+import { Capacitor, CapacitorHttp } from '@capacitor/core'
 import { generateKeyPair, privateKeyFromProtobuf, privateKeyToProtobuf } from '@libp2p/crypto/keys'
 import { peerIdFromPrivateKey } from '@libp2p/peer-id'
 import { Buffer } from 'buffer'
@@ -14,6 +15,28 @@ import { XmppNode, type XmppNodeOptions } from './core/xmpp-node.js'
 import { loadOmemoModule } from './core/omemo-runtime-browser.js'
 import { BrowserXmppRuntimeBridge } from './bridge/browser-runtime.js'
 import { keyFromRecoveryPhrase, type IdentityKeyStore } from './core/identity-key.js'
+import type { RssFeedFetcher } from './core/rss-feeds.js'
+
+/** Use native HTTP on Android/iOS so feed servers do not need WebView CORS headers. */
+const rssFeedFetcher: RssFeedFetcher | undefined = Capacitor.isNativePlatform()
+  ? async (url, init) => {
+      const response = await CapacitorHttp.request({
+        url,
+        method: 'GET',
+        headers: Object.fromEntries(new Headers(init.headers).entries()),
+        responseType: 'text',
+        connectTimeout: 12_000,
+        readTimeout: 12_000,
+        disableRedirects: true,
+      })
+      const headers = new Headers()
+      for (const [name, value] of Object.entries(response.headers)) headers.set(name, value)
+      return new Response(typeof response.data === 'string' ? response.data : String(response.data ?? ''), {
+        status: response.status,
+        headers,
+      })
+    }
+  : undefined
 
 export interface CreateBrowserXmppClientOptions {
   bootstrapAddrs: string[]
@@ -161,7 +184,7 @@ export async function createBrowserXmppClient(
 
     const bridge = new BrowserXmppRuntimeBridge(xmppNode, async () => {
       await libp2p.stop()
-    })
+    }, rssFeedFetcher)
 
     if (typeof window !== 'undefined') {
       (window as any).__XMPP_P2P_BRIDGE__ = bridge
