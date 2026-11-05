@@ -35,6 +35,8 @@ function hasLegacyData(): boolean {
     'nexus_article_drafts',
     'nexus_article_bookmarks',
     'nexus_followed_topics',
+    'xmpp-p2p:server-microblog-subscriptions',
+    'xmpp-p2p:server-microblog-statuses',
   ]
   try {
     if (knownKeys.some((key) => localStorage.getItem(key) !== null)) return true

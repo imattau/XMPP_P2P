@@ -21,6 +21,9 @@ export type BridgeFeedPostRecord = {
   links?: Array<{ rel: string; href: string; type?: string; title?: string; ref?: string }>
   geoloc?: { lat?: string; lon?: string; country?: string; countryCode?: string; region?: string }
   replyTo?: string
+  sourceProtocol?: 'p2p' | 'xmpp' | 'rss'
+  sourceName?: string
+  sourceUrl?: string
 }
 
 export type BridgeAttachmentRecord = {
@@ -90,6 +93,48 @@ export type BridgeServerMucRoom = {
   serviceJid: string
 }
 
+export type BridgeServerMicroblogSubscription = {
+  jid: string
+  node: string
+  status: 'subscribed' | 'pending' | 'polling'
+  updatedAt: string
+}
+
+export type BridgeFeedSourceRef = {
+  protocol: 'p2p' | 'xmpp'
+  owner: string
+}
+
+export type BridgeFollowedFeedSource = {
+  protocol: 'p2p' | 'xmpp' | 'rss'
+  owner: string
+  id: string
+  node: string
+  status: 'subscribed' | 'pending' | 'polling' | 'active' | 'paused' | 'error'
+  updatedAt?: string
+}
+
+export type BridgeRssFeedPreview = {
+  url: string
+  title: string
+  siteUrl?: string
+  format: 'rss' | 'atom'
+  entries: Array<{ title: string; summary: string; publishedAt?: string; url?: string }>
+}
+
+export type BridgeRssFeedSource = {
+  id: string
+  url: string
+  title: string
+  siteUrl?: string
+  format: 'rss' | 'atom'
+  status: 'active' | 'paused' | 'error'
+  lastFetchedAt?: string
+  lastError?: string
+  retryAt?: string
+  updatedAt: string
+}
+
 export type BridgeStoredComponentConfig = {
   domain: string
   host: string
@@ -156,6 +201,15 @@ export interface XmppRuntimeBridge {
   setFeedSubscriptionVisibility(peerAddr: string, visibility: BridgeVisibility): Promise<BridgeFeedSubscriptionRecord>
   unsubscribeFeed(peerAddr: string): Promise<void>
   getFeedSubscriptions(): Promise<BridgeFeedSubscriptionRecord[]>
+  getFollowedFeedSources?(): Promise<BridgeFollowedFeedSource[]>
+  followFeedSource?(source: BridgeFeedSourceRef): Promise<'subscribed' | 'pending' | 'unconfigured' | 'polling'>
+  unfollowFeedSource?(source: BridgeFeedSourceRef): Promise<void>
+  discoverRssFeeds?(url: string): Promise<BridgeRssFeedPreview[]>
+  addRssFeed?(url: string): Promise<BridgeRssFeedSource>
+  getRssFeeds?(): Promise<BridgeRssFeedSource[]>
+  refreshRssFeed?(id: string): Promise<number>
+  setRssFeedPaused?(id: string, paused: boolean): Promise<void>
+  removeRssFeed?(id: string, keepEntries?: boolean): Promise<void>
   getPublicFeedSubscriptions(): Promise<BridgeFeedSubscriptionRecord[]>
   watchFeedFollowers(peerAddr: string): Promise<{ peerId: string; topic: string; watchedAt: string }>
   getFeedFollowers(peerAddr: string): Promise<BridgeFeedFollower[]>
@@ -251,6 +305,7 @@ export interface XmppRuntimeBridge {
   queryServerMucHistory?(roomJid: string, before?: string): Promise<{ before?: string; hasMore: boolean }>
   discoverServerMucRooms?(): Promise<BridgeServerMucRoom[]>
   subscribeServerMicroblog?(jid: string): Promise<'subscribed' | 'pending' | 'unconfigured' | 'polling'>
+  getServerMicroblogSubscriptions?(): Promise<BridgeServerMicroblogSubscription[]>
   unsubscribeServerMicroblog?(jid: string): Promise<void>
   refreshServerMicroblog?(jid: string): Promise<number>
   publishServerMicroblog?(body: string, options?: { itemId?: string; title?: string; summary?: string; categories?: string[]; author?: string; displayContent?: string; articlePayload?: string }): Promise<string>

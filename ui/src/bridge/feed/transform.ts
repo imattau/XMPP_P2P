@@ -3,7 +3,8 @@ import type { FeedFilterType, FeedPost } from './types'
 import { getArticleFeedPreview } from '../article/serialization'
 
 export function mapRuntimePost(record: BridgeFeedPostRecord): FeedPost {
-  const topic = record.categories?.[0]
+  const topics = [...new Set((record.categories ?? []).map((category) => category.trim().replace(/^#/, '')).filter(Boolean))]
+  const topic = topics[0]
   const community = record.topic.startsWith('xmpp-collection:') ? record.topic.replace('xmpp-collection:', '') : undefined
   const repostLink = record.links?.find((link) => link.rel === 'related' && link.title === 'Repost of')
   const repostItem = repostLink?.href.match(/[?;&]item=([^;&]+)/)?.[1]
@@ -19,21 +20,27 @@ export function mapRuntimePost(record: BridgeFeedPostRecord): FeedPost {
 
   return {
     id: record.id,
-    sourceProtocol: record.topic.startsWith('xmpp-pep:') ? 'xmpp' : 'p2p',
+    sourceProtocol: record.sourceProtocol ?? (record.topic.startsWith('xmpp-pep:') ? 'xmpp' : 'p2p'),
+    externalUrl: record.links?.find((link) => link.rel === 'alternate' && /^https?:\/\//i.test(link.href))?.href,
+    sourceName: record.sourceName,
     type: community ? 'community' : topic ? 'topic' : 'post',
     sourceTopic: record.topic,
     replyTo: record.replyTo,
     repostOf,
     author: {
       name: record.author ?? record.from,
-      handle: record.from.includes('@') ? record.from.split('@')[0] : record.from,
+      handle: record.sourceProtocol === 'rss'
+        ? (() => { try { return new URL(record.sourceUrl || record.from).hostname } catch { return record.from } })()
+        : record.from.includes('@') ? record.from.split('@')[0] : record.from,
       avatar: `https://api.dicebear.com/9.x/thumbs/svg?seed=${encodeURIComponent(record.from)}`,
-      server: record.from.includes('@') ? record.from.split('@')[1] : 'p2p'
+      server: record.sourceProtocol === 'rss' ? 'RSS / Atom' : record.from.includes('@') ? record.from.split('@')[1] : 'p2p'
     },
     content: getArticleFeedPreview(record.body) ?? record.body,
+    title: record.title,
     timestamp: formatRelativeTime(record.publishedAt),
     publishedAt: record.publishedAt,
     topic,
+    topics,
     topicColor: topic ? pickTopicColor(topic) : undefined,
     community,
     communityIcon: community ? '⚙️' : undefined,
@@ -46,18 +53,20 @@ export function mapRuntimePost(record: BridgeFeedPostRecord): FeedPost {
   }
 }
 
-export function filterFeedPosts(posts: FeedPost[], activeFilter: FeedFilterType, searchQuery: string) {
+export function filterFeedPosts(posts: FeedPost[], activeFilter: FeedFilterType, searchQuery: string, followedTopics: string[] = []) {
   const normalized = searchQuery.trim().toLowerCase()
+  const followed = new Set(followedTopics.map((topic) => topic.toLowerCase()))
   return posts.filter((post) => {
     const typeMatch = activeFilter === 'all'
       || (activeFilter === 'posts' && post.type === 'post')
       || (activeFilter === 'topics' && post.type === 'topic')
       || (activeFilter === 'communities' && post.type === 'community')
+      || (activeFilter === 'following' && (post.topics ?? (post.topic ? [post.topic] : [])).some((topic) => followed.has(topic.toLowerCase())))
     const searchMatch = !normalized
       || post.content.toLowerCase().includes(normalized)
       || post.author.name.toLowerCase().includes(normalized)
       || post.author.handle.toLowerCase().includes(normalized)
-      || (post.topic ?? '').toLowerCase().includes(normalized)
+      || (post.topics ?? (post.topic ? [post.topic] : [])).some((topic) => topic.toLowerCase().includes(normalized))
       || (post.community ?? '').toLowerCase().includes(normalized)
     return typeMatch && searchMatch
   })

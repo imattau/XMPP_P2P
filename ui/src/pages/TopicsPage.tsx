@@ -1,19 +1,59 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
-import { Search, X } from 'lucide-react'
+import { Check, Hash, Plus, Search, X } from 'lucide-react'
 import { useArticleBridge } from '../bridge/article/useArticleBridge'
+import { useFeedBridge } from '../bridge/feed/useFeedBridge'
 import ArticleCard from '../components/article/ArticleCard'
 
 type TopicFilter = 'for-you' | 'following' | 'latest'
 
 export default function TopicsPage() {
   const navigate = useNavigate()
-  const { toggleBookmark, articles, getFollowedTopics, loading, loadError, refresh } = useArticleBridge()
+  const { toggleBookmark, articles, getFollowedTopics, toggleFollowedTopic, loading, loadError, refresh } = useArticleBridge()
+  const { posts, loading: feedLoading } = useFeedBridge()
   const [activeFilter, setActiveFilter] = useState<TopicFilter>('for-you')
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
   const published = articles.filter((a) => a.status === 'published')
+  const followedTopics = getFollowedTopics()
+  const topicCounts = new Map<string, { articles: number; p2p: number; xmpp: number; rss: number }>()
+  const getCounts = (topic: string) => {
+    const key = topic.toLocaleLowerCase()
+    let counts = topicCounts.get(key)
+    if (!counts) {
+      counts = { articles: 0, p2p: 0, xmpp: 0, rss: 0 }
+      topicCounts.set(key, counts)
+    }
+    return counts
+  }
+  for (const article of published) {
+    const topic = article.topic.trim()
+    if (topic) getCounts(topic).articles += 1
+  }
+  for (const post of posts) {
+    if (post.type === 'community') continue
+    const postTopics = [...new Set((post.topics?.length ? post.topics : post.topic ? [post.topic] : []).map((topic) => topic.trim()).filter(Boolean))]
+    for (const topic of postTopics) {
+      const counts = getCounts(topic)
+      if (post.sourceProtocol === 'xmpp') counts.xmpp += 1
+      else if (post.sourceProtocol === 'rss') counts.rss += 1
+      else counts.p2p += 1
+    }
+  }
+  const topicNames = new Map<string, string>()
+  for (const article of published) if (article.topic.trim()) topicNames.set(article.topic.toLocaleLowerCase(), article.topic.trim())
+  for (const post of posts) {
+    if (post.type === 'community') continue
+    const postTopics = post.topics?.length ? post.topics : post.topic ? [post.topic] : []
+    for (const topic of postTopics) if (topic.trim()) topicNames.set(topic.toLocaleLowerCase(), topic.trim())
+  }
+  for (const topic of followedTopics) if (!topicNames.has(topic.toLocaleLowerCase())) topicNames.set(topic.toLocaleLowerCase(), topic)
+  const topics = [...topicNames.values()]
+    .filter((topic) => activeFilter !== 'following' || followedTopics.some((followed) => followed.toLowerCase() === topic.toLowerCase()))
+    .filter((topic) => !searchQuery || topic.toLowerCase().includes(searchQuery.toLowerCase()))
+    .sort((a, b) => ((topicCounts.get(b.toLocaleLowerCase())?.articles ?? 0) + (topicCounts.get(b.toLocaleLowerCase())?.p2p ?? 0) + (topicCounts.get(b.toLocaleLowerCase())?.xmpp ?? 0) + (topicCounts.get(b.toLocaleLowerCase())?.rss ?? 0))
+      - ((topicCounts.get(a.toLocaleLowerCase())?.articles ?? 0) + (topicCounts.get(a.toLocaleLowerCase())?.p2p ?? 0) + (topicCounts.get(a.toLocaleLowerCase())?.xmpp ?? 0) + (topicCounts.get(a.toLocaleLowerCase())?.rss ?? 0)) || a.localeCompare(b))
 
   const filtered = published.filter((a) => {
     if (activeFilter === 'following') {
@@ -51,14 +91,19 @@ export default function TopicsPage() {
           <div>
             <h1 className="text-xl font-semibold text-foreground">Topics</h1>
           </div>
-          {!searchOpen && <button
-            onClick={() => setSearchOpen(true)}
-            aria-label="Search articles"
-            aria-expanded={searchOpen}
-            className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-white/5 hover:text-foreground"
-          >
-            <Search size={18} />
-          </button>}
+          <div className="flex items-center gap-1">
+            <button type="button" onClick={() => navigate('/?addFeed=1')} className="flex min-h-11 items-center gap-1.5 rounded-lg bg-secondary px-3 text-xs font-semibold text-foreground hover:bg-secondary/80">
+              <Plus size={15} /><span>Add feed</span>
+            </button>
+            {!searchOpen && <button
+              onClick={() => setSearchOpen(true)}
+              aria-label="Search topics and articles"
+              aria-expanded={searchOpen}
+              className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-white/5 hover:text-foreground"
+            >
+              <Search size={18} />
+            </button>}
+          </div>
         </div>
 
         {searchOpen && (
@@ -66,10 +111,10 @@ export default function TopicsPage() {
             <div className="flex items-center gap-2 bg-secondary rounded-lg px-3 py-2">
               <Search size={14} className="text-muted-foreground flex-shrink-0" />
               <input
-                aria-label="Search articles"
+                aria-label="Search topics and articles"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search articles…"
+                placeholder="Search topics and articles…"
                 className="min-w-0 flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
               />
               <button onClick={() => {
@@ -109,6 +154,71 @@ export default function TopicsPage() {
       </header>
 
       <main className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
+        {!loading && !feedLoading && topics.length > 0 && (
+          <section aria-labelledby="discover-topics-heading">
+            <div className="mb-3 flex items-end justify-between gap-3">
+              <div>
+                <h2 id="discover-topics-heading" className="text-base font-semibold text-foreground">Discover topics</h2>
+                <p className="mt-1 text-xs text-muted-foreground">Discovered from tagged P2P, XMPP PubSub, and RSS/Atom posts. Following saves the topic to your local filter.</p>
+              </div>
+              <span className="shrink-0 text-xs text-muted-foreground">{topics.length} {topics.length === 1 ? 'topic' : 'topics'}</span>
+            </div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {topics.map((topic) => {
+                const following = followedTopics.some((item) => item.toLowerCase() === topic.toLowerCase())
+                const counts = topicCounts.get(topic.toLocaleLowerCase()) ?? { articles: 0, p2p: 0, xmpp: 0, rss: 0 }
+                const feedCount = counts.p2p + counts.xmpp + counts.rss
+                return (
+                  <div key={topic} className="flex min-w-0 items-center gap-3 rounded-xl border border-border bg-card p-3">
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/?q=${encodeURIComponent(topic)}`)}
+                      className="flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-lg text-left"
+                      aria-label={`Open topic ${topic}`}
+                    >
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue2 text-primary"><Hash size={17} /></span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold text-foreground">{topic}</span>
+                        <span className="block text-xs text-muted-foreground">
+                          {counts.articles > 0 && <>{counts.articles} {counts.articles === 1 ? 'article' : 'articles'}</>}
+                          {counts.articles > 0 && feedCount > 0 && ' · '}
+                          {feedCount > 0 && <>{feedCount} {feedCount === 1 ? 'post' : 'posts'}</>}
+                          {feedCount === 0 && counts.articles === 0 && 'Followed topic'}
+                        </span>
+                        {(counts.p2p > 0 || counts.xmpp > 0 || counts.rss > 0) && (
+                          <span className="mt-1 flex gap-1.5 text-[10px] text-muted-foreground">
+                            {counts.p2p > 0 && <span>{counts.p2p} P2P</span>}
+                            {counts.xmpp > 0 && <span>{counts.xmpp} XMPP</span>}
+                            {counts.rss > 0 && <span>{counts.rss} RSS/Atom</span>}
+                          </span>
+                        )}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      aria-pressed={following}
+                      aria-label={`${following ? 'Unfollow' : 'Follow'} ${topic}`}
+                      onClick={() => toggleFollowedTopic(topic)}
+                      className={`flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition-colors ${following ? 'bg-blue2 text-primary' : 'bg-secondary text-foreground hover:bg-secondary/80'}`}
+                    >
+                      {following ? <Check size={14} /> : <Plus size={14} />}
+                      {following ? 'Following' : 'Follow'}
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+        )}
+
+        {!loading && !feedLoading && topics.length === 0 && !searchQuery && activeFilter !== 'following' && (
+          <section className="rounded-xl border border-border bg-card px-4 py-5">
+            <h2 className="text-sm font-semibold text-foreground">No topics to explore yet</h2>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Topics appear when tagged posts arrive through P2P, XMPP PubSub, or RSS/Atom feeds. Add a feed or browse the feed to discover them.</p>
+            <button type="button" onClick={() => navigate('/?addFeed=1')} className="mt-3 min-h-11 rounded-lg bg-secondary px-3 text-xs font-semibold text-foreground hover:bg-secondary/80">Add RSS/Atom feed</button>
+          </section>
+        )}
+
         {loading && published.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 gap-3 sm:py-20" role="status">
             <span className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />

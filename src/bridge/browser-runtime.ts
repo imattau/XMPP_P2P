@@ -5,6 +5,7 @@ import type { XmppCollectionPost } from '../core/xmpp-records.js'
 import type { XmppAttachment, XmppAttachmentSummary } from '../core/xmpp-records.js'
 import { jidFromPeerId } from '../core/xmpp-records.js'
 import type { ServerConnectionInfo, ServerDiscoInfoResult, ServerDiscoItemsResult, ServerMucRoomInfo } from '../core/xmpp-client-bridge.js'
+import { RssFeedManager, type RssFeedFetcher, type RssFeedPreview, type RssFeedSource } from '../core/rss-feeds.js'
 
 type Listener<Args extends unknown[]> = (...args: Args) => void
 
@@ -28,11 +29,14 @@ export class BrowserXmppRuntimeBridge {
   private mucMarkerListeners = new Set<Listener<[any]>>()
 
   private activeConnections = new Set<string>()
+  private readonly rssFeeds: RssFeedManager
 
   constructor(
     private readonly xmppNode: XmppNode,
-    private readonly stopNetwork: () => Promise<void> = async () => {}
+    private readonly stopNetwork: () => Promise<void> = async () => {},
+    rssFeedFetcher?: RssFeedFetcher
   ) {
+    this.rssFeeds = new RssFeedManager(xmppNode.storage, xmppNode.jid, rssFeedFetcher)
     this.hookEvents()
   }
 
@@ -192,7 +196,11 @@ export class BrowserXmppRuntimeBridge {
 
   onFeedPost(cb: Listener<[XmppFeedPost]>): () => void {
     this.feedPostListeners.add(cb)
-    return () => this.feedPostListeners.delete(cb)
+    const removeRssListener = this.rssFeeds.onPost((post) => cb(post as unknown as XmppFeedPost))
+    return () => {
+      this.feedPostListeners.delete(cb)
+      removeRssListener()
+    }
   }
 
   onCollectionPost(cb: Listener<[XmppCollectionPost]>): () => void {
@@ -295,6 +303,11 @@ export class BrowserXmppRuntimeBridge {
     return this.xmppNode.subscribeServerMicroblog(jid)
   }
 
+  async getServerMicroblogSubscriptions(): Promise<Array<{ jid: string; node: string; status: 'subscribed' | 'pending' | 'polling'; updatedAt: string }>> {
+    await this.xmppNode.ready
+    return this.xmppNode.getServerMicroblogSubscriptions()
+  }
+
   async unsubscribeServerMicroblog(jid: string): Promise<void> {
     await this.xmppNode.ready
     return this.xmppNode.unsubscribeServerMicroblog(jid)
@@ -310,8 +323,9 @@ export class BrowserXmppRuntimeBridge {
     return this.xmppNode.publishServerMicroblog(body, options)
   }
 
-  getFeedPosts(): Promise<XmppFeedPost[]> {
-    return this.xmppNode.getFeedPosts()
+  async getFeedPosts(): Promise<XmppFeedPost[]> {
+    const [xmppPosts, rssPosts] = await Promise.all([this.xmppNode.getFeedPosts(), this.rssFeeds.listPosts()])
+    return [...xmppPosts, ...rssPosts as unknown as XmppFeedPost[]].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
   }
 
   publishFeed(body: string, options?: { topic?: string; itemId?: string; title?: string; summary?: string; categories?: string[]; author?: string; replyTo?: string; links?: Array<{ rel: string; href: string; type?: string; title?: string; ref?: string }> }): Promise<string> {
@@ -332,6 +346,76 @@ export class BrowserXmppRuntimeBridge {
 
   getFeedSubscriptions(): Promise<any[]> {
     return this.xmppNode.getFeedSubscriptions()
+  }
+
+  async getFollowedFeedSources(): Promise<Array<{ id: string; protocol: 'p2p' | 'xmpp' | 'rss'; owner: string; node: string; status: 'subscribed' | 'pending' | 'polling' | 'active' | 'paused' | 'error'; updatedAt?: string }>> {
+    const [p2p, xmpp] = await Promise.all([
+      this.xmppNode.getFeedSubscriptions(),
+      this.xmppNode.getServerMicroblogSubscriptions(),
+    ])
+    return [
+      ...p2p.map((subscription) => ({
+        id: `p2p:${subscription.peerId}`,
+        protocol: 'p2p' as const,
+        owner: subscription.peerId,
+        node: subscription.topic,
+        status: 'subscribed' as const,
+        updatedAt: subscription.updatedAt,
+      })),
+      ...xmpp.map((subscription) => ({
+        id: `xmpp:${subscription.jid}:${subscription.node}`,
+        protocol: 'xmpp' as const,
+        owner: subscription.jid,
+        node: subscription.node,
+        status: subscription.status,
+        updatedAt: subscription.updatedAt,
+      })),
+      ...(await this.rssFeeds.listSources()).map((source) => ({
+        id: `rss:${source.id}`,
+        protocol: 'rss' as const,
+        owner: source.url,
+        node: source.title,
+        status: source.status,
+        updatedAt: source.updatedAt,
+      })),
+    ]
+  }
+
+  discoverRssFeeds(url: string): Promise<RssFeedPreview[]> {
+    return this.rssFeeds.discover(url)
+  }
+
+  addRssFeed(url: string): Promise<RssFeedSource> {
+    return this.rssFeeds.subscribe(url)
+  }
+
+  getRssFeeds(): Promise<RssFeedSource[]> {
+    return this.rssFeeds.listSources()
+  }
+
+  refreshRssFeed(id: string): Promise<number> {
+    return this.rssFeeds.refresh(id)
+  }
+
+  setRssFeedPaused(id: string, paused: boolean): Promise<void> {
+    return this.rssFeeds.setPaused(id, paused)
+  }
+
+  removeRssFeed(id: string, keepEntries = true): Promise<void> {
+    return this.rssFeeds.remove(id, keepEntries)
+  }
+
+  async followFeedSource(source: { protocol: 'p2p' | 'xmpp'; owner: string }): Promise<'subscribed' | 'pending' | 'unconfigured' | 'polling'> {
+    if (source.protocol === 'p2p') {
+      await this.xmppNode.subscribeFeed(source.owner)
+      return 'subscribed'
+    }
+    return this.xmppNode.subscribeServerMicroblog(source.owner)
+  }
+
+  async unfollowFeedSource(source: { protocol: 'p2p' | 'xmpp'; owner: string }): Promise<void> {
+    if (source.protocol === 'p2p') return this.xmppNode.unsubscribeFeed(source.owner)
+    return this.xmppNode.unsubscribeServerMicroblog(source.owner)
   }
 
   getPublicFeedSubscriptions(): Promise<any[]> {

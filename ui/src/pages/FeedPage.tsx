@@ -5,10 +5,10 @@ import {
   Heart, MessageCircle, Repeat2, Share2, Bookmark,
   Search, Hash, Users, Rss,
   ChevronDown, MoreHorizontal, Shield, Zap, Globe,
-  Lock, Filter, X, Home, Send, Plus,
+  Lock, Filter, X, Home, Send, Plus, LoaderCircle,
 } from 'lucide-react'
 import { type FeedFilterType, type FeedPost, type FeedSortOrder, useFeedBridge, getBrowserXmppBridge } from '../bridge'
-import type { BridgeCollectionNode } from '../bridge/runtime'
+import type { BridgeCollectionNode, BridgeFollowedFeedSource, BridgeRssFeedPreview, BridgeRssFeedSource } from '../bridge/runtime'
 import TrendingTopics from '../components/TrendingTopics'
 import { useArticleBridge } from '../bridge/article/useArticleBridge'
 import { useConnectionBridge } from '../bridge/useConnectionBridge'
@@ -46,11 +46,6 @@ function readServerMicroblogStatuses(): Record<string, ServerMicroblogStatus> {
       entry[1] === 'subscribed' || entry[1] === 'pending' || entry[1] === 'unconfigured' || entry[1] === 'polling'
     ))
   } catch { return {} }
-}
-
-function saveServerMicroblogSubscriptions(jids: string[], statuses: Record<string, ServerMicroblogStatus>) {
-  try { localStorage.setItem(serverMicroblogsStorageKey(), JSON.stringify(jids)) } catch { /* optional local preference */ }
-  try { localStorage.setItem(getAccountScopedStorageKey(SERVER_MICROBLOG_STATUSES_KEY), JSON.stringify(statuses)) } catch { /* optional local preference */ }
 }
 
 function formatCount(n: number) {
@@ -155,6 +150,8 @@ function PostCard({
       ? { label: post.community, color: '#f59e0b' }
       : { label: null, color: null }
   const isXmppMicroblog = post.sourceProtocol === 'xmpp'
+  const isRssFeed = post.sourceProtocol === 'rss'
+  const supportsNativeSocialActions = !isXmppMicroblog && !isRssFeed
 
   return (
     <article className="border-b border-border hover:bg-white/[0.02] transition-colors duration-150">
@@ -187,6 +184,7 @@ function PostCard({
               <span className="truncate font-semibold text-sm leading-tight text-foreground">{post.author.name}</span>
               {post.author.verified && <Shield size={12} className="flex-shrink-0 text-primary" />}
               {isXmppMicroblog && <span className="flex-shrink-0 rounded border border-primary/20 px-1 py-0.5 font-mono text-[9px] text-primary">XMPP</span>}
+              {isRssFeed && <span className="flex-shrink-0 rounded border border-primary/20 px-1 py-0.5 font-mono text-[9px] text-primary">RSS/Atom</span>}
               <PrivacyIcon privacy={post.privacy} />
             </div>
             <div className="flex min-w-0 items-center gap-1 font-mono text-[11px] text-muted-foreground">
@@ -215,6 +213,7 @@ function PostCard({
             </div>
           ) : null}
 
+          {isRssFeed && post.title && <h3 className="mb-1.5 break-words text-sm font-semibold leading-snug text-foreground">{post.title}</h3>}
           <p className="mb-2 break-words text-sm leading-relaxed text-foreground/90">{post.content}</p>
 
           {post.media && (
@@ -234,12 +233,12 @@ function PostCard({
         </div>
 
           <div className="mt-1 flex items-center justify-between ml-[52px]">
-            {!isXmppMicroblog && <span className="inline-flex min-h-11 items-center gap-1 px-1.5 text-muted-foreground" title={`${formatCount(post.comments)} comments`}>
+            {supportsNativeSocialActions && <span className="inline-flex min-h-11 items-center gap-1 px-1.5 text-muted-foreground" title={`${formatCount(post.comments)} comments`}>
               <MessageCircle size={15} aria-hidden="true" />
               <span className="font-mono text-[11px] tabular-nums">{formatCount(post.comments)}</span>
               <span className="sr-only">comments</span>
             </span>}
-            {!isXmppMicroblog && <div ref={reactionRef} className="relative">
+            {supportsNativeSocialActions && <div ref={reactionRef} className="relative">
               <button
                 aria-label={post.liked ? 'React to post; already liked' : 'React to post'}
                 aria-expanded={showReactions}
@@ -277,7 +276,7 @@ function PostCard({
                 <MoreHorizontal size={17} />
               </summary>
               <div className="absolute bottom-full right-0 z-20 mb-1 min-w-44 rounded-xl border border-border bg-card p-1 shadow-xl">
-                {!isXmppMicroblog && <button
+                {supportsNativeSocialActions && <button
                   aria-label={post.reposted ? `Reposted, ${formatCount(post.reposts)} reposts` : `Repost, ${formatCount(post.reposts)} reposts`}
                   disabled={post.reposted}
                   onClick={(event) => {
@@ -328,6 +327,7 @@ function PostCard({
 
 const FEED_FILTERS: { id: FeedFilterType; label: string; icon: React.ComponentType<{ size?: number; className?: string }> }[] = [
   { id: 'all', label: 'All', icon: Rss },
+  { id: 'following', label: 'Followed topics', icon: Hash },
   { id: 'posts', label: 'Posts', icon: Home },
   { id: 'topics', label: 'Topics', icon: Hash },
   { id: 'communities', label: 'Communities', icon: Users },
@@ -348,6 +348,16 @@ export default function FeedPage() {
     && serverMicroblogBridge.publishServerMicroblog)
   const [serverMicroblogSubscriptions, setServerMicroblogSubscriptions] = useState<string[]>(readServerMicroblogSubscriptions)
   const [serverMicroblogStatuses, setServerMicroblogStatuses] = useState<Record<string, ServerMicroblogStatus>>(readServerMicroblogStatuses)
+  const [followedP2PFeeds, setFollowedP2PFeeds] = useState<BridgeFollowedFeedSource[]>([])
+  const [rssFeeds, setRssFeeds] = useState<BridgeRssFeedSource[]>([])
+  const [showAddRssFeed, setShowAddRssFeed] = useState(false)
+  const [rssFeedUrl, setRssFeedUrl] = useState('')
+  const [rssPreviews, setRssPreviews] = useState<BridgeRssFeedPreview[]>([])
+  const [selectedRssPreview, setSelectedRssPreview] = useState('')
+  const [rssFeedBusy, setRssFeedBusy] = useState(false)
+  const [rssFeedError, setRssFeedError] = useState('')
+  const [rssFeedActions, setRssFeedActions] = useState<Record<string, boolean>>({})
+  const rssFeedsRef = useRef(rssFeeds)
   const [showServerMicroblogs, setShowServerMicroblogs] = useState(false)
   const [showQuickComposer, setShowQuickComposer] = useState(() => typeof window !== 'undefined' && window.matchMedia?.('(min-width: 768px)').matches === true)
   const [serverMicroblogBusy, setServerMicroblogBusy] = useState<Record<string, 'follow' | 'unfollow' | 'refresh'>>({})
@@ -377,6 +387,68 @@ export default function FeedPage() {
     setServerMicroblogSubscriptions(readServerMicroblogSubscriptions())
     setServerMicroblogStatuses(readServerMicroblogStatuses())
   }, [identity?.jid])
+
+  useEffect(() => {
+    rssFeedsRef.current = rssFeeds
+  }, [rssFeeds])
+
+  useEffect(() => {
+    const bridge = serverMicroblogBridge
+    if (!serverConnected || !bridge?.getServerMicroblogSubscriptions || !bridge.subscribeServerMicroblog) return
+    let cancelled = false
+    void (async () => {
+      try {
+        let subscriptions = await bridge.getServerMicroblogSubscriptions!()
+        const knownJids = new Set(subscriptions.map((item) => item.jid.toLowerCase()))
+        const legacyJids = readServerMicroblogSubscriptions()
+        const legacyStatuses = readServerMicroblogStatuses()
+        const failedLegacyJids: string[] = []
+        // Migrate the former renderer-only list to durable runtime storage once.
+        for (const jid of legacyJids) {
+          if (knownJids.has(jid) || legacyStatuses[jid] === 'unconfigured') continue
+          try {
+            await bridge.subscribeServerMicroblog!(jid)
+          } catch {
+            failedLegacyJids.push(jid)
+          }
+        }
+        subscriptions = await bridge.getServerMicroblogSubscriptions!()
+        if (cancelled) return
+        const nextStatuses = Object.fromEntries(subscriptions.map(({ jid, status }) => [jid.toLowerCase(), status])) as Record<string, ServerMicroblogStatus>
+        setServerMicroblogSubscriptions(subscriptions.map(({ jid }) => jid.toLowerCase()))
+        setServerMicroblogStatuses(nextStatuses)
+        try {
+          if (failedLegacyJids.length > 0) {
+            localStorage.setItem(serverMicroblogsStorageKey(), JSON.stringify(failedLegacyJids))
+            localStorage.setItem(getAccountScopedStorageKey(SERVER_MICROBLOG_STATUSES_KEY), JSON.stringify(
+              Object.fromEntries(failedLegacyJids.flatMap((jid) => legacyStatuses[jid] ? [[jid, legacyStatuses[jid]]] : []))
+            ))
+          } else {
+            localStorage.removeItem(serverMicroblogsStorageKey())
+            localStorage.removeItem(getAccountScopedStorageKey(SERVER_MICROBLOG_STATUSES_KEY))
+          }
+        } catch { /* runtime storage is authoritative after migration */ }
+      } catch {
+        // Retain the cached renderer list if runtime storage is temporarily unavailable.
+      }
+    })()
+    return () => { cancelled = true }
+  }, [identity?.jid, serverConnected, serverMicroblogBridge])
+
+  useEffect(() => {
+    const bridge = serverMicroblogBridge
+    if (!bridge?.getFollowedFeedSources) {
+      setFollowedP2PFeeds([])
+      return
+    }
+    let active = true
+    void bridge.getFollowedFeedSources().then((sources) => {
+      if (active) setFollowedP2PFeeds(sources.filter((source) => source.protocol === 'p2p'))
+    }).catch(() => {
+      if (active) setFollowedP2PFeeds([])
+    })
+    return () => { active = false }
+  }, [identity?.jid, serverConnected, serverMicroblogBridge])
 
   useEffect(() => {
     if (!serverConnected) {
@@ -426,13 +498,14 @@ export default function FeedPage() {
     const bareJid = jid.split('/')[0].toLowerCase()
     setServerMicroblogBusy((current) => ({ ...current, [bareJid]: 'follow' }))
     try {
-      const subscriptionStatus = await bridge.subscribeServerMicroblog(bareJid)
+      const subscriptionStatus = bridge.followFeedSource
+        ? await bridge.followFeedSource({ protocol: 'xmpp', owner: bareJid })
+        : await bridge.subscribeServerMicroblog(bareJid)
       if (subscriptionStatus === 'unconfigured') {
         const next = serverMicroblogSubscriptions.filter((item) => item !== bareJid)
         const nextStatuses = { ...serverMicroblogStatuses, [bareJid]: subscriptionStatus }
         setServerMicroblogSubscriptions(next)
         setServerMicroblogStatuses(nextStatuses)
-        saveServerMicroblogSubscriptions(next, nextStatuses)
         emitToast(`The XMPP server requires subscription options for ${bareJid}; it was not followed.`, 'error')
         return
       }
@@ -440,7 +513,6 @@ export default function FeedPage() {
       const nextStatuses = { ...serverMicroblogStatuses, [bareJid]: subscriptionStatus }
       setServerMicroblogSubscriptions(next)
       setServerMicroblogStatuses(nextStatuses)
-      saveServerMicroblogSubscriptions(next, nextStatuses)
       if (subscriptionStatus === 'pending') {
         emitToast(`Subscription request sent to ${bareJid}; waiting for approval`, 'success')
         return
@@ -472,14 +544,14 @@ export default function FeedPage() {
     setServerMicroblogBusy((current) => ({ ...current, [bareJid]: 'unfollow' }))
     try {
       if (serverMicroblogStatuses[bareJid] !== 'polling') {
-        await bridge.unsubscribeServerMicroblog(bareJid)
+        if (bridge.unfollowFeedSource) await bridge.unfollowFeedSource({ protocol: 'xmpp', owner: bareJid })
+        else await bridge.unsubscribeServerMicroblog(bareJid)
       }
       const next = serverMicroblogSubscriptions.filter((item) => item !== bareJid)
       const nextStatuses = { ...serverMicroblogStatuses }
       delete nextStatuses[bareJid]
       setServerMicroblogSubscriptions(next)
       setServerMicroblogStatuses(nextStatuses)
-      saveServerMicroblogSubscriptions(next, nextStatuses)
       emitToast(`Unfollowed ${bareJid}`, 'success')
     } catch (error) {
       emitToast(error instanceof Error ? error.message : `Could not unfollow ${bareJid}`, 'error')
@@ -499,13 +571,27 @@ export default function FeedPage() {
       if (serverMicroblogStatuses[bareJid] !== 'subscribed' && serverMicroblogStatuses[bareJid] !== 'polling') {
         const nextStatuses = { ...serverMicroblogStatuses, [bareJid]: 'subscribed' as const }
         setServerMicroblogStatuses(nextStatuses)
-        saveServerMicroblogSubscriptions(serverMicroblogSubscriptions, nextStatuses)
       }
       emitToast(imported ? `Loaded ${imported} new post${imported === 1 ? '' : 's'} from ${bareJid}` : `No new posts from ${bareJid}`, 'success')
     } catch (error) {
       emitToast(error instanceof Error ? error.message : `Could not refresh ${bareJid}`, 'error')
     } finally {
       setServerMicroblogBusy((current) => { const next = { ...current }; delete next[bareJid]; return next })
+    }
+  }
+
+  const handleP2PFeedUnfollow = async (source: BridgeFollowedFeedSource) => {
+    const bridge = getBrowserXmppBridge()
+    if (!bridge?.unfollowFeedSource) return
+    setServerMicroblogBusy((current) => ({ ...current, [source.id]: 'unfollow' }))
+    try {
+      await bridge.unfollowFeedSource({ protocol: 'p2p', owner: source.owner })
+      setFollowedP2PFeeds((current) => current.filter((item) => item.id !== source.id))
+      emitToast(`Unfollowed P2P feed ${source.owner}`, 'success')
+    } catch (error) {
+      emitToast(error instanceof Error ? error.message : 'Could not unfollow this P2P feed', 'error')
+    } finally {
+      setServerMicroblogBusy((current) => { const next = { ...current }; delete next[source.id]; return next })
     }
   }
 
@@ -617,7 +703,8 @@ export default function FeedPage() {
     bookmarkPost,
     trendingTopics,
   } = useFeedBridge()
-  const { articles, toggleBookmark } = useArticleBridge()
+  const { articles, toggleBookmark, getFollowedTopics } = useArticleBridge()
+  const followedTopicNames = getFollowedTopics()
 
   useEffect(() => {
     const query = new URLSearchParams(routeSearch).get('q')
@@ -634,6 +721,102 @@ export default function FeedPage() {
     setQuickPostType('community')
     setShowCommunityPicker(false)
   }, [routeSearch])
+
+  useEffect(() => {
+    if (!new URLSearchParams(routeSearch).has('addFeed')) return
+    setShowServerMicroblogs(true)
+    setShowAddRssFeed(true)
+    navigate('/', { replace: true })
+  }, [routeSearch, navigate])
+
+  useEffect(() => {
+    const bridge = serverMicroblogBridge
+    if (!bridge?.getRssFeeds) return
+    let cancelled = false
+    const load = () => void bridge.getRssFeeds!().then((sources) => { if (!cancelled) setRssFeeds(sources) }).catch(() => {})
+    load()
+    const timer = window.setInterval(() => {
+      for (const source of rssFeedsRef.current) {
+        if (source.status === 'active' || (source.status === 'error' && (!source.retryAt || Date.parse(source.retryAt) <= Date.now()))) {
+          void bridge.refreshRssFeed?.(source.id).then(load).catch(load)
+        }
+      }
+    }, 15 * 60_000)
+    return () => { cancelled = true; window.clearInterval(timer) }
+  }, [identity?.jid, serverMicroblogBridge])
+
+  const reloadRssFeeds = async () => {
+    if (!serverMicroblogBridge?.getRssFeeds) return
+    setRssFeeds(await serverMicroblogBridge.getRssFeeds())
+  }
+
+  const discoverRssFeed = async () => {
+    if (!serverMicroblogBridge?.discoverRssFeeds || !rssFeedUrl.trim()) return
+    setRssFeedBusy(true)
+    setRssFeedError('')
+    setRssPreviews([])
+    try {
+      const previews = await serverMicroblogBridge.discoverRssFeeds(rssFeedUrl)
+      setRssPreviews(previews)
+      setSelectedRssPreview(previews[0]?.url ?? '')
+    } catch (error) {
+      setRssFeedError(error instanceof Error ? error.message : 'Could not discover a feed at that URL.')
+    } finally { setRssFeedBusy(false) }
+  }
+
+  const subscribeRssFeed = async () => {
+    if (!serverMicroblogBridge?.addRssFeed || !selectedRssPreview) return
+    setRssFeedBusy(true)
+    setRssFeedError('')
+    try {
+      const source = await serverMicroblogBridge.addRssFeed(selectedRssPreview)
+      await reloadRssFeeds()
+      setShowAddRssFeed(false)
+      setRssFeedUrl('')
+      setRssPreviews([])
+      setSelectedRssPreview('')
+      emitToast(`Added ${source.title}`, 'success')
+      void refresh()
+    } catch (error) {
+      setRssFeedError(error instanceof Error ? error.message : 'Could not add this feed.')
+    } finally { setRssFeedBusy(false) }
+  }
+
+  const refreshRssSource = async (source: BridgeRssFeedSource) => {
+    if (!serverMicroblogBridge?.refreshRssFeed) return
+    setRssFeedActions((current) => ({ ...current, [source.id]: true }))
+    try {
+      const added = await serverMicroblogBridge.refreshRssFeed(source.id)
+      await reloadRssFeeds()
+      void refresh()
+      emitToast(added ? `Loaded ${added} new post${added === 1 ? '' : 's'} from ${source.title}` : `${source.title} is up to date`, 'success')
+    } catch (error) {
+      await reloadRssFeeds()
+      emitToast(error instanceof Error ? error.message : `Could not refresh ${source.title}`, 'error')
+    } finally { setRssFeedActions((current) => ({ ...current, [source.id]: false })) }
+  }
+
+  const toggleRssSourcePaused = async (source: BridgeRssFeedSource) => {
+    if (!serverMicroblogBridge?.setRssFeedPaused) return
+    setRssFeedActions((current) => ({ ...current, [source.id]: true }))
+    try {
+      await serverMicroblogBridge.setRssFeedPaused(source.id, source.status !== 'paused')
+      await reloadRssFeeds()
+    } catch (error) { emitToast(error instanceof Error ? error.message : 'Could not update feed source', 'error') }
+    finally { setRssFeedActions((current) => ({ ...current, [source.id]: false })) }
+  }
+
+  const removeRssSource = async (source: BridgeRssFeedSource, keepEntries: boolean) => {
+    if (!serverMicroblogBridge?.removeRssFeed) return
+    setRssFeedActions((current) => ({ ...current, [source.id]: true }))
+    try {
+      await serverMicroblogBridge.removeRssFeed(source.id, keepEntries)
+      await reloadRssFeeds()
+      void refresh()
+      emitToast(keepEntries ? 'Feed removed; existing posts were kept' : 'Feed and its imported posts removed', 'success')
+    } catch (error) { emitToast(error instanceof Error ? error.message : 'Could not remove feed source', 'error') }
+    finally { setRssFeedActions((current) => ({ ...current, [source.id]: false })) }
+  }
 
   const clearFeedSearch = () => {
     setSearchQuery('')
@@ -814,7 +997,7 @@ export default function FeedPage() {
           </div>
         )}
 
-        {(serverConnected || serverMicroblogSubscriptions.length > 0) && <section className="border-b border-border bg-card/50">
+        {(serverConnected || serverMicroblogSubscriptions.length > 0 || followedP2PFeeds.length > 0 || rssFeeds.length > 0 || Boolean(serverMicroblogBridge?.getRssFeeds)) && <section className="border-b border-border bg-card/50">
             <button
               type="button"
               aria-expanded={showServerMicroblogs}
@@ -823,23 +1006,119 @@ export default function FeedPage() {
               className="flex min-h-11 w-full items-center gap-2 px-4 text-left hover:bg-secondary/50"
             >
               <Globe size={14} className="text-primary" />
-              <span className="text-xs font-medium text-foreground">XMPP microblogs</span>
+              <span className="text-xs font-medium text-foreground">Following feeds</span>
               <ChevronDown size={13} className={`ml-auto text-muted-foreground transition-transform ${showServerMicroblogs ? 'rotate-180' : ''}`} />
             </button>
             {showServerMicroblogs && (
               <div id="server-microblogs-panel" className="space-y-2 border-t border-border px-4 py-3">
                 <p className="text-[11px] leading-relaxed text-muted-foreground">
-                  Follow a server contact to load its 20 latest XMPP microblog posts and receive updates. Availability depends on the contact's server. Posts stay in your local feed and are not re-published to P2P.
+                  Follow author feeds or add an RSS/Atom source. Topic follows are local filters; adding a feed subscribes to that external source.
                 </p>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-[11px] text-muted-foreground">Feeds refresh while Feed is open. Their posts stay local and aren’t republished.</p>
+                  <button type="button" onClick={() => { setShowAddRssFeed((open) => !open); setRssFeedError('') }} aria-expanded={showAddRssFeed}
+                    className="min-h-11 rounded-md bg-primary px-3 text-[11px] font-semibold text-primary-foreground hover:bg-primary/90">
+                    {showAddRssFeed ? 'Close add feed' : 'Add RSS/Atom feed'}
+                  </button>
+                </div>
+                {showAddRssFeed && (
+                  <div className="space-y-3 rounded-lg border border-border bg-background p-3">
+                    <div>
+                      <label htmlFor="rss-feed-url" className="text-xs font-semibold text-foreground">Website or feed URL</label>
+                      <p className="mt-1 text-[11px] text-muted-foreground">Nexus will find RSS/Atom links on a website or accept a direct feed URL. In browser builds, the source must allow cross-origin feed access.</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <input id="rss-feed-url" type="url" inputMode="url" value={rssFeedUrl} onChange={(event) => { setRssFeedUrl(event.target.value); setRssPreviews([]); setSelectedRssPreview(''); setRssFeedError('') }}
+                        placeholder="https://example.org/feed.xml" className="min-h-11 min-w-0 flex-1 rounded-lg border border-border bg-card px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary" />
+                      <button type="button" onClick={() => void discoverRssFeed()} disabled={!rssFeedUrl.trim() || rssFeedBusy}
+                        className="min-h-11 shrink-0 rounded-lg bg-secondary px-3 text-xs font-semibold text-foreground disabled:opacity-50">
+                        {rssFeedBusy ? 'Checking…' : 'Find feeds'}
+                      </button>
+                    </div>
+                    {rssFeedError && <p role="alert" className="text-xs text-destructive">{rssFeedError}</p>}
+                    {rssPreviews.length > 0 && (
+                      <div className="space-y-2">
+                        <h3 className="text-xs font-semibold text-foreground">Choose a feed</h3>
+                        {rssPreviews.map((preview) => (
+                          <button key={preview.url} type="button" aria-pressed={selectedRssPreview === preview.url} onClick={() => setSelectedRssPreview(preview.url)}
+                            className={`block min-h-11 w-full rounded-lg border p-3 text-left ${selectedRssPreview === preview.url ? 'border-primary bg-primary/5' : 'border-border bg-card'}`}>
+                            <span className="flex items-center justify-between gap-2 text-sm font-semibold text-foreground"><span className="truncate">{preview.title}</span><span className="shrink-0 text-[10px] uppercase text-primary">{preview.format}</span></span>
+                            <span className="mt-1 block truncate font-mono text-[10px] text-muted-foreground">{preview.url}</span>
+                            {preview.entries[0] && <span className="mt-2 block truncate text-xs text-muted-foreground">Latest: {preview.entries[0].title}{preview.entries[0].summary ? ` — ${preview.entries[0].summary}` : ''}</span>}
+                          </button>
+                        ))}
+                        <button type="button" onClick={() => void subscribeRssFeed()} disabled={!selectedRssPreview || rssFeedBusy}
+                          className="min-h-11 rounded-lg bg-primary px-4 text-xs font-semibold text-primary-foreground disabled:opacity-50">
+                          {rssFeedBusy ? 'Adding…' : 'Subscribe to feed'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {rssFeeds.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="text-[11px] font-semibold text-muted-foreground">RSS/Atom feeds</h3>
+                    <div className="divide-y divide-border overflow-hidden rounded-lg border border-border">
+                      {rssFeeds.map((source) => (
+                        <div key={source.id} className="flex min-w-0 flex-wrap items-center gap-2 px-3 py-2.5">
+                          <div className="min-w-0 flex-1 basis-40">
+                            <p className="truncate text-xs font-medium text-foreground">{source.title}</p>
+                            <p className="truncate font-mono text-[10px] text-muted-foreground">{source.url}</p>
+                            <p className={`text-[10px] ${source.status === 'error' ? 'text-destructive' : 'text-muted-foreground'}`}>
+                              {source.status === 'paused' ? 'Paused' : source.status === 'error' ? source.lastError || 'Could not refresh' : `${source.format.toUpperCase()}${source.lastFetchedAt ? ` · Updated ${new Date(source.lastFetchedAt).toLocaleString()}` : ''}`}
+                            </p>
+                          </div>
+                          <button type="button" disabled={rssFeedActions[source.id] || source.status === 'paused'} onClick={() => void refreshRssSource(source)}
+                            className="min-h-11 rounded-md border border-border px-2.5 text-[11px] font-medium text-muted-foreground hover:text-foreground disabled:opacity-40">Refresh</button>
+                          <details className="relative">
+                            <summary aria-label={`Manage ${source.title}`} className="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary">•••</summary>
+                            <div className="absolute right-0 top-full z-20 min-w-48 rounded-xl border border-border bg-card p-1 shadow-xl">
+                              <button type="button" disabled={rssFeedActions[source.id]} onClick={() => void toggleRssSourcePaused(source)} className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-xs hover:bg-secondary">
+                                {source.status === 'paused' ? 'Resume updates' : 'Pause updates'}
+                              </button>
+                              <button type="button" disabled={rssFeedActions[source.id]} onClick={() => void removeRssSource(source, true)} className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-xs hover:bg-secondary">
+                                Remove source, keep posts
+                              </button>
+                              <button type="button" disabled={rssFeedActions[source.id]} onClick={() => void removeRssSource(source, false)} className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-xs text-destructive hover:bg-destructive/10">
+                                Remove source and posts
+                              </button>
+                            </div>
+                          </details>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {followedP2PFeeds.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="text-[11px] font-semibold text-muted-foreground">P2P feeds</h3>
+                    <div className="divide-y divide-border overflow-hidden rounded-lg border border-border">
+                      {followedP2PFeeds.map((source) => {
+                        const busy = serverMicroblogBusy[source.id]
+                        return (
+                          <div key={source.id} className="flex min-h-12 items-center gap-3 px-3 py-2">
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-xs font-medium text-foreground">{source.owner}</p>
+                              <p className="text-[10px] text-muted-foreground">P2P feed</p>
+                            </div>
+                            <button type="button" disabled={Boolean(busy)} onClick={() => void handleP2PFeedUnfollow(source)} className="min-h-11 shrink-0 rounded-md border border-border px-2.5 text-[11px] font-medium text-muted-foreground hover:text-foreground disabled:opacity-50">
+                              {busy === 'unfollow' ? 'Removing…' : 'Unfollow'}
+                            </button>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
                 {!serverConnected ? (
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p role="status" className="text-xs text-muted-foreground">Connect an XMPP account to follow contacts’ server microblogs. These posts are separate from the P2P feed.</p>
+                    <p role="status" className="text-xs text-muted-foreground">Connect an XMPP account to follow XMPP microblogs. These posts are separate from the P2P feed.</p>
                     <button type="button" onClick={() => navigate('/settings')} className="min-h-11 rounded-md bg-secondary px-3 text-[11px] font-medium text-foreground hover:bg-secondary/80">Connect XMPP account</button>
                   </div>
                 ) : !supportsServerMicroblogs ? (
                   <p role="status" className="text-xs text-muted-foreground">XMPP microblog subscriptions are unavailable in this client.</p>
                 ) : serverMicroblogRows.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">No XMPP server contacts yet. Add a contact in Contacts to browse its microblog.</p>
+                  <p className="text-xs text-muted-foreground">No XMPP accounts to show yet. Follow an author from one of their posts.</p>
                 ) : (
                   <div className="divide-y divide-border overflow-hidden rounded-lg border border-border">
                     {serverMicroblogRows.map(({ jid, contact }) => {
@@ -856,7 +1135,7 @@ export default function FeedPage() {
                           </div>
                           {followed ? (
                             <>
-                              <button type="button" aria-label={`Refresh ${contact?.name || contact?.nickname || jid}`} disabled={!supportsServerMicroblogs || !contact || Boolean(busy) || serverMicroblogStatuses[jid] === 'unconfigured'} onClick={() => void handleServerMicroblogRefresh(jid)}
+                              <button type="button" aria-label={`Refresh ${contact?.name || contact?.nickname || jid}`} disabled={!supportsServerMicroblogs || Boolean(busy) || serverMicroblogStatuses[jid] === 'unconfigured'} onClick={() => void handleServerMicroblogRefresh(jid)}
                                 className="min-h-11 shrink-0 whitespace-nowrap rounded-md border border-border px-2.5 text-[11px] font-medium text-muted-foreground hover:text-foreground disabled:opacity-40">
                                 {busy === 'refresh' ? 'Loading…' : serverMicroblogStatuses[jid] === 'pending' ? 'Check posts' : 'Refresh'}
                               </button>
@@ -983,6 +1262,10 @@ export default function FeedPage() {
             {loadError ? <>
               <p role="alert" className="text-sm text-destructive max-w-sm">Could not load the feed: {loadError}</p>
               <button type="button" onClick={() => void refresh()} className="min-h-11 rounded-lg bg-secondary px-3 text-sm hover:bg-secondary/80">Try again</button>
+            </> : activeFilter === 'following' && !searchQuery ? <>
+              <p className="text-sm font-medium text-foreground">{followedTopicNames.length ? 'No posts from followed topics yet' : 'No topics followed yet'}</p>
+              <p className="text-xs text-muted-foreground max-w-sm">{followedTopicNames.length ? 'Posts from your followed topics will appear here as P2P, XMPP, and RSS/Atom sources update.' : 'Follow a topic in Topics to filter your feed to those posts.'}</p>
+              <button type="button" onClick={() => navigate('/topics')} className="min-h-11 rounded-lg bg-secondary px-3 text-sm hover:bg-secondary/80">Browse topics</button>
             </> : searchQuery || activeFilter !== 'all' ? <>
               <p className="text-sm font-medium text-foreground">{activeFilter === 'all' ? 'No posts match your search' : 'No posts match these filters'}</p>
               <p className="text-xs text-muted-foreground max-w-sm">{activeFilter === 'all' ? 'Clear the search to return to your feed.' : 'Try another search or show all posts.'}</p>

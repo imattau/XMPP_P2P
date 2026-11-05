@@ -1,5 +1,5 @@
 export type FeedType = 'post' | 'topic' | 'community'
-export type FeedFilterType = 'all' | 'posts' | 'topics' | 'communities'
+export type FeedFilterType = 'all' | 'posts' | 'topics' | 'communities' | 'following'
 
 export interface FeedAuthor {
   name: string
@@ -16,14 +16,18 @@ export interface FeedMedia {
 
 export interface FeedPost {
   id: string
-  sourceProtocol?: 'p2p' | 'xmpp'
+  sourceProtocol?: 'p2p' | 'xmpp' | 'rss'
+  externalUrl?: string
+  sourceName?: string
   type: FeedType
   author: FeedAuthor
   content: string
+  title?: string
   timestamp: string
   publishedAt?: string
   sourceTopic?: string
   topic?: string
+  topics?: string[]
   topicColor?: string
   community?: string
   communityIcon?: string

@@ -20,6 +20,7 @@ import { BrowserXmppRuntimeBridge } from '../bridge/browser-runtime.js'
 import { IpcBridgeHost } from './bridge-ipc.js'
 import { IPC, type NativeStartOptions } from './bridge-contract.js'
 import { rendererRoot, startStaticServer } from './static-server.js'
+import { fetchRssFeed } from './rss-feed-fetch.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -115,7 +116,7 @@ async function startXmpp(options: NativeStartOptions): Promise<{ jid: string }> 
       allowNativeXmppTcp: true
     })
     await xmpp.ready
-    const runtimeBridge = new BrowserXmppRuntimeBridge(xmpp, async () => { await node.stop() })
+    const runtimeBridge = new BrowserXmppRuntimeBridge(xmpp, async () => { await node.stop() }, fetchRssFeed)
 
     libp2p = node
     xmppNode = xmpp

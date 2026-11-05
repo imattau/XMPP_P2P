@@ -1703,29 +1703,79 @@ export class XmppNode extends EventEmitter {
     return this.clientBridge.discoverMucRooms()
   }
 
-  private getServerMicroblogContactJid(jid: string, requireRosterEntry = true): string {
+  private getServerMicroblogContactJid(jid: string): string {
     if (!this.clientBridge.isConnected) throw new Error('Connect your XMPP account before managing microblogs.')
     const bareJid = jid.trim().split('/')[0].toLowerCase()
     if (!bareJid.includes('@') || bareJid.endsWith('@p2p')) {
-      throw new Error('Choose a contact from your XMPP server roster.')
+      throw new Error('Choose a valid XMPP account JID.')
     }
     if (bareJid === this.clientBridge.accountJid?.toLowerCase().split('/')[0]) {
       throw new Error('Choose another account to follow its microblog.')
     }
-    if (requireRosterEntry && !this.rosterManager.getRosterEntry(bareJid)) {
-      throw new Error('Add this XMPP contact to your roster before following its microblog.')
-    }
+    // Following a public microblog is independent of the XMPP presence roster.
     return bareJid
+  }
+
+  private serverMicroblogSubscriptionKey(jid: string): string {
+    const accountJid = this.clientBridge.accountJid?.toLowerCase().split('/')[0]
+    if (!accountJid) throw new Error('Your XMPP account JID is unavailable.')
+    return `${encodeURIComponent(accountJid)}::${encodeURIComponent(jid.toLowerCase())}`
   }
 
   async subscribeServerMicroblog(jid: string): Promise<ServerPubsubSubscriptionStatus> {
     const contactJid = this.getServerMicroblogContactJid(jid)
-    return this.clientBridge.pubsubSubscribe(contactJid, 'urn:xmpp:microblog:0')
+    const status = await this.clientBridge.pubsubSubscribe(contactJid, 'urn:xmpp:microblog:0')
+    if (status !== 'unconfigured') {
+      const updatedAt = new Date().toISOString()
+      try {
+        await this.storage.putRecord('server_microblog_subscriptions', this.serverMicroblogSubscriptionKey(contactJid), JSON.stringify({
+          accountJid: this.clientBridge.accountJid?.toLowerCase().split('/')[0],
+          jid: contactJid,
+          node: 'urn:xmpp:microblog:0',
+          status,
+          updatedAt,
+        }), updatedAt)
+      } catch (error) {
+        try { await this.clientBridge.pubsubUnsubscribe(contactJid, 'urn:xmpp:microblog:0') } catch { /* server may not support rollback */ }
+        throw error
+      }
+    }
+    return status
   }
 
   async unsubscribeServerMicroblog(jid: string): Promise<void> {
-    const contactJid = this.getServerMicroblogContactJid(jid, false)
-    await this.clientBridge.pubsubUnsubscribe(contactJid, 'urn:xmpp:microblog:0')
+    const contactJid = this.getServerMicroblogContactJid(jid)
+    const key = this.serverMicroblogSubscriptionKey(contactJid)
+    const raw = await this.storage.getRecord('server_microblog_subscriptions', key)
+    let status: string | undefined
+    try { status = raw ? (JSON.parse(raw) as { status?: string }).status : undefined } catch { status = undefined }
+    if (status !== 'polling') await this.clientBridge.pubsubUnsubscribe(contactJid, 'urn:xmpp:microblog:0')
+    await this.storage.deleteRecord('server_microblog_subscriptions', key)
+  }
+
+  async getServerMicroblogSubscriptions(): Promise<Array<{ jid: string; node: string; status: 'subscribed' | 'pending' | 'polling'; updatedAt: string }>> {
+    await this.ready
+    const accountJid = this.clientBridge.accountJid?.toLowerCase().split('/')[0]
+    if (!accountJid) return []
+    const records = await this.storage.listRecords('server_microblog_subscriptions')
+    return records.flatMap(({ key, value, updatedAt }) => {
+      try {
+        const parsed = JSON.parse(value) as { accountJid?: unknown; jid?: unknown; node?: unknown; status?: unknown; updatedAt?: unknown }
+        if (typeof parsed.accountJid !== 'string' || parsed.accountJid.toLowerCase() !== accountJid) return []
+        if (typeof parsed.jid !== 'string' || !parsed.jid.includes('@')) return []
+        const status = parsed.status
+        if (status !== 'subscribed' && status !== 'pending' && status !== 'polling') return []
+        const subscriptionStatus = status as 'subscribed' | 'pending' | 'polling'
+        return [{
+          jid: parsed.jid || key,
+          node: typeof parsed.node === 'string' ? parsed.node : 'urn:xmpp:microblog:0',
+          status: subscriptionStatus,
+          updatedAt: typeof parsed.updatedAt === 'string' ? parsed.updatedAt : updatedAt,
+        }]
+      } catch {
+        return []
+      }
+    }).sort((a, b) => a.jid.localeCompare(b.jid))
   }
 
   async refreshServerMicroblog(jid: string): Promise<number> {

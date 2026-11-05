@@ -4,7 +4,7 @@ import { useNavigate, useParams } from 'react-router'
 import {
   ArrowLeft, Heart, MessageCircle, Repeat2, Share2,
   Bookmark, Hash, Users, Globe, Lock, Shield,
-  Zap, Image, Smile, AtSign, Send, ChevronDown, MoreHorizontal, Check, X, UserPlus, UserMinus,
+  Zap, Image, Smile, AtSign, Send, ChevronDown, MoreHorizontal, Check, X, UserPlus, UserMinus, ExternalLink,
 } from 'lucide-react'
 import { getBrowserXmppBridge, useBrowserXmppBridge } from '../bridge/runtime'
 import { useFeedBridge } from '../bridge/feed/useFeedBridge'
@@ -35,6 +35,7 @@ interface Post {
   id: string
   author: Author
   content: string
+  title?: string
   timestamp: string
   fullDate: string
   topic?: string
@@ -51,7 +52,9 @@ interface Post {
   privacy?: 'public' | 'followers' | 'community'
   media?: { url: string; alt: string }
   sourceTopic?: string
-  sourceProtocol?: 'p2p' | 'xmpp'
+  sourceProtocol?: 'p2p' | 'xmpp' | 'rss'
+  externalUrl?: string
+  sourceName?: string
 }
 
 async function copyPostLink(postId: string) {
@@ -204,6 +207,7 @@ export default function PostPage() {
       id: fp.id,
       author: { name: fp.author.name, handle: fp.author.handle, avatar: fp.author.avatar, server: fp.author.server || '', verified: fp.author.verified },
       content: fp.content,
+      title: fp.title,
       timestamp: fp.timestamp,
       fullDate: fp.timestamp,
       likes: fp.likes,
@@ -218,6 +222,8 @@ export default function PostPage() {
       privacy: fp.privacy,
       sourceTopic: fp.sourceTopic,
       sourceProtocol: fp.sourceProtocol,
+      externalUrl: fp.externalUrl,
+      sourceName: fp.sourceName,
     }
   }, [id, feedPosts])
 
@@ -232,7 +238,7 @@ export default function PostPage() {
     reposts: 0,
     views: 0,
   }
-  const supportsSocialActions = post.sourceProtocol !== 'xmpp'
+  const supportsSocialActions = post.sourceProtocol !== 'xmpp' && post.sourceProtocol !== 'rss'
   const [liked, setLiked] = useState(post.liked ?? false)
   const [likes, setLikes] = useState(post.likes)
   const [reposts, setReposts] = useState(post.reposts)
@@ -241,6 +247,7 @@ export default function PostPage() {
   const [replyText, setReplyText] = useState('')
   const [submittingReply, setSubmittingReply] = useState(false)
   const [followingAuthor, setFollowingAuthor] = useState(false)
+  const [authorFollowStatus, setAuthorFollowStatus] = useState<'subscribed' | 'pending' | 'polling' | undefined>()
   const [changingFollow, setChangingFollow] = useState(false)
   const replyTextareaRef = React.useRef<HTMLTextAreaElement>(null)
   // Replies are populated from feed records after the current post is resolved.
@@ -249,36 +256,94 @@ export default function PostPage() {
 
   const authorPeerId = bridgePost?.author.handle
   const authorPeerJid = authorPeerId ? `${authorPeerId}@p2p` : ''
-  const canFollowAuthor = Boolean(bridgePost && authorPeerId && bridgePost.author.server.toLowerCase() === 'p2p'
-    && authorPeerJid !== runtime?.getLocalJid?.())
+  const isP2PAuthor = bridgePost?.sourceProtocol === 'p2p' || bridgePost?.author.server.toLowerCase() === 'p2p'
+  const isXMPPAuthor = bridgePost?.sourceProtocol === 'xmpp'
+  const xmppAuthorJid = bridgePost && bridgePost.author.handle.includes('@')
+    ? bridgePost.author.handle.split('/')[0].toLowerCase()
+    : bridgePost?.author.server
+      ? `${bridgePost.author.handle}@${bridgePost.author.server}`.toLowerCase()
+      : ''
+  const localAddresses = [runtime?.getLocalJid?.(), runtime?.getServerJid?.()]
+    .filter((value): value is string => Boolean(value))
+    .map((value) => value.split('/')[0].toLowerCase())
+  const targetAuthorAddress = isP2PAuthor ? authorPeerJid : xmppAuthorJid
+  const canFollowAuthor = Boolean(bridgePost && authorPeerId && (isP2PAuthor || (isXMPPAuthor && xmppAuthorJid.includes('@')))
+    && !localAddresses.includes(targetAuthorAddress.toLowerCase()))
 
   useEffect(() => {
     let active = true
     setFollowingAuthor(false)
+    setAuthorFollowStatus(undefined)
     if (!runtime || !canFollowAuthor || !authorPeerId) return () => { active = false }
-    void runtime.getFeedSubscriptions().then((subscriptions) => {
-      if (active) setFollowingAuthor(subscriptions.some((subscription) => subscription.peerId === authorPeerId))
-    }).catch(() => {})
+    const loadFollowing = async () => {
+      try {
+        if (runtime.getFollowedFeedSources) {
+          const sources = await runtime.getFollowedFeedSources()
+          const target = isP2PAuthor ? authorPeerId : xmppAuthorJid
+          const source = sources.find((item) => item.protocol === (isP2PAuthor ? 'p2p' : 'xmpp') && item.owner.toLowerCase() === target.toLowerCase())
+          if (active) {
+            setFollowingAuthor(Boolean(source))
+            const status = source?.status === 'subscribed' || source?.status === 'pending' || source?.status === 'polling' ? source.status : undefined
+            setAuthorFollowStatus(status)
+          }
+        } else if (isP2PAuthor) {
+          const subscriptions = await runtime.getFeedSubscriptions()
+          if (active) setFollowingAuthor(subscriptions.some((subscription) => subscription.peerId === authorPeerId))
+        } else {
+          const subscriptions = await runtime.getServerMicroblogSubscriptions?.() ?? []
+          if (active) setFollowingAuthor(subscriptions.some((subscription) => subscription.jid.toLowerCase() === xmppAuthorJid))
+        }
+      } catch { /* follow state is rechecked when the user acts */ }
+    }
+    void loadFollowing()
     return () => { active = false }
-  }, [runtime, canFollowAuthor, authorPeerId])
+  }, [runtime, canFollowAuthor, authorPeerId, isP2PAuthor, xmppAuthorJid])
 
   const toggleFollowAuthor = async () => {
-    if (!runtime || !canFollowAuthor || !authorPeerJid || changingFollow) return
+    if (!runtime || !canFollowAuthor || changingFollow) return
     setChangingFollow(true)
     try {
-      if (followingAuthor) {
-        await runtime.unsubscribeFeed(authorPeerJid)
-        setFollowingAuthor(false)
-        emitToast(`Unfollowed @${authorPeerId}`, 'success')
+      const source = { protocol: isP2PAuthor ? 'p2p' as const : 'xmpp' as const, owner: isP2PAuthor ? authorPeerId! : xmppAuthorJid }
+      let nextStatus: 'subscribed' | 'pending' | 'polling' | undefined
+      if (runtime.followFeedSource && runtime.unfollowFeedSource) {
+        if (followingAuthor) await runtime.unfollowFeedSource(source)
+        else {
+          const status = await runtime.followFeedSource(source)
+          if (status === 'unconfigured') throw new Error('This XMPP server requires subscription options that Nexus cannot provide yet.')
+          nextStatus = status
+          if (source.protocol === 'xmpp' && status !== 'pending') await runtime.refreshServerMicroblog?.(source.owner)
+        }
+      } else if (followingAuthor) {
+        if (isP2PAuthor) await runtime.unsubscribeFeed(authorPeerJid)
+        else {
+          if (!runtime.unsubscribeServerMicroblog) throw new Error('XMPP microblog following is unavailable in this client.')
+          await runtime.unsubscribeServerMicroblog(xmppAuthorJid)
+        }
       } else {
-        await runtime.subscribeFeed(authorPeerJid)
-        setFollowingAuthor(true)
-        emitToast(`Following @${authorPeerId}; new posts will appear in your feed`, 'success')
+        if (isP2PAuthor) await runtime.subscribeFeed(authorPeerJid)
+        else {
+          if (!runtime.subscribeServerMicroblog) throw new Error('XMPP microblog following is unavailable in this client.')
+          const status = await runtime.subscribeServerMicroblog(xmppAuthorJid)
+          if (status === 'unconfigured') throw new Error('This XMPP server requires subscription options that Nexus cannot provide yet.')
+          nextStatus = status
+          if (status !== 'pending') await runtime.refreshServerMicroblog?.(xmppAuthorJid)
+        }
       }
+      if (followingAuthor) {
+        setFollowingAuthor(false)
+        setAuthorFollowStatus(undefined)
+      } else {
+        setFollowingAuthor(true)
+        setAuthorFollowStatus(nextStatus ?? 'subscribed')
+      }
+      emitToast(followingAuthor
+        ? `Unfollowed ${isP2PAuthor ? `@${authorPeerId}` : xmppAuthorJid}`
+        : nextStatus === 'pending'
+          ? `Subscription request sent to ${xmppAuthorJid}; waiting for approval`
+          : nextStatus === 'polling'
+            ? `Following ${xmppAuthorJid} with periodic refresh`
+            : `Following ${isP2PAuthor ? `@${authorPeerId}` : xmppAuthorJid}; new posts will appear in your feed`, 'success')
     } catch (error) {
-      void runtime.getFeedSubscriptions().then((subscriptions) => {
-        setFollowingAuthor(subscriptions.some((subscription) => subscription.peerId === authorPeerId))
-      }).catch(() => {})
       emitToast(error instanceof Error ? error.message : 'Could not update feed subscription', 'error')
     } finally {
       setChangingFollow(false)
@@ -508,6 +573,9 @@ export default function PostPage() {
               <div className="flex min-w-0 items-center gap-1.5">
                 <span className="truncate font-semibold text-sm text-foreground">{post.author.name}</span>
                 {post.author.verified && <Shield size={12} className="text-primary" />}
+                <span className="shrink-0 rounded border border-primary/20 px-1 py-0.5 font-mono text-[9px] text-primary">
+                  {post.sourceProtocol === 'rss' ? 'RSS/Atom' : post.sourceProtocol === 'xmpp' ? 'XMPP PubSub' : 'P2P'}
+                </span>
               </div>
               <div className="flex min-w-0 items-center gap-1.5">
                 <span className="max-w-[38vw] truncate font-mono text-[11px] text-muted-foreground">@{post.author.handle}</span>
@@ -524,10 +592,12 @@ export default function PostPage() {
                   className={`inline-flex min-h-11 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium transition-colors disabled:cursor-wait disabled:opacity-60 ${followingAuthor ? 'border-border text-muted-foreground hover:bg-secondary' : 'border-primary/40 text-primary hover:bg-primary/10'}`}
                 >
                   {followingAuthor ? <UserMinus size={14} /> : <UserPlus size={14} />}
-                  {changingFollow ? 'Updating…' : followingAuthor ? 'Following' : 'Follow'}
+                  {changingFollow ? 'Updating…' : authorFollowStatus === 'pending' ? 'Requested' : followingAuthor ? 'Following' : 'Follow'}
                 </button>
               )}
           </div>
+          {followingAuthor && authorFollowStatus === 'pending' && <p role="status" className="mb-2 pl-[3.25rem] text-xs text-warn">Subscription request sent; waiting for approval.</p>}
+          {followingAuthor && authorFollowStatus === 'polling' && <p role="status" className="mb-2 pl-[3.25rem] text-xs text-muted-foreground">Push updates are unavailable; posts refresh periodically while Feed is open.</p>}
 
           {post.topic && (
             <div className="mb-2">
@@ -545,7 +615,14 @@ export default function PostPage() {
             </div>
           )}
 
+          {post.sourceProtocol === 'rss' && post.title && <h1 className="mb-2 break-words text-lg font-semibold leading-snug text-foreground">{post.title}</h1>}
           <p className="mb-3 break-words whitespace-pre-line text-[15px] leading-relaxed text-foreground">{post.content}</p>
+
+          {post.externalUrl && (
+            <a href={post.externalUrl} target="_blank" rel="noopener noreferrer" className="mb-3 inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-border px-3 text-xs font-medium text-primary hover:bg-secondary">
+              <ExternalLink size={13} /> Read original{post.sourceName ? ` at ${post.sourceName}` : ''}
+            </a>
+          )}
 
           {post.media && (
             <div className="mb-3 rounded-lg overflow-hidden border border-border bg-secondary">

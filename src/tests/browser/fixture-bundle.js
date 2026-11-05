@@ -6,6 +6,12 @@
   var __getOwnPropNames = Object.getOwnPropertyNames;
   var __getProtoOf = Object.getPrototypeOf;
   var __hasOwnProp = Object.prototype.hasOwnProperty;
+  var __require = /* @__PURE__ */ ((x2) => typeof require !== "undefined" ? require : typeof Proxy !== "undefined" ? new Proxy(x2, {
+    get: (a2, b2) => (typeof require !== "undefined" ? require : a2)[b2]
+  }) : x2)(function(x2) {
+    if (typeof require !== "undefined") return require.apply(this, arguments);
+    throw Error('Dynamic require of "' + x2 + '" is not supported');
+  });
   var __esm = (fn2, res, err) => function __init() {
     if (err) throw err[0];
     try {
@@ -14,7 +20,7 @@
       throw err = [e2], e2;
     }
   };
-  var __commonJS = (cb, mod2) => function __require() {
+  var __commonJS = (cb, mod2) => function __require2() {
     try {
       return mod2 || (0, cb[__getOwnPropNames(cb)[0]])((mod2 = { exports: {} }).exports, mod2), mod2.exports;
     } catch (e2) {
@@ -179,7 +185,7 @@
         }
         return (s3 ? -1 : 1) * m3 * Math.pow(2, e2 - mLen);
       };
-      exports.write = function(buffer, value2, offset, isLE2, mLen, nBytes) {
+      exports.write = function(buffer, value3, offset, isLE2, mLen, nBytes) {
         var e2, m3, c2;
         var eLen = nBytes * 8 - mLen - 1;
         var eMax = (1 << eLen) - 1;
@@ -187,23 +193,23 @@
         var rt2 = mLen === 23 ? Math.pow(2, -24) - Math.pow(2, -77) : 0;
         var i2 = isLE2 ? 0 : nBytes - 1;
         var d3 = isLE2 ? 1 : -1;
-        var s3 = value2 < 0 || value2 === 0 && 1 / value2 < 0 ? 1 : 0;
-        value2 = Math.abs(value2);
-        if (isNaN(value2) || value2 === Infinity) {
-          m3 = isNaN(value2) ? 1 : 0;
+        var s3 = value3 < 0 || value3 === 0 && 1 / value3 < 0 ? 1 : 0;
+        value3 = Math.abs(value3);
+        if (isNaN(value3) || value3 === Infinity) {
+          m3 = isNaN(value3) ? 1 : 0;
           e2 = eMax;
         } else {
-          e2 = Math.floor(Math.log(value2) / Math.LN2);
-          if (value2 * (c2 = Math.pow(2, -e2)) < 1) {
+          e2 = Math.floor(Math.log(value3) / Math.LN2);
+          if (value3 * (c2 = Math.pow(2, -e2)) < 1) {
             e2--;
             c2 *= 2;
           }
           if (e2 + eBias >= 1) {
-            value2 += rt2 / c2;
+            value3 += rt2 / c2;
           } else {
-            value2 += rt2 * Math.pow(2, 1 - eBias);
+            value3 += rt2 * Math.pow(2, 1 - eBias);
           }
-          if (value2 * c2 >= 2) {
+          if (value3 * c2 >= 2) {
             e2++;
             c2 /= 2;
           }
@@ -211,10 +217,10 @@
             m3 = 0;
             e2 = eMax;
           } else if (e2 + eBias >= 1) {
-            m3 = (value2 * c2 - 1) * Math.pow(2, mLen);
+            m3 = (value3 * c2 - 1) * Math.pow(2, mLen);
             e2 = e2 + eBias;
           } else {
-            m3 = value2 * Math.pow(2, eBias - 1) * Math.pow(2, mLen);
+            m3 = value3 * Math.pow(2, eBias - 1) * Math.pow(2, mLen);
             e2 = 0;
           }
         }
@@ -295,48 +301,48 @@
         return from7(arg, encodingOrOffset, length7);
       }
       Buffer6.poolSize = 8192;
-      function from7(value2, encodingOrOffset, length7) {
-        if (typeof value2 === "string") {
-          return fromString6(value2, encodingOrOffset);
+      function from7(value3, encodingOrOffset, length7) {
+        if (typeof value3 === "string") {
+          return fromString6(value3, encodingOrOffset);
         }
-        if (ArrayBuffer.isView(value2)) {
-          return fromArrayView(value2);
+        if (ArrayBuffer.isView(value3)) {
+          return fromArrayView(value3);
         }
-        if (value2 == null) {
+        if (value3 == null) {
           throw new TypeError(
-            "The first argument must be one of type string, Buffer, ArrayBuffer, Array, or Array-like Object. Received type " + typeof value2
+            "The first argument must be one of type string, Buffer, ArrayBuffer, Array, or Array-like Object. Received type " + typeof value3
           );
         }
-        if (isInstance(value2, ArrayBuffer) || value2 && isInstance(value2.buffer, ArrayBuffer)) {
-          return fromArrayBuffer(value2, encodingOrOffset, length7);
+        if (isInstance(value3, ArrayBuffer) || value3 && isInstance(value3.buffer, ArrayBuffer)) {
+          return fromArrayBuffer(value3, encodingOrOffset, length7);
         }
-        if (typeof SharedArrayBuffer !== "undefined" && (isInstance(value2, SharedArrayBuffer) || value2 && isInstance(value2.buffer, SharedArrayBuffer))) {
-          return fromArrayBuffer(value2, encodingOrOffset, length7);
+        if (typeof SharedArrayBuffer !== "undefined" && (isInstance(value3, SharedArrayBuffer) || value3 && isInstance(value3.buffer, SharedArrayBuffer))) {
+          return fromArrayBuffer(value3, encodingOrOffset, length7);
         }
-        if (typeof value2 === "number") {
+        if (typeof value3 === "number") {
           throw new TypeError(
             'The "value" argument must not be of type number. Received type number'
           );
         }
-        var valueOf = value2.valueOf && value2.valueOf();
-        if (valueOf != null && valueOf !== value2) {
+        var valueOf = value3.valueOf && value3.valueOf();
+        if (valueOf != null && valueOf !== value3) {
           return Buffer6.from(valueOf, encodingOrOffset, length7);
         }
-        var b2 = fromObject(value2);
+        var b2 = fromObject(value3);
         if (b2) return b2;
-        if (typeof Symbol !== "undefined" && Symbol.toPrimitive != null && typeof value2[Symbol.toPrimitive] === "function") {
+        if (typeof Symbol !== "undefined" && Symbol.toPrimitive != null && typeof value3[Symbol.toPrimitive] === "function") {
           return Buffer6.from(
-            value2[Symbol.toPrimitive]("string"),
+            value3[Symbol.toPrimitive]("string"),
             encodingOrOffset,
             length7
           );
         }
         throw new TypeError(
-          "The first argument must be one of type string, Buffer, ArrayBuffer, Array, or Array-like Object. Received type " + typeof value2
+          "The first argument must be one of type string, Buffer, ArrayBuffer, Array, or Array-like Object. Received type " + typeof value3
         );
       }
-      Buffer6.from = function(value2, encodingOrOffset, length7) {
-        return from7(value2, encodingOrOffset, length7);
+      Buffer6.from = function(value3, encodingOrOffset, length7) {
+        return from7(value3, encodingOrOffset, length7);
       };
       Object.setPrototypeOf(Buffer6.prototype, Uint8Array.prototype);
       Object.setPrototypeOf(Buffer6, Uint8Array);
@@ -1201,202 +1207,202 @@
         if (!noAssert) checkOffset(offset, 8, this.length);
         return ieee754.read(this, offset, false, 52, 8);
       };
-      function checkInt(buf, value2, offset, ext, max, min) {
+      function checkInt(buf, value3, offset, ext, max, min) {
         if (!Buffer6.isBuffer(buf)) throw new TypeError('"buffer" argument must be a Buffer instance');
-        if (value2 > max || value2 < min) throw new RangeError('"value" argument is out of bounds');
+        if (value3 > max || value3 < min) throw new RangeError('"value" argument is out of bounds');
         if (offset + ext > buf.length) throw new RangeError("Index out of range");
       }
-      Buffer6.prototype.writeUintLE = Buffer6.prototype.writeUIntLE = function writeUIntLE(value2, offset, byteLength2, noAssert) {
-        value2 = +value2;
+      Buffer6.prototype.writeUintLE = Buffer6.prototype.writeUIntLE = function writeUIntLE(value3, offset, byteLength2, noAssert) {
+        value3 = +value3;
         offset = offset >>> 0;
         byteLength2 = byteLength2 >>> 0;
         if (!noAssert) {
           var maxBytes = Math.pow(2, 8 * byteLength2) - 1;
-          checkInt(this, value2, offset, byteLength2, maxBytes, 0);
+          checkInt(this, value3, offset, byteLength2, maxBytes, 0);
         }
         var mul = 1;
         var i2 = 0;
-        this[offset] = value2 & 255;
+        this[offset] = value3 & 255;
         while (++i2 < byteLength2 && (mul *= 256)) {
-          this[offset + i2] = value2 / mul & 255;
+          this[offset + i2] = value3 / mul & 255;
         }
         return offset + byteLength2;
       };
-      Buffer6.prototype.writeUintBE = Buffer6.prototype.writeUIntBE = function writeUIntBE(value2, offset, byteLength2, noAssert) {
-        value2 = +value2;
+      Buffer6.prototype.writeUintBE = Buffer6.prototype.writeUIntBE = function writeUIntBE(value3, offset, byteLength2, noAssert) {
+        value3 = +value3;
         offset = offset >>> 0;
         byteLength2 = byteLength2 >>> 0;
         if (!noAssert) {
           var maxBytes = Math.pow(2, 8 * byteLength2) - 1;
-          checkInt(this, value2, offset, byteLength2, maxBytes, 0);
+          checkInt(this, value3, offset, byteLength2, maxBytes, 0);
         }
         var i2 = byteLength2 - 1;
         var mul = 1;
-        this[offset + i2] = value2 & 255;
+        this[offset + i2] = value3 & 255;
         while (--i2 >= 0 && (mul *= 256)) {
-          this[offset + i2] = value2 / mul & 255;
+          this[offset + i2] = value3 / mul & 255;
         }
         return offset + byteLength2;
       };
-      Buffer6.prototype.writeUint8 = Buffer6.prototype.writeUInt8 = function writeUInt8(value2, offset, noAssert) {
-        value2 = +value2;
+      Buffer6.prototype.writeUint8 = Buffer6.prototype.writeUInt8 = function writeUInt8(value3, offset, noAssert) {
+        value3 = +value3;
         offset = offset >>> 0;
-        if (!noAssert) checkInt(this, value2, offset, 1, 255, 0);
-        this[offset] = value2 & 255;
+        if (!noAssert) checkInt(this, value3, offset, 1, 255, 0);
+        this[offset] = value3 & 255;
         return offset + 1;
       };
-      Buffer6.prototype.writeUint16LE = Buffer6.prototype.writeUInt16LE = function writeUInt16LE(value2, offset, noAssert) {
-        value2 = +value2;
+      Buffer6.prototype.writeUint16LE = Buffer6.prototype.writeUInt16LE = function writeUInt16LE(value3, offset, noAssert) {
+        value3 = +value3;
         offset = offset >>> 0;
-        if (!noAssert) checkInt(this, value2, offset, 2, 65535, 0);
-        this[offset] = value2 & 255;
-        this[offset + 1] = value2 >>> 8;
+        if (!noAssert) checkInt(this, value3, offset, 2, 65535, 0);
+        this[offset] = value3 & 255;
+        this[offset + 1] = value3 >>> 8;
         return offset + 2;
       };
-      Buffer6.prototype.writeUint16BE = Buffer6.prototype.writeUInt16BE = function writeUInt16BE(value2, offset, noAssert) {
-        value2 = +value2;
+      Buffer6.prototype.writeUint16BE = Buffer6.prototype.writeUInt16BE = function writeUInt16BE(value3, offset, noAssert) {
+        value3 = +value3;
         offset = offset >>> 0;
-        if (!noAssert) checkInt(this, value2, offset, 2, 65535, 0);
-        this[offset] = value2 >>> 8;
-        this[offset + 1] = value2 & 255;
+        if (!noAssert) checkInt(this, value3, offset, 2, 65535, 0);
+        this[offset] = value3 >>> 8;
+        this[offset + 1] = value3 & 255;
         return offset + 2;
       };
-      Buffer6.prototype.writeUint32LE = Buffer6.prototype.writeUInt32LE = function writeUInt32LE(value2, offset, noAssert) {
-        value2 = +value2;
+      Buffer6.prototype.writeUint32LE = Buffer6.prototype.writeUInt32LE = function writeUInt32LE(value3, offset, noAssert) {
+        value3 = +value3;
         offset = offset >>> 0;
-        if (!noAssert) checkInt(this, value2, offset, 4, 4294967295, 0);
-        this[offset + 3] = value2 >>> 24;
-        this[offset + 2] = value2 >>> 16;
-        this[offset + 1] = value2 >>> 8;
-        this[offset] = value2 & 255;
+        if (!noAssert) checkInt(this, value3, offset, 4, 4294967295, 0);
+        this[offset + 3] = value3 >>> 24;
+        this[offset + 2] = value3 >>> 16;
+        this[offset + 1] = value3 >>> 8;
+        this[offset] = value3 & 255;
         return offset + 4;
       };
-      Buffer6.prototype.writeUint32BE = Buffer6.prototype.writeUInt32BE = function writeUInt32BE(value2, offset, noAssert) {
-        value2 = +value2;
+      Buffer6.prototype.writeUint32BE = Buffer6.prototype.writeUInt32BE = function writeUInt32BE(value3, offset, noAssert) {
+        value3 = +value3;
         offset = offset >>> 0;
-        if (!noAssert) checkInt(this, value2, offset, 4, 4294967295, 0);
-        this[offset] = value2 >>> 24;
-        this[offset + 1] = value2 >>> 16;
-        this[offset + 2] = value2 >>> 8;
-        this[offset + 3] = value2 & 255;
+        if (!noAssert) checkInt(this, value3, offset, 4, 4294967295, 0);
+        this[offset] = value3 >>> 24;
+        this[offset + 1] = value3 >>> 16;
+        this[offset + 2] = value3 >>> 8;
+        this[offset + 3] = value3 & 255;
         return offset + 4;
       };
-      Buffer6.prototype.writeIntLE = function writeIntLE(value2, offset, byteLength2, noAssert) {
-        value2 = +value2;
+      Buffer6.prototype.writeIntLE = function writeIntLE(value3, offset, byteLength2, noAssert) {
+        value3 = +value3;
         offset = offset >>> 0;
         if (!noAssert) {
           var limit = Math.pow(2, 8 * byteLength2 - 1);
-          checkInt(this, value2, offset, byteLength2, limit - 1, -limit);
+          checkInt(this, value3, offset, byteLength2, limit - 1, -limit);
         }
         var i2 = 0;
         var mul = 1;
         var sub = 0;
-        this[offset] = value2 & 255;
+        this[offset] = value3 & 255;
         while (++i2 < byteLength2 && (mul *= 256)) {
-          if (value2 < 0 && sub === 0 && this[offset + i2 - 1] !== 0) {
+          if (value3 < 0 && sub === 0 && this[offset + i2 - 1] !== 0) {
             sub = 1;
           }
-          this[offset + i2] = (value2 / mul >> 0) - sub & 255;
+          this[offset + i2] = (value3 / mul >> 0) - sub & 255;
         }
         return offset + byteLength2;
       };
-      Buffer6.prototype.writeIntBE = function writeIntBE(value2, offset, byteLength2, noAssert) {
-        value2 = +value2;
+      Buffer6.prototype.writeIntBE = function writeIntBE(value3, offset, byteLength2, noAssert) {
+        value3 = +value3;
         offset = offset >>> 0;
         if (!noAssert) {
           var limit = Math.pow(2, 8 * byteLength2 - 1);
-          checkInt(this, value2, offset, byteLength2, limit - 1, -limit);
+          checkInt(this, value3, offset, byteLength2, limit - 1, -limit);
         }
         var i2 = byteLength2 - 1;
         var mul = 1;
         var sub = 0;
-        this[offset + i2] = value2 & 255;
+        this[offset + i2] = value3 & 255;
         while (--i2 >= 0 && (mul *= 256)) {
-          if (value2 < 0 && sub === 0 && this[offset + i2 + 1] !== 0) {
+          if (value3 < 0 && sub === 0 && this[offset + i2 + 1] !== 0) {
             sub = 1;
           }
-          this[offset + i2] = (value2 / mul >> 0) - sub & 255;
+          this[offset + i2] = (value3 / mul >> 0) - sub & 255;
         }
         return offset + byteLength2;
       };
-      Buffer6.prototype.writeInt8 = function writeInt8(value2, offset, noAssert) {
-        value2 = +value2;
+      Buffer6.prototype.writeInt8 = function writeInt8(value3, offset, noAssert) {
+        value3 = +value3;
         offset = offset >>> 0;
-        if (!noAssert) checkInt(this, value2, offset, 1, 127, -128);
-        if (value2 < 0) value2 = 255 + value2 + 1;
-        this[offset] = value2 & 255;
+        if (!noAssert) checkInt(this, value3, offset, 1, 127, -128);
+        if (value3 < 0) value3 = 255 + value3 + 1;
+        this[offset] = value3 & 255;
         return offset + 1;
       };
-      Buffer6.prototype.writeInt16LE = function writeInt16LE(value2, offset, noAssert) {
-        value2 = +value2;
+      Buffer6.prototype.writeInt16LE = function writeInt16LE(value3, offset, noAssert) {
+        value3 = +value3;
         offset = offset >>> 0;
-        if (!noAssert) checkInt(this, value2, offset, 2, 32767, -32768);
-        this[offset] = value2 & 255;
-        this[offset + 1] = value2 >>> 8;
+        if (!noAssert) checkInt(this, value3, offset, 2, 32767, -32768);
+        this[offset] = value3 & 255;
+        this[offset + 1] = value3 >>> 8;
         return offset + 2;
       };
-      Buffer6.prototype.writeInt16BE = function writeInt16BE(value2, offset, noAssert) {
-        value2 = +value2;
+      Buffer6.prototype.writeInt16BE = function writeInt16BE(value3, offset, noAssert) {
+        value3 = +value3;
         offset = offset >>> 0;
-        if (!noAssert) checkInt(this, value2, offset, 2, 32767, -32768);
-        this[offset] = value2 >>> 8;
-        this[offset + 1] = value2 & 255;
+        if (!noAssert) checkInt(this, value3, offset, 2, 32767, -32768);
+        this[offset] = value3 >>> 8;
+        this[offset + 1] = value3 & 255;
         return offset + 2;
       };
-      Buffer6.prototype.writeInt32LE = function writeInt32LE(value2, offset, noAssert) {
-        value2 = +value2;
+      Buffer6.prototype.writeInt32LE = function writeInt32LE(value3, offset, noAssert) {
+        value3 = +value3;
         offset = offset >>> 0;
-        if (!noAssert) checkInt(this, value2, offset, 4, 2147483647, -2147483648);
-        this[offset] = value2 & 255;
-        this[offset + 1] = value2 >>> 8;
-        this[offset + 2] = value2 >>> 16;
-        this[offset + 3] = value2 >>> 24;
+        if (!noAssert) checkInt(this, value3, offset, 4, 2147483647, -2147483648);
+        this[offset] = value3 & 255;
+        this[offset + 1] = value3 >>> 8;
+        this[offset + 2] = value3 >>> 16;
+        this[offset + 3] = value3 >>> 24;
         return offset + 4;
       };
-      Buffer6.prototype.writeInt32BE = function writeInt32BE(value2, offset, noAssert) {
-        value2 = +value2;
+      Buffer6.prototype.writeInt32BE = function writeInt32BE(value3, offset, noAssert) {
+        value3 = +value3;
         offset = offset >>> 0;
-        if (!noAssert) checkInt(this, value2, offset, 4, 2147483647, -2147483648);
-        if (value2 < 0) value2 = 4294967295 + value2 + 1;
-        this[offset] = value2 >>> 24;
-        this[offset + 1] = value2 >>> 16;
-        this[offset + 2] = value2 >>> 8;
-        this[offset + 3] = value2 & 255;
+        if (!noAssert) checkInt(this, value3, offset, 4, 2147483647, -2147483648);
+        if (value3 < 0) value3 = 4294967295 + value3 + 1;
+        this[offset] = value3 >>> 24;
+        this[offset + 1] = value3 >>> 16;
+        this[offset + 2] = value3 >>> 8;
+        this[offset + 3] = value3 & 255;
         return offset + 4;
       };
-      function checkIEEE754(buf, value2, offset, ext, max, min) {
+      function checkIEEE754(buf, value3, offset, ext, max, min) {
         if (offset + ext > buf.length) throw new RangeError("Index out of range");
         if (offset < 0) throw new RangeError("Index out of range");
       }
-      function writeFloat(buf, value2, offset, littleEndian, noAssert) {
-        value2 = +value2;
+      function writeFloat(buf, value3, offset, littleEndian, noAssert) {
+        value3 = +value3;
         offset = offset >>> 0;
         if (!noAssert) {
-          checkIEEE754(buf, value2, offset, 4, 34028234663852886e22, -34028234663852886e22);
+          checkIEEE754(buf, value3, offset, 4, 34028234663852886e22, -34028234663852886e22);
         }
-        ieee754.write(buf, value2, offset, littleEndian, 23, 4);
+        ieee754.write(buf, value3, offset, littleEndian, 23, 4);
         return offset + 4;
       }
-      Buffer6.prototype.writeFloatLE = function writeFloatLE3(value2, offset, noAssert) {
-        return writeFloat(this, value2, offset, true, noAssert);
+      Buffer6.prototype.writeFloatLE = function writeFloatLE3(value3, offset, noAssert) {
+        return writeFloat(this, value3, offset, true, noAssert);
       };
-      Buffer6.prototype.writeFloatBE = function writeFloatBE(value2, offset, noAssert) {
-        return writeFloat(this, value2, offset, false, noAssert);
+      Buffer6.prototype.writeFloatBE = function writeFloatBE(value3, offset, noAssert) {
+        return writeFloat(this, value3, offset, false, noAssert);
       };
-      function writeDouble(buf, value2, offset, littleEndian, noAssert) {
-        value2 = +value2;
+      function writeDouble(buf, value3, offset, littleEndian, noAssert) {
+        value3 = +value3;
         offset = offset >>> 0;
         if (!noAssert) {
-          checkIEEE754(buf, value2, offset, 8, 17976931348623157e292, -17976931348623157e292);
+          checkIEEE754(buf, value3, offset, 8, 17976931348623157e292, -17976931348623157e292);
         }
-        ieee754.write(buf, value2, offset, littleEndian, 52, 8);
+        ieee754.write(buf, value3, offset, littleEndian, 52, 8);
         return offset + 8;
       }
-      Buffer6.prototype.writeDoubleLE = function writeDoubleLE3(value2, offset, noAssert) {
-        return writeDouble(this, value2, offset, true, noAssert);
+      Buffer6.prototype.writeDoubleLE = function writeDoubleLE3(value3, offset, noAssert) {
+        return writeDouble(this, value3, offset, true, noAssert);
       };
-      Buffer6.prototype.writeDoubleBE = function writeDoubleBE(value2, offset, noAssert) {
-        return writeDouble(this, value2, offset, false, noAssert);
+      Buffer6.prototype.writeDoubleBE = function writeDoubleBE(value3, offset, noAssert) {
+        return writeDouble(this, value3, offset, false, noAssert);
       };
       Buffer6.prototype.copy = function copy(target, targetStart, start2, end) {
         if (!Buffer6.isBuffer(target)) throw new TypeError("argument should be a Buffer");
@@ -2218,8 +2224,8 @@
       module.exports = function(max) {
         if (!max) throw Error("hashlru must have a max value, of type number, greater than 0");
         var size = 0, cache5 = /* @__PURE__ */ Object.create(null), _cache = /* @__PURE__ */ Object.create(null);
-        function update(key, value2) {
-          cache5[key] = value2;
+        function update(key, value3) {
+          cache5[key] = value3;
           size++;
           if (size >= max) {
             size = 0;
@@ -2245,9 +2251,9 @@
               return v2;
             }
           },
-          set: function(key, value2) {
-            if (cache5[key] !== void 0) cache5[key] = value2;
-            else update(key, value2);
+          set: function(key, value3) {
+            if (cache5[key] !== void 0) cache5[key] = value3;
+            else update(key, value3);
           },
           clear: function() {
             cache5 = /* @__PURE__ */ Object.create(null);
@@ -2741,9 +2747,9 @@
          **/
         getChildren(name5, xmlns) {
           const result = [];
-          for (const child of this.children) {
-            if (child.getName && child.getName() === name5 && (!xmlns || child.getNS() === xmlns)) {
-              result.push(child);
+          for (const child2 of this.children) {
+            if (child2.getName && child2.getName() === name5 && (!xmlns || child2.getNS() === xmlns)) {
+              result.push(child2);
             }
           }
           return result;
@@ -2759,12 +2765,12 @@
          **/
         getChildrenByAttr(attr, val, xmlns, recursive) {
           let result = [];
-          for (const child of this.children) {
-            if (child.attrs && child.attrs[attr] === val && (!xmlns || child.getNS() === xmlns)) {
-              result.push(child);
+          for (const child2 of this.children) {
+            if (child2.attrs && child2.attrs[attr] === val && (!xmlns || child2.getNS() === xmlns)) {
+              result.push(child2);
             }
-            if (recursive && child.getChildrenByAttr) {
-              result.push(child.getChildrenByAttr(attr, val, xmlns, true));
+            if (recursive && child2.getChildrenByAttr) {
+              result.push(child2.getChildrenByAttr(attr, val, xmlns, true));
             }
           }
           if (recursive) {
@@ -2774,12 +2780,12 @@
         }
         getChildrenByFilter(filter2, recursive) {
           let result = [];
-          for (const child of this.children) {
-            if (filter2(child)) {
-              result.push(child);
+          for (const child2 of this.children) {
+            if (filter2(child2)) {
+              result.push(child2);
             }
-            if (recursive && child.getChildrenByFilter) {
-              result.push(child.getChildrenByFilter(filter2, true));
+            if (recursive && child2.getChildrenByFilter) {
+              result.push(child2.getChildrenByFilter(filter2, true));
             }
           }
           if (recursive) {
@@ -2789,16 +2795,16 @@
         }
         getText() {
           let text = "";
-          for (const child of this.children) {
-            if (typeof child === "string" || typeof child === "number") {
-              text += child;
+          for (const child2 of this.children) {
+            if (typeof child2 === "string" || typeof child2 === "number") {
+              text += child2;
             }
           }
           return text;
         }
         getChildText(name5, xmlns) {
-          const child = this.getChild(name5, xmlns);
-          return child ? child.getText() : null;
+          const child2 = this.getChild(name5, xmlns);
+          return child2 ? child2.getText() : null;
         }
         /**
          * Return all direct descendents that are Elements.
@@ -2806,8 +2812,8 @@
          * processing instructions, etc.
          */
         getChildElements() {
-          return this.getChildrenByFilter((child) => {
-            return child instanceof _Element;
+          return this.getChildrenByFilter((child2) => {
+            return child2 instanceof _Element;
           });
         }
         /* Builder */
@@ -2829,12 +2835,12 @@
         c(name5, attrs) {
           return this.cnode(new _Element(name5, attrs));
         }
-        cnode(child) {
-          this.children.push(child);
-          if (typeof child === "object") {
-            child.parent = this;
+        cnode(child2) {
+          this.children.push(child2);
+          if (typeof child2 === "object") {
+            child2.parent = this;
           }
-          return child;
+          return child2;
         }
         append(...nodes) {
           for (const node of nodes) {
@@ -2864,10 +2870,10 @@
          *   el.remove('author', 'urn:...')
          */
         remove(el2, xmlns) {
-          const filter2 = typeof el2 === "string" ? (child) => {
-            return !(child.is && child.is(el2, xmlns));
-          } : (child) => {
-            return child !== el2;
+          const filter2 = typeof el2 === "string" ? (child2) => {
+            return !(child2.is && child2.is(el2, xmlns));
+          } : (child2) => {
+            return child2 !== el2;
           };
           this.children = this.children.filter(filter2);
           return this;
@@ -2899,14 +2905,14 @@
         }
         _addChildren(writer2) {
           writer2(">");
-          for (const child of this.children) {
-            if (child != null) {
-              if (child.write) {
-                child.write(writer2);
-              } else if (typeof child === "string") {
-                writer2(escape3.escapeXMLText(child));
-              } else if (child.toString) {
-                writer2(escape3.escapeXMLText(child.toString(10)));
+          for (const child2 of this.children) {
+            if (child2 != null) {
+              if (child2.write) {
+                child2.write(writer2);
+              } else if (typeof child2 === "string") {
+                writer2(escape3.escapeXMLText(child2));
+              } else if (child2.toString) {
+                writer2(escape3.escapeXMLText(child2.toString(10)));
               }
             }
           }
@@ -2945,28 +2951,28 @@
       "use strict";
       init_globals();
       var Element19 = require_Element();
-      function append(el2, child) {
-        if (Array.isArray(child)) {
-          for (const c2 of child) append(el2, c2);
+      function append(el2, child2) {
+        if (Array.isArray(child2)) {
+          for (const c2 of child2) append(el2, c2);
           return;
         }
-        if (child === "" || child == null || child === true || child === false) {
+        if (child2 === "" || child2 == null || child2 === true || child2 === false) {
           return;
         }
-        el2.cnode(child);
+        el2.cnode(child2);
       }
-      function createElement2(name5, attrs, ...children) {
+      function createElement2(name5, attrs, ...children2) {
         if (typeof attrs === "object" && attrs !== null) {
           delete attrs.__source;
           delete attrs.__self;
-          for (const [key, value2] of Object.entries(attrs)) {
-            if (value2 == null) delete attrs[key];
-            else attrs[key] = value2.toString(10);
+          for (const [key, value3] of Object.entries(attrs)) {
+            if (value3 == null) delete attrs[key];
+            else attrs[key] = value3.toString(10);
           }
         }
         const el2 = new Element19(name5, attrs);
-        for (const child of children) {
-          append(el2, child);
+        for (const child2 of children2) {
+          append(el2, child2);
         }
         return el2;
       }
@@ -3232,8 +3238,8 @@
                   break;
                 case STATE_ATTR_VALUE:
                   if (c2 === attrQuote) {
-                    const value2 = escape3.unescapeXML(endRecording());
-                    attrs[attrName] = value2;
+                    const value3 = escape3.unescapeXML(endRecording());
+                    attrs[attrName] = value3;
                     attrName = void 0;
                     state = STATE_TAG;
                   }
@@ -3345,8 +3351,8 @@
         reject(reason);
         cleanup();
       }
-      function onEvent(value2) {
-        resolve6(value2);
+      function onEvent(value3) {
+        resolve6(value3);
         cleanup();
       }
       once(event, onEvent);
@@ -4055,11 +4061,11 @@
     if (typeof state === "function" ? receiver !== state || !f2 : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
     return kind === "m" ? f2 : kind === "a" ? f2.call(receiver) : f2 ? f2.value : state.get(receiver);
   }
-  function __classPrivateFieldSet(receiver, state, value2, kind, f2) {
+  function __classPrivateFieldSet(receiver, state, value3, kind, f2) {
     if (kind === "m") throw new TypeError("Private method is not writable");
     if (kind === "a" && !f2) throw new TypeError("Private accessor was defined without a setter");
     if (typeof state === "function" ? receiver !== state || !f2 : !state.has(receiver)) throw new TypeError("Cannot write private member to an object whose class did not declare it");
-    return kind === "a" ? f2.call(receiver, value2) : f2 ? f2.value = value2 : state.set(receiver, value2), value2;
+    return kind === "a" ? f2.call(receiver, value3) : f2 ? f2.value = value3 : state.set(receiver, value3), value3;
   }
   function getRandomBytes(size) {
     const array = new Uint8Array(size);
@@ -4708,13 +4714,13 @@
       return 1;
     };
     var zeroHash = LongBits3.zeroHash = "\0\0\0\0\0\0\0\0";
-    LongBits3.fromNumber = function fromNumber(value2) {
-      if (value2 === 0)
+    LongBits3.fromNumber = function fromNumber(value3) {
+      if (value3 === 0)
         return zero3;
-      var sign2 = value2 < 0;
+      var sign2 = value3 < 0;
       if (sign2)
-        value2 = -value2;
-      var lo = value2 >>> 0, hi2 = (value2 - lo) / 4294967296 >>> 0;
+        value3 = -value3;
+      var lo = value3 >>> 0, hi2 = (value3 - lo) / 4294967296 >>> 0;
       if (sign2) {
         hi2 = ~hi2 >>> 0;
         lo = ~lo >>> 0;
@@ -4726,16 +4732,16 @@
       }
       return new LongBits3(lo, hi2);
     };
-    LongBits3.from = function from7(value2) {
-      if (typeof value2 === "number")
-        return LongBits3.fromNumber(value2);
-      if (util2.isString(value2)) {
+    LongBits3.from = function from7(value3) {
+      if (typeof value3 === "number")
+        return LongBits3.fromNumber(value3);
+      if (util2.isString(value3)) {
         if (util2.Long)
-          value2 = util2.Long.fromString(value2);
+          value3 = util2.Long.fromString(value3);
         else
-          return LongBits3.fromNumber(parseInt(value2, 10));
+          return LongBits3.fromNumber(parseInt(value3, 10));
       }
-      return value2.low || value2.high ? new LongBits3(value2.low >>> 0, value2.high >>> 0) : zero3;
+      return value3.low || value3.high ? new LongBits3(value3.low >>> 0, value3.high >>> 0) : zero3;
     };
     LongBits3.prototype.toNumber = function toNumber(unsigned) {
       if (!unsigned && this.hi >>> 31) {
@@ -5144,49 +5150,49 @@
           function isLong(obj) {
             return (obj && obj["__isLong__"]) === true;
           }
-          function ctz32(value2) {
-            var c2 = Math.clz32(value2 & -value2);
-            return value2 ? 31 - c2 : c2;
+          function ctz32(value3) {
+            var c2 = Math.clz32(value3 & -value3);
+            return value3 ? 31 - c2 : c2;
           }
           Long.isLong = isLong;
           var INT_CACHE = {};
           var UINT_CACHE = {};
-          function fromInt(value2, unsigned) {
+          function fromInt(value3, unsigned) {
             var obj, cachedObj, cache5;
             if (unsigned) {
-              value2 >>>= 0;
-              if (cache5 = 0 <= value2 && value2 < 256) {
-                cachedObj = UINT_CACHE[value2];
+              value3 >>>= 0;
+              if (cache5 = 0 <= value3 && value3 < 256) {
+                cachedObj = UINT_CACHE[value3];
                 if (cachedObj) return cachedObj;
               }
-              obj = fromBits(value2, 0, true);
-              if (cache5) UINT_CACHE[value2] = obj;
+              obj = fromBits(value3, 0, true);
+              if (cache5) UINT_CACHE[value3] = obj;
               return obj;
             } else {
-              value2 |= 0;
-              if (cache5 = -128 <= value2 && value2 < 128) {
-                cachedObj = INT_CACHE[value2];
+              value3 |= 0;
+              if (cache5 = -128 <= value3 && value3 < 128) {
+                cachedObj = INT_CACHE[value3];
                 if (cachedObj) return cachedObj;
               }
-              obj = fromBits(value2, value2 < 0 ? -1 : 0, false);
-              if (cache5) INT_CACHE[value2] = obj;
+              obj = fromBits(value3, value3 < 0 ? -1 : 0, false);
+              if (cache5) INT_CACHE[value3] = obj;
               return obj;
             }
           }
           Long.fromInt = fromInt;
-          function fromNumber(value2, unsigned) {
-            if (isNaN(value2)) return unsigned ? UZERO : ZERO;
+          function fromNumber(value3, unsigned) {
+            if (isNaN(value3)) return unsigned ? UZERO : ZERO;
             if (unsigned) {
-              if (value2 < 0) return UZERO;
-              if (value2 >= TWO_PWR_64_DBL) return MAX_UNSIGNED_VALUE;
+              if (value3 < 0) return UZERO;
+              if (value3 >= TWO_PWR_64_DBL) return MAX_UNSIGNED_VALUE;
             } else {
-              if (value2 <= -TWO_PWR_63_DBL) return MIN_VALUE;
-              if (value2 + 1 >= TWO_PWR_63_DBL) return MAX_VALUE;
+              if (value3 <= -TWO_PWR_63_DBL) return MIN_VALUE;
+              if (value3 + 1 >= TWO_PWR_63_DBL) return MAX_VALUE;
             }
-            if (value2 < 0) return fromNumber(-value2, unsigned).neg();
+            if (value3 < 0) return fromNumber(-value3, unsigned).neg();
             return fromBits(
-              value2 % TWO_PWR_32_DBL | 0,
-              value2 / TWO_PWR_32_DBL | 0,
+              value3 % TWO_PWR_32_DBL | 0,
+              value3 / TWO_PWR_32_DBL | 0,
               unsigned
             );
           }
@@ -5216,13 +5222,13 @@
             var radixToPower = fromNumber(pow_dbl(radix, 8));
             var result = ZERO;
             for (var i2 = 0; i2 < str.length; i2 += 8) {
-              var size = Math.min(8, str.length - i2), value2 = parseInt(str.substring(i2, i2 + size), radix);
+              var size = Math.min(8, str.length - i2), value3 = parseInt(str.substring(i2, i2 + size), radix);
               if (size < 8) {
                 var power = fromNumber(pow_dbl(radix, size));
-                result = result.mul(power).add(fromNumber(value2));
+                result = result.mul(power).add(fromNumber(value3));
               } else {
                 result = result.mul(radixToPower);
-                result = result.add(fromNumber(value2));
+                result = result.add(fromNumber(value3));
               }
             }
             result.unsigned = unsigned;
@@ -5733,14 +5739,14 @@
             );
           };
           if (typeof BigInt === "function") {
-            Long.fromBigInt = function fromBigInt(value2, unsigned) {
-              var lowBits = Number(BigInt.asIntN(32, value2));
-              var highBits = Number(BigInt.asIntN(32, value2 >> BigInt(32)));
+            Long.fromBigInt = function fromBigInt(value3, unsigned) {
+              var lowBits = Number(BigInt.asIntN(32, value3));
+              var highBits = Number(BigInt.asIntN(32, value3 >> BigInt(32)));
               return fromBits(lowBits, highBits, unsigned);
             };
-            Long.fromValue = function fromValueWithBigInt(value2, unsigned) {
-              if (typeof value2 === "bigint") return Long.fromBigInt(value2, unsigned);
-              return fromValue(value2, unsigned);
+            Long.fromValue = function fromValueWithBigInt(value3, unsigned) {
+              if (typeof value3 === "bigint") return Long.fromBigInt(value3, unsigned);
+              return fromValue(value3, unsigned);
             };
             LongPrototype.toBigInt = function toBigInt() {
               var lowBigInt = BigInt(this.low >>> 0);
@@ -5778,14 +5784,14 @@
         {}
       );
       util2.isInteger = Number.isInteger || /* istanbul ignore next */
-      function isInteger(value2) {
-        return typeof value2 === "number" && isFinite(value2) && Math.floor(value2) === value2;
+      function isInteger(value3) {
+        return typeof value3 === "number" && isFinite(value3) && Math.floor(value3) === value3;
       };
-      util2.isString = function isString(value2) {
-        return typeof value2 === "string" || value2 instanceof String;
+      util2.isString = function isString(value3) {
+        return typeof value3 === "string" || value3 instanceof String;
       };
-      util2.isObject = function isObject(value2) {
-        return value2 && typeof value2 === "object";
+      util2.isObject = function isObject(value3) {
+        return value3 && typeof value3 === "object";
       };
       util2.isset = /**
        * Checks if a property on a message is considered to be present.
@@ -5794,9 +5800,9 @@
        * @returns {boolean} `true` if considered to be present, otherwise `false`
        */
       util2.isSet = function isSet(obj, prop) {
-        var value2 = obj[prop];
-        if (value2 != null && obj.hasOwnProperty(prop))
-          return typeof value2 !== "object" || (Array.isArray(value2) ? value2.length : Object.keys(value2).length) > 0;
+        var value3 = obj[prop];
+        if (value3 != null && obj.hasOwnProperty(prop))
+          return typeof value3 !== "object" || (Array.isArray(value3) ? value3.length : Object.keys(value3).length) > 0;
         return false;
       };
       util2.Buffer = (function() {
@@ -5830,8 +5836,8 @@
       util2.key2Re = /^(?:true|false|0|1)$/;
       util2.key32Re = /^-?(?:0|[1-9][0-9]*)$/;
       util2.key64Re = /^(?:[\x00-\xff]{8}|-?(?:0|[1-9][0-9]*))$/;
-      util2.longToHash = function longToHash(value2) {
-        return value2 ? util2.LongBits.from(value2).toHash() : util2.LongBits.zeroHash;
+      util2.longToHash = function longToHash(value3) {
+        return value3 ? util2.LongBits.from(value3).toHash() : util2.LongBits.zeroHash;
       };
       util2.longFromHash = function longFromHash(hash2, unsigned) {
         var bits = util2.LongBits.fromHash(hash2);
@@ -5902,7 +5908,7 @@
             configurable: true
           },
           toString: {
-            value: function value2() {
+            value: function value3() {
               return this.name + ": " + this.message;
             },
             writable: true,
@@ -5944,8 +5950,8 @@
           return;
         }
         util2._Buffer_from = Buffer6.from !== Uint8Array.from && Buffer6.from || /* istanbul ignore next */
-        function Buffer_from(value2, encoding) {
-          return new Buffer6(value2, encoding);
+        function Buffer_from(value3, encoding) {
+          return new Buffer6(value3, encoding);
         };
         util2._Buffer_allocUnsafe = Buffer6.allocUnsafe || /* istanbul ignore next */
         function Buffer_allocUnsafe(size) {
@@ -6023,18 +6029,18 @@
     }
     VarintOp3.prototype = Object.create(Op3.prototype);
     VarintOp3.prototype.fn = writeVarint323;
-    Writer.prototype.uint32 = function write_uint32(value2) {
+    Writer.prototype.uint32 = function write_uint32(value3) {
       this.len += (this.tail = this.tail.next = new VarintOp3(
-        (value2 = value2 >>> 0) < 128 ? 1 : value2 < 16384 ? 2 : value2 < 2097152 ? 3 : value2 < 268435456 ? 4 : 5,
-        value2
+        (value3 = value3 >>> 0) < 128 ? 1 : value3 < 16384 ? 2 : value3 < 2097152 ? 3 : value3 < 268435456 ? 4 : 5,
+        value3
       )).len;
       return this;
     };
-    Writer.prototype.int32 = function write_int32(value2) {
-      return value2 < 0 ? this._push(writeVarint643, 10, LongBits3.fromNumber(value2)) : this.uint32(value2);
+    Writer.prototype.int32 = function write_int32(value3) {
+      return value3 < 0 ? this._push(writeVarint643, 10, LongBits3.fromNumber(value3)) : this.uint32(value3);
     };
-    Writer.prototype.sint32 = function write_sint32(value2) {
-      return this.uint32((value2 << 1 ^ value2 >> 31) >>> 0);
+    Writer.prototype.sint32 = function write_sint32(value3) {
+      return this.uint32((value3 << 1 ^ value3 >> 31) >>> 0);
     };
     function writeVarint643(val, buf, pos) {
       while (val.hi) {
@@ -6048,17 +6054,17 @@
       }
       buf[pos++] = val.lo;
     }
-    Writer.prototype.uint64 = function write_uint64(value2) {
-      var bits = LongBits3.from(value2);
+    Writer.prototype.uint64 = function write_uint64(value3) {
+      var bits = LongBits3.from(value3);
       return this._push(writeVarint643, bits.length(), bits);
     };
     Writer.prototype.int64 = Writer.prototype.uint64;
-    Writer.prototype.sint64 = function write_sint64(value2) {
-      var bits = LongBits3.from(value2).zzEncode();
+    Writer.prototype.sint64 = function write_sint64(value3) {
+      var bits = LongBits3.from(value3).zzEncode();
       return this._push(writeVarint643, bits.length(), bits);
     };
-    Writer.prototype.bool = function write_bool(value2) {
-      return this._push(writeByte3, 1, value2 ? 1 : 0);
+    Writer.prototype.bool = function write_bool(value3) {
+      return this._push(writeByte3, 1, value3 ? 1 : 0);
     };
     function writeFixed323(val, buf, pos) {
       buf[pos] = val & 255;
@@ -6066,20 +6072,20 @@
       buf[pos + 2] = val >>> 16 & 255;
       buf[pos + 3] = val >>> 24;
     }
-    Writer.prototype.fixed32 = function write_fixed32(value2) {
-      return this._push(writeFixed323, 4, value2 >>> 0);
+    Writer.prototype.fixed32 = function write_fixed32(value3) {
+      return this._push(writeFixed323, 4, value3 >>> 0);
     };
     Writer.prototype.sfixed32 = Writer.prototype.fixed32;
-    Writer.prototype.fixed64 = function write_fixed64(value2) {
-      var bits = LongBits3.from(value2);
+    Writer.prototype.fixed64 = function write_fixed64(value3) {
+      var bits = LongBits3.from(value3);
       return this._push(writeFixed323, 4, bits.lo)._push(writeFixed323, 4, bits.hi);
     };
     Writer.prototype.sfixed64 = Writer.prototype.fixed64;
-    Writer.prototype.float = function write_float(value2) {
-      return this._push(util2.float.writeFloatLE, 4, value2);
+    Writer.prototype.float = function write_float(value3) {
+      return this._push(util2.float.writeFloatLE, 4, value3);
     };
-    Writer.prototype.double = function write_double(value2) {
-      return this._push(util2.float.writeDoubleLE, 8, value2);
+    Writer.prototype.double = function write_double(value3) {
+      return this._push(util2.float.writeDoubleLE, 8, value3);
     };
     var writeBytes3 = util2.Array.prototype.set ? function writeBytes_set(val, buf, pos) {
       buf.set(val, pos);
@@ -6087,24 +6093,24 @@
       for (var i2 = 0; i2 < val.length; ++i2)
         buf[pos + i2] = val[i2];
     };
-    Writer.prototype.bytes = function write_bytes(value2) {
-      var len = value2.length >>> 0;
+    Writer.prototype.bytes = function write_bytes(value3) {
+      var len = value3.length >>> 0;
       if (!len)
         return this._push(writeByte3, 1, 0);
-      if (util2.isString(value2)) {
-        var buf = Writer.alloc(len = base645.length(value2));
-        base645.decode(value2, buf, 0);
-        value2 = buf;
+      if (util2.isString(value3)) {
+        var buf = Writer.alloc(len = base645.length(value3));
+        base645.decode(value3, buf, 0);
+        value3 = buf;
       }
-      return this.uint32(len)._push(writeBytes3, len, value2);
+      return this.uint32(len)._push(writeBytes3, len, value3);
     };
-    Writer.prototype.raw = function write_raw(value2) {
-      var len = value2.length >>> 0;
-      return len ? this._push(writeBytes3, len, value2) : this;
+    Writer.prototype.raw = function write_raw(value3) {
+      var len = value3.length >>> 0;
+      return len ? this._push(writeBytes3, len, value3) : this;
     };
-    Writer.prototype.string = function write_string(value2) {
-      var len = utf82.length(value2);
-      return len ? this.uint32(len)._push(len === value2.length ? writeStringAscii : utf82.write, len, value2) : this._push(writeByte3, 1, 0);
+    Writer.prototype.string = function write_string(value3) {
+      var len = utf82.length(value3);
+      return len ? this.uint32(len)._push(len === value3.length ? writeStringAscii : utf82.write, len, value3) : this._push(writeByte3, 1, 0);
     };
     Writer.prototype.fork = function fork() {
       this.states = new State3(this);
@@ -6176,18 +6182,18 @@
           buf[pos++] = val[i2++];
       };
     };
-    BufferWriter.prototype.bytes = function write_bytes_buffer(value2) {
-      if (util2.isString(value2))
-        value2 = util2._Buffer_from(value2, "base64");
-      var len = value2.length >>> 0;
+    BufferWriter.prototype.bytes = function write_bytes_buffer(value3) {
+      if (util2.isString(value3))
+        value3 = util2._Buffer_from(value3, "base64");
+      var len = value3.length >>> 0;
       this.uint32(len);
       if (len)
-        this._push(BufferWriter.writeBytesBuffer, len, value2);
+        this._push(BufferWriter.writeBytesBuffer, len, value3);
       return this;
     };
-    BufferWriter.prototype.raw = function write_raw_buffer(value2) {
-      var len = value2.length >>> 0;
-      return len ? this._push(BufferWriter.writeBytesBuffer, len, value2) : this;
+    BufferWriter.prototype.raw = function write_raw_buffer(value3) {
+      var len = value3.length >>> 0;
+      return len ? this._push(BufferWriter.writeBytesBuffer, len, value3) : this;
     };
     function writeStringBufferAscii(val, buf, pos) {
       for (var i2 = 0; i2 < val.length; )
@@ -6201,11 +6207,11 @@
       else
         buf.write(val, pos);
     }
-    BufferWriter.prototype.string = function write_string_buffer(value2) {
-      var len = util2.Buffer.byteLength(value2);
+    BufferWriter.prototype.string = function write_string_buffer(value3) {
+      var len = util2.Buffer.byteLength(value3);
       this.uint32(len);
       if (len)
-        this._push(len === value2.length && len < 40 ? writeStringBufferAscii : writeStringBuffer3, len, value2);
+        this._push(len === value3.length && len < 40 ? writeStringBufferAscii : writeStringBuffer3, len, value3);
       return this;
     };
     BufferWriter._configure();
@@ -6253,30 +6259,30 @@
       return this._slice.call(this.buf, start2, end);
     };
     Reader.prototype.uint32 = function read_uint32() {
-      var buf = this.buf, pos = this.pos, value2 = (buf[pos] & 127) >>> 0;
+      var buf = this.buf, pos = this.pos, value3 = (buf[pos] & 127) >>> 0;
       if (buf[pos++] < 128) {
         this.pos = pos;
-        return value2;
+        return value3;
       }
-      value2 = (value2 | (buf[pos] & 127) << 7) >>> 0;
+      value3 = (value3 | (buf[pos] & 127) << 7) >>> 0;
       if (buf[pos++] < 128) {
         this.pos = pos;
-        return value2;
+        return value3;
       }
-      value2 = (value2 | (buf[pos] & 127) << 14) >>> 0;
+      value3 = (value3 | (buf[pos] & 127) << 14) >>> 0;
       if (buf[pos++] < 128) {
         this.pos = pos;
-        return value2;
+        return value3;
       }
-      value2 = (value2 | (buf[pos] & 127) << 21) >>> 0;
+      value3 = (value3 | (buf[pos] & 127) << 21) >>> 0;
       if (buf[pos++] < 128) {
         this.pos = pos;
-        return value2;
+        return value3;
       }
-      value2 = (value2 | (buf[pos] & 15) << 28) >>> 0;
+      value3 = (value3 | (buf[pos] & 15) << 28) >>> 0;
       if (buf[pos++] < 128) {
         this.pos = pos;
-        return value2;
+        return value3;
       }
       for (var i2 = 0; i2 < 5; ++i2) {
         if (pos >= this.len) {
@@ -6285,37 +6291,37 @@
         }
         if (buf[pos++] < 128) {
           this.pos = pos;
-          return value2;
+          return value3;
         }
       }
       this.pos = pos;
       throw Error("invalid varint encoding");
     };
     Reader.prototype.tag = function read_tag() {
-      var buf = this.buf, pos = this.pos, value2 = (buf[pos] & 127) >>> 0;
+      var buf = this.buf, pos = this.pos, value3 = (buf[pos] & 127) >>> 0;
       if (buf[pos++] < 128) {
         this.pos = pos;
-        return value2;
+        return value3;
       }
-      value2 = (value2 | (buf[pos] & 127) << 7) >>> 0;
+      value3 = (value3 | (buf[pos] & 127) << 7) >>> 0;
       if (buf[pos++] < 128) {
         this.pos = pos;
-        return value2;
+        return value3;
       }
-      value2 = (value2 | (buf[pos] & 127) << 14) >>> 0;
+      value3 = (value3 | (buf[pos] & 127) << 14) >>> 0;
       if (buf[pos++] < 128) {
         this.pos = pos;
-        return value2;
+        return value3;
       }
-      value2 = (value2 | (buf[pos] & 127) << 21) >>> 0;
+      value3 = (value3 | (buf[pos] & 127) << 21) >>> 0;
       if (buf[pos++] < 128) {
         this.pos = pos;
-        return value2;
+        return value3;
       }
-      value2 = (value2 | (buf[pos] & 15) << 28) >>> 0;
+      value3 = (value3 | (buf[pos] & 15) << 28) >>> 0;
       if (buf[pos] < 128 && (buf[pos] & 112) === 0) {
         this.pos = pos + 1;
-        return value2;
+        return value3;
       }
       this.pos = pos + 1;
       throw Error("invalid tag encoding");
@@ -6324,8 +6330,8 @@
       return this.uint32() | 0;
     };
     Reader.prototype.sint32 = function read_sint32() {
-      var value2 = this.uint32();
-      return value2 >>> 1 ^ -(value2 & 1) | 0;
+      var value3 = this.uint32();
+      return value3 >>> 1 ^ -(value3 & 1) | 0;
     };
     function readLongVarint() {
       var bits = new LongBits3(0, 0);
@@ -6370,15 +6376,15 @@
       throw Error("invalid varint encoding");
     }
     Reader.prototype.bool = function read_bool() {
-      var value2 = false, b2;
+      var value3 = false, b2;
       for (var i2 = 0; i2 < 10; ++i2) {
         if (this.pos >= this.len)
           throw indexOutOfRange3(this);
         b2 = this.buf[this.pos++];
         if (b2 & 127)
-          value2 = true;
+          value3 = true;
         if (b2 < 128)
-          return value2;
+          return value3;
       }
       throw Error("invalid varint encoding");
     };
@@ -6403,16 +6409,16 @@
     Reader.prototype.float = function read_float() {
       if (this.pos + 4 > this.len)
         throw indexOutOfRange3(this, 4);
-      var value2 = util2.float.readFloatLE(this.buf, this.pos);
+      var value3 = util2.float.readFloatLE(this.buf, this.pos);
       this.pos += 4;
-      return value2;
+      return value3;
     };
     Reader.prototype.double = function read_double() {
       if (this.pos + 8 > this.len)
         throw indexOutOfRange3(this, 4);
-      var value2 = util2.float.readDoubleLE(this.buf, this.pos);
+      var value3 = util2.float.readDoubleLE(this.buf, this.pos);
       this.pos += 8;
-      return value2;
+      return value3;
     };
     Reader.prototype.bytes = function read_bytes() {
       var length7 = this.uint32(), start2 = this.pos, end = this.pos + length7;
@@ -6696,17 +6702,17 @@
           formatParams[formatOffset] = arguments[++formatOffset];
         formatOffset = 0;
         formatStringOrScope = formatStringOrScope.replace(/%([%dfijs])/g, function replace($0, $1) {
-          var value2 = formatParams[formatOffset++];
+          var value3 = formatParams[formatOffset++];
           switch ($1) {
             case "d":
             case "f":
-              return String(Number(value2));
+              return String(Number(value3));
             case "i":
-              return String(Math.floor(value2));
+              return String(Math.floor(value3));
             case "j":
-              return JSON.stringify(value2);
+              return JSON.stringify(value3);
             case "s":
-              return String(value2);
+              return String(value3);
           }
           return "%";
         });
@@ -8530,20 +8536,20 @@
       Object.defineProperty(object2, "$type", { value: enm, enumerable: false });
       return enm;
     };
-    util$12.setProperty = function setProperty(dst, path2, value2, ifNotSet) {
-      function setProp(dst2, path3, value3) {
+    util$12.setProperty = function setProperty(dst, path2, value3, ifNotSet) {
+      function setProp(dst2, path3, value4) {
         var part = path3.shift();
         if (unsafePropertyRe.test(part))
           return dst2;
         if (path3.length > 0) {
-          dst2[part] = setProp(dst2[part] || {}, path3, value3);
+          dst2[part] = setProp(dst2[part] || {}, path3, value4);
         } else {
           var prevValue = dst2[part];
           if (prevValue && ifNotSet)
             return dst2;
           if (prevValue)
-            value3 = [].concat(prevValue).concat(value3);
-          dst2[part] = value3;
+            value4 = [].concat(prevValue).concat(value4);
+          dst2[part] = value4;
         }
         return dst2;
       }
@@ -8554,7 +8560,7 @@
       path2 = path2.split(".");
       if (path2.length > util$12.recursionLimit)
         throw Error("max depth exceeded");
-      return setProp(dst, path2, value2);
+      return setProp(dst, path2, value3);
     };
     Object.defineProperty(util$12, "decorateRoot", {
       get: function() {
@@ -8830,8 +8836,8 @@
         this._features.field_presence !== "IMPLICIT";
       }
     });
-    Field2.prototype.setOption = function setOption(name5, value2, ifNotSet) {
-      return ReflectionObject.prototype.setOption.call(this, name5, value2, ifNotSet);
+    Field2.prototype.setOption = function setOption(name5, value3, ifNotSet) {
+      return ReflectionObject.prototype.setOption.call(this, name5, value3, ifNotSet);
     };
     Field2.prototype.toJSON = function toJSON(toJSONOptions) {
       var keepComments = toJSONOptions ? Boolean(toJSONOptions.keepComments) : false;
@@ -9181,20 +9187,20 @@
         return this.options[name5];
       return void 0;
     };
-    ReflectionObject.prototype.setOption = function setOption(name5, value2, ifNotSet) {
+    ReflectionObject.prototype.setOption = function setOption(name5, value3, ifNotSet) {
       if (name5 === "__proto__")
         return this;
       if (!this.options)
         this.options = {};
       if (/^features\./.test(name5)) {
-        util2.setProperty(this.options, name5, value2, ifNotSet);
+        util2.setProperty(this.options, name5, value3, ifNotSet);
       } else if (!ifNotSet || this.options[name5] === void 0) {
-        if (this.getOption(name5) !== value2) this.resolved = false;
-        this.options[name5] = value2;
+        if (this.getOption(name5) !== value3) this.resolved = false;
+        this.options[name5] = value3;
       }
       return this;
     };
-    ReflectionObject.prototype.setParsedOption = function setParsedOption(name5, value2, propName) {
+    ReflectionObject.prototype.setParsedOption = function setParsedOption(name5, value3, propName) {
       if (name5 === "__proto__")
         return this;
       if (!this.parsedOptions) {
@@ -9207,15 +9213,15 @@
         });
         if (opt) {
           var newValue = opt[name5];
-          util2.setProperty(newValue, propName, value2);
+          util2.setProperty(newValue, propName, value3);
         } else {
           opt = {};
-          opt[name5] = util2.setProperty({}, propName, value2);
+          opt[name5] = util2.setProperty({}, propName, value3);
           parsedOptions.push(opt);
         }
       } else {
         var newOpt = {};
-        newOpt[name5] = value2;
+        newOpt[name5] = value3;
         parsedOptions.push(newOpt);
       }
       return this;
@@ -9784,9 +9790,9 @@
           }
         } while (skip(",", true));
         var dummy = { options: void 0 };
-        dummy.setOption = function(name5, value2) {
+        dummy.setOption = function(name5, value3) {
           if (this.options === void 0) this.options = {};
-          this.options[name5] = value2;
+          this.options[name5] = value3;
         };
         ifBlock(
           dummy,
@@ -10198,14 +10204,14 @@
         if (!nameRe.test(token2))
           throw illegal(token2, "name");
         skip("=");
-        var value2 = parseId(next(), true), dummy = {
+        var value3 = parseId(next(), true), dummy = {
           options: void 0
         };
         dummy.getOption = function(name5) {
           return this.options[name5];
         };
-        dummy.setOption = function(name5, value3) {
-          ReflectionObject.prototype.setOption.call(dummy, name5, value3);
+        dummy.setOption = function(name5, value4) {
+          ReflectionObject.prototype.setOption.call(dummy, name5, value4);
         };
         dummy.setParsedOption = function() {
           return void 0;
@@ -10219,7 +10225,7 @@
         }, function parseEnumValue_line() {
           parseInlineOptions(dummy);
         });
-        parent.add(token2, value2, dummy.comment, dummy.parsedOptions || dummy.options);
+        parent.add(token2, value3, dummy.comment, dummy.parsedOptions || dummy.options);
       }
       function parseOption(parent, token2) {
         var option;
@@ -10268,19 +10274,19 @@
             if (token === null) {
               throw illegal(token, "end of input");
             }
-            var value2;
+            var value3;
             var propName = token;
             skip(":", true);
             if (peek() === "{") {
-              value2 = parseOptionValue(parent, name5 + "." + token, depth + 1);
+              value3 = parseOptionValue(parent, name5 + "." + token, depth + 1);
             } else if (peek() === "[") {
-              value2 = [];
+              value3 = [];
               var lastValue;
               if (skip("[", true)) {
                 if (!skip("]", true)) {
                   do {
                     lastValue = readValue();
-                    value2.push(lastValue);
+                    value3.push(lastValue);
                   } while (skip(",", true));
                   skip("]");
                   if (typeof lastValue !== "undefined") {
@@ -10289,14 +10295,14 @@
                 }
               }
             } else {
-              value2 = readValue();
-              setOption(parent, name5 + "." + token, value2);
+              value3 = readValue();
+              setOption(parent, name5 + "." + token, value3);
             }
             var prevValue = objectResult[propName];
             if (prevValue)
-              value2 = [].concat(prevValue).concat(value2);
+              value3 = [].concat(prevValue).concat(value3);
             if (propName !== "__proto__")
-              objectResult[propName] = value2;
+              objectResult[propName] = value3;
             skip(",", true);
             skip(";", true);
           }
@@ -10306,17 +10312,17 @@
         setOption(parent, name5, simpleValue);
         return simpleValue;
       }
-      function setOption(parent, name5, value2) {
+      function setOption(parent, name5, value3) {
         if (ptr === parent && /^features\./.test(name5)) {
-          topLevelOptions[name5] = value2;
+          topLevelOptions[name5] = value3;
           return;
         }
         if (parent.setOption)
-          parent.setOption(name5, value2);
+          parent.setOption(name5, value3);
       }
-      function setParsedOption(parent, name5, value2, propName) {
+      function setParsedOption(parent, name5, value3, propName) {
         if (parent.setParsedOption)
-          parent.setParsedOption(name5, value2, propName);
+          parent.setParsedOption(name5, value3, propName);
       }
       function parseInlineOptions(parent) {
         if (skip("[", true)) {
@@ -11653,9 +11659,9 @@
             if (key === "registrationId" || key === "currentRatchet" || key === "indexInfo" || key === "oldRatchetList" || key === "pendingPreKey") {
               continue;
             }
-            const value2 = serialized[key];
-            if (_SessionRecord.isChainLike(value2)) {
-              const chain = value2;
+            const value3 = serialized[key];
+            if (_SessionRecord.isChainLike(value3)) {
+              const chain = value3;
               const chainKey = chain.chainKey;
               const messageKeys = chain.messageKeys;
               session[key] = {
@@ -11673,8 +11679,8 @@
           }
           return session;
         }
-        static isChainLike(value2) {
-          return typeof value2 === "object" && value2 !== null && "messageKeys" in value2 && typeof value2.messageKeys === "object" && value2.messageKeys !== null && "chainKey" in value2 && typeof value2.chainKey === "object" && value2.chainKey !== null && "chainType" in value2;
+        static isChainLike(value3) {
+          return typeof value3 === "object" && value3 !== null && "messageKeys" in value3 && typeof value3.messageKeys === "object" && value3.messageKeys !== null && "chainKey" in value3 && typeof value3.chainKey === "object" && value3.chainKey !== null && "chainType" in value3;
         }
         static isSessionOpen({ indexInfo }) {
           return indexInfo.closed === -1;
@@ -12424,10 +12430,10 @@
         getLocalRegistrationId() {
           return this.get("registrationId");
         }
-        put(key, value2) {
-          if (key === void 0 || value2 === void 0 || key === null || value2 === null)
+        put(key, value3) {
+          if (key === void 0 || value3 === void 0 || key === null || value3 === null)
             throw new Error("Tried to store undefined/null");
-          this.store[key] = value2;
+          this.store[key] = value3;
         }
         get(key, defaultValue) {
           if (key === null || key === void 0)
@@ -13225,11 +13231,11 @@
     let buffer = 0;
     let written = 0;
     for (let i2 = 0; i2 < end; ++i2) {
-      const value2 = alphabetIdx[string4[i2]];
-      if (value2 === void 0) {
+      const value3 = alphabetIdx[string4[i2]];
+      if (value3 === void 0) {
         throw new SyntaxError(`Non-${name5} character`);
       }
-      buffer = buffer << bitsPerChar | value2;
+      buffer = buffer << bitsPerChar | value3;
       bits += bitsPerChar;
       if (bits >= 8) {
         bits -= 8;
@@ -13443,8 +13449,8 @@
   var N7 = Math.pow(2, 49);
   var N8 = Math.pow(2, 56);
   var N9 = Math.pow(2, 63);
-  var length = function(value2) {
-    return value2 < N1 ? 1 : value2 < N2 ? 2 : value2 < N3 ? 3 : value2 < N4 ? 4 : value2 < N5 ? 5 : value2 < N6 ? 6 : value2 < N7 ? 7 : value2 < N8 ? 8 : value2 < N9 ? 9 : 10;
+  var length = function(value3) {
+    return value3 < N1 ? 1 : value3 < N2 ? 2 : value3 < N3 ? 3 : value3 < N4 ? 4 : value3 < N5 ? 5 : value3 < N6 ? 6 : value3 < N7 ? 7 : value3 < N8 ? 8 : value3 < N9 ? 9 : 10;
   };
   var varint = {
     encode: encode_1,
@@ -13640,14 +13646,14 @@
       if (input == null) {
         return null;
       }
-      const value2 = input;
-      if (value2 instanceof _CID) {
-        return value2;
-      } else if (value2["/"] != null && value2["/"] === value2.bytes || value2.asCID === value2) {
-        const { version: version2, code: code6, multihash, bytes } = value2;
+      const value3 = input;
+      if (value3 instanceof _CID) {
+        return value3;
+      } else if (value3["/"] != null && value3["/"] === value3.bytes || value3.asCID === value3) {
+        const { version: version2, code: code6, multihash, bytes } = value3;
         return new _CID(version2, code6, multihash, bytes ?? encodeCID(version2, code6, multihash.bytes));
-      } else if (value2[cidSymbol] === true) {
-        const { version: version2, multihash, code: code6 } = value2;
+      } else if (value3[cidSymbol] === true) {
+        const { version: version2, multihash, code: code6 } = value3;
         const digest4 = decode4(multihash);
         return _CID.create(version2, code6, digest4);
       } else {
@@ -14009,8 +14015,8 @@
     }
     throw new RangeError("index is out of bounds");
   }
-  function isUint8ArrayList(value2) {
-    return Boolean(value2?.[symbol]);
+  function isUint8ArrayList(value3) {
+    return Boolean(value3?.[symbol]);
   }
   var Uint8ArrayList = class _Uint8ArrayList {
     bufs;
@@ -14089,9 +14095,9 @@
     /**
      * Set the value at `index` to `value`
      */
-    set(index, value2) {
+    set(index, value3) {
       const res = findBufAndOffset(this.bufs, index);
-      res.buf[res.index] = value2;
+      res.buf[res.index] = value3;
     }
     /**
      * Copy bytes from `buf` to the index specified by `offset`
@@ -14282,10 +14288,10 @@
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
       return view.getInt8(0);
     }
-    setInt8(byteOffset, value2) {
+    setInt8(byteOffset, value3) {
       const buf = allocUnsafe(1);
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-      view.setInt8(0, value2);
+      view.setInt8(0, value3);
       this.write(buf, byteOffset);
     }
     getInt16(byteOffset, littleEndian) {
@@ -14293,10 +14299,10 @@
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
       return view.getInt16(0, littleEndian);
     }
-    setInt16(byteOffset, value2, littleEndian) {
+    setInt16(byteOffset, value3, littleEndian) {
       const buf = alloc(2);
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-      view.setInt16(0, value2, littleEndian);
+      view.setInt16(0, value3, littleEndian);
       this.write(buf, byteOffset);
     }
     getInt32(byteOffset, littleEndian) {
@@ -14304,10 +14310,10 @@
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
       return view.getInt32(0, littleEndian);
     }
-    setInt32(byteOffset, value2, littleEndian) {
+    setInt32(byteOffset, value3, littleEndian) {
       const buf = alloc(4);
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-      view.setInt32(0, value2, littleEndian);
+      view.setInt32(0, value3, littleEndian);
       this.write(buf, byteOffset);
     }
     getBigInt64(byteOffset, littleEndian) {
@@ -14315,10 +14321,10 @@
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
       return view.getBigInt64(0, littleEndian);
     }
-    setBigInt64(byteOffset, value2, littleEndian) {
+    setBigInt64(byteOffset, value3, littleEndian) {
       const buf = alloc(8);
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-      view.setBigInt64(0, value2, littleEndian);
+      view.setBigInt64(0, value3, littleEndian);
       this.write(buf, byteOffset);
     }
     getUint8(byteOffset) {
@@ -14326,10 +14332,10 @@
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
       return view.getUint8(0);
     }
-    setUint8(byteOffset, value2) {
+    setUint8(byteOffset, value3) {
       const buf = allocUnsafe(1);
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-      view.setUint8(0, value2);
+      view.setUint8(0, value3);
       this.write(buf, byteOffset);
     }
     getUint16(byteOffset, littleEndian) {
@@ -14337,10 +14343,10 @@
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
       return view.getUint16(0, littleEndian);
     }
-    setUint16(byteOffset, value2, littleEndian) {
+    setUint16(byteOffset, value3, littleEndian) {
       const buf = alloc(2);
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-      view.setUint16(0, value2, littleEndian);
+      view.setUint16(0, value3, littleEndian);
       this.write(buf, byteOffset);
     }
     getUint32(byteOffset, littleEndian) {
@@ -14348,10 +14354,10 @@
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
       return view.getUint32(0, littleEndian);
     }
-    setUint32(byteOffset, value2, littleEndian) {
+    setUint32(byteOffset, value3, littleEndian) {
       const buf = alloc(4);
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-      view.setUint32(0, value2, littleEndian);
+      view.setUint32(0, value3, littleEndian);
       this.write(buf, byteOffset);
     }
     getBigUint64(byteOffset, littleEndian) {
@@ -14359,10 +14365,10 @@
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
       return view.getBigUint64(0, littleEndian);
     }
-    setBigUint64(byteOffset, value2, littleEndian) {
+    setBigUint64(byteOffset, value3, littleEndian) {
       const buf = alloc(8);
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-      view.setBigUint64(0, value2, littleEndian);
+      view.setBigUint64(0, value3, littleEndian);
       this.write(buf, byteOffset);
     }
     getFloat32(byteOffset, littleEndian) {
@@ -14370,10 +14376,10 @@
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
       return view.getFloat32(0, littleEndian);
     }
-    setFloat32(byteOffset, value2, littleEndian) {
+    setFloat32(byteOffset, value3, littleEndian) {
       const buf = alloc(4);
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-      view.setFloat32(0, value2, littleEndian);
+      view.setFloat32(0, value3, littleEndian);
       this.write(buf, byteOffset);
     }
     getFloat64(byteOffset, littleEndian) {
@@ -14381,10 +14387,10 @@
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
       return view.getFloat64(0, littleEndian);
     }
-    setFloat64(byteOffset, value2, littleEndian) {
+    setFloat64(byteOffset, value3, littleEndian) {
       const buf = alloc(8);
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-      view.setFloat64(0, value2, littleEndian);
+      view.setFloat64(0, value3, littleEndian);
       this.write(buf, byteOffset);
     }
     equals(other) {
@@ -14875,8 +14881,8 @@
     context.offset += length7;
     return bytes;
   }
-  function encodeNumber(value2) {
-    let number = value2.toString(16);
+  function encodeNumber(value3) {
+    let number = value3.toString(16);
     if (number.length % 2 === 1) {
       number = "0" + number;
     }
@@ -14895,23 +14901,23 @@
       length7.byteLength | LONG_LENGTH_MASK
     ]), length7);
   }
-  function encodeInteger(value2) {
+  function encodeInteger(value3) {
     const contents = new Uint8ArrayList();
     const mask = 128;
-    const positive2 = (value2.subarray()[0] & mask) === mask;
+    const positive2 = (value3.subarray()[0] & mask) === mask;
     if (positive2) {
       contents.append(Uint8Array.from([0]));
     }
-    contents.append(value2);
+    contents.append(value3);
     return new Uint8ArrayList(Uint8Array.from([2]), encodeLength(contents), contents);
   }
-  function encodeBitString(value2) {
+  function encodeBitString(value3) {
     const unusedBits = Uint8Array.from([0]);
-    const contents = new Uint8ArrayList(unusedBits, value2);
+    const contents = new Uint8ArrayList(unusedBits, value3);
     return new Uint8ArrayList(Uint8Array.from([3]), encodeLength(contents), contents);
   }
-  function encodeOctetString(value2) {
-    return new Uint8ArrayList(Uint8Array.from([4]), encodeLength(value2), value2);
+  function encodeOctetString(value3) {
+    return new Uint8ArrayList(Uint8Array.from([4]), encodeLength(value3), value3);
   }
   function encodeSequence(values, tag = 48) {
     const output = new Uint8ArrayList();
@@ -15166,20 +15172,20 @@
       throw new RangeError(`${prefix}expected integer >= 0, got ${n2}`);
     }
   }
-  function abytes(value2, length7, title = "") {
-    const bytes = isBytes(value2);
-    const len = value2?.length;
+  function abytes(value3, length7, title = "") {
+    const bytes = isBytes(value3);
+    const len = value3?.length;
     const needsLen = length7 !== void 0;
     if (!bytes || needsLen && len !== length7) {
       const prefix = title && `"${title}" `;
       const ofLen = needsLen ? ` of length ${length7}` : "";
-      const got = bytes ? `length=${len}` : `type=${typeof value2}`;
+      const got = bytes ? `length=${len}` : `type=${typeof value3}`;
       const message4 = prefix + "expected Uint8Array" + ofLen + ", got " + got;
       if (!bytes)
         throw new TypeError(message4);
       throw new RangeError(message4);
     }
-    return value2;
+    return value3;
   }
   function ahash(h3) {
     if (typeof h3 !== "function" || typeof h3.create !== "function")
@@ -15855,7 +15861,7 @@
 
   // node_modules/@noble/curves/utils.js
   init_globals();
-  var abytes2 = (value2, length7, title) => abytes(value2, length7, title);
+  var abytes2 = (value3, length7, title) => abytes(value3, length7, title);
   var anumber2 = anumber;
   var bytesToHex2 = bytesToHex;
   var concatBytes2 = (...arrays) => concatBytes(...arrays);
@@ -15864,12 +15870,12 @@
   var randomBytes2 = (bytesLength) => randomBytes(bytesLength);
   var _0n = /* @__PURE__ */ BigInt(0);
   var _1n = /* @__PURE__ */ BigInt(1);
-  function abool(value2, title = "") {
-    if (typeof value2 !== "boolean") {
+  function abool(value3, title = "") {
+    if (typeof value3 !== "boolean") {
       const prefix = title && `"${title}" `;
-      throw new TypeError(prefix + "expected boolean, got type=" + typeof value2);
+      throw new TypeError(prefix + "expected boolean, got type=" + typeof value3);
     }
-    return value2;
+    return value3;
   }
   function abignumber(n2) {
     if (typeof n2 === "bigint") {
@@ -15879,14 +15885,14 @@
       anumber2(n2);
     return n2;
   }
-  function asafenumber(value2, title = "") {
-    if (typeof value2 !== "number") {
+  function asafenumber(value3, title = "") {
+    if (typeof value3 !== "number") {
       const prefix = title && `"${title}" `;
-      throw new TypeError(prefix + "expected number, got type=" + typeof value2);
+      throw new TypeError(prefix + "expected number, got type=" + typeof value3);
     }
-    if (!Number.isSafeInteger(value2)) {
+    if (!Number.isSafeInteger(value3)) {
       const prefix = title && `"${title}" `;
-      throw new RangeError(prefix + "expected safe integer, got " + value2);
+      throw new RangeError(prefix + "expected safe integer, got " + value3);
     }
   }
   function numberToHexUnpadded(num) {
@@ -17205,17 +17211,17 @@
 
   // node_modules/@noble/curves/abstract/hash-to-curve.js
   init_globals();
-  function i2osp(value2, length7) {
-    asafenumber(value2);
+  function i2osp(value3, length7) {
+    asafenumber(value3);
     asafenumber(length7);
     if (length7 < 0 || length7 > 4)
       throw new Error("invalid I2OSP length: " + length7);
-    if (value2 < 0 || value2 > 2 ** (8 * length7) - 1)
-      throw new Error("invalid I2OSP input: " + value2);
+    if (value3 < 0 || value3 > 2 ** (8 * length7) - 1)
+      throw new Error("invalid I2OSP input: " + value3);
     const res = Array.from({ length: length7 }).fill(0);
     for (let i2 = length7 - 1; i2 >= 0; i2--) {
-      res[i2] = value2 & 255;
-      value2 >>>= 8;
+      res[i2] = value3 & 255;
+      value3 >>>= 8;
     }
     return new Uint8Array(res);
   }
@@ -17922,66 +17928,66 @@
   var N72 = Math.pow(2, 49);
   var MSB2 = 128;
   var REST2 = 127;
-  function encodingLength2(value2) {
-    if (value2 < N12) {
+  function encodingLength2(value3) {
+    if (value3 < N12) {
       return 1;
     }
-    if (value2 < N22) {
+    if (value3 < N22) {
       return 2;
     }
-    if (value2 < N32) {
+    if (value3 < N32) {
       return 3;
     }
-    if (value2 < N42) {
+    if (value3 < N42) {
       return 4;
     }
-    if (value2 < N52) {
+    if (value3 < N52) {
       return 5;
     }
-    if (value2 < N62) {
+    if (value3 < N62) {
       return 6;
     }
-    if (value2 < N72) {
+    if (value3 < N72) {
       return 7;
     }
-    if (Number.MAX_SAFE_INTEGER != null && value2 > Number.MAX_SAFE_INTEGER) {
+    if (Number.MAX_SAFE_INTEGER != null && value3 > Number.MAX_SAFE_INTEGER) {
       throw new RangeError("Could not encode varint");
     }
     return 8;
   }
-  function encodeUint8Array(value2, buf, offset = 0) {
-    switch (encodingLength2(value2)) {
+  function encodeUint8Array(value3, buf, offset = 0) {
+    switch (encodingLength2(value3)) {
       case 8: {
-        buf[offset++] = value2 & 255 | MSB2;
-        value2 /= 128;
+        buf[offset++] = value3 & 255 | MSB2;
+        value3 /= 128;
       }
       case 7: {
-        buf[offset++] = value2 & 255 | MSB2;
-        value2 /= 128;
+        buf[offset++] = value3 & 255 | MSB2;
+        value3 /= 128;
       }
       case 6: {
-        buf[offset++] = value2 & 255 | MSB2;
-        value2 /= 128;
+        buf[offset++] = value3 & 255 | MSB2;
+        value3 /= 128;
       }
       case 5: {
-        buf[offset++] = value2 & 255 | MSB2;
-        value2 /= 128;
+        buf[offset++] = value3 & 255 | MSB2;
+        value3 /= 128;
       }
       case 4: {
-        buf[offset++] = value2 & 255 | MSB2;
-        value2 >>>= 7;
+        buf[offset++] = value3 & 255 | MSB2;
+        value3 >>>= 7;
       }
       case 3: {
-        buf[offset++] = value2 & 255 | MSB2;
-        value2 >>>= 7;
+        buf[offset++] = value3 & 255 | MSB2;
+        value3 >>>= 7;
       }
       case 2: {
-        buf[offset++] = value2 & 255 | MSB2;
-        value2 >>>= 7;
+        buf[offset++] = value3 & 255 | MSB2;
+        value3 >>>= 7;
       }
       case 1: {
-        buf[offset++] = value2 & 255;
-        value2 >>>= 7;
+        buf[offset++] = value3 & 255;
+        value3 >>>= 7;
         break;
       }
       default:
@@ -17989,39 +17995,39 @@
     }
     return buf;
   }
-  function encodeUint8ArrayList(value2, buf, offset = 0) {
-    switch (encodingLength2(value2)) {
+  function encodeUint8ArrayList(value3, buf, offset = 0) {
+    switch (encodingLength2(value3)) {
       case 8: {
-        buf.set(offset++, value2 & 255 | MSB2);
-        value2 /= 128;
+        buf.set(offset++, value3 & 255 | MSB2);
+        value3 /= 128;
       }
       case 7: {
-        buf.set(offset++, value2 & 255 | MSB2);
-        value2 /= 128;
+        buf.set(offset++, value3 & 255 | MSB2);
+        value3 /= 128;
       }
       case 6: {
-        buf.set(offset++, value2 & 255 | MSB2);
-        value2 /= 128;
+        buf.set(offset++, value3 & 255 | MSB2);
+        value3 /= 128;
       }
       case 5: {
-        buf.set(offset++, value2 & 255 | MSB2);
-        value2 /= 128;
+        buf.set(offset++, value3 & 255 | MSB2);
+        value3 /= 128;
       }
       case 4: {
-        buf.set(offset++, value2 & 255 | MSB2);
-        value2 >>>= 7;
+        buf.set(offset++, value3 & 255 | MSB2);
+        value3 >>>= 7;
       }
       case 3: {
-        buf.set(offset++, value2 & 255 | MSB2);
-        value2 >>>= 7;
+        buf.set(offset++, value3 & 255 | MSB2);
+        value3 >>>= 7;
       }
       case 2: {
-        buf.set(offset++, value2 & 255 | MSB2);
-        value2 >>>= 7;
+        buf.set(offset++, value3 & 255 | MSB2);
+        value3 >>>= 7;
       }
       case 1: {
-        buf.set(offset++, value2 & 255);
-        value2 >>>= 7;
+        buf.set(offset++, value3 & 255);
+        value3 >>>= 7;
         break;
       }
       default:
@@ -18117,14 +18123,14 @@
     }
     throw new RangeError("Could not decode varint");
   }
-  function encode5(value2, buf, offset = 0) {
+  function encode5(value3, buf, offset = 0) {
     if (buf == null) {
-      buf = allocUnsafe(encodingLength2(value2));
+      buf = allocUnsafe(encodingLength2(value3));
     }
     if (buf instanceof Uint8Array) {
-      return encodeUint8Array(value2, buf, offset);
+      return encodeUint8Array(value3, buf, offset);
     } else {
-      return encodeUint8ArrayList(value2, buf, offset);
+      return encodeUint8ArrayList(value3, buf, offset);
     }
   }
   function decode6(buf, offset = 0) {
@@ -18256,19 +18262,19 @@
     /**
      * Constructs new long bits from the specified number
      */
-    static fromBigInt(value2) {
-      if (value2 === 0n) {
+    static fromBigInt(value3) {
+      if (value3 === 0n) {
         return zero;
       }
-      if (value2 < MAX_SAFE_NUMBER_INTEGER && value2 > MIN_SAFE_NUMBER_INTEGER) {
-        return this.fromNumber(Number(value2));
+      if (value3 < MAX_SAFE_NUMBER_INTEGER && value3 > MIN_SAFE_NUMBER_INTEGER) {
+        return this.fromNumber(Number(value3));
       }
-      const negative = value2 < 0n;
+      const negative = value3 < 0n;
       if (negative) {
-        value2 = -value2;
+        value3 = -value3;
       }
-      let hi2 = value2 >> 32n;
-      let lo = value2 - (hi2 << 32n);
+      let hi2 = value3 >> 32n;
+      let lo = value3 - (hi2 << 32n);
       if (negative) {
         hi2 = ~hi2 | 0n;
         lo = ~lo | 0n;
@@ -18284,16 +18290,16 @@
     /**
      * Constructs new long bits from the specified number
      */
-    static fromNumber(value2) {
-      if (value2 === 0) {
+    static fromNumber(value3) {
+      if (value3 === 0) {
         return zero;
       }
-      const sign2 = value2 < 0;
+      const sign2 = value3 < 0;
       if (sign2) {
-        value2 = -value2;
+        value3 = -value3;
       }
-      let lo = value2 >>> 0;
-      let hi2 = (value2 - lo) / 4294967296 >>> 0;
+      let lo = value3 >>> 0;
+      let hi2 = (value3 - lo) / 4294967296 >>> 0;
       if (sign2) {
         hi2 = ~hi2 >>> 0;
         lo = ~lo >>> 0;
@@ -18309,17 +18315,17 @@
     /**
      * Constructs new long bits from a number, long or string
      */
-    static from(value2) {
-      if (typeof value2 === "number") {
-        return _LongBits.fromNumber(value2);
+    static from(value3) {
+      if (typeof value3 === "number") {
+        return _LongBits.fromNumber(value3);
       }
-      if (typeof value2 === "bigint") {
-        return _LongBits.fromBigInt(value2);
+      if (typeof value3 === "bigint") {
+        return _LongBits.fromBigInt(value3);
       }
-      if (typeof value2 === "string") {
-        return _LongBits.fromBigInt(BigInt(value2));
+      if (typeof value3 === "string") {
+        return _LongBits.fromBigInt(BigInt(value3));
       }
-      return value2.low != null || value2.high != null ? new _LongBits(value2.low >>> 0, value2.high >>> 0) : zero;
+      return value3.low != null || value3.high != null ? new _LongBits(value3.low >>> 0, value3.high >>> 0) : zero;
     }
   };
   var zero = new LongBits(0, 0);
@@ -18437,32 +18443,32 @@
      * Reads a varint as an unsigned 32 bit value
      */
     uint32() {
-      let value2 = 4294967295;
-      value2 = (this.buf[this.pos] & 127) >>> 0;
+      let value3 = 4294967295;
+      value3 = (this.buf[this.pos] & 127) >>> 0;
       if (this.buf[this.pos++] < 128) {
-        return value2;
+        return value3;
       }
-      value2 = (value2 | (this.buf[this.pos] & 127) << 7) >>> 0;
+      value3 = (value3 | (this.buf[this.pos] & 127) << 7) >>> 0;
       if (this.buf[this.pos++] < 128) {
-        return value2;
+        return value3;
       }
-      value2 = (value2 | (this.buf[this.pos] & 127) << 14) >>> 0;
+      value3 = (value3 | (this.buf[this.pos] & 127) << 14) >>> 0;
       if (this.buf[this.pos++] < 128) {
-        return value2;
+        return value3;
       }
-      value2 = (value2 | (this.buf[this.pos] & 127) << 21) >>> 0;
+      value3 = (value3 | (this.buf[this.pos] & 127) << 21) >>> 0;
       if (this.buf[this.pos++] < 128) {
-        return value2;
+        return value3;
       }
-      value2 = (value2 | (this.buf[this.pos] & 15) << 28) >>> 0;
+      value3 = (value3 | (this.buf[this.pos] & 15) << 28) >>> 0;
       if (this.buf[this.pos++] < 128) {
-        return value2;
+        return value3;
       }
       if ((this.pos += 5) > this.len) {
         this.pos = this.len;
         throw indexOutOfRange(this, 10);
       }
-      return value2;
+      return value3;
     }
     /**
      * Reads a varint as a signed 32 bit value
@@ -18474,8 +18480,8 @@
      * Reads a zig-zag encoded varint as a signed 32 bit value
      */
     sint32() {
-      const value2 = this.uint32();
-      return value2 >>> 1 ^ -(value2 & 1) | 0;
+      const value3 = this.uint32();
+      return value3 >>> 1 ^ -(value3 & 1) | 0;
     }
     /**
      * Reads a varint as a boolean
@@ -18510,9 +18516,9 @@
       if (this.pos + 4 > this.len) {
         throw indexOutOfRange(this, 4);
       }
-      const value2 = readFloatLE(this.buf, this.pos);
+      const value3 = readFloatLE(this.buf, this.pos);
       this.pos += 4;
-      return value2;
+      return value3;
     }
     /**
      * Reads a double (64 bit float) as a number
@@ -18521,9 +18527,9 @@
       if (this.pos + 8 > this.len) {
         throw indexOutOfRange(this, 4);
       }
-      const value2 = readDoubleLE(this.buf, this.pos);
+      const value3 = readDoubleLE(this.buf, this.pos);
       this.pos += 8;
-      return value2;
+      return value3;
     }
     /**
      * Reads a sequence of bytes preceded by its length as a varint
@@ -18678,9 +18684,9 @@
      * JavaScript number
      */
     uint64Number() {
-      const value2 = decodeUint8Array(this.buf, this.pos);
-      this.pos += encodingLength2(value2);
-      return value2;
+      const value3 = decodeUint8Array(this.buf, this.pos);
+      this.pos += encodingLength2(value3);
+      return value3;
     }
     /**
      * Reads a varint as an unsigned 64 bit value returned as a string
@@ -18877,140 +18883,140 @@
     /**
      * Writes an unsigned 32 bit value as a varint
      */
-    uint32(value2) {
-      this.len += (this.tail = this.tail.next = new VarintOp((value2 = value2 >>> 0) < 128 ? 1 : value2 < 16384 ? 2 : value2 < 2097152 ? 3 : value2 < 268435456 ? 4 : 5, value2)).len;
+    uint32(value3) {
+      this.len += (this.tail = this.tail.next = new VarintOp((value3 = value3 >>> 0) < 128 ? 1 : value3 < 16384 ? 2 : value3 < 2097152 ? 3 : value3 < 268435456 ? 4 : 5, value3)).len;
       return this;
     }
     /**
      * Writes a signed 32 bit value as a varint`
      */
-    int32(value2) {
-      return value2 < 0 ? this._push(writeVarint64, 10, LongBits.fromNumber(value2)) : this.uint32(value2);
+    int32(value3) {
+      return value3 < 0 ? this._push(writeVarint64, 10, LongBits.fromNumber(value3)) : this.uint32(value3);
     }
     /**
      * Writes a 32 bit value as a varint, zig-zag encoded
      */
-    sint32(value2) {
-      return this.uint32((value2 << 1 ^ value2 >> 31) >>> 0);
+    sint32(value3) {
+      return this.uint32((value3 << 1 ^ value3 >> 31) >>> 0);
     }
     /**
      * Writes an unsigned 64 bit value as a varint
      */
-    uint64(value2) {
-      const bits = LongBits.fromBigInt(value2);
+    uint64(value3) {
+      const bits = LongBits.fromBigInt(value3);
       return this._push(writeVarint64, bits.length(), bits);
     }
     /**
      * Writes an unsigned 64 bit value as a varint
      */
-    uint64Number(value2) {
-      return this._push(encodeUint8Array, encodingLength2(value2), value2);
+    uint64Number(value3) {
+      return this._push(encodeUint8Array, encodingLength2(value3), value3);
     }
     /**
      * Writes an unsigned 64 bit value as a varint
      */
-    uint64String(value2) {
-      return this.uint64(BigInt(value2));
+    uint64String(value3) {
+      return this.uint64(BigInt(value3));
     }
     /**
      * Writes a signed 64 bit value as a varint
      */
-    int64(value2) {
-      return this.uint64(value2);
+    int64(value3) {
+      return this.uint64(value3);
     }
     /**
      * Writes a signed 64 bit value as a varint
      */
-    int64Number(value2) {
-      return this.uint64Number(value2);
+    int64Number(value3) {
+      return this.uint64Number(value3);
     }
     /**
      * Writes a signed 64 bit value as a varint
      */
-    int64String(value2) {
-      return this.uint64String(value2);
+    int64String(value3) {
+      return this.uint64String(value3);
     }
     /**
      * Writes a signed 64 bit value as a varint, zig-zag encoded
      */
-    sint64(value2) {
-      const bits = LongBits.fromBigInt(value2).zzEncode();
+    sint64(value3) {
+      const bits = LongBits.fromBigInt(value3).zzEncode();
       return this._push(writeVarint64, bits.length(), bits);
     }
     /**
      * Writes a signed 64 bit value as a varint, zig-zag encoded
      */
-    sint64Number(value2) {
-      const bits = LongBits.fromNumber(value2).zzEncode();
+    sint64Number(value3) {
+      const bits = LongBits.fromNumber(value3).zzEncode();
       return this._push(writeVarint64, bits.length(), bits);
     }
     /**
      * Writes a signed 64 bit value as a varint, zig-zag encoded
      */
-    sint64String(value2) {
-      return this.sint64(BigInt(value2));
+    sint64String(value3) {
+      return this.sint64(BigInt(value3));
     }
     /**
      * Writes a boolish value as a varint
      */
-    bool(value2) {
-      return this._push(writeByte, 1, value2 ? 1 : 0);
+    bool(value3) {
+      return this._push(writeByte, 1, value3 ? 1 : 0);
     }
     /**
      * Writes an unsigned 32 bit value as fixed 32 bits
      */
-    fixed32(value2) {
-      return this._push(writeFixed32, 4, value2 >>> 0);
+    fixed32(value3) {
+      return this._push(writeFixed32, 4, value3 >>> 0);
     }
     /**
      * Writes a signed 32 bit value as fixed 32 bits
      */
-    sfixed32(value2) {
-      return this.fixed32(value2);
+    sfixed32(value3) {
+      return this.fixed32(value3);
     }
     /**
      * Writes an unsigned 64 bit value as fixed 64 bits
      */
-    fixed64(value2) {
-      const bits = LongBits.fromBigInt(value2);
+    fixed64(value3) {
+      const bits = LongBits.fromBigInt(value3);
       return this._push(writeFixed32, 4, bits.lo)._push(writeFixed32, 4, bits.hi);
     }
     /**
      * Writes an unsigned 64 bit value as fixed 64 bits
      */
-    fixed64Number(value2) {
-      const bits = LongBits.fromNumber(value2);
+    fixed64Number(value3) {
+      const bits = LongBits.fromNumber(value3);
       return this._push(writeFixed32, 4, bits.lo)._push(writeFixed32, 4, bits.hi);
     }
     /**
      * Writes an unsigned 64 bit value as fixed 64 bits
      */
-    fixed64String(value2) {
-      return this.fixed64(BigInt(value2));
+    fixed64String(value3) {
+      return this.fixed64(BigInt(value3));
     }
     /**
      * Writes a signed 64 bit value as fixed 64 bits
      */
-    sfixed64(value2) {
-      return this.fixed64(value2);
+    sfixed64(value3) {
+      return this.fixed64(value3);
     }
     /**
      * Writes a signed 64 bit value as fixed 64 bits
      */
-    sfixed64Number(value2) {
-      return this.fixed64Number(value2);
+    sfixed64Number(value3) {
+      return this.fixed64Number(value3);
     }
     /**
      * Writes a signed 64 bit value as fixed 64 bits
      */
-    sfixed64String(value2) {
-      return this.fixed64String(value2);
+    sfixed64String(value3) {
+      return this.fixed64String(value3);
     }
     /**
      * Writes a float (32 bit)
      */
-    float(value2) {
-      return this._push(writeFloatLE, 4, value2);
+    float(value3) {
+      return this._push(writeFloatLE, 4, value3);
     }
     /**
      * Writes a double (64 bit float).
@@ -19019,25 +19025,25 @@
      * @param {number} value - Value to write
      * @returns {Writer} `this`
      */
-    double(value2) {
-      return this._push(writeDoubleLE, 8, value2);
+    double(value3) {
+      return this._push(writeDoubleLE, 8, value3);
     }
     /**
      * Writes a sequence of bytes
      */
-    bytes(value2) {
-      const len = value2.length >>> 0;
+    bytes(value3) {
+      const len = value3.length >>> 0;
       if (len === 0) {
         return this._push(writeByte, 1, 0);
       }
-      return this.uint32(len)._push(writeBytes, len, value2);
+      return this.uint32(len)._push(writeBytes, len, value3);
     }
     /**
      * Writes a string
      */
-    string(value2) {
-      const len = length2(value2);
-      return len !== 0 ? this.uint32(len)._push(write, len, value2) : this._push(writeByte, 1, 0);
+    string(value3) {
+      const len = length2(value3);
+      return len !== 0 ? this.uint32(len)._push(write, len, value3) : this._push(writeByte, 1, 0);
     }
     /**
      * Forks this writer's state by pushing it to a stack.
@@ -19133,19 +19139,19 @@
     buf.set(val, pos);
   }
   if (globalThis.Buffer != null) {
-    Uint8ArrayWriter.prototype.bytes = function(value2) {
-      const len = value2.length >>> 0;
+    Uint8ArrayWriter.prototype.bytes = function(value3) {
+      const len = value3.length >>> 0;
       this.uint32(len);
       if (len > 0) {
-        this._push(writeBytesBuffer, len, value2);
+        this._push(writeBytesBuffer, len, value3);
       }
       return this;
     };
-    Uint8ArrayWriter.prototype.string = function(value2) {
-      const len = globalThis.Buffer.byteLength(value2);
+    Uint8ArrayWriter.prototype.string = function(value3) {
+      const len = globalThis.Buffer.byteLength(value3);
       this.uint32(len);
       if (len > 0) {
-        this._push(writeStringBuffer, len, value2);
+        this._push(writeStringBuffer, len, value3);
       }
       return this;
     };
@@ -21264,17 +21270,17 @@
   var w = d * 7;
   var y = d * 365.25;
   var mo = y / 12;
-  function ms(value2, options) {
-    if (typeof value2 === "string") return parse(value2);
-    else if (typeof value2 === "number") return format2(value2, options);
-    throw new Error(`Value provided to ms() must be a string or number. value=${JSON.stringify(value2)}`);
+  function ms(value3, options) {
+    if (typeof value3 === "string") return parse(value3);
+    else if (typeof value3 === "number") return format2(value3, options);
+    throw new Error(`Value provided to ms() must be a string or number. value=${JSON.stringify(value3)}`);
   }
   function parse(str) {
     if (typeof str !== "string" || str.length === 0 || str.length > 100) throw new Error(`Value provided to ms.parse() must be a string with length between 1 and 99. value=${JSON.stringify(str)}`);
     const match = /^(?<value>-?\d*\.?\d+) *(?<unit>milliseconds?|msecs?|ms|seconds?|secs?|s|minutes?|mins?|m|hours?|hrs?|h|days?|d|weeks?|w|months?|mo|years?|yrs?|y)?$/i.exec(str);
     if (!match?.groups) return NaN;
-    const { value: value2, unit = "ms" } = match.groups;
-    const n2 = parseFloat(value2);
+    const { value: value3, unit = "ms" } = match.groups;
+    const n2 = parseFloat(value3);
     const matchUnit = unit.toLowerCase();
     switch (matchUnit) {
       case "years":
@@ -21827,8 +21833,8 @@ ${indent}[Error list was empty]`;
     constructor(map3) {
       this.map = /* @__PURE__ */ new Map();
       if (map3 != null) {
-        for (const [key, value2] of map3.entries()) {
-          this.map.set(key.toString(), { key, value: value2 });
+        for (const [key, value3] of map3.entries()) {
+          this.map.set(key.toString(), { key, value: value3 });
         }
       }
     }
@@ -21847,8 +21853,8 @@ ${indent}[Error list was empty]`;
       });
     }
     forEach(fn2) {
-      this.map.forEach((value2, key) => {
-        fn2(value2.value, value2.key, this);
+      this.map.forEach((value3, key) => {
+        fn2(value3.value, value3.key, this);
       });
     }
     get(peer) {
@@ -21857,8 +21863,8 @@ ${indent}[Error list was empty]`;
     has(peer) {
       return this.map.has(peer.toString());
     }
-    set(peer, value2) {
-      this.map.set(peer.toString(), { key: peer, value: value2 });
+    set(peer, value3) {
+      this.map.set(peer.toString(), { key: peer, value: value3 });
     }
     keys() {
       return mapIterable(this.map.values(), (val) => {
@@ -22004,17 +22010,17 @@ ${indent}[Error list was empty]`;
     }
     return hash2;
   }
-  function fnv1a(value2, { size = 32, utf8Buffer } = {}) {
+  function fnv1a(value3, { size = 32, utf8Buffer } = {}) {
     if (!FNV_PRIMES[size]) {
       throw new Error("The `size` option must be one of 32, 64, 128, 256, 512, or 1024");
     }
-    if (typeof value2 === "string") {
+    if (typeof value3 === "string") {
       if (utf8Buffer) {
-        return fnv1aEncodeInto(value2, size, utf8Buffer);
+        return fnv1aEncodeInto(value3, size, utf8Buffer);
       }
-      value2 = cachedEncoder.encode(value2);
+      value3 = cachedEncoder.encode(value3);
     }
-    return fnv1aUint8Array(value2, size);
+    return fnv1aUint8Array(value3, size);
   }
 
   // node_modules/@libp2p/utils/dist/src/filters/hashes.js
@@ -23203,11 +23209,11 @@ ${indent}[Error list was empty]`;
     ip = ip.toString().trim();
     const bytes = new Uint8Array(4);
     ip.split(/\./g).forEach((byte, index) => {
-      const value2 = parseInt(byte, 10);
-      if (isNaN(value2) || value2 < 0 || value2 > 255) {
+      const value3 = parseInt(byte, 10);
+      if (isNaN(value3) || value3 < 0 || value3 > 255) {
         throw new InvalidMultiaddrError2("Invalid byte value in IP address");
       }
-      bytes[index] = value2;
+      bytes[index] = value3;
     });
     return bytes;
   };
@@ -23312,28 +23318,28 @@ ${indent}[Error list was empty]`;
 
   // node_modules/@multiformats/multiaddr/dist/src/validation.js
   init_globals();
-  function integer(value2) {
-    const int = parseInt(value2);
-    if (int.toString() !== value2) {
+  function integer(value3) {
+    const int = parseInt(value3);
+    if (int.toString() !== value3) {
       throw new ValidationError("Value must be an integer");
     }
   }
-  function positive(value2) {
-    if (value2 < 0) {
+  function positive(value3) {
+    if (value3 < 0) {
       throw new ValidationError("Value must be a positive integer, or zero");
     }
   }
   function maxValue(max) {
-    return (value2) => {
-      if (value2 > max) {
+    return (value3) => {
+      if (value3 > max) {
         throw new ValidationError(`Value must be smaller than or equal to ${max}`);
       }
     };
   }
   function validate(...funcs) {
-    return (value2) => {
+    return (value3) => {
       for (const fn2 of funcs) {
-        fn2(value2);
+        fn2(value3);
       }
     };
   }
@@ -23382,9 +23388,9 @@ ${indent}[Error list was empty]`;
     size: 32,
     valueToBytes: ip4ToBytes,
     bytesToValue: ip4ToString,
-    validate: (value2) => {
-      if (!isIPv4(value2)) {
-        throw new ValidationError(`Invalid IPv4 address "${value2}"`);
+    validate: (value3) => {
+      if (!isIPv4(value3)) {
+        throw new ValidationError(`Invalid IPv4 address "${value3}"`);
       }
     }
   }, {
@@ -23415,9 +23421,9 @@ ${indent}[Error list was empty]`;
     valueToBytes: ip6ToBytes,
     bytesToValue: ip6ToString,
     stringToValue: ip6StringToValue,
-    validate: (value2) => {
-      if (!isIPv6(value2)) {
-        throw new ValidationError(`Invalid IPv6 address "${value2}"`);
+    validate: (value3) => {
+      if (!isIPv6(value3)) {
+        throw new ValidationError(`Invalid IPv6 address "${value3}"`);
       }
     }
   }, {
@@ -23640,7 +23646,7 @@ ${indent}[Error list was empty]`;
     }
     const components = [];
     let collecting = "protocol";
-    let value2 = "";
+    let value3 = "";
     let protocol = "";
     for (let i2 = 1; i2 < string4.length; i2++) {
       const char = string4.charAt(i2);
@@ -23648,7 +23654,7 @@ ${indent}[Error list was empty]`;
         if (collecting === "protocol") {
           protocol += string4.charAt(i2);
         } else {
-          value2 += string4.charAt(i2);
+          value3 += string4.charAt(i2);
         }
       }
       const ended = i2 === string4.length - 1;
@@ -23660,7 +23666,7 @@ ${indent}[Error list was empty]`;
               code: codec.code,
               name: codec.name
             });
-            value2 = "";
+            value3 = "";
             protocol = "";
             collecting = "protocol";
             continue;
@@ -23674,19 +23680,19 @@ ${indent}[Error list was empty]`;
             name: codec.name
           };
           if (codec.size != null && codec.size !== 0) {
-            if (value2 === "") {
+            if (value3 === "") {
               throw new InvalidMultiaddrError2(`Component ${protocol} was missing value`);
             }
-            component.value = codec.stringToValue?.(value2) ?? value2;
+            component.value = codec.stringToValue?.(value3) ?? value3;
           }
           components.push(component);
-          value2 = "";
+          value3 = "";
           protocol = "";
           collecting = "protocol";
         }
       }
     }
-    if (protocol !== "" && value2 !== "") {
+    if (protocol !== "" && value3 !== "") {
       throw new InvalidMultiaddrError2("Incomplete multiaddr");
     }
     return components;
@@ -23836,8 +23842,8 @@ ${indent}[Error list was empty]`;
   }
 
   // node_modules/@multiformats/multiaddr/dist/src/index.js
-  function isMultiaddr(value2) {
-    return Boolean(value2?.[symbol2]);
+  function isMultiaddr(value3) {
+    return Boolean(value3?.[symbol2]);
   }
   function multiaddr(addr) {
     return new Multiaddr(addr);
@@ -23862,7 +23868,7 @@ ${indent}[Error list was empty]`;
       }
     };
   };
-  var value = (code6, value2) => {
+  var value = (code6, value3) => {
     return {
       match: (vals) => {
         const component = vals[0];
@@ -23872,7 +23878,7 @@ ${indent}[Error list was empty]`;
         if (component.value == null) {
           return false;
         }
-        if (value2 != null && component.value !== value2) {
+        if (value3 != null && component.value !== value3) {
           return false;
         }
         return vals.slice(1);
@@ -24283,14 +24289,14 @@ ${indent}[Error list was empty]`;
       buffer.push({ error: err });
       return pushable2;
     };
-    const push = (value2) => {
+    const push = (value3) => {
       if (ended) {
         return pushable2;
       }
-      if (options?.objectMode !== true && value2?.byteLength == null) {
+      if (options?.objectMode !== true && value3?.byteLength == null) {
         throw new Error("objectMode was not true but tried to push non-Uint8Array value");
       }
-      return bufferNext({ done: false, value: value2 });
+      return bufferNext({ done: false, value: value3 });
     };
     const end = (err) => {
       if (ended) {
@@ -24501,10 +24507,10 @@ ${indent}[Error list was empty]`;
       const items = [];
       const { addListener: addListener2, removeListener: removeListener2 } = normalizeEmitter(emitter);
       const onItem = async (...arguments_) => {
-        const value2 = options.multiArgs ? arguments_ : arguments_[0];
+        const value3 = options.multiArgs ? arguments_ : arguments_[0];
         if (options.filter) {
           try {
-            if (!await options.filter(value2)) {
+            if (!await options.filter(value3)) {
               return;
             }
           } catch (error) {
@@ -24513,7 +24519,7 @@ ${indent}[Error list was empty]`;
             return;
           }
         }
-        items.push(value2);
+        items.push(value3);
         if (options.count === items.length) {
           cancel();
           resolve6(items);
@@ -25783,17 +25789,17 @@ ${indent}[Error list was empty]`;
     alpha(t2, pt2) {
       return 1 - Math.exp(-(t2 - pt2) / this.timeSpan);
     }
-    push(value2, time = Date.now()) {
+    push(value3, time = Date.now()) {
       if (this.previousTime != null) {
         const a2 = this.alpha(time, this.previousTime);
-        const diff = value2 - this.movingAverage;
+        const diff = value3 - this.movingAverage;
         const incr = a2 * diff;
-        this.movingAverage = a2 * value2 + (1 - a2) * this.movingAverage;
+        this.movingAverage = a2 * value3 + (1 - a2) * this.movingAverage;
         this.variance = (1 - a2) * (this.variance + diff * incr);
         this.deviation = Math.sqrt(this.variance);
         this.forecast = this.movingAverage + a2 * diff;
       } else {
-        this.movingAverage = value2;
+        this.movingAverage = value3;
       }
       this.previousTime = time;
     }
@@ -25934,8 +25940,8 @@ ${indent}[Error list was empty]`;
       this.haveNext.resolve();
       return result;
     }
-    async push(value2, options) {
-      await this._push(value2, options);
+    async push(value3, options) {
+      await this._push(value3, options);
     }
     async end(err, options) {
       if (err != null) {
@@ -25944,15 +25950,15 @@ ${indent}[Error list was empty]`;
         await this._push(void 0, options);
       }
     }
-    async _push(value2, options) {
-      if (value2 != null && this.ended) {
+    async _push(value3, options) {
+      if (value3 != null && this.ended) {
         throw this.error ?? new Error("Cannot push value onto an ended pushable");
       }
       while (this.nextResult != null) {
         await this.readNext.promise;
       }
-      if (value2 != null) {
-        this.nextResult = { done: false, value: value2 };
+      if (value3 != null) {
+        this.nextResult = { done: false, value: value3 };
       } else {
         this.ended = true;
         this.nextResult = { done: true, value: void 0 };
@@ -26309,8 +26315,8 @@ ${indent}[Error list was empty]`;
     const lp = lpStream(stream, opts);
     const pbStream2 = {
       read: async (proto, options) => {
-        const value2 = await lp.read(options);
-        return proto.decode(value2);
+        const value3 = await lp.read(options);
+        return proto.decode(value3);
       },
       write: async (message4, proto, options) => {
         await lp.write(proto.encode(message4), options);
@@ -26372,15 +26378,15 @@ ${indent}[Error list was empty]`;
         const gen = toGenerator();
         while (true) {
           onError = Promise.withResolvers();
-          const { done, value: value2 } = await Promise.race([
+          const { done, value: value3 } = await Promise.race([
             gen.next(),
             onError.promise
           ]);
           if (stream.writeStatus === "closing" || stream.writeStatus === "closed") {
             break;
           }
-          if (value2 != null) {
-            if (!stream.send(value2)) {
+          if (value3 != null) {
+            if (!stream.send(value3)) {
               await Promise.race([
                 pEvent(stream, "drain", {
                   rejectionEvents: [
@@ -26636,12 +26642,12 @@ ${indent}[Error list was empty]`;
     const varByteSource = (async function* () {
       while (true) {
         try {
-          const { done, value: value2 } = await reader2.next(byteLength);
+          const { done, value: value3 } = await reader2.next(byteLength);
           if (done === true) {
             return;
           }
-          if (value2 != null) {
-            yield value2;
+          if (value3 != null) {
+            yield value3;
           }
         } catch (err) {
           if (err.code === "ERR_UNDER_READ") {
@@ -26791,12 +26797,12 @@ ${indent}[Error list was empty]`;
     constructor() {
       this.storage = /* @__PURE__ */ new Map();
     }
-    incrby(key, value2, durationSec) {
+    incrby(key, value3, durationSec) {
       const existing = this.storage.get(key);
       if (existing != null) {
         const msBeforeExpires = existing.expiresAt != null ? existing.expiresAt.getTime() - (/* @__PURE__ */ new Date()).getTime() : -1;
         if (existing.expiresAt == null || msBeforeExpires > 0) {
-          existing.value += value2;
+          existing.value += value3;
           return {
             remainingPoints: 0,
             msBeforeNext: msBeforeExpires,
@@ -26804,18 +26810,18 @@ ${indent}[Error list was empty]`;
             isFirstInDuration: false
           };
         }
-        return this.set(key, value2, durationSec);
+        return this.set(key, value3, durationSec);
       }
-      return this.set(key, value2, durationSec);
+      return this.set(key, value3, durationSec);
     }
-    set(key, value2, durationSec) {
+    set(key, value3, durationSec) {
       const durationMs = durationSec * 1e3;
       const existing = this.storage.get(key);
       if (existing != null) {
         clearTimeout(existing.timeoutId);
       }
       const record = {
-        value: value2,
+        value: value3,
         expiresAt: durationMs > 0 ? new Date(Date.now() + durationMs) : void 0
       };
       this.storage.set(key, record);
@@ -26953,8 +26959,8 @@ ${indent}[Error list was empty]`;
       this.metric = metrics.registerMetric(name5);
       this.updateComponentMetric();
     }
-    set(key, value2) {
-      super.set(key, value2);
+    set(key, value3) {
+      super.set(key, value3);
       this.updateComponentMetric();
       return this;
     }
@@ -27012,8 +27018,8 @@ ${indent}[Error list was empty]`;
       this.metric = metrics.registerMetric(name5);
       this.updateComponentMetric();
     }
-    set(key, value2) {
-      super.set(key, value2);
+    set(key, value3) {
+      super.set(key, value3);
       this.updateComponentMetric();
       return this;
     }
@@ -27380,9 +27386,9 @@ ${indent}[Error list was empty]`;
             w3.uint64(obj.seq);
           }
           if (obj.addresses != null && obj.addresses.length > 0) {
-            for (const value2 of obj.addresses) {
+            for (const value3 of obj.addresses) {
               w3.uint32(26);
-              PeerRecord3.AddressInfo.codec().encode(value2, w3);
+              PeerRecord3.AddressInfo.codec().encode(value3, w3);
             }
           }
           if (opts.lengthDelimited !== false) {
@@ -28603,15 +28609,15 @@ ${indent}[Error list was empty]`;
             w3.fork();
           }
           if (obj.addresses != null && obj.addresses.length > 0) {
-            for (const value2 of obj.addresses) {
+            for (const value3 of obj.addresses) {
               w3.uint32(10);
-              Address.codec().encode(value2, w3);
+              Address.codec().encode(value3, w3);
             }
           }
           if (obj.protocols != null && obj.protocols.length > 0) {
-            for (const value2 of obj.protocols) {
+            for (const value3 of obj.protocols) {
               w3.uint32(18);
-              w3.string(value2);
+              w3.string(value3);
             }
           }
           if (obj.publicKey != null) {
@@ -28623,15 +28629,15 @@ ${indent}[Error list was empty]`;
             w3.bytes(obj.peerRecordEnvelope);
           }
           if (obj.metadata != null && obj.metadata.size > 0) {
-            for (const [key, value2] of obj.metadata.entries()) {
+            for (const [key, value3] of obj.metadata.entries()) {
               w3.uint32(50);
-              Peer3.Peer$metadataEntry.codec().encode({ key, value: value2 }, w3);
+              Peer3.Peer$metadataEntry.codec().encode({ key, value: value3 }, w3);
             }
           }
           if (obj.tags != null && obj.tags.size > 0) {
-            for (const [key, value2] of obj.tags.entries()) {
+            for (const [key, value3] of obj.tags.entries()) {
               w3.uint32(58);
-              Peer3.Peer$tagsEntry.codec().encode({ key, value: value2 }, w3);
+              Peer3.Peer$tagsEntry.codec().encode({ key, value: value3 }, w3);
             }
           }
           if (obj.updated != null) {
@@ -29099,12 +29105,12 @@ ${indent}[Error list was empty]`;
     if (mapA.size !== mapB.size) {
       return false;
     }
-    for (const [key, value2] of mapA.entries()) {
+    for (const [key, value3] of mapA.entries()) {
       const valueB = mapB.get(key);
       if (valueB == null) {
         return false;
       }
-      if (!compare4(value2, valueB)) {
+      if (!compare4(value3, valueB)) {
         return false;
       }
     }
@@ -29592,11 +29598,11 @@ ${indent}[Error list was empty]`;
       }
       if (data.metadata != null) {
         const metadataEntries = data.metadata instanceof Map ? [...data.metadata.entries()] : Object.entries(data.metadata);
-        for (const [key, value2] of metadataEntries) {
-          if (value2 == null) {
+        for (const [key, value3] of metadataEntries) {
+          if (value3 == null) {
             metadata.delete(key);
           } else {
-            metadata.set(key, value2);
+            metadata.set(key, value3);
           }
         }
         metadata = createSortedMap([...metadata.entries()], {
@@ -29606,11 +29612,11 @@ ${indent}[Error list was empty]`;
       if (data.tags != null) {
         const tagsEntries = data.tags instanceof Map ? [...data.tags.entries()] : Object.entries(data.tags);
         const mergedTags = new Map(tags);
-        for (const [key, value2] of tagsEntries) {
-          if (value2 == null) {
+        for (const [key, value3] of tagsEntries) {
+          if (value3 == null) {
             mergedTags.delete(key);
           } else {
-            mergedTags.set(key, value2);
+            mergedTags.set(key, value3);
           }
         }
         tags = createSortedMap([...mergedTags.entries()], {
@@ -29650,26 +29656,26 @@ ${indent}[Error list was empty]`;
   }
   function createSortedMap(entries, options) {
     const output = /* @__PURE__ */ new Map();
-    for (const [key, value2] of entries) {
-      if (value2 == null) {
+    for (const [key, value3] of entries) {
+      if (value3 == null) {
         continue;
       }
-      options.validate(key, value2);
+      options.validate(key, value3);
     }
-    for (const [key, value2] of entries.sort(([a2], [b2]) => {
+    for (const [key, value3] of entries.sort(([a2], [b2]) => {
       return a2.localeCompare(b2);
     })) {
-      if (value2 != null) {
-        output.set(key, options.map?.(key, value2) ?? value2);
+      if (value3 != null) {
+        output.set(key, options.map?.(key, value3) ?? value3);
       }
     }
     return output;
   }
-  function validateMetadata(key, value2) {
+  function validateMetadata(key, value3) {
     if (typeof key !== "string") {
       throw new InvalidParametersError("Metadata key must be a string");
     }
-    if (!(value2 instanceof Uint8Array)) {
+    if (!(value3 instanceof Uint8Array)) {
       throw new InvalidParametersError("Metadata value must be a Uint8Array");
     }
   }
@@ -29717,15 +29723,15 @@ ${indent}[Error list was empty]`;
     const buf = CID.parse(base32Str, base32);
     return peerIdFromCID(buf);
   }
-  function decodePeer(key, value2, maxAddressAge) {
+  function decodePeer(key, value3, maxAddressAge) {
     const peerId = keyToPeerId(key);
-    return bytesToPeer(peerId, value2, maxAddressAge);
+    return bytesToPeer(peerId, value3, maxAddressAge);
   }
   function mapQuery(query, maxAddressAge) {
     return {
       prefix: NAMESPACE_COMMON,
-      filters: (query.filters ?? []).map((fn2) => ({ key, value: value2 }) => {
-        return fn2(decodePeer(key, value2, maxAddressAge));
+      filters: (query.filters ?? []).map((fn2) => ({ key, value: value3 }) => {
+        return fn2(decodePeer(key, value3, maxAddressAge));
       }),
       orders: (query.orders ?? []).map((fn2) => (a2, b2) => {
         return fn2(decodePeer(a2.key, a2.value, maxAddressAge), decodePeer(b2.key, b2.value, maxAddressAge));
@@ -29853,12 +29859,12 @@ ${indent}[Error list was empty]`;
       return this.#saveIfDifferent(peerId, peerPb, existingPeer);
     }
     async *all(options) {
-      for await (const { key, value: value2 } of this.datastore.query(mapQuery(options ?? {}, this.maxAddressAge), options)) {
+      for await (const { key, value: value3 } of this.datastore.query(mapQuery(options ?? {}, this.maxAddressAge), options)) {
         const peerId = keyToPeerId(key);
         if (peerId.equals(this.peerId)) {
           continue;
         }
-        const peer = Peer.decode(value2);
+        const peer = Peer.decode(value3);
         if (this.#peerIsExpired(peerId, peer)) {
           await this.datastore.delete(key, options);
           continue;
@@ -30101,8 +30107,8 @@ ${indent}[Error list was empty]`;
       peek: () => {
         return iterator.next();
       },
-      push: (value2) => {
-        queue.push(value2);
+      push: (value3) => {
+        queue.push(value3);
       },
       next: () => {
         if (queue.length > 0) {
@@ -30136,16 +30142,16 @@ ${indent}[Error list was empty]`;
       })();
     }
     const peekable2 = src_default5(source);
-    const { value: value2, done } = peekable2.next();
+    const { value: value3, done } = peekable2.next();
     if (done === true) {
       return (function* () {
       })();
     }
-    const res = fn2(value2, index++);
+    const res = fn2(value3, index++);
     if (typeof res.then === "function") {
       return (async function* () {
         if (await res) {
-          yield value2;
+          yield value3;
         }
         for (const entry of peekable2) {
           if (await fn2(entry, index++)) {
@@ -30157,7 +30163,7 @@ ${indent}[Error list was empty]`;
     const func = fn2;
     return (function* () {
       if (res === true) {
-        yield value2;
+        yield value3;
       }
       for (const entry of peekable2) {
         if (func(entry, index++)) {
@@ -30239,8 +30245,8 @@ ${indent}[Error list was empty]`;
       return Promise.reject(new Error(".delete is not implemented"));
     }
     async *putMany(source, options = {}) {
-      for await (const { key, value: value2 } of source) {
-        await this.put(key, value2, options);
+      for await (const { key, value: value3 } of source) {
+        await this.put(key, value3, options);
         yield key;
       }
     }
@@ -30262,8 +30268,8 @@ ${indent}[Error list was empty]`;
       let puts = [];
       let dels = [];
       return {
-        put(key, value2) {
-          puts.push({ key, value: value2 });
+        put(key, value3) {
+          puts.push({ key, value: value3 });
         },
         delete(key) {
           dels.push(key);
@@ -30366,8 +30372,8 @@ ${indent}[Error list was empty]`;
     }
     *_all(q2, options) {
       options?.signal?.throwIfAborted();
-      for (const [key, value2] of this.data.entries()) {
-        yield { key: new Key(key), value: value2 };
+      for (const [key, value3] of this.data.entries()) {
+        yield { key: new Key(key), value: value3 };
         options?.signal?.throwIfAborted();
       }
     }
@@ -31273,8 +31279,8 @@ ${indent}[Error list was empty]`;
     _started = false;
     constructor(init = {}) {
       this.components = {};
-      for (const [key, value2] of Object.entries(init)) {
-        this.components[key] = value2;
+      for (const [key, value3] of Object.entries(init)) {
+        this.components[key] = value3;
       }
       if (this.components.logger == null) {
         this.components.logger = defaultLogger();
@@ -31339,11 +31345,11 @@ ${indent}[Error list was empty]`;
         }
         return Reflect.get(target, prop, receiver);
       },
-      set(target, prop, value2) {
+      set(target, prop, value3) {
         if (typeof prop === "string") {
-          components.components[prop] = value2;
+          components.components[prop] = value3;
         } else {
-          Reflect.set(target, prop, value2);
+          Reflect.set(target, prop, value3);
         }
         return true;
       }
@@ -31723,13 +31729,13 @@ ${indent}[Error list was empty]`;
 
   // node_modules/p-queue/dist/lower-bound.js
   init_globals();
-  function lowerBound(array, value2, comparator) {
+  function lowerBound(array, value3, comparator) {
     let first = 0;
     let count = array.length;
     while (count > 0) {
       const step = Math.trunc(count / 2);
       let it2 = first + step;
-      if (comparator(array[it2], value2) <= 0) {
+      if (comparator(array[it2], value3) <= 0) {
         first = ++it2;
         count -= step + 1;
       } else {
@@ -32862,11 +32868,11 @@ ${indent}[Error list was empty]`;
     let buffer = 0;
     let written = 0;
     for (let i2 = 0; i2 < end; ++i2) {
-      const value2 = alphabetIdx[string4[i2]];
-      if (value2 === void 0) {
+      const value3 = alphabetIdx[string4[i2]];
+      if (value3 === void 0) {
         throw new SyntaxError(`Non-${name5} character`);
       }
-      buffer = buffer << bitsPerChar | value2;
+      buffer = buffer << bitsPerChar | value3;
       bits += bitsPerChar;
       if (bits >= 8) {
         bits -= 8;
@@ -33245,8 +33251,8 @@ ${indent}[Error list was empty]`;
   var N73 = Math.pow(2, 49);
   var N82 = Math.pow(2, 56);
   var N92 = Math.pow(2, 63);
-  var length3 = function(value2) {
-    return value2 < N13 ? 1 : value2 < N23 ? 2 : value2 < N33 ? 3 : value2 < N43 ? 4 : value2 < N53 ? 5 : value2 < N63 ? 6 : value2 < N73 ? 7 : value2 < N82 ? 8 : value2 < N92 ? 9 : 10;
+  var length3 = function(value3) {
+    return value3 < N13 ? 1 : value3 < N23 ? 2 : value3 < N33 ? 3 : value3 < N43 ? 4 : value3 < N53 ? 5 : value3 < N63 ? 6 : value3 < N73 ? 7 : value3 < N82 ? 8 : value3 < N92 ? 9 : 10;
   };
   var varint2 = {
     encode: encode_12,
@@ -33535,14 +33541,14 @@ ${indent}[Error list was empty]`;
       if (input == null) {
         return null;
       }
-      const value2 = input;
-      if (value2 instanceof _CID) {
-        return value2;
-      } else if (value2["/"] != null && value2["/"] === value2.bytes || value2.asCID === value2) {
-        const { version: version2, code: code6, multihash, bytes } = value2;
+      const value3 = input;
+      if (value3 instanceof _CID) {
+        return value3;
+      } else if (value3["/"] != null && value3["/"] === value3.bytes || value3.asCID === value3) {
+        const { version: version2, code: code6, multihash, bytes } = value3;
         return new _CID(version2, code6, multihash, bytes ?? encodeCID2(version2, code6, multihash.bytes));
-      } else if (value2[cidSymbol2] === true) {
-        const { version: version2, multihash, code: code6 } = value2;
+      } else if (value3[cidSymbol2] === true) {
+        const { version: version2, multihash, code: code6 } = value3;
         const digest4 = decode12(multihash);
         return _CID.create(version2, code6, digest4);
       } else {
@@ -33930,10 +33936,10 @@ ${indent}[Error list was empty]`;
       if (answers != null) {
         const cachedAnswers = answers.filter((entry) => {
           return entry.expires > Date.now();
-        }).map(({ expires, value: value2 }) => ({
-          ...value2,
+        }).map(({ expires, value: value3 }) => ({
+          ...value3,
           TTL: Math.round((expires - Date.now()) / 1e3),
-          type: RecordType[value2.type]
+          type: RecordType[value3.type]
         }));
         if (cachedAnswers.length === 0) {
           this.lru.remove(key);
@@ -34458,7 +34464,7 @@ ${indent}[Error list was empty]`;
   // node_modules/is-network-error/index.js
   init_globals();
   var objectToString = Object.prototype.toString;
-  var isError = (value2) => objectToString.call(value2) === "[object Error]";
+  var isError = (value3) => objectToString.call(value3) === "[object Error]";
   var errorMessages = /* @__PURE__ */ new Set([
     "network error",
     // Chrome
@@ -34508,25 +34514,25 @@ ${indent}[Error list was empty]`;
       throw new TypeError("Expected `retries` to be a number or Infinity.");
     }
   }
-  function validateNumberOption(name5, value2, { min = 0, allowInfinity = false } = {}) {
-    if (value2 === void 0) {
+  function validateNumberOption(name5, value3, { min = 0, allowInfinity = false } = {}) {
+    if (value3 === void 0) {
       return;
     }
-    if (typeof value2 !== "number" || Number.isNaN(value2)) {
+    if (typeof value3 !== "number" || Number.isNaN(value3)) {
       throw new TypeError(`Expected \`${name5}\` to be a number${allowInfinity ? " or Infinity" : ""}.`);
     }
-    if (!allowInfinity && !Number.isFinite(value2)) {
+    if (!allowInfinity && !Number.isFinite(value3)) {
       throw new TypeError(`Expected \`${name5}\` to be a finite number.`);
     }
-    if (value2 < min) {
+    if (value3 < min) {
       throw new TypeError(`Expected \`${name5}\` to be \u2265 ${min}.`);
     }
   }
-  function validateFunctionOption(name5, value2) {
-    if (value2 === void 0) {
+  function validateFunctionOption(name5, value3) {
+    if (value3 === void 0) {
       return;
     }
-    if (typeof value2 !== "function") {
+    if (typeof value3 !== "function") {
       throw new TypeError(`Expected \`${name5}\` to be a function.`);
     }
   }
@@ -35306,10 +35312,10 @@ ${indent}[Error list was empty]`;
             cid: cid.toString()
           };
         },
-        getAttributesFromYieldedValue: (value2, attrs) => {
+        getAttributesFromYieldedValue: (value3, attrs) => {
           return {
             ...attrs,
-            providers: [...Array.isArray(attrs.providers) ? attrs.providers : [], value2.id.toString()]
+            providers: [...Array.isArray(attrs.providers) ? attrs.providers : [], value3.id.toString()]
           };
         }
       }) ?? this.findProviders;
@@ -35406,12 +35412,12 @@ ${indent}[Error list was empty]`;
     /**
      * Store the given key/value pair in the available content routings
      */
-    async put(key, value2, options) {
+    async put(key, value3, options) {
       if (!this.isStarted()) {
         throw new NotStartedError();
       }
       await Promise.all(this.routers.filter((router) => router.put instanceof Function).map(async (router) => {
-        await router.put(key, value2, options);
+        await router.put(key, value3, options);
       }));
     }
     /**
@@ -35571,10 +35577,10 @@ ${indent}[Error list was empty]`;
             key: toString2(key, "base36")
           };
         },
-        getAttributesFromYieldedValue: (value2, attrs) => {
+        getAttributesFromYieldedValue: (value3, attrs) => {
           return {
             ...attrs,
-            peers: [...Array.isArray(attrs.peers) ? attrs.peers : [], value2.id.toString()]
+            peers: [...Array.isArray(attrs.peers) ? attrs.peers : [], value3.id.toString()]
           };
         }
       }) ?? this.getClosestPeers;
@@ -35782,8 +35788,8 @@ ${indent}[Error list was empty]`;
       components.metrics?.registerMetricGroup("libp2p_registrar_topologies", {
         calculate: () => {
           const output = {};
-          for (const [key, value2] of this.topologies) {
-            output[key] = value2.size;
+          for (const [key, value3] of this.topologies) {
+            output[key] = value3.size;
           }
           return output;
         }
@@ -38716,7 +38722,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     }
   };
   function splitAddr(ma) {
-    const target = ma.getComponents().filter(({ name: name5 }) => name5 === "p2p").map(({ value: value2 }) => value2).pop();
+    const target = ma.getComponents().filter(({ name: name5 }) => name5 === "p2p").map(({ value: value3 }) => value3).pop();
     if (target == null) {
       throw new InvalidParametersError("Destination peer id was missing");
     }
@@ -38745,20 +38751,20 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     if (!Number.isSafeInteger(n2) || n2 < 0)
       throw new RangeError("positive integer expected, got " + n2);
   }
-  function abytes3(value2, length7, title = "") {
-    const bytes = isBytes3(value2);
-    const len = value2?.length;
+  function abytes3(value3, length7, title = "") {
+    const bytes = isBytes3(value3);
+    const len = value3?.length;
     const needsLen = length7 !== void 0;
     if (!bytes || needsLen && len !== length7) {
       const prefix = title && `"${title}" `;
       const ofLen = needsLen ? ` of length ${length7}` : "";
-      const got = bytes ? `length=${len}` : `type=${typeof value2}`;
+      const got = bytes ? `length=${len}` : `type=${typeof value3}`;
       const message4 = prefix + "expected Uint8Array" + ofLen + ", got " + got;
       if (!bytes)
         throw new TypeError(message4);
       throw new RangeError(message4);
     }
-    return value2;
+    return value3;
   }
   function aexists2(instance, checkFinished = true) {
     if (instance.destroyed)
@@ -39776,9 +39782,9 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
             w3.bytes(obj.id);
           }
           if (obj.addrs != null && obj.addrs.length > 0) {
-            for (const value2 of obj.addrs) {
+            for (const value3 of obj.addrs) {
               w3.uint32(18);
-              w3.bytes(value2);
+              w3.bytes(value3);
             }
           }
           if (opts.lengthDelimited !== false) {
@@ -39875,9 +39881,9 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
             w3.uint64(obj.expire);
           }
           if (obj.addrs != null && obj.addrs.length > 0) {
-            for (const value2 of obj.addrs) {
+            for (const value3 of obj.addrs) {
               w3.uint32(18);
-              w3.bytes(value2);
+              w3.bytes(value3);
             }
           }
           if (obj.voucher != null) {
@@ -41421,10 +41427,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
 
   // node_modules/@libp2p/noise/dist/src/encoder.js
   init_globals();
-  var uint16BEEncode = (value2) => {
+  var uint16BEEncode = (value3) => {
     const target = allocUnsafe3(2);
-    target[0] = value2 >> 8;
-    target[1] = value2;
+    target[0] = value3 >> 8;
+    target[1] = value3;
     return target;
   };
   uint16BEEncode.bytes = 2;
@@ -41433,10 +41439,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       throw RangeError("Could not decode int16BE");
     }
     if (data instanceof Uint8Array) {
-      let value2 = 0;
-      value2 += data[0] << 8;
-      value2 += data[1];
-      return value2;
+      let value3 = 0;
+      value3 += data[0] << 8;
+      value3 += data[1];
+      return value3;
     }
     return data.getUint16(0);
   };
@@ -41777,11 +41783,11 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     let buffer = 0;
     let written = 0;
     for (let i2 = 0; i2 < end; ++i2) {
-      const value2 = alphabetIdx[string4[i2]];
-      if (value2 === void 0) {
+      const value3 = alphabetIdx[string4[i2]];
+      if (value3 === void 0) {
         throw new SyntaxError(`Non-${name5} character`);
       }
-      buffer = buffer << bitsPerChar | value2;
+      buffer = buffer << bitsPerChar | value3;
       bits += bitsPerChar;
       if (bits >= 8) {
         bits -= 8;
@@ -42160,8 +42166,8 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
   var N74 = Math.pow(2, 49);
   var N83 = Math.pow(2, 56);
   var N93 = Math.pow(2, 63);
-  var length4 = function(value2) {
-    return value2 < N14 ? 1 : value2 < N24 ? 2 : value2 < N34 ? 3 : value2 < N44 ? 4 : value2 < N54 ? 5 : value2 < N64 ? 6 : value2 < N74 ? 7 : value2 < N83 ? 8 : value2 < N93 ? 9 : 10;
+  var length4 = function(value3) {
+    return value3 < N14 ? 1 : value3 < N24 ? 2 : value3 < N34 ? 3 : value3 < N44 ? 4 : value3 < N54 ? 5 : value3 < N64 ? 6 : value3 < N74 ? 7 : value3 < N83 ? 8 : value3 < N93 ? 9 : 10;
   };
   var varint3 = {
     encode: encode_13,
@@ -42450,14 +42456,14 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       if (input == null) {
         return null;
       }
-      const value2 = input;
-      if (value2 instanceof _CID) {
-        return value2;
-      } else if (value2["/"] != null && value2["/"] === value2.bytes || value2.asCID === value2) {
-        const { version: version2, code: code6, multihash, bytes } = value2;
+      const value3 = input;
+      if (value3 instanceof _CID) {
+        return value3;
+      } else if (value3["/"] != null && value3["/"] === value3.bytes || value3.asCID === value3) {
+        const { version: version2, code: code6, multihash, bytes } = value3;
         return new _CID(version2, code6, multihash, bytes ?? encodeCID3(version2, code6, multihash.bytes));
-      } else if (value2[cidSymbol3] === true) {
-        const { version: version2, multihash, code: code6 } = value2;
+      } else if (value3[cidSymbol3] === true) {
+        const { version: version2, multihash, code: code6 } = value3;
         const digest4 = decode17(multihash);
         return _CID.create(version2, code6, digest4);
       } else {
@@ -42852,8 +42858,8 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     }
     throw new RangeError("index is out of bounds");
   }
-  function isUint8ArrayList2(value2) {
-    return Boolean(value2?.[symbol3]);
+  function isUint8ArrayList2(value3) {
+    return Boolean(value3?.[symbol3]);
   }
   var Uint8ArrayList2 = class _Uint8ArrayList {
     bufs;
@@ -42932,9 +42938,9 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     /**
      * Set the value at `index` to `value`
      */
-    set(index, value2) {
+    set(index, value3) {
       const res = findBufAndOffset2(this.bufs, index);
-      res.buf[res.index] = value2;
+      res.buf[res.index] = value3;
     }
     /**
      * Copy bytes from `buf` to the index specified by `offset`
@@ -43125,10 +43131,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
       return view.getInt8(0);
     }
-    setInt8(byteOffset, value2) {
+    setInt8(byteOffset, value3) {
       const buf = allocUnsafe3(1);
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-      view.setInt8(0, value2);
+      view.setInt8(0, value3);
       this.write(buf, byteOffset);
     }
     getInt16(byteOffset, littleEndian) {
@@ -43136,10 +43142,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
       return view.getInt16(0, littleEndian);
     }
-    setInt16(byteOffset, value2, littleEndian) {
+    setInt16(byteOffset, value3, littleEndian) {
       const buf = alloc3(2);
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-      view.setInt16(0, value2, littleEndian);
+      view.setInt16(0, value3, littleEndian);
       this.write(buf, byteOffset);
     }
     getInt32(byteOffset, littleEndian) {
@@ -43147,10 +43153,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
       return view.getInt32(0, littleEndian);
     }
-    setInt32(byteOffset, value2, littleEndian) {
+    setInt32(byteOffset, value3, littleEndian) {
       const buf = alloc3(4);
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-      view.setInt32(0, value2, littleEndian);
+      view.setInt32(0, value3, littleEndian);
       this.write(buf, byteOffset);
     }
     getBigInt64(byteOffset, littleEndian) {
@@ -43158,10 +43164,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
       return view.getBigInt64(0, littleEndian);
     }
-    setBigInt64(byteOffset, value2, littleEndian) {
+    setBigInt64(byteOffset, value3, littleEndian) {
       const buf = alloc3(8);
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-      view.setBigInt64(0, value2, littleEndian);
+      view.setBigInt64(0, value3, littleEndian);
       this.write(buf, byteOffset);
     }
     getUint8(byteOffset) {
@@ -43169,10 +43175,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
       return view.getUint8(0);
     }
-    setUint8(byteOffset, value2) {
+    setUint8(byteOffset, value3) {
       const buf = allocUnsafe3(1);
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-      view.setUint8(0, value2);
+      view.setUint8(0, value3);
       this.write(buf, byteOffset);
     }
     getUint16(byteOffset, littleEndian) {
@@ -43180,10 +43186,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
       return view.getUint16(0, littleEndian);
     }
-    setUint16(byteOffset, value2, littleEndian) {
+    setUint16(byteOffset, value3, littleEndian) {
       const buf = alloc3(2);
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-      view.setUint16(0, value2, littleEndian);
+      view.setUint16(0, value3, littleEndian);
       this.write(buf, byteOffset);
     }
     getUint32(byteOffset, littleEndian) {
@@ -43191,10 +43197,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
       return view.getUint32(0, littleEndian);
     }
-    setUint32(byteOffset, value2, littleEndian) {
+    setUint32(byteOffset, value3, littleEndian) {
       const buf = alloc3(4);
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-      view.setUint32(0, value2, littleEndian);
+      view.setUint32(0, value3, littleEndian);
       this.write(buf, byteOffset);
     }
     getBigUint64(byteOffset, littleEndian) {
@@ -43202,10 +43208,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
       return view.getBigUint64(0, littleEndian);
     }
-    setBigUint64(byteOffset, value2, littleEndian) {
+    setBigUint64(byteOffset, value3, littleEndian) {
       const buf = alloc3(8);
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-      view.setBigUint64(0, value2, littleEndian);
+      view.setBigUint64(0, value3, littleEndian);
       this.write(buf, byteOffset);
     }
     getFloat32(byteOffset, littleEndian) {
@@ -43213,10 +43219,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
       return view.getFloat32(0, littleEndian);
     }
-    setFloat32(byteOffset, value2, littleEndian) {
+    setFloat32(byteOffset, value3, littleEndian) {
       const buf = alloc3(4);
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-      view.setFloat32(0, value2, littleEndian);
+      view.setFloat32(0, value3, littleEndian);
       this.write(buf, byteOffset);
     }
     getFloat64(byteOffset, littleEndian) {
@@ -43224,10 +43230,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
       return view.getFloat64(0, littleEndian);
     }
-    setFloat64(byteOffset, value2, littleEndian) {
+    setFloat64(byteOffset, value3, littleEndian) {
       const buf = alloc3(8);
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-      view.setFloat64(0, value2, littleEndian);
+      view.setFloat64(0, value3, littleEndian);
       this.write(buf, byteOffset);
     }
     equals(other) {
@@ -43592,66 +43598,66 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
   var N75 = Math.pow(2, 49);
   var MSB5 = 128;
   var REST5 = 127;
-  function encodingLength5(value2) {
-    if (value2 < N15) {
+  function encodingLength5(value3) {
+    if (value3 < N15) {
       return 1;
     }
-    if (value2 < N25) {
+    if (value3 < N25) {
       return 2;
     }
-    if (value2 < N35) {
+    if (value3 < N35) {
       return 3;
     }
-    if (value2 < N45) {
+    if (value3 < N45) {
       return 4;
     }
-    if (value2 < N55) {
+    if (value3 < N55) {
       return 5;
     }
-    if (value2 < N65) {
+    if (value3 < N65) {
       return 6;
     }
-    if (value2 < N75) {
+    if (value3 < N75) {
       return 7;
     }
-    if (Number.MAX_SAFE_INTEGER != null && value2 > Number.MAX_SAFE_INTEGER) {
+    if (Number.MAX_SAFE_INTEGER != null && value3 > Number.MAX_SAFE_INTEGER) {
       throw new RangeError("Could not encode varint");
     }
     return 8;
   }
-  function encodeUint8Array2(value2, buf, offset = 0) {
-    switch (encodingLength5(value2)) {
+  function encodeUint8Array2(value3, buf, offset = 0) {
+    switch (encodingLength5(value3)) {
       case 8: {
-        buf[offset++] = value2 & 255 | MSB5;
-        value2 /= 128;
+        buf[offset++] = value3 & 255 | MSB5;
+        value3 /= 128;
       }
       case 7: {
-        buf[offset++] = value2 & 255 | MSB5;
-        value2 /= 128;
+        buf[offset++] = value3 & 255 | MSB5;
+        value3 /= 128;
       }
       case 6: {
-        buf[offset++] = value2 & 255 | MSB5;
-        value2 /= 128;
+        buf[offset++] = value3 & 255 | MSB5;
+        value3 /= 128;
       }
       case 5: {
-        buf[offset++] = value2 & 255 | MSB5;
-        value2 /= 128;
+        buf[offset++] = value3 & 255 | MSB5;
+        value3 /= 128;
       }
       case 4: {
-        buf[offset++] = value2 & 255 | MSB5;
-        value2 >>>= 7;
+        buf[offset++] = value3 & 255 | MSB5;
+        value3 >>>= 7;
       }
       case 3: {
-        buf[offset++] = value2 & 255 | MSB5;
-        value2 >>>= 7;
+        buf[offset++] = value3 & 255 | MSB5;
+        value3 >>>= 7;
       }
       case 2: {
-        buf[offset++] = value2 & 255 | MSB5;
-        value2 >>>= 7;
+        buf[offset++] = value3 & 255 | MSB5;
+        value3 >>>= 7;
       }
       case 1: {
-        buf[offset++] = value2 & 255;
-        value2 >>>= 7;
+        buf[offset++] = value3 & 255;
+        value3 >>>= 7;
         break;
       }
       default:
@@ -43825,19 +43831,19 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     /**
      * Constructs new long bits from the specified number
      */
-    static fromBigInt(value2) {
-      if (value2 === 0n) {
+    static fromBigInt(value3) {
+      if (value3 === 0n) {
         return zero2;
       }
-      if (value2 < MAX_SAFE_NUMBER_INTEGER2 && value2 > MIN_SAFE_NUMBER_INTEGER2) {
-        return this.fromNumber(Number(value2));
+      if (value3 < MAX_SAFE_NUMBER_INTEGER2 && value3 > MIN_SAFE_NUMBER_INTEGER2) {
+        return this.fromNumber(Number(value3));
       }
-      const negative = value2 < 0n;
+      const negative = value3 < 0n;
       if (negative) {
-        value2 = -value2;
+        value3 = -value3;
       }
-      let hi2 = value2 >> 32n;
-      let lo = value2 - (hi2 << 32n);
+      let hi2 = value3 >> 32n;
+      let lo = value3 - (hi2 << 32n);
       if (negative) {
         hi2 = ~hi2 | 0n;
         lo = ~lo | 0n;
@@ -43853,16 +43859,16 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     /**
      * Constructs new long bits from the specified number
      */
-    static fromNumber(value2) {
-      if (value2 === 0) {
+    static fromNumber(value3) {
+      if (value3 === 0) {
         return zero2;
       }
-      const sign2 = value2 < 0;
+      const sign2 = value3 < 0;
       if (sign2) {
-        value2 = -value2;
+        value3 = -value3;
       }
-      let lo = value2 >>> 0;
-      let hi2 = (value2 - lo) / 4294967296 >>> 0;
+      let lo = value3 >>> 0;
+      let hi2 = (value3 - lo) / 4294967296 >>> 0;
       if (sign2) {
         hi2 = ~hi2 >>> 0;
         lo = ~lo >>> 0;
@@ -43878,17 +43884,17 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     /**
      * Constructs new long bits from a number, long or string
      */
-    static from(value2) {
-      if (typeof value2 === "number") {
-        return _LongBits.fromNumber(value2);
+    static from(value3) {
+      if (typeof value3 === "number") {
+        return _LongBits.fromNumber(value3);
       }
-      if (typeof value2 === "bigint") {
-        return _LongBits.fromBigInt(value2);
+      if (typeof value3 === "bigint") {
+        return _LongBits.fromBigInt(value3);
       }
-      if (typeof value2 === "string") {
-        return _LongBits.fromBigInt(BigInt(value2));
+      if (typeof value3 === "string") {
+        return _LongBits.fromBigInt(BigInt(value3));
       }
-      return value2.low != null || value2.high != null ? new _LongBits(value2.low >>> 0, value2.high >>> 0) : zero2;
+      return value3.low != null || value3.high != null ? new _LongBits(value3.low >>> 0, value3.high >>> 0) : zero2;
     }
   };
   var zero2 = new LongBits2(0, 0);
@@ -44006,32 +44012,32 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
      * Reads a varint as an unsigned 32 bit value
      */
     uint32() {
-      let value2 = 4294967295;
-      value2 = (this.buf[this.pos] & 127) >>> 0;
+      let value3 = 4294967295;
+      value3 = (this.buf[this.pos] & 127) >>> 0;
       if (this.buf[this.pos++] < 128) {
-        return value2;
+        return value3;
       }
-      value2 = (value2 | (this.buf[this.pos] & 127) << 7) >>> 0;
+      value3 = (value3 | (this.buf[this.pos] & 127) << 7) >>> 0;
       if (this.buf[this.pos++] < 128) {
-        return value2;
+        return value3;
       }
-      value2 = (value2 | (this.buf[this.pos] & 127) << 14) >>> 0;
+      value3 = (value3 | (this.buf[this.pos] & 127) << 14) >>> 0;
       if (this.buf[this.pos++] < 128) {
-        return value2;
+        return value3;
       }
-      value2 = (value2 | (this.buf[this.pos] & 127) << 21) >>> 0;
+      value3 = (value3 | (this.buf[this.pos] & 127) << 21) >>> 0;
       if (this.buf[this.pos++] < 128) {
-        return value2;
+        return value3;
       }
-      value2 = (value2 | (this.buf[this.pos] & 15) << 28) >>> 0;
+      value3 = (value3 | (this.buf[this.pos] & 15) << 28) >>> 0;
       if (this.buf[this.pos++] < 128) {
-        return value2;
+        return value3;
       }
       if ((this.pos += 5) > this.len) {
         this.pos = this.len;
         throw indexOutOfRange2(this, 10);
       }
-      return value2;
+      return value3;
     }
     /**
      * Reads a varint as a signed 32 bit value
@@ -44043,8 +44049,8 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
      * Reads a zig-zag encoded varint as a signed 32 bit value
      */
     sint32() {
-      const value2 = this.uint32();
-      return value2 >>> 1 ^ -(value2 & 1) | 0;
+      const value3 = this.uint32();
+      return value3 >>> 1 ^ -(value3 & 1) | 0;
     }
     /**
      * Reads a varint as a boolean
@@ -44079,9 +44085,9 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       if (this.pos + 4 > this.len) {
         throw indexOutOfRange2(this, 4);
       }
-      const value2 = readFloatLE2(this.buf, this.pos);
+      const value3 = readFloatLE2(this.buf, this.pos);
       this.pos += 4;
-      return value2;
+      return value3;
     }
     /**
      * Reads a double (64 bit float) as a number
@@ -44090,9 +44096,9 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       if (this.pos + 8 > this.len) {
         throw indexOutOfRange2(this, 4);
       }
-      const value2 = readDoubleLE2(this.buf, this.pos);
+      const value3 = readDoubleLE2(this.buf, this.pos);
       this.pos += 8;
-      return value2;
+      return value3;
     }
     /**
      * Reads a sequence of bytes preceded by its length as a varint
@@ -44247,9 +44253,9 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
      * JavaScript number
      */
     uint64Number() {
-      const value2 = decodeUint8Array2(this.buf, this.pos);
-      this.pos += encodingLength5(value2);
-      return value2;
+      const value3 = decodeUint8Array2(this.buf, this.pos);
+      this.pos += encodingLength5(value3);
+      return value3;
     }
     /**
      * Reads a varint as an unsigned 64 bit value returned as a string
@@ -44446,140 +44452,140 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     /**
      * Writes an unsigned 32 bit value as a varint
      */
-    uint32(value2) {
-      this.len += (this.tail = this.tail.next = new VarintOp2((value2 = value2 >>> 0) < 128 ? 1 : value2 < 16384 ? 2 : value2 < 2097152 ? 3 : value2 < 268435456 ? 4 : 5, value2)).len;
+    uint32(value3) {
+      this.len += (this.tail = this.tail.next = new VarintOp2((value3 = value3 >>> 0) < 128 ? 1 : value3 < 16384 ? 2 : value3 < 2097152 ? 3 : value3 < 268435456 ? 4 : 5, value3)).len;
       return this;
     }
     /**
      * Writes a signed 32 bit value as a varint`
      */
-    int32(value2) {
-      return value2 < 0 ? this._push(writeVarint642, 10, LongBits2.fromNumber(value2)) : this.uint32(value2);
+    int32(value3) {
+      return value3 < 0 ? this._push(writeVarint642, 10, LongBits2.fromNumber(value3)) : this.uint32(value3);
     }
     /**
      * Writes a 32 bit value as a varint, zig-zag encoded
      */
-    sint32(value2) {
-      return this.uint32((value2 << 1 ^ value2 >> 31) >>> 0);
+    sint32(value3) {
+      return this.uint32((value3 << 1 ^ value3 >> 31) >>> 0);
     }
     /**
      * Writes an unsigned 64 bit value as a varint
      */
-    uint64(value2) {
-      const bits = LongBits2.fromBigInt(value2);
+    uint64(value3) {
+      const bits = LongBits2.fromBigInt(value3);
       return this._push(writeVarint642, bits.length(), bits);
     }
     /**
      * Writes an unsigned 64 bit value as a varint
      */
-    uint64Number(value2) {
-      return this._push(encodeUint8Array2, encodingLength5(value2), value2);
+    uint64Number(value3) {
+      return this._push(encodeUint8Array2, encodingLength5(value3), value3);
     }
     /**
      * Writes an unsigned 64 bit value as a varint
      */
-    uint64String(value2) {
-      return this.uint64(BigInt(value2));
+    uint64String(value3) {
+      return this.uint64(BigInt(value3));
     }
     /**
      * Writes a signed 64 bit value as a varint
      */
-    int64(value2) {
-      return this.uint64(value2);
+    int64(value3) {
+      return this.uint64(value3);
     }
     /**
      * Writes a signed 64 bit value as a varint
      */
-    int64Number(value2) {
-      return this.uint64Number(value2);
+    int64Number(value3) {
+      return this.uint64Number(value3);
     }
     /**
      * Writes a signed 64 bit value as a varint
      */
-    int64String(value2) {
-      return this.uint64String(value2);
+    int64String(value3) {
+      return this.uint64String(value3);
     }
     /**
      * Writes a signed 64 bit value as a varint, zig-zag encoded
      */
-    sint64(value2) {
-      const bits = LongBits2.fromBigInt(value2).zzEncode();
+    sint64(value3) {
+      const bits = LongBits2.fromBigInt(value3).zzEncode();
       return this._push(writeVarint642, bits.length(), bits);
     }
     /**
      * Writes a signed 64 bit value as a varint, zig-zag encoded
      */
-    sint64Number(value2) {
-      const bits = LongBits2.fromNumber(value2).zzEncode();
+    sint64Number(value3) {
+      const bits = LongBits2.fromNumber(value3).zzEncode();
       return this._push(writeVarint642, bits.length(), bits);
     }
     /**
      * Writes a signed 64 bit value as a varint, zig-zag encoded
      */
-    sint64String(value2) {
-      return this.sint64(BigInt(value2));
+    sint64String(value3) {
+      return this.sint64(BigInt(value3));
     }
     /**
      * Writes a boolish value as a varint
      */
-    bool(value2) {
-      return this._push(writeByte2, 1, value2 ? 1 : 0);
+    bool(value3) {
+      return this._push(writeByte2, 1, value3 ? 1 : 0);
     }
     /**
      * Writes an unsigned 32 bit value as fixed 32 bits
      */
-    fixed32(value2) {
-      return this._push(writeFixed322, 4, value2 >>> 0);
+    fixed32(value3) {
+      return this._push(writeFixed322, 4, value3 >>> 0);
     }
     /**
      * Writes a signed 32 bit value as fixed 32 bits
      */
-    sfixed32(value2) {
-      return this.fixed32(value2);
+    sfixed32(value3) {
+      return this.fixed32(value3);
     }
     /**
      * Writes an unsigned 64 bit value as fixed 64 bits
      */
-    fixed64(value2) {
-      const bits = LongBits2.fromBigInt(value2);
+    fixed64(value3) {
+      const bits = LongBits2.fromBigInt(value3);
       return this._push(writeFixed322, 4, bits.lo)._push(writeFixed322, 4, bits.hi);
     }
     /**
      * Writes an unsigned 64 bit value as fixed 64 bits
      */
-    fixed64Number(value2) {
-      const bits = LongBits2.fromNumber(value2);
+    fixed64Number(value3) {
+      const bits = LongBits2.fromNumber(value3);
       return this._push(writeFixed322, 4, bits.lo)._push(writeFixed322, 4, bits.hi);
     }
     /**
      * Writes an unsigned 64 bit value as fixed 64 bits
      */
-    fixed64String(value2) {
-      return this.fixed64(BigInt(value2));
+    fixed64String(value3) {
+      return this.fixed64(BigInt(value3));
     }
     /**
      * Writes a signed 64 bit value as fixed 64 bits
      */
-    sfixed64(value2) {
-      return this.fixed64(value2);
+    sfixed64(value3) {
+      return this.fixed64(value3);
     }
     /**
      * Writes a signed 64 bit value as fixed 64 bits
      */
-    sfixed64Number(value2) {
-      return this.fixed64Number(value2);
+    sfixed64Number(value3) {
+      return this.fixed64Number(value3);
     }
     /**
      * Writes a signed 64 bit value as fixed 64 bits
      */
-    sfixed64String(value2) {
-      return this.fixed64String(value2);
+    sfixed64String(value3) {
+      return this.fixed64String(value3);
     }
     /**
      * Writes a float (32 bit)
      */
-    float(value2) {
-      return this._push(writeFloatLE2, 4, value2);
+    float(value3) {
+      return this._push(writeFloatLE2, 4, value3);
     }
     /**
      * Writes a double (64 bit float).
@@ -44588,25 +44594,25 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
      * @param {number} value - Value to write
      * @returns {Writer} `this`
      */
-    double(value2) {
-      return this._push(writeDoubleLE2, 8, value2);
+    double(value3) {
+      return this._push(writeDoubleLE2, 8, value3);
     }
     /**
      * Writes a sequence of bytes
      */
-    bytes(value2) {
-      const len = value2.length >>> 0;
+    bytes(value3) {
+      const len = value3.length >>> 0;
       if (len === 0) {
         return this._push(writeByte2, 1, 0);
       }
-      return this.uint32(len)._push(writeBytes2, len, value2);
+      return this.uint32(len)._push(writeBytes2, len, value3);
     }
     /**
      * Writes a string
      */
-    string(value2) {
-      const len = length5(value2);
-      return len !== 0 ? this.uint32(len)._push(write2, len, value2) : this._push(writeByte2, 1, 0);
+    string(value3) {
+      const len = length5(value3);
+      return len !== 0 ? this.uint32(len)._push(write2, len, value3) : this._push(writeByte2, 1, 0);
     }
     /**
      * Forks this writer's state by pushing it to a stack.
@@ -44702,19 +44708,19 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     buf.set(val, pos);
   }
   if (globalThis.Buffer != null) {
-    Uint8ArrayWriter2.prototype.bytes = function(value2) {
-      const len = value2.length >>> 0;
+    Uint8ArrayWriter2.prototype.bytes = function(value3) {
+      const len = value3.length >>> 0;
       this.uint32(len);
       if (len > 0) {
-        this._push(writeBytesBuffer2, len, value2);
+        this._push(writeBytesBuffer2, len, value3);
       }
       return this;
     };
-    Uint8ArrayWriter2.prototype.string = function(value2) {
-      const len = globalThis.Buffer.byteLength(value2);
+    Uint8ArrayWriter2.prototype.string = function(value3) {
+      const len = globalThis.Buffer.byteLength(value3);
       this.uint32(len);
       if (len > 0) {
-        this._push(writeStringBuffer2, len, value2);
+        this._push(writeStringBuffer2, len, value3);
       }
       return this;
     };
@@ -44795,15 +44801,15 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
             w3.fork();
           }
           if (obj.webtransportCerthashes != null) {
-            for (const value2 of obj.webtransportCerthashes) {
+            for (const value3 of obj.webtransportCerthashes) {
               w3.uint32(10);
-              w3.bytes(value2);
+              w3.bytes(value3);
             }
           }
           if (obj.streamMuxers != null) {
-            for (const value2 of obj.streamMuxers) {
+            for (const value3 of obj.streamMuxers) {
               w3.uint32(18);
-              w3.string(value2);
+              w3.string(value3);
             }
           }
           if (opts.lengthDelimited !== false) {
@@ -45379,8 +45385,8 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     }
     throw new RangeError("index is out of bounds");
   }
-  function isUint8ArrayList3(value2) {
-    return Boolean(value2?.[symbol4]);
+  function isUint8ArrayList3(value3) {
+    return Boolean(value3?.[symbol4]);
   }
   var Uint8ArrayList3 = class _Uint8ArrayList {
     bufs;
@@ -45459,9 +45465,9 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     /**
      * Set the value at `index` to `value`
      */
-    set(index, value2) {
+    set(index, value3) {
       const res = findBufAndOffset3(this.bufs, index);
-      res.buf[res.index] = value2;
+      res.buf[res.index] = value3;
     }
     /**
      * Copy bytes from `buf` to the index specified by `offset`
@@ -45652,10 +45658,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
       return view.getInt8(0);
     }
-    setInt8(byteOffset, value2) {
+    setInt8(byteOffset, value3) {
       const buf = allocUnsafe4(1);
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-      view.setInt8(0, value2);
+      view.setInt8(0, value3);
       this.write(buf, byteOffset);
     }
     getInt16(byteOffset, littleEndian) {
@@ -45663,10 +45669,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
       return view.getInt16(0, littleEndian);
     }
-    setInt16(byteOffset, value2, littleEndian) {
+    setInt16(byteOffset, value3, littleEndian) {
       const buf = alloc5(2);
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-      view.setInt16(0, value2, littleEndian);
+      view.setInt16(0, value3, littleEndian);
       this.write(buf, byteOffset);
     }
     getInt32(byteOffset, littleEndian) {
@@ -45674,10 +45680,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
       return view.getInt32(0, littleEndian);
     }
-    setInt32(byteOffset, value2, littleEndian) {
+    setInt32(byteOffset, value3, littleEndian) {
       const buf = alloc5(4);
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-      view.setInt32(0, value2, littleEndian);
+      view.setInt32(0, value3, littleEndian);
       this.write(buf, byteOffset);
     }
     getBigInt64(byteOffset, littleEndian) {
@@ -45685,10 +45691,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
       return view.getBigInt64(0, littleEndian);
     }
-    setBigInt64(byteOffset, value2, littleEndian) {
+    setBigInt64(byteOffset, value3, littleEndian) {
       const buf = alloc5(8);
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-      view.setBigInt64(0, value2, littleEndian);
+      view.setBigInt64(0, value3, littleEndian);
       this.write(buf, byteOffset);
     }
     getUint8(byteOffset) {
@@ -45696,10 +45702,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
       return view.getUint8(0);
     }
-    setUint8(byteOffset, value2) {
+    setUint8(byteOffset, value3) {
       const buf = allocUnsafe4(1);
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-      view.setUint8(0, value2);
+      view.setUint8(0, value3);
       this.write(buf, byteOffset);
     }
     getUint16(byteOffset, littleEndian) {
@@ -45707,10 +45713,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
       return view.getUint16(0, littleEndian);
     }
-    setUint16(byteOffset, value2, littleEndian) {
+    setUint16(byteOffset, value3, littleEndian) {
       const buf = alloc5(2);
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-      view.setUint16(0, value2, littleEndian);
+      view.setUint16(0, value3, littleEndian);
       this.write(buf, byteOffset);
     }
     getUint32(byteOffset, littleEndian) {
@@ -45718,10 +45724,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
       return view.getUint32(0, littleEndian);
     }
-    setUint32(byteOffset, value2, littleEndian) {
+    setUint32(byteOffset, value3, littleEndian) {
       const buf = alloc5(4);
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-      view.setUint32(0, value2, littleEndian);
+      view.setUint32(0, value3, littleEndian);
       this.write(buf, byteOffset);
     }
     getBigUint64(byteOffset, littleEndian) {
@@ -45729,10 +45735,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
       return view.getBigUint64(0, littleEndian);
     }
-    setBigUint64(byteOffset, value2, littleEndian) {
+    setBigUint64(byteOffset, value3, littleEndian) {
       const buf = alloc5(8);
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-      view.setBigUint64(0, value2, littleEndian);
+      view.setBigUint64(0, value3, littleEndian);
       this.write(buf, byteOffset);
     }
     getFloat32(byteOffset, littleEndian) {
@@ -45740,10 +45746,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
       return view.getFloat32(0, littleEndian);
     }
-    setFloat32(byteOffset, value2, littleEndian) {
+    setFloat32(byteOffset, value3, littleEndian) {
       const buf = alloc5(4);
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-      view.setFloat32(0, value2, littleEndian);
+      view.setFloat32(0, value3, littleEndian);
       this.write(buf, byteOffset);
     }
     getFloat64(byteOffset, littleEndian) {
@@ -45751,10 +45757,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
       return view.getFloat64(0, littleEndian);
     }
-    setFloat64(byteOffset, value2, littleEndian) {
+    setFloat64(byteOffset, value3, littleEndian) {
       const buf = alloc5(8);
       const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-      view.setFloat64(0, value2, littleEndian);
+      view.setFloat64(0, value3, littleEndian);
       this.write(buf, byteOffset);
     }
     equals(other) {
@@ -46765,9 +46771,9 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
             w3.bytes(obj.publicKey);
           }
           if (obj.listenAddrs != null && obj.listenAddrs.length > 0) {
-            for (const value2 of obj.listenAddrs) {
+            for (const value3 of obj.listenAddrs) {
               w3.uint32(18);
-              w3.bytes(value2);
+              w3.bytes(value3);
             }
           }
           if (obj.observedAddr != null) {
@@ -46775,9 +46781,9 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
             w3.bytes(obj.observedAddr);
           }
           if (obj.protocols != null && obj.protocols.length > 0) {
-            for (const value2 of obj.protocols) {
+            for (const value3 of obj.protocols) {
               w3.uint32(26);
-              w3.string(value2);
+              w3.string(value3);
             }
           }
           if (obj.signedPeerRecord != null) {
@@ -47476,15 +47482,15 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     key;
     value;
     timeReceived;
-    constructor(key, value2, timeReceived) {
+    constructor(key, value3, timeReceived) {
       if (!(key instanceof Uint8Array)) {
         throw new Error("key must be a Uint8Array");
       }
-      if (!(value2 instanceof Uint8Array)) {
+      if (!(value3 instanceof Uint8Array)) {
         throw new Error("value must be a Uint8Array");
       }
       this.key = key;
-      this.value = value2;
+      this.value = value3;
       this.timeReceived = timeReceived;
     }
     serialize() {
@@ -47538,12 +47544,12 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       })();
     }
     const peekable2 = src_default5(source);
-    const { value: value2, done } = peekable2.next();
+    const { value: value3, done } = peekable2.next();
     if (done === true) {
       return (function* () {
       })();
     }
-    const res = func(value2, index++);
+    const res = func(value3, index++);
     if (typeof res.then === "function") {
       return (async function* () {
         yield await res;
@@ -47769,9 +47775,9 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
             w3.bytes(obj.id);
           }
           if (obj.multiaddrs != null && obj.multiaddrs.length > 0) {
-            for (const value2 of obj.multiaddrs) {
+            for (const value3 of obj.multiaddrs) {
               w3.uint32(18);
-              w3.bytes(value2);
+              w3.bytes(value3);
             }
           }
           if (obj.connection != null) {
@@ -47895,15 +47901,15 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
             w3.bytes(obj.record);
           }
           if (obj.closer != null && obj.closer.length > 0) {
-            for (const value2 of obj.closer) {
+            for (const value3 of obj.closer) {
               w3.uint32(66);
-              PeerInfo.codec().encode(value2, w3);
+              PeerInfo.codec().encode(value3, w3);
             }
           }
           if (obj.providers != null && obj.providers.length > 0) {
-            for (const value2 of obj.providers) {
+            for (const value3 of obj.providers) {
               w3.uint32(74);
-              PeerInfo.codec().encode(value2, w3);
+              PeerInfo.codec().encode(value3, w3);
             }
           }
           if (opts.lengthDelimited !== false) {
@@ -48237,9 +48243,9 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     const multihash = decode4(key.subarray(4));
     return peerIdFromMultihash(multihash);
   }
-  function createPutRecord(key, value2) {
+  function createPutRecord(key, value3) {
     const timeReceived = /* @__PURE__ */ new Date();
-    const rec = new Libp2pRecord(key, value2, timeReceived);
+    const rec = new Libp2pRecord(key, value3, timeReceived);
     return rec.serialize();
   }
   function parseProviderKey(key) {
@@ -48358,8 +48364,8 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     async *sendCorrectionRecord(key, vals, best, options) {
       this.log("sendCorrection for %b", key);
       const fixupRec = createPutRecord(key, best);
-      for (const { value: value2, from: from7 } of vals) {
-        if (equals3(value2, best)) {
+      for (const { value: value3, from: from7 } of vals) {
+        if (equals3(value3, best)) {
           this.log("record was ok");
           continue;
         }
@@ -48394,9 +48400,9 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     /**
      * Store the given key/value pair in the DHT
      */
-    async *put(key, value2, options) {
-      this.log("put key %b value %b", key, value2);
-      const record = createPutRecord(key, value2);
+    async *put(key, value3, options) {
+      this.log("put key %b value %b", key, value3);
+      const record = createPutRecord(key, value3);
       const dsKey = bufferToRecordKey(this.datastorePrefix, key);
       this.log(`storing record for key ${dsKey.toString()}`);
       await this.components.datastore.put(dsKey, record.subarray(), options);
@@ -48796,13 +48802,13 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         getAttributesFromYieldedValue: (event, attrs) => {
           if (event.name === "PEER_RESPONSE") {
             if (event.providers.length > 0) {
-              event.providers.forEach((value2, index) => {
-                attrs[`providers-${index}`] = value2.id.toString();
+              event.providers.forEach((value3, index) => {
+                attrs[`providers-${index}`] = value3.id.toString();
               });
             }
             if (event.closer.length > 0) {
-              event.closer.forEach((value2, index) => {
-                attrs[`closer-${index}`] = value2.id.toString();
+              event.closer.forEach((value3, index) => {
+                attrs[`closer-${index}`] = value3.id.toString();
               });
             }
           }
@@ -48821,13 +48827,13 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         getAttributesFromYieldedValue: (event, attrs) => {
           if (event.name === "PEER_RESPONSE") {
             if (event.providers.length > 0) {
-              event.providers.forEach((value2, index) => {
-                attrs[`providers-${index}`] = value2.id.toString();
+              event.providers.forEach((value3, index) => {
+                attrs[`providers-${index}`] = value3.id.toString();
               });
             }
             if (event.closer.length > 0) {
-              event.closer.forEach((value2, index) => {
-                attrs[`closer-${index}`] = value2.id.toString();
+              event.closer.forEach((value3, index) => {
+                attrs[`closer-${index}`] = value3.id.toString();
               });
             }
           }
@@ -67836,8 +67842,8 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         }
       }
     }
-    async put(key, value2, options) {
-      await src_default4(this.dht.put(key, value2, options));
+    async put(key, value3, options) {
+      await src_default4(this.dht.put(key, value3, options));
     }
     async get(key, options) {
       for await (const event of this.dht.get(key, options)) {
@@ -68178,8 +68184,8 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     /**
      * Store the given key/value pair in the DHT
      */
-    async *put(key, value2, options = {}) {
-      yield* this.contentFetching.put(key, value2, options);
+    async *put(key, value3, options = {}) {
+      yield* this.contentFetching.put(key, value3, options);
     }
     /**
      * Get the value that corresponds to the passed key
@@ -68552,33 +68558,33 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
               w3.fork();
             }
             if (obj.ihave != null && obj.ihave.length > 0) {
-              for (const value2 of obj.ihave) {
+              for (const value3 of obj.ihave) {
                 w3.uint32(10);
-                RPC3.ControlIHave.codec().encode(value2, w3);
+                RPC3.ControlIHave.codec().encode(value3, w3);
               }
             }
             if (obj.iwant != null && obj.iwant.length > 0) {
-              for (const value2 of obj.iwant) {
+              for (const value3 of obj.iwant) {
                 w3.uint32(18);
-                RPC3.ControlIWant.codec().encode(value2, w3);
+                RPC3.ControlIWant.codec().encode(value3, w3);
               }
             }
             if (obj.graft != null && obj.graft.length > 0) {
-              for (const value2 of obj.graft) {
+              for (const value3 of obj.graft) {
                 w3.uint32(26);
-                RPC3.ControlGraft.codec().encode(value2, w3);
+                RPC3.ControlGraft.codec().encode(value3, w3);
               }
             }
             if (obj.prune != null && obj.prune.length > 0) {
-              for (const value2 of obj.prune) {
+              for (const value3 of obj.prune) {
                 w3.uint32(34);
-                RPC3.ControlPrune.codec().encode(value2, w3);
+                RPC3.ControlPrune.codec().encode(value3, w3);
               }
             }
             if (obj.idontwant != null && obj.idontwant.length > 0) {
-              for (const value2 of obj.idontwant) {
+              for (const value3 of obj.idontwant) {
                 w3.uint32(42);
-                RPC3.ControlIDontWant.codec().encode(value2, w3);
+                RPC3.ControlIDontWant.codec().encode(value3, w3);
               }
             }
             if (opts.lengthDelimited !== false) {
@@ -68772,9 +68778,9 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
               w3.string(obj.topicID);
             }
             if (obj.messageIDs != null && obj.messageIDs.length > 0) {
-              for (const value2 of obj.messageIDs) {
+              for (const value3 of obj.messageIDs) {
                 w3.uint32(18);
-                w3.bytes(value2);
+                w3.bytes(value3);
               }
             }
             if (opts.lengthDelimited !== false) {
@@ -68866,9 +68872,9 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
               w3.fork();
             }
             if (obj.messageIDs != null && obj.messageIDs.length > 0) {
-              for (const value2 of obj.messageIDs) {
+              for (const value3 of obj.messageIDs) {
                 w3.uint32(10);
-                w3.bytes(value2);
+                w3.bytes(value3);
               }
             }
             if (opts.lengthDelimited !== false) {
@@ -69021,9 +69027,9 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
               w3.string(obj.topicID);
             }
             if (obj.peers != null && obj.peers.length > 0) {
-              for (const value2 of obj.peers) {
+              for (const value3 of obj.peers) {
                 w3.uint32(18);
-                RPC3.PeerInfo.codec().encode(value2, w3);
+                RPC3.PeerInfo.codec().encode(value3, w3);
               }
             }
             if (obj.backoff != null) {
@@ -69218,9 +69224,9 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
               w3.fork();
             }
             if (obj.messageIDs != null && obj.messageIDs.length > 0) {
-              for (const value2 of obj.messageIDs) {
+              for (const value3 of obj.messageIDs) {
                 w3.uint32(10);
-                w3.bytes(value2);
+                w3.bytes(value3);
               }
             }
             if (opts.lengthDelimited !== false) {
@@ -69299,15 +69305,15 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
             w3.fork();
           }
           if (obj.subscriptions != null && obj.subscriptions.length > 0) {
-            for (const value2 of obj.subscriptions) {
+            for (const value3 of obj.subscriptions) {
               w3.uint32(10);
-              RPC3.SubOpts.codec().encode(value2, w3);
+              RPC3.SubOpts.codec().encode(value3, w3);
             }
           }
           if (obj.messages != null && obj.messages.length > 0) {
-            for (const value2 of obj.messages) {
+            for (const value3 of obj.messages) {
               w3.uint32(18);
-              RPC3.Message.codec().encode(value2, w3);
+              RPC3.Message.codec().encode(value3, w3);
             }
           }
           if (obj.control != null) {
@@ -70679,12 +70685,12 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       this.getDefault = getDefault;
     }
     getOrDefault(key) {
-      let value2 = super.get(key);
-      if (value2 === void 0) {
-        value2 = this.getDefault();
-        this.set(key, value2);
+      let value3 = super.get(key);
+      if (value3 === void 0) {
+        value3 = this.getDefault();
+        this.set(key, value3);
       }
-      return value2;
+      return value3;
     }
   };
 
@@ -71796,11 +71802,11 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       return this.entries.size;
     }
     /** Returns true if there was a key collision and the entry is dropped */
-    put(key, value2) {
+    put(key, value3) {
       if (this.entries.has(key)) {
         return true;
       }
-      this.entries.set(key, { value: value2, validUntilMs: Date.now() + this.validityMs });
+      this.entries.set(key, { value: value3, validUntilMs: Date.now() + this.validityMs });
       return false;
     }
     prune() {
@@ -71817,8 +71823,8 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       return this.entries.has(key);
     }
     get(key) {
-      const value2 = this.entries.get(key);
-      return value2 != null && value2.validUntilMs >= Date.now() ? value2.value : void 0;
+      const value3 = this.entries.get(key);
+      return value3 != null && value3.validUntilMs >= Date.now() ? value3.value : void 0;
     }
     clear() {
       this.entries.clear();
@@ -74494,10 +74500,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       cookies.split(";").forEach((cookie) => {
         if (cookie.length <= 0)
           return;
-        let [key, value2] = cookie.replace(/=/, "CAP_COOKIE").split("CAP_COOKIE");
+        let [key, value3] = cookie.replace(/=/, "CAP_COOKIE").split("CAP_COOKIE");
         key = decode18(key).trim();
-        value2 = decode18(value2).trim();
-        cookieMap[key] = value2;
+        value3 = decode18(value3).trim();
+        cookieMap[key] = value3;
       });
       return cookieMap;
     }
@@ -74563,18 +74569,18 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     if (!params)
       return null;
     const output = Object.entries(params).reduce((accumulator, entry) => {
-      const [key, value2] = entry;
+      const [key, value3] = entry;
       let encodedValue;
       let item;
-      if (Array.isArray(value2)) {
+      if (Array.isArray(value3)) {
         item = "";
-        value2.forEach((str) => {
+        value3.forEach((str) => {
           encodedValue = shouldEncode ? encodeURIComponent(str) : str;
           item += `${key}=${encodedValue}&`;
         });
         item.slice(0, -1);
       } else {
-        encodedValue = shouldEncode ? encodeURIComponent(value2) : value2;
+        encodedValue = shouldEncode ? encodeURIComponent(value3) : value3;
         item = `${key}=${encodedValue}`;
       }
       return `${accumulator}&${item}`;
@@ -74589,15 +74595,15 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       output.body = options.data;
     } else if (type2.includes("application/x-www-form-urlencoded")) {
       const params = new URLSearchParams();
-      for (const [key, value2] of Object.entries(options.data || {})) {
-        params.set(key, value2);
+      for (const [key, value3] of Object.entries(options.data || {})) {
+        params.set(key, value3);
       }
       output.body = params.toString();
     } else if (type2.includes("multipart/form-data") || options.data instanceof FormData) {
       const form = new FormData();
       if (options.data instanceof FormData) {
-        options.data.forEach((value2, key) => {
-          form.append(key, value2);
+        options.data.forEach((value3, key) => {
+          form.append(key, value3);
         });
       } else {
         for (const key of Object.keys(options.data)) {
@@ -74645,8 +74651,8 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
           data = await response2.text();
       }
       const headers = {};
-      response2.headers.forEach((value2, key) => {
-        headers[key] = value2;
+      response2.headers.forEach((value3, key) => {
+        headers[key] = value3;
       });
       return {
         data,
@@ -74899,9 +74905,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       // Some bootstrap peers are ordinary WebSocket nodes, though, so their
       // failed HOP reservation must not prevent direct WebSocket startup.
       addresses: {
-        // The Android TCP transport is outbound-only. Only WebSocket bootstrap
-        // peers can be used as relay paths for this node's advertised address.
-        listen: bootstrapAddrs.filter((address) => /\/ws(?:\/|$)|\/wss(?:\/|$)/.test(address)).map(
+        // Android cannot accept direct inbound TCP, but its outbound TCP
+        // transport can still connect to a relay and reserve a circuit route.
+        // Browser builds have already filtered this list to WebSocket peers.
+        listen: bootstrapAddrs.map(
           (address) => address.includes("/p2p-circuit") ? address : `${address}/p2p-circuit`
         )
       },
@@ -74921,9 +74928,9 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       // behind browser NATs. Keep the default restrictions for other addresses.
       connectionGater: {
         denyDialMultiaddr: (address) => {
-          const value2 = address.toString();
+          const value3 = address.toString();
           if (bootstrapAddrs.some(
-            (bootstrapAddr) => value2 === bootstrapAddr || value2.startsWith(`${bootstrapAddr}/p2p-circuit`)
+            (bootstrapAddr) => value3 === bootstrapAddr || value3.startsWith(`${bootstrapAddr}/p2p-circuit`)
           )) return false;
           return WebSockets.matches(address) || isPrivate(address) === true;
         }
@@ -74959,9 +74966,9 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     /**
      * Writes or updates a serialized record in IndexedDB.
      */
-    async putRecord(namespace2, key, value2, updatedAt) {
+    async putRecord(namespace2, key, value3, updatedAt) {
       const db = await this.open();
-      await this.put(db, RECORDS_STORE, { namespace: namespace2, key, value: value2, updatedAt });
+      await this.put(db, RECORDS_STORE, { namespace: namespace2, key, value: value3, updatedAt });
     }
     /**
      * Deletes a serialized record from IndexedDB.
@@ -75066,9 +75073,9 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         request.onerror = () => reject(request.error);
       });
     }
-    put(db, storeName, value2) {
+    put(db, storeName, value3) {
       return new Promise((resolve6, reject) => {
-        const request = db.transaction(storeName, "readwrite").objectStore(storeName).put(value2);
+        const request = db.transaction(storeName, "readwrite").objectStore(storeName).put(value3);
         request.onsuccess = () => resolve6();
         request.onerror = () => reject(request.error);
       });
@@ -75110,7 +75117,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       return new Promise((resolve6, reject) => {
         const transaction = db.transaction(storeName, "readwrite");
         const store = transaction.objectStore(storeName);
-        for (const value2 of values) store.put(value2);
+        for (const value3 of values) store.put(value3);
         transaction.oncomplete = () => resolve6();
         transaction.onerror = () => reject(transaction.error);
         transaction.onabort = () => reject(transaction.error ?? new Error("IndexedDB copy transaction was aborted"));
@@ -75342,12 +75349,12 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         return stored;
       }
     }
-    async putRecord(namespace2, key, value2, updatedAt) {
+    async putRecord(namespace2, key, value3, updatedAt) {
       this.resetIdleTimer();
       if (namespace2 === CRYPTO_NS || !this.key) {
-        return this.inner.putRecord(namespace2, key, value2, updatedAt);
+        return this.inner.putRecord(namespace2, key, value3, updatedAt);
       }
-      const encrypted = encrypt(value2, this.key);
+      const encrypted = encrypt(value3, this.key);
       return this.inner.putRecord(namespace2, key, encrypted, updatedAt);
     }
     async deleteRecord(namespace2, key) {
@@ -75641,12 +75648,12 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     isSecure() {
       return this.socket?.secure === true;
     }
-    async _streamError(condition, children) {
+    async _streamError(condition, children2) {
       try {
         await this.send(
           // prettier-ignore
           xml("stream:error", {}, [
-            xml(condition, { xmlns: NS_STREAM }, children)
+            xml(condition, { xmlns: NS_STREAM }, children2)
           ])
         );
       } catch {
@@ -76426,10 +76433,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     if (type2 === "error" || type2 === "result") return false;
     return true;
   }
-  function isValidQuery({ type: type2 }, children, child) {
+  function isValidQuery({ type: type2 }, children2, child2) {
     if (type2 !== "get" && type2 !== "set") return false;
-    if (children.length !== 1) return false;
-    if (!child) return false;
+    if (children2.length !== 1) return false;
+    if (!child2) return false;
     return true;
   }
   function buildReply({ stanza }) {
@@ -76439,19 +76446,19 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       id: stanza.attrs.id
     });
   }
-  function buildReplyResult(ctx, child) {
+  function buildReplyResult(ctx, child2) {
     const reply = buildReply(ctx);
     reply.attrs.type = "result";
-    if (child) {
-      reply.append(child);
+    if (child2) {
+      reply.append(child2);
     }
     return reply;
   }
-  function buildReplyError(ctx, error, child) {
+  function buildReplyError(ctx, error, child2) {
     const reply = buildReply(ctx);
     reply.attrs.type = "error";
-    if (child) {
-      reply.append(child);
+    if (child2) {
+      reply.append(child2);
     }
     reply.append(error);
     return reply;
@@ -76463,12 +76470,12 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     return async function iqHandler2(ctx, next) {
       if (!isQuery(ctx)) return next();
       const { stanza } = ctx;
-      const children = stanza.getChildElements();
-      const [child] = children;
-      if (!isValidQuery(ctx, children, child)) {
-        return buildReplyError(ctx, buildError("modify", "bad-request"), child);
+      const children2 = stanza.getChildElements();
+      const [child2] = children2;
+      if (!isValidQuery(ctx, children2, child2)) {
+        return buildReplyError(ctx, buildError("modify", "bad-request"), child2);
       }
-      ctx.element = child;
+      ctx.element = child2;
       let reply;
       try {
         reply = await next();
@@ -76480,7 +76487,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         reply = buildError("cancel", "service-unavailable");
       }
       if (reply instanceof xml.Element && reply.is("error")) {
-        return buildReplyError(ctx, reply, child);
+        return buildReplyError(ctx, reply, child2);
       }
       return buildReplyResult(
         ctx,
@@ -76993,9 +77000,9 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
           if (aid) {
             entity._jid(aid);
           }
-          for (const child of element.getChildElements()) {
-            const feature = features.get(child.getNS());
-            feature?.[1]?.(child);
+          for (const child2 of element.getChildElements()) {
+            const feature = features.get(child2.getNS());
+            feature?.[1]?.(child2);
           }
           return done();
         }
@@ -77399,9 +77406,9 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       (element) => {
         if (!element.is("bound")) return;
         entity._ready(false);
-        for (const child of element.getChildElements()) {
-          const feature = features.get(child.getNS());
-          feature?.[1]?.(child);
+        for (const child2 of element.getChildElements()) {
+          const feature = features.get(child2.getNS());
+          feature?.[1]?.(child2);
         }
       }
     );
@@ -77800,14 +77807,14 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       return void 0;
     }
   }
-  async function writeDhtJson(libp2p, key, value2, ttlMs) {
+  async function writeDhtJson(libp2p, key, value3, ttlMs) {
     const contentRouting = getContentRouting(libp2p);
     if (!contentRouting) return;
     try {
       const keyStr = new TextDecoder().decode(key);
       trackDhtKey(key);
       const envelope = {
-        data: value2,
+        data: value3,
         ...ttlMs ? { expiresAt: new Date(Date.now() + ttlMs).toISOString() } : {}
       };
       await contentRouting.put(key, new TextEncoder().encode(JSON.stringify(envelope)));
@@ -77930,8 +77937,8 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     }
     return JSON.parse(raw);
   }
-  async function writeState(storage2, namespace2, value2) {
-    await storage2.putRecord(namespace2, "state", JSON.stringify(value2), (/* @__PURE__ */ new Date()).toISOString());
+  async function writeState(storage2, namespace2, value3) {
+    await storage2.putRecord(namespace2, "state", JSON.stringify(value3), (/* @__PURE__ */ new Date()).toISOString());
   }
   function trimMap(map3, limit) {
     while (map3.size > limit) {
@@ -78218,12 +78225,12 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     if (requestEl && requestEl.attrs.xmlns === RECEIPTS_XMLNS && element.attrs.id) {
       metadata.receipt = { type: "request", id: element.attrs.id };
     }
-    const receivedChildren = element.children.filter((child) => child?.name === "received");
-    for (const child of receivedChildren) {
-      if (child.attrs.xmlns === RECEIPTS_XMLNS) {
-        metadata.receipt = { type: "received", id: child.attrs.id };
-      } else if (child.attrs.xmlns === CARBONS_XMLNS) {
-        const forwardedEl = child.getChild("forwarded");
+    const receivedChildren = element.children.filter((child2) => child2?.name === "received");
+    for (const child2 of receivedChildren) {
+      if (child2.attrs.xmlns === RECEIPTS_XMLNS) {
+        metadata.receipt = { type: "received", id: child2.attrs.id };
+      } else if (child2.attrs.xmlns === CARBONS_XMLNS) {
+        const forwardedEl = child2.getChild("forwarded");
         if (forwardedEl && forwardedEl.attrs.xmlns === FORWARD_XMLNS) {
           const forwardedMsg = forwardedEl.getChild("message");
           if (forwardedMsg) {
@@ -78499,7 +78506,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       let filterWith = void 0;
       const xEl = query.getChild("x");
       if (xEl && xEl.attrs.xmlns === "jabber:x:data") {
-        const fields = xEl.children.filter((child) => child?.name === "field");
+        const fields = xEl.children.filter((child2) => child2?.name === "field");
         for (const f2 of fields) {
           if (f2.attrs.var === "with") {
             filterWith = f2.getChild("value")?.text();
@@ -78516,11 +78523,11 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         });
       }
       for (const msg of history) {
-        const children = [];
+        const children2 = [];
         if (msg.body) {
-          children.push(xml("body", {}, msg.body));
+          children2.push(xml("body", {}, msg.body));
         }
-        children.push(...buildXepElements({
+        children2.push(...buildXepElements({
           replace: msg.replace,
           reply: msg.reply,
           thread: msg.thread,
@@ -78533,7 +78540,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
           from: msg.from,
           type: msg.type || "chat",
           id: msg.id ?? ""
-        }, ...children);
+        }, ...children2);
         const resultEl = xml("result", {
           xmlns: "urn:xmpp:mam:2",
           queryid: queryId,
@@ -78592,9 +78599,9 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     async queryChatHistory(targetPeerJid, withJid, queryId) {
       const id2 = Math.random().toString(36).substring(2, 11);
       const toJid = this.ctx.jidFromPeerId(this.ctx.parsePeerReference(targetPeerJid).peerId);
-      const children = [];
+      const children2 = [];
       if (withJid) {
-        children.push(
+        children2.push(
           xml(
             "x",
             { xmlns: "jabber:x:data", type: "submit" },
@@ -78606,7 +78613,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       const iq = xml(
         "iq",
         { type: "get", id: id2, to: toJid, from: this.ctx.jid },
-        xml("query", { xmlns: "urn:xmpp:mam:2", ...queryId ? { queryid: queryId } : {} }, ...children)
+        xml("query", { xmlns: "urn:xmpp:mam:2", ...queryId ? { queryid: queryId } : {} }, ...children2)
       );
       await this.ctx.sendIqRequest(toJid, iq);
       return id2;
@@ -78633,7 +78640,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
   function iqErrorMessage(stanza) {
     const error = stanza.getChild("error");
     const condition = error?.children.find(
-      (child) => child instanceof import_Element2.default && child.name !== "text" && child.attrs.xmlns === NS_STANZAS
+      (child2) => child2 instanceof import_Element2.default && child2.name !== "text" && child2.attrs.xmlns === NS_STANZAS
     )?.name;
     switch (condition) {
       case "service-unavailable":
@@ -78658,8 +78665,8 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
   var RegistrationResponseError = class extends Error {
   };
   var CAPTCHA_REGISTRATION_MESSAGE = "This server requires CAPTCHA verification. Complete registration on the provider website, then sign in here.";
-  function decodeRegistrationXmlText(value2) {
-    return value2.replace(/&(#x[0-9a-f]+|#[0-9]+|amp|lt|gt|quot|apos);/gi, (entity, token) => {
+  function decodeRegistrationXmlText(value3) {
+    return value3.replace(/&(#x[0-9a-f]+|#[0-9]+|amp|lt|gt|quot|apos);/gi, (entity, token) => {
       if (token === "amp") return "&";
       if (token === "lt") return "<";
       if (token === "gt") return ">";
@@ -78685,7 +78692,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       const variable = attributes.match(/\bvar=['"]([^'"]+)['"]/i)?.[1];
       if (!variable) continue;
       const contents = field2[2] ?? "";
-      const values = [...contents.matchAll(/<value\b[^>]*>([\s\S]*?)<\/value>/gi)].map((value2) => decodeRegistrationXmlText(value2[1].replace(/<[^>]*>/g, "")));
+      const values = [...contents.matchAll(/<value\b[^>]*>([\s\S]*?)<\/value>/gi)].map((value3) => decodeRegistrationXmlText(value3[1].replace(/<[^>]*>/g, "")));
       let valuesToSubmit = values;
       if (variable === "username") {
         valuesToSubmit = [username];
@@ -78705,17 +78712,17 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       } else {
         continue;
       }
-      fields.push(xml("field", { var: variable }, ...valuesToSubmit.map((value2) => xml("value", {}, value2))));
+      fields.push(xml("field", { var: variable }, ...valuesToSubmit.map((value3) => xml("value", {}, value3))));
     }
     if (!hasUsername || !hasPassword) {
       throw new RegistrationResponseError("The XMPP server registration form does not include username and password fields.");
     }
     return xml("x", { xmlns: "jabber:x:data", type: "submit" }, ...fields);
   }
-  function normalizeXmppWebSocketUrl(value2) {
+  function normalizeXmppWebSocketUrl(value3) {
     let endpoint;
     try {
-      endpoint = new URL(value2);
+      endpoint = new URL(value3);
     } catch {
       throw new Error("XMPP WebSocket URL is invalid");
     }
@@ -78729,26 +78736,32 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     return endpoint.toString();
   }
   function isNativeNodeRuntime() {
-    return typeof window === "undefined";
+    const isElectronMain = typeof process !== "undefined" && Boolean(process.versions?.electron);
+    return typeof window === "undefined" || isElectronMain || isAndroidNative();
   }
-  function normalizeXmppTcpUrl(value2) {
+  function normalizeXmppTcpUrl(value3, allowNativeTcp = isNativeNodeRuntime()) {
     let endpoint;
     try {
-      endpoint = new URL(value2);
+      endpoint = new URL(value3);
     } catch {
       throw new Error("XMPP TCP service address is invalid");
     }
-    if (!isNativeNodeRuntime() || endpoint.protocol !== "xmpp:" && endpoint.protocol !== "xmpps:" || !endpoint.hostname || endpoint.username || endpoint.password || endpoint.pathname !== "" && endpoint.pathname !== "/" || endpoint.search || endpoint.hash) {
-      throw new Error("XMPP TCP connections are available only in native desktop runtimes and require an xmpp:// or xmpps:// address");
+    if (!allowNativeTcp || endpoint.protocol !== "xmpp:" && endpoint.protocol !== "xmpps:" || !endpoint.hostname || endpoint.username || endpoint.password || endpoint.pathname !== "" && endpoint.pathname !== "/" || endpoint.search || endpoint.hash) {
+      throw new Error("XMPP TCP connections are available only in native desktop and Android runtimes and require an xmpp:// or xmpps:// address");
     }
     if (!endpoint.port) endpoint.port = endpoint.protocol === "xmpps:" ? "5223" : "5222";
     return endpoint.toString();
   }
-  function normalizeXmppServiceUrl(value2) {
-    const protocol = value2.slice(0, value2.indexOf(":") + 1).toLowerCase();
-    return protocol === "xmpp:" || protocol === "xmpps:" ? normalizeXmppTcpUrl(value2) : normalizeXmppWebSocketUrl(value2);
+  function normalizeXmppServiceUrl(value3, allowNativeTcp = isNativeNodeRuntime()) {
+    const protocol = value3.slice(0, value3.indexOf(":") + 1).toLowerCase();
+    return protocol === "xmpp:" || protocol === "xmpps:" ? normalizeXmppTcpUrl(value3, allowNativeTcp) : normalizeXmppWebSocketUrl(value3);
   }
   var XmppClientBridge = class extends EventEmitter2 {
+    constructor(allowNativeTcp = isNativeNodeRuntime()) {
+      super();
+      this.allowNativeTcp = allowNativeTcp;
+    }
+    allowNativeTcp;
     client = null;
     status = "disconnected";
     domain = "";
@@ -78831,7 +78844,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       let services;
       if (requestedService && requestedService.includes("://")) {
         try {
-          services = [{ url: normalizeXmppServiceUrl(requestedService), timeoutMs: 3e4 }];
+          services = [{ url: normalizeXmppServiceUrl(requestedService, this.allowNativeTcp), timeoutMs: 3e4 }];
         } catch (error) {
           this.status = "error";
           this.lastError = error instanceof Error ? error.message : String(error);
@@ -78841,8 +78854,14 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       } else {
         const domain = requestedService || this.domain;
         const discovered = await this.discoverWebSocketUrl(domain);
-        services = [.../* @__PURE__ */ new Set([...discovered ? [discovered] : [], ...this.defaultWsUrls(domain)])].map((url, index) => ({ url, timeoutMs: discovered && index === 0 ? 2e4 : 12e3 }));
-        if (isNativeNodeRuntime()) {
+        const srvServices = this.allowNativeTcp ? await this.discoverTcpSrvServices(domain) : [];
+        const websocketFallbacks = this.defaultWsUrls(domain).filter((url) => url !== discovered);
+        services = [
+          ...discovered ? [{ url: discovered, timeoutMs: 2e4 }] : [],
+          ...srvServices.map(({ url }) => ({ url, timeoutMs: 15e3 })),
+          ...websocketFallbacks.map((url) => ({ url, timeoutMs: 12e3 }))
+        ];
+        if (this.allowNativeTcp) {
           services.push(
             { url: `xmpp://${domain}:5222`, timeoutMs: 15e3 },
             { url: `xmpps://${domain}:5223`, timeoutMs: 15e3 }
@@ -78860,7 +78879,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
           await this.connectToService(credentials, jidObj, service2.url, service2.timeoutMs);
           return;
         } catch (error) {
-          lastError = error instanceof Error ? error : new Error(String(error));
+          lastError = this.describeConnectionError(error);
           if (this.isAuthenticationFailure(lastError)) break;
         }
       }
@@ -78870,13 +78889,46 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       this.emit("connection", { ...this.connectionInfo, status: "error", error: this.lastError });
       throw new Error(`Failed to connect: ${this.lastError}`);
     }
+    /** Resolve the XMPP client SRV records on native desktop runtimes. */
+    async discoverTcpSrvServices(domain) {
+      if (typeof window !== "undefined" || typeof process === "undefined" || !process.versions?.electron) return [];
+      try {
+        const { resolveSrv: resolveSrv3 } = await import("node:dns/promises");
+        const queries = await Promise.all([
+          resolveSrv3(`_xmpps-client._tcp.${domain}`).catch(() => []),
+          resolveSrv3(`_xmpp-client._tcp.${domain}`).catch(() => [])
+        ]);
+        const schemes = ["xmpps:", "xmpp:"];
+        return queries.flatMap((records, index) => records.filter((record) => record.name && record.name !== "." && Number.isInteger(record.port) && record.port > 0 && record.port <= 65535).map((record) => ({
+          url: `${schemes[index]}//${record.name.replace(/\.$/, "")}:${record.port}`,
+          priority: record.priority,
+          weight: record.weight
+        }))).sort((a2, b2) => a2.priority - b2.priority || b2.weight - a2.weight);
+      } catch {
+        return [];
+      }
+    }
+    /**
+     * Servers such as ejabberd put <text/> before the condition in SASL failures,
+     * so @xmpp/error reports the bare message "text". Recover the real condition.
+     */
+    describeConnectionError(error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      if (err.name !== "SASLError") return err;
+      const { condition, application, text } = err;
+      const real = condition === "text" ? application?.name : condition;
+      if (!real && err.message !== "text") return err;
+      const described = new Error(`Authentication failed (${real ?? "not-authorized"})${text ? ` - ${text}` : ""}. Check your username and password`);
+      described.name = "SASLError";
+      return described;
+    }
     isAuthenticationFailure(error) {
-      return /not[- ]authorized|invalid credentials|authentication failed|account[- ]disabled|temporary-auth-failure|mechanism-too-weak/i.test(error.message);
+      return error.name === "SASLError" || /not[- ]authorized|invalid credentials|authentication failed|account[- ]disabled|temporary-auth-failure|mechanism-too-weak/i.test(error.message);
     }
     async connectToService(credentials, jidObj, service2, timeoutMs) {
       const protocol = service2.slice(0, service2.indexOf(":") + 1).toLowerCase();
       const nativeTcp2 = protocol === "xmpp:" || protocol === "xmpps:";
-      service2 = normalizeXmppServiceUrl(service2);
+      service2 = normalizeXmppServiceUrl(service2, this.allowNativeTcp);
       this.client = client({
         domain: this.domain,
         username: jidObj.local,
@@ -79012,10 +79064,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       const putUrl = put?.attrs.url;
       const getUrl = get?.attrs.url;
       if (!putUrl || !getUrl) throw new Error("The XMPP upload service returned an incomplete upload slot.");
-      const secureUrl = (value2, label) => {
+      const secureUrl = (value3, label) => {
         let parsed;
         try {
-          parsed = new URL(value2);
+          parsed = new URL(value3);
         } catch {
           throw new Error(`The XMPP upload service returned an invalid ${label} URL.`);
         }
@@ -79027,15 +79079,15 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       const safePutUrl = secureUrl(putUrl, "upload");
       const safeGetUrl = secureUrl(getUrl, "download");
       const headers = new Headers({ "Content-Type": contentType || "application/octet-stream" });
-      for (const header of put?.children.filter((child) => child instanceof import_Element2.default && child.name === "header") ?? []) {
+      for (const header of put?.children.filter((child2) => child2 instanceof import_Element2.default && child2.name === "header") ?? []) {
         const name5 = (header.attrs.name ?? "").replace(/[\r\n]/g, "");
         const lowerName = name5.toLowerCase();
         if (!["authorization", "cookie", "expires"].includes(lowerName)) continue;
-        const value2 = header.text().replace(/[\r\n]/g, "");
-        if (lowerName === "cookie" && value2) {
+        const value3 = header.text().replace(/[\r\n]/g, "");
+        if (lowerName === "cookie" && value3) {
           throw new Error("This XMPP upload service requires a Cookie header that browser apps cannot set. Ask the server operator to use a browser-compatible upload configuration.");
         }
-        if (name5 && value2) headers.append(name5, value2);
+        if (name5 && value3) headers.append(name5, value3);
       }
       let uploaded;
       try {
@@ -79166,7 +79218,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
                 { xmlns: "jabber:iq:register" },
                 xml("username", {}, username),
                 xml("password", {}, password),
-                ...Object.entries(registrationFields).map(([field2, value2]) => xml(field2, {}, value2))
+                ...Object.entries(registrationFields).map(([field2, value3]) => xml(field2, {}, value3))
               ));
               ws2.send(registration.toString());
               return;
@@ -79198,7 +79250,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     async sendMessage(to2, body, options) {
       const id2 = options?.originId || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       const attrs = { to: to2, type: options?.type || "chat", id: id2 };
-      const children = [
+      const children2 = [
         ...body ? [xml("body", {}, body)] : [],
         ...(options?.attachments ?? []).flatMap((attachment) => {
           let url;
@@ -79217,7 +79269,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         }),
         ...buildXepElements({ ...options, originId: options?.originId ?? id2 })
       ];
-      await this.sendStanza(xml("message", attrs, ...children));
+      await this.sendStanza(xml("message", attrs, ...children2));
       return id2;
     }
     async queryMamHistory(withJid, before) {
@@ -79262,7 +79314,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     async getRosterEntries() {
       const response2 = await this.sendIQ(void 0, "get", xml("query", { xmlns: NS_ROSTER }));
       const query = response2.getChild("query", NS_ROSTER);
-      return (query?.children ?? []).filter((child) => child instanceof import_Element2.default && child.name === "item").filter((item) => Boolean(item.attrs.jid) && item.attrs.subscription !== "remove").map((item) => ({ jid: item.attrs.jid, name: item.attrs.name, subscription: item.attrs.subscription || "none" }));
+      return (query?.children ?? []).filter((child2) => child2 instanceof import_Element2.default && child2.name === "item").filter((item) => Boolean(item.attrs.jid) && item.attrs.subscription !== "remove").map((item) => ({ jid: item.attrs.jid, name: item.attrs.name, subscription: item.attrs.subscription || "none" }));
     }
     async addRosterEntry(jid2, name5) {
       const attrs = { jid: jid2 };
@@ -79287,10 +79339,10 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
     async sendPresence(type2, status, show) {
       const attrs = {};
       if (type2) attrs.type = type2;
-      const children = [];
-      if (show) children.push(xml("show", {}, show));
-      if (status) children.push(xml("status", {}, status));
-      await this.sendStanza(xml("presence", attrs, ...children));
+      const children2 = [];
+      if (show) children2.push(xml("show", {}, show));
+      if (status) children2.push(xml("status", {}, status));
+      await this.sendStanza(xml("presence", attrs, ...children2));
     }
     clearServerPresence() {
       for (const from7 of this.serverPresenceResources.keys()) {
@@ -79333,16 +79385,26 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       await this.sendStanza(xml("presence", { to: `${roomJid}/${nick}`, type: "unavailable" }));
     }
     async pubsubSubscribe(nodeJid, node) {
-      const result = await this.sendIQ(
-        nodeJid,
-        "set",
-        xml(
-          "pubsub",
-          { xmlns: NS_PUBSUB },
-          xml("subscribe", { node, jid: this.client?.jid?.toString().split("/")[0] || "" })
-        ),
-        1e4
-      );
+      let result;
+      try {
+        result = await this.sendIQ(
+          nodeJid,
+          "set",
+          xml(
+            "pubsub",
+            { xmlns: NS_PUBSUB },
+            xml("subscribe", { node, jid: this.client?.jid?.toString().split("/")[0] || "" })
+          ),
+          1e4
+        );
+      } catch (subscriptionError) {
+        try {
+          await this.pubsubGetItems(nodeJid, node, 1, 5e3);
+          return "polling";
+        } catch {
+          throw subscriptionError;
+        }
+      }
       const subscription = result.getChild("pubsub")?.getChild("subscription");
       const state = subscription?.attrs.subscription;
       if (state === "pending") return "pending";
@@ -79469,7 +79531,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
             void this.sendStanza(xml("iq", attrs)).catch(() => {
             });
           }
-          const items = rosterQuery.children.filter((child) => child instanceof import_Element2.default && child.name === "item").map((item) => ({ jid: item.attrs.jid || "", name: item.attrs.name, subscription: item.attrs.subscription || "none" })).filter((item) => item.jid);
+          const items = rosterQuery.children.filter((child2) => child2 instanceof import_Element2.default && child2.name === "item").map((item) => ({ jid: item.attrs.jid || "", name: item.attrs.name, subscription: item.attrs.subscription || "none" })).filter((item) => item.jid);
           this.emit("roster:change", items);
           return;
         }
@@ -79504,7 +79566,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       if (type2 === "error" && resource && from7.includes("@")) {
         const error = stanza.getChild("error");
         const condition = error?.children.find(
-          (child) => child instanceof import_Element2.default && child.name !== "text" && child.attrs.xmlns === "urn:ietf:params:xml:ns:xmpp-stanzas"
+          (child2) => child2 instanceof import_Element2.default && child2.name !== "text" && child2.attrs.xmlns === "urn:ietf:params:xml:ns:xmpp-stanzas"
         );
         const text = error?.getChild("text", "urn:ietf:params:xml:ns:xmpp-stanzas")?.text().trim();
         this.emit("muc:error", {
@@ -79521,7 +79583,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       const mucUser = stanza.getChild("x", NS_MUC_USER);
       if (mucUser && resource) {
         const item = mucUser.getChild("item");
-        const statusCodes = mucUser.children.filter((child) => child instanceof import_Element2.default && child.name === "status").map((status) => status.attrs.code).filter((code6) => Boolean(code6));
+        const statusCodes = mucUser.children.filter((child2) => child2 instanceof import_Element2.default && child2.name === "status").map((status) => status.attrs.code).filter((code6) => Boolean(code6));
         const event = {
           room: from7,
           roomJid: from7,
@@ -79594,12 +79656,12 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       const response2 = await this.sendIQ(roomJid, "get", xml("query", { xmlns: NS_MUC_OWNER }));
       const form = response2.getChild("query", NS_MUC_OWNER)?.getChild("x", "jabber:x:data");
       if (!form || form.attrs.type !== "form") return;
-      const fields = form.children.filter((child) => child instanceof import_Element2.default && child.name === "field").flatMap((field2) => {
+      const fields = form.children.filter((child2) => child2 instanceof import_Element2.default && child2.name === "field").flatMap((field2) => {
         const variable = field2.attrs.var;
         if (!variable) return [];
-        const values = field2.children.filter((child) => child instanceof import_Element2.default && child.name === "value").map((value2) => value2.text());
+        const values = field2.children.filter((child2) => child2 instanceof import_Element2.default && child2.name === "value").map((value3) => value3.text());
         if (!values.length) return [];
-        return [xml("field", { var: variable }, ...values.map((value2) => xml("value", {}, value2)))];
+        return [xml("field", { var: variable }, ...values.map((value3) => xml("value", {}, value3)))];
       });
       await this.sendIQ(roomJid, "set", xml(
         "query",
@@ -79700,7 +79762,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       if (type2 === "error") {
         const error = stanza.getChild("error");
         const condition = error?.children.find(
-          (child) => child instanceof import_Element2.default && child.name !== "text" && child.attrs.xmlns === NS_STANZAS
+          (child2) => child2 instanceof import_Element2.default && child2.name !== "text" && child2.attrs.xmlns === NS_STANZAS
         )?.name;
         const text = error?.getChild("text", NS_STANZAS)?.text().trim();
         this.emit("message", {
@@ -79716,7 +79778,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       }
       const delayEl = stanza.getChild("delay");
       const delay2 = delayEl ? { stamp: delayEl.attrs.stamp || "", from: delayEl.attrs.from } : void 0;
-      const chatState = ["active", "composing", "paused", "inactive", "gone"].map((s3) => stanza.getChild(s3)).find((child) => child?.attrs?.xmlns === "http://jabber.org/protocol/chatstates");
+      const chatState = ["active", "composing", "paused", "inactive", "gone"].map((s3) => stanza.getChild(s3)).find((child2) => child2?.attrs?.xmlns === "http://jabber.org/protocol/chatstates");
       const chatStateName = chatState?.name;
       if (type2 === "groupchat") {
         const roomJid = from7.includes("/") ? from7.split("/")[0] : from7;
@@ -79761,8 +79823,8 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
         return body;
       }
       if (url.protocol !== "https:" || url.username || url.password || url.hash || /[\r\n<>]/.test(rawUrl)) return body;
-      const safeUrl = url.toString().replace(/\(/g, "%28").replace(/\)/g, "%29");
-      if (body.includes(rawUrl) || body.includes(safeUrl)) return body;
+      const safeUrl2 = url.toString().replace(/\(/g, "%28").replace(/\)/g, "%29");
+      if (body.includes(rawUrl) || body.includes(safeUrl2)) return body;
       const rawDescription = oob?.getChild("desc")?.text().trim();
       let pathName = url.pathname.split("/").pop() || "";
       try {
@@ -79771,7 +79833,7 @@ ${[...listenStats.errors.entries()].map(([addr, err]) => {
       }
       const filename = (rawDescription || pathName || "Shared file").replace(/[\[\]\r\n]/g, " ");
       const isImage = /\.(?:avif|gif|jpe?g|png|webp)$/i.test(filename);
-      const reference = `${isImage ? "!" : ""}[${filename}](${safeUrl})`;
+      const reference = `${isImage ? "!" : ""}[${filename}](${safeUrl2})`;
       return body ? `${body}
 ${reference}` : reference;
     }
@@ -79793,11 +79855,11 @@ ${reference}` : reference;
 
   // src/core/xmpp-utils.ts
   init_globals();
-  function bufferToBase64(value2) {
-    return import_buffer.Buffer.from(value2 instanceof Uint8Array ? value2 : new Uint8Array(value2)).toString("base64");
+  function bufferToBase64(value3) {
+    return import_buffer.Buffer.from(value3 instanceof Uint8Array ? value3 : new Uint8Array(value3)).toString("base64");
   }
-  function base64ToArrayBuffer(value2) {
-    const bytes = import_buffer.Buffer.from(value2, "base64");
+  function base64ToArrayBuffer(value3) {
+    const bytes = import_buffer.Buffer.from(value3, "base64");
     return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
   }
   function serializeKeyPair(keyPair) {
@@ -80524,13 +80586,13 @@ ${reference}` : reference;
     );
   }
   function parseDiscoInfoQuery(query) {
-    const identities = query.children.filter((child) => child?.name === "identity").map((identity7) => ({
+    const identities = query.children.filter((child2) => child2?.name === "identity").map((identity7) => ({
       category: identity7.attrs.category,
       type: identity7.attrs.type,
       name: identity7.attrs.name,
       lang: identity7.attrs.lang
     }));
-    const features = query.children.filter((child) => child?.name === "feature").map((feature) => feature.attrs.var).filter((feature) => typeof feature === "string" && feature.length > 0);
+    const features = query.children.filter((child2) => child2?.name === "feature").map((feature) => feature.attrs.var).filter((feature) => typeof feature === "string" && feature.length > 0);
     const ver = computeDiscoveryVer(identities, features);
     return {
       node: query.attrs.node,
@@ -80542,7 +80604,7 @@ ${reference}` : reference;
     };
   }
   function parseDiscoItemsQuery(query) {
-    return query.children.filter((child) => child?.name === "item").map((item) => ({
+    return query.children.filter((child2) => child2?.name === "item").map((item) => ({
       jid: item.attrs.jid,
       node: item.attrs.node,
       name: item.attrs.name
@@ -81388,8 +81450,8 @@ ${reference}` : reference;
         signature: base64ToArrayBuffer(parsed.signedPreKey.signature)
       };
       this.storeData.clear();
-      for (const [key, value2] of Object.entries(parsed.store ?? {})) {
-        this.storeData.set(key, value2);
+      for (const [key, value3] of Object.entries(parsed.store ?? {})) {
+        this.storeData.set(key, value3);
       }
       this.preKeys.clear();
       for (const preKey of this.state.preKeys) {
@@ -81491,9 +81553,9 @@ ${reference}` : reference;
     getStore() {
       return {
         store: Object.fromEntries(this.storeData.entries()),
-        put: (key, value2) => {
+        put: (key, value3) => {
           this.ensureState();
-          this.storeData.set(key, value2);
+          this.storeData.set(key, value3);
           void this.schedulePersist();
         },
         get: (key, defaultValue) => {
@@ -90993,7 +91055,7 @@ ${reference}` : reference;
     if (!list || list.attrs.xmlns !== OMEMO_DEVICES_XMLNS) {
       return [];
     }
-    return list.children.filter((child) => child?.name === "device").map((child) => Number(child.attrs.id)).filter((deviceId) => Number.isFinite(deviceId) && deviceId > 0);
+    return list.children.filter((child2) => child2?.name === "device").map((child2) => Number(child2.attrs.id)).filter((deviceId) => Number.isFinite(deviceId) && deviceId > 0);
   }
   function parseOmemoBundleQuery(items) {
     const item = items.getChild("item");
@@ -91010,9 +91072,9 @@ ${reference}` : reference;
     if (!identityKey || !signedPreKeyEl || !signedPreKeySignature) {
       return void 0;
     }
-    const preKeys = bundle.children.filter((child) => child?.name === "pk").map((child) => ({
-      keyId: Number(child.attrs.id ?? child.attrs.keyId ?? child.attrs.signedPreKeyId ?? 0),
-      publicKey: child.text().trim()
+    const preKeys = bundle.children.filter((child2) => child2?.name === "pk").map((child2) => ({
+      keyId: Number(child2.attrs.id ?? child2.attrs.keyId ?? child2.attrs.signedPreKeyId ?? 0),
+      publicKey: child2.text().trim()
     })).filter((preKey) => Number.isFinite(preKey.keyId) && preKey.keyId > 0 && preKey.publicKey);
     return {
       deviceId: Number(item.attrs.id),
@@ -91120,15 +91182,15 @@ ${reference}` : reference;
   init_xml();
   var XHTML_XMLNS = "http://www.w3.org/1999/xhtml";
   var XHTML_BLOCK_ELEMENTS = /* @__PURE__ */ new Set(["div", "p", "li", "blockquote", "pre"]);
-  var trimText = (value2) => value2?.trim() ?? "";
-  var collapseWhitespace = (value2) => value2.replace(/\s+/g, " ").trim();
+  var trimText = (value3) => value3?.trim() ?? "";
+  var collapseWhitespace = (value3) => value3.replace(/\s+/g, " ").trim();
   var extractElementText = (element) => {
-    const text = element.children.map((child) => {
-      if (typeof child === "string" || typeof child === "number") return String(child);
-      if (!(child instanceof import_Element2.default)) return "";
-      if (child.name === "br") return "\n";
-      const nested = extractElementText(child);
-      return XHTML_BLOCK_ELEMENTS.has(child.name) ? `
+    const text = element.children.map((child2) => {
+      if (typeof child2 === "string" || typeof child2 === "number") return String(child2);
+      if (!(child2 instanceof import_Element2.default)) return "";
+      if (child2.name === "br") return "\n";
+      const nested = extractElementText(child2);
+      return XHTML_BLOCK_ELEMENTS.has(child2.name) ? `
 ${nested}
 ` : nested;
     }).join("");
@@ -91157,12 +91219,12 @@ ${nested}
   };
   var buildXmppUri = (sourceJid, topic, itemId) => `xmpp:${sourceJid}?;node=${encodeURIComponent(topic)};item=${encodeURIComponent(itemId)}`;
   var parseLinks = (entryEl) => {
-    return entryEl.children.filter((child) => child?.name === "link").map((child) => ({
-      rel: child.attrs.rel,
-      href: child.attrs.href,
-      type: child.attrs.type,
-      title: child.attrs.title,
-      ref: child.attrs.ref
+    return entryEl.children.filter((child2) => child2?.name === "link").map((child2) => ({
+      rel: child2.attrs.rel,
+      href: child2.attrs.href,
+      type: child2.attrs.type,
+      title: child2.attrs.title,
+      ref: child2.attrs.ref
     })).filter((link) => Boolean(link.rel || link.href || link.type || link.title || link.ref));
   };
   var parseGeoloc = (entryEl) => {
@@ -91241,7 +91303,7 @@ ${nested}
     if (!id2) {
       return void 0;
     }
-    const entryEl = itemEl.children.find((child) => child?.name === "entry" && isMicroblogEntryElement(child));
+    const entryEl = itemEl.children.find((child2) => child2?.name === "entry" && isMicroblogEntryElement(child2));
     const bodyEl = itemEl.getChild("body");
     const contentEl = entryEl?.getChild("content");
     const summaryEl = entryEl?.getChild("summary");
@@ -91250,7 +91312,7 @@ ${nested}
     const publishedEl = entryEl?.getChild("published");
     const updatedEl = entryEl?.getChild("updated");
     const replyEl = entryEl?.getChild("in-reply-to");
-    const articlePayloadEl = entryEl && entryEl.children.find((child) => child?.name === "article" && child.attrs?.xmlns === "urn:nexus:article:1");
+    const articlePayloadEl = entryEl && entryEl.children.find((child2) => child2?.name === "article" && child2.attrs?.xmlns === "urn:nexus:article:1");
     const content = contentEl?.attrs.type === "xhtml" && contentEl ? extractElementText(contentEl) : contentEl?.text();
     const body = articlePayloadEl?.text() || trimText(content || bodyEl?.text() || summaryEl?.text() || titleEl?.text());
     if (!body && !titleEl?.text()) {
@@ -91271,7 +91333,7 @@ ${nested}
       author,
       contentType: contentEl?.attrs.type === "xhtml" ? "xhtml" : "text",
       replyTo: replyEl?.attrs.ref,
-      categories: entryEl ? entryEl.children.filter((child) => child?.name === "category").map((category) => category.attrs.term || category.attrs.label).filter((category) => Boolean(category && category.trim())) : void 0,
+      categories: entryEl ? entryEl.children.filter((child2) => child2?.name === "category").map((category) => category.attrs.term || category.attrs.label).filter((category) => Boolean(category && category.trim())) : void 0,
       links: entryEl ? parseLinks(entryEl) : void 0,
       geoloc: entryEl ? parseGeoloc(entryEl) : void 0
     });
@@ -91279,7 +91341,7 @@ ${nested}
 
   // src/core/xmpp-pubsub.ts
   function parseFeedPost(topic, itemEl, from7, node) {
-    const entryEl = itemEl.children.find((child) => child?.name === "entry" && child?.attrs?.xmlns === ATOM_XMLNS);
+    const entryEl = itemEl.children.find((child2) => child2?.name === "entry" && child2?.attrs?.xmlns === ATOM_XMLNS);
     if (!entryEl) {
       return void 0;
     }
@@ -91321,15 +91383,15 @@ ${nested}
     }
     const reactionsEl = itemEl.getChild("reactions");
     if (reactionsEl && reactionsEl.attrs.xmlns === ATTACHMENT_XMLNS) {
-      const reactionEl = reactionsEl.children.find((child) => child?.name === "reaction");
-      const value2 = reactionEl?.attrs.emoji || reactionEl?.text() || reactionsEl.text();
+      const reactionEl = reactionsEl.children.find((child2) => child2?.name === "reaction");
+      const value3 = reactionEl?.attrs.emoji || reactionEl?.text() || reactionsEl.text();
       return normalizeAttachment({
         id: itemEl.attrs.id,
         topic,
         targetId,
         from: from7,
         kind: "reaction",
-        value: value2,
+        value: value3,
         publishedAt: reactionEl?.attrs.publishedAt,
         receivedAt: (/* @__PURE__ */ new Date()).toISOString()
       });
@@ -91380,7 +91442,7 @@ ${nested}
       return void 0;
     }
     const providersEl = uploadEl.getChild("providers");
-    const providerEls = (providersEl?.children ?? []).filter((child) => child?.name === "provider");
+    const providerEls = (providersEl?.children ?? []).filter((child2) => child2?.name === "provider");
     const providers = [];
     for (const providerEl of providerEls) {
       const url = providerEl.attrs.url;
@@ -91419,7 +91481,7 @@ ${nested}
     }
     const itemsEl = eventEl.getChild("items");
     const nodeName = itemsEl?.attrs.node;
-    const itemEls = (itemsEl?.children ?? []).filter((child) => child?.name === "item");
+    const itemEls = (itemsEl?.children ?? []).filter((child2) => child2?.name === "item");
     for (const itemEl of itemEls) {
       const subscriptionEl = itemEl.getChild("subscription");
       if (subscriptionEl && subscriptionEl.attrs.xmlns === PAM_XMLNS) {
@@ -91540,7 +91602,7 @@ ${nested}
   var OPENPGP_PUBSUB_XMLNS = "urn:xmpp:openpgp:pubsub:0";
   var OPENPGP_IQ_XMLNS = "urn:xmpp:openpgp:0";
   async function decryptOmemoKey(ctx, remoteAddress, payload) {
-    const omemo = await loadOmemoModule();
+    const omemo = await ctx.loadOmemoModule();
     const sessionCipher = new omemo.SessionCipher(ctx.getOmemoStore(), remoteAddress);
     try {
       return await sessionCipher.decryptPreKeyWhisperMessage(payload, "base64");
@@ -91564,7 +91626,7 @@ ${nested}
   async function ensureOmemoSession(ctx, peerAddr, deviceId) {
     const xmppStream = await ctx.getOrCreateStream(peerAddr);
     const peerJid = jidFromPeerId(xmppStream.remotePeer.toString());
-    const omemo = await loadOmemoModule();
+    const omemo = await ctx.loadOmemoModule();
     const remoteAddress = new omemo.OMEMOAddress(peerJid, deviceId);
     const store = ctx.getOmemoStore();
     const sessionCipher = new omemo.SessionCipher(store, remoteAddress);
@@ -91589,8 +91651,8 @@ ${nested}
       } : void 0
     });
   }
-  function ctxToArrayBuffer(value2) {
-    const bytes = import_buffer.Buffer.from(value2, "base64");
+  function ctxToArrayBuffer(value3) {
+    const bytes = import_buffer.Buffer.from(value3, "base64");
     return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
   }
   async function getPeerOpenPgpKey(peerAddr, ctx) {
@@ -91679,13 +91741,13 @@ ${nested}
       const payloadEl = omemoEl.getChild("payload");
       const sid = Number(headerEl?.attrs.sid ?? 0);
       const ivEl = headerEl?.getChild("iv");
-      const keysEl = (headerEl?.children ?? []).filter((child) => child?.name === "keys");
+      const keysEl = (headerEl?.children ?? []).filter((child2) => child2?.name === "keys");
       const payload = payloadEl?.text().trim();
       const iv = ivEl?.text().trim();
       const rid = ctx.getOmemoDeviceIdOrThrow();
-      const keyEl = keysEl.flatMap((keys) => keys.children.filter((child) => child?.name === "key")).find((child) => Number(child.attrs.rid ?? 0) === rid);
+      const keyEl = keysEl.flatMap((keys) => keys.children.filter((child2) => child2?.name === "key")).find((child2) => Number(child2.attrs.rid ?? 0) === rid);
       if (headerEl && payload && iv && keyEl && Number.isFinite(sid) && sid > 0) {
-        const omemo = await loadOmemoModule();
+        const omemo = await ctx.loadOmemoModule();
         const remoteAddress = new omemo.OMEMOAddress(fromJid, sid);
         const encryptedKey = keyEl.text().trim();
         const payloadKey = await decryptOmemoKey(ctx, remoteAddress, encryptedKey);
@@ -91775,13 +91837,13 @@ ${nested}
     const keys = [];
     for (const deviceId of devices) {
       await ensureOmemoSession(ctx, peerAddr, deviceId);
-      const omemo = await loadOmemoModule();
+      const omemo = await ctx.loadOmemoModule();
       const remoteAddress = new omemo.OMEMOAddress(toJid, deviceId);
       const sessionCipher = new omemo.SessionCipher(ctx.getOmemoStore(), remoteAddress);
       const encryptedKey = await sessionCipher.encrypt(payloadKeyBytes);
       keys.push(xml("key", { rid: String(deviceId) }, import_buffer.Buffer.from(encryptedKey.body, "binary").toString("base64")));
     }
-    const children = [
+    const children2 = [
       xml(
         "encrypted",
         { xmlns: OMEMO_XMLNS2 },
@@ -91794,7 +91856,7 @@ ${nested}
         xml("payload", {}, payload)
       )
     ];
-    children.push(...buildXepElements({
+    children2.push(...buildXepElements({
       ...options,
       delay: options.delay ? {
         stamp: options.delay.stamp,
@@ -91814,7 +91876,7 @@ ${nested}
         type: "chat",
         id: itemId
       },
-      ...children
+      ...children2
     );
     await ctx.sendOrBufferStanza(peerId, stanza, peerAddr);
     return itemId;
@@ -91919,18 +91981,18 @@ ${nested}
   function buildVCard(profile, fallbackFn) {
     const normalized = normalizeVCardProfile(profile);
     const fn2 = normalized.fn ?? normalized.nickname ?? fallbackFn?.trim();
-    const children = [];
+    const children2 = [];
     if (fn2) {
-      children.push(xml("FN", {}, fn2));
+      children2.push(xml("FN", {}, fn2));
     }
     if (normalized.nickname) {
-      children.push(xml("NICKNAME", {}, normalized.nickname));
+      children2.push(xml("NICKNAME", {}, normalized.nickname));
     }
     if (normalized.desc) {
-      children.push(xml("DESC", {}, normalized.desc));
+      children2.push(xml("DESC", {}, normalized.desc));
     }
     if (normalized.photo?.type && normalized.photo.binval) {
-      children.push(
+      children2.push(
         xml(
           "PHOTO",
           {},
@@ -91939,7 +92001,7 @@ ${nested}
         )
       );
     }
-    return children.length > 0 ? xml("vCard", { xmlns: VCARD_XMLNS }, ...children) : xml("vCard", { xmlns: VCARD_XMLNS });
+    return children2.length > 0 ? xml("vCard", { xmlns: VCARD_XMLNS }, ...children2) : xml("vCard", { xmlns: VCARD_XMLNS });
   }
 
   // src/core/xmpp-router.ts
@@ -91976,7 +92038,7 @@ ${nested}
     if (text) {
       errorChildren.push(xml("text", { xmlns: XMPP_STANZAS_XMLNS }, text));
     }
-    const payload = element.children.find((child) => child?.name);
+    const payload = element.children.find((child2) => child2?.name);
     return payload ? xml("iq", attrs, payload, xml("error", { type: type2 }, ...errorChildren)) : xml("iq", attrs, xml("error", { type: type2 }, ...errorChildren));
   }
   async function sendIqError(ctx, peerId, element, condition, type2 = "cancel", text) {
@@ -92000,7 +92062,7 @@ ${nested}
     if (text) {
       errorChildren.push(xml("text", { xmlns: XMPP_STANZAS_XMLNS }, text));
     }
-    const payload = element.children.find((child) => child?.name);
+    const payload = element.children.find((child2) => child2?.name);
     xmppStream.send(
       payload ? xml("presence", attrs, payload, xml("error", { type: type2 }, ...errorChildren)) : xml("presence", attrs, xml("error", { type: type2 }, ...errorChildren))
     );
@@ -92073,7 +92135,7 @@ ${nested}
         return;
       }
     }
-    const stanzaChildren = element.children.filter((child) => child?.name);
+    const stanzaChildren = element.children.filter((child2) => child2?.name);
     if (type2 === "get" || type2 === "set") {
       if (stanzaChildren.length !== 1) {
         await sendIqError(ctx, peerId, element, "bad-request", "modify", "IQ get/set stanzas must contain exactly one child element");
@@ -92223,7 +92285,7 @@ ${nested}
             if (item.attrs.subscription === "remove") {
               await ctx.deleteRosterEntry(jid2);
             } else {
-              const groups = item.children.filter((child) => child?.name === "group").map((child) => child.text());
+              const groups = item.children.filter((child2) => child2?.name === "group").map((child2) => child2.text());
               await ctx.upsertRosterEntry({
                 jid: jid2,
                 name: item.attrs.name,
@@ -92544,20 +92606,20 @@ ${nested}
       if (type2) {
         presAttrs.type = type2;
       }
-      const children = [];
+      const children2 = [];
       if (show) {
-        children.push(xml("show", {}, show));
+        children2.push(xml("show", {}, show));
       }
       if (status) {
-        children.push(xml("status", {}, status));
+        children2.push(xml("status", {}, status));
       }
       if (nickname) {
-        children.push(xml("nick", { xmlns: "http://jabber.org/protocol/nick" }, nickname));
+        children2.push(xml("nick", { xmlns: "http://jabber.org/protocol/nick" }, nickname));
       }
       if (!type2 || type2 === "available") {
-        children.push(buildCapsElement(this.ctx.discoveryNode, this.ctx.discoveryIdentity, this.ctx.collections, this.ctx.httpUploadAvailable !== false));
+        children2.push(buildCapsElement(this.ctx.discoveryNode, this.ctx.discoveryIdentity, this.ctx.collections, this.ctx.httpUploadAvailable !== false));
       }
-      const pres = children.length > 0 ? xml("presence", presAttrs, ...children) : xml("presence", presAttrs);
+      const pres = children2.length > 0 ? xml("presence", presAttrs, ...children2) : xml("presence", presAttrs);
       xmppStream.send(pres);
     }
     async sendPresence(peerAddr, type2, status, show, nickname) {
@@ -92570,17 +92632,17 @@ ${nested}
       if (type2) {
         presAttrs.type = type2;
       }
-      const children = [];
+      const children2 = [];
       if (show) {
-        children.push(xml("show", {}, show));
+        children2.push(xml("show", {}, show));
       }
       if (status) {
-        children.push(xml("status", {}, status));
+        children2.push(xml("status", {}, status));
       }
       if (nickname) {
-        children.push(xml("nick", { xmlns: "http://jabber.org/protocol/nick" }, nickname));
+        children2.push(xml("nick", { xmlns: "http://jabber.org/protocol/nick" }, nickname));
       }
-      const pres = children.length > 0 ? xml("presence", presAttrs, ...children) : xml("presence", presAttrs);
+      const pres = children2.length > 0 ? xml("presence", presAttrs, ...children2) : xml("presence", presAttrs);
       xmppStream.send(pres);
     }
     async addRosterEntry(jid2, name5) {
@@ -92709,13 +92771,13 @@ ${nested}
       return this.buildRosterQuery();
     }
     parseRosterQuery(query) {
-      return query.children.filter((child) => child?.name === "item").map((child) => {
-        const groups = child.children.filter((group) => group?.name === "group").map((group) => group.text());
+      return query.children.filter((child2) => child2?.name === "item").map((child2) => {
+        const groups = child2.children.filter((group) => group?.name === "group").map((group) => group.text());
         return normalizeRosterEntry({
-          jid: child.attrs.jid,
-          name: child.attrs.name,
-          subscription: child.attrs.subscription,
-          ask: child.attrs.ask,
+          jid: child2.attrs.jid,
+          name: child2.attrs.name,
+          subscription: child2.attrs.subscription,
+          ask: child2.attrs.ask,
           groups,
           updatedAt: (/* @__PURE__ */ new Date()).toISOString()
         });
@@ -93262,7 +93324,7 @@ ${nested}
       if (!result || result.attrs.xmlns !== FEED_HISTORY_XMLNS2) {
         throw new Error("Peer returned an invalid feed history response");
       }
-      const entries = result.children.filter((child) => child?.name === "post");
+      const entries = result.children.filter((child2) => child2?.name === "post");
       for (const entry of entries) {
         try {
           const post = JSON.parse(entry.text());
@@ -93598,13 +93660,13 @@ ${nested}
       this.ctx.emit("collection:post", normalized);
       return true;
     }
-    async publishAttachment(topic, targetId, kind, value2, options = {}) {
+    async publishAttachment(topic, targetId, kind, value3, options = {}) {
       const pubsub = this.ctx.getPubSubService();
       this.ctx.ensureTopicValidator(topic, "attachment");
       await pubsub.subscribe(topic);
       const itemId = options.itemId ?? (kind === "reaction" ? await stableAttachmentItemId(topic, targetId, this.ctx.jid) : Math.random().toString(36).substring(2, 11));
       const publishedAt = (/* @__PURE__ */ new Date()).toISOString();
-      const attachmentElement = kind === "noticed" ? xml("noticed", { xmlns: ATTACHMENT_XMLNS2 }, value2 ? value2 : null) : xml("reactions", { xmlns: ATTACHMENT_XMLNS2 }, xml("reaction", value2 ? { emoji: value2 } : {}, value2 ? value2 : null));
+      const attachmentElement = kind === "noticed" ? xml("noticed", { xmlns: ATTACHMENT_XMLNS2 }, value3 ? value3 : null) : xml("reactions", { xmlns: ATTACHMENT_XMLNS2 }, xml("reaction", value3 ? { emoji: value3 } : {}, value3 ? value3 : null));
       const stanza = xml(
         "message",
         {
@@ -93634,7 +93696,7 @@ ${nested}
         targetId,
         from: this.ctx.jid,
         kind,
-        value: value2,
+        value: value3,
         publishedAt,
         receivedAt: publishedAt
       });
@@ -93794,20 +93856,20 @@ ${nested}
     if (type2 === "unavailable") {
       attrs.type = "unavailable";
     }
-    const children = [buildMucUserPayload(roomName, nick, participantJid, type2)];
+    const children2 = [buildMucUserPayload(roomName, nick, participantJid, type2)];
     if (!type2 || type2 === "available") {
-      children.unshift(xml("x", { xmlns: MUC_XMLNS }));
+      children2.unshift(xml("x", { xmlns: MUC_XMLNS }));
     }
-    return xml("presence", attrs, ...children);
+    return xml("presence", attrs, ...children2);
   }
-  function buildGroupchatMessage(roomName, nick, children, id2) {
+  function buildGroupchatMessage(roomName, nick, children2, id2) {
     const msgId2 = id2 || Math.random().toString(36).substring(2, 15);
     const fromJid = buildOccupantJid(roomName, nick);
-    if (!children.some((c2) => c2.name === "origin-id")) {
-      children.push(xml("origin-id", { xmlns: "urn:xmpp:sid:0", id: msgId2 }));
+    if (!children2.some((c2) => c2.name === "origin-id")) {
+      children2.push(xml("origin-id", { xmlns: "urn:xmpp:sid:0", id: msgId2 }));
     }
-    if (!children.some((c2) => c2.name === "stanza-id")) {
-      children.push(xml("stanza-id", { xmlns: "urn:xmpp:sid:0", id: msgId2, by: fromJid }));
+    if (!children2.some((c2) => c2.name === "stanza-id")) {
+      children2.push(xml("stanza-id", { xmlns: "urn:xmpp:sid:0", id: msgId2, by: fromJid }));
     }
     return xml(
       "message",
@@ -93817,7 +93879,7 @@ ${nested}
         type: "groupchat",
         id: msgId2
       },
-      ...children
+      ...children2
     );
   }
   function parseReplyElement(element) {
@@ -94096,21 +94158,21 @@ ${nested}
         throw new Error(`Not joined in MUC room: ${roomName}`);
       }
       const id2 = messageId || Math.random().toString(36).substring(2, 11);
-      const children = [xml("body", {}, body)];
+      const children2 = [xml("body", {}, body)];
       if (replaceId) {
-        children.push(xml("replace", { xmlns: "urn:xmpp:message-correct:0", id: replaceId }));
+        children2.push(xml("replace", { xmlns: "urn:xmpp:message-correct:0", id: replaceId }));
       }
       if (reply) {
         const replyAttrs = { xmlns: "urn:xmpp:reply:0", id: reply.id };
         if (reply.to) {
           replyAttrs.to = reply.to;
         }
-        children.push(xml("reply", replyAttrs));
+        children2.push(xml("reply", replyAttrs));
       }
       if (thread) {
-        children.push(xml("thread", {}, thread));
+        children2.push(xml("thread", {}, thread));
       }
-      const stanza = buildGroupchatMessage(roomName, roomState.localNick, children, id2);
+      const stanza = buildGroupchatMessage(roomName, roomState.localNick, children2, id2);
       const bytes = new TextEncoder().encode(stanza.toString());
       await this.ctx.getPubSubService().publish(`${roomState.topic}/messages`, bytes);
       await this.ctx.getPubSubService().publish(roomState.topic, bytes);
@@ -94150,7 +94212,7 @@ ${nested}
         const keys = [];
         for (const deviceId of devices) {
           await ensureOmemoSession(this.ctx.getSecureContext(), targetJid, deviceId);
-          const omemo = await loadOmemoModule();
+          const omemo = await this.ctx.loadOmemoModule();
           const remoteAddress = new omemo.OMEMOAddress(targetJid, deviceId);
           const sessionCipher = new omemo.SessionCipher(this.ctx.getOmemoStore(), remoteAddress);
           const encryptedKey = await sessionCipher.encrypt(payloadKeyBytes);
@@ -94164,7 +94226,11 @@ ${nested}
         await addOmemoKey(occupant.jid);
       }
       if (keysMap.size === 0) {
-        throw new Error("No occupants have available OMEMO devices");
+        const connectedOccupants = [...roomState.occupants.values()].filter((occupant) => occupant.jid !== this.ctx.jid);
+        if (connectedOccupants.length === 0) {
+          throw new Error("No other group members are currently connected. Ask a member to open the app and join before sending an OMEMO message.");
+        }
+        throw new Error("None of the connected group members advertises an OMEMO device. Ask a member to connect with OMEMO enabled before sending securely.");
       }
       const keysElements = [];
       for (const [jid2, keys] of keysMap.entries()) {
@@ -94181,21 +94247,21 @@ ${nested}
         ),
         xml("payload", {}, payload)
       );
-      const children = [encryptedEl];
+      const children2 = [encryptedEl];
       if (replaceId) {
-        children.push(xml("replace", { xmlns: "urn:xmpp:message-correct:0", id: replaceId }));
+        children2.push(xml("replace", { xmlns: "urn:xmpp:message-correct:0", id: replaceId }));
       }
       if (reply) {
         const replyAttrs = { xmlns: "urn:xmpp:reply:0", id: reply.id };
         if (reply.to) {
           replyAttrs.to = reply.to;
         }
-        children.push(xml("reply", replyAttrs));
+        children2.push(xml("reply", replyAttrs));
       }
       if (thread) {
-        children.push(xml("thread", {}, thread));
+        children2.push(xml("thread", {}, thread));
       }
-      const stanza = buildGroupchatMessage(roomName, roomState.localNick, children, id2);
+      const stanza = buildGroupchatMessage(roomName, roomState.localNick, children2, id2);
       const bytes = new TextEncoder().encode(stanza.toString());
       await this.ctx.getPubSubService().publish(`${roomState.topic}/messages`, bytes);
       await this.ctx.getPubSubService().publish(roomState.topic, bytes);
@@ -94390,7 +94456,7 @@ ${nested}
         }
         const nick = roomAndNick.nick;
         const roomJid = buildRoomJid(roomName);
-        const mucUserEl = element.children.find((child) => child?.name === "x" && child?.attrs?.xmlns === MUC_USER_XMLNS);
+        const mucUserEl = element.children.find((child2) => child2?.name === "x" && child2?.attrs?.xmlns === MUC_USER_XMLNS);
         const mucItemEl = mucUserEl?.getChild("item");
         const occupantJid = fromJid;
         const peerJid = `${fromPeerId}@p2p`;
@@ -94448,7 +94514,7 @@ ${nested}
         const slashIdx = fromVal.lastIndexOf("/");
         const senderNick = slashIdx !== -1 ? fromVal.slice(slashIdx + 1) : fromPeerId;
         const roomJid = buildRoomJid(roomName);
-        const chatStateEl = ["active", "composing", "paused", "inactive", "gone"].map((s3) => element.getChild(s3)).find((child) => child?.attrs?.xmlns === "http://jabber.org/protocol/chatstates");
+        const chatStateEl = ["active", "composing", "paused", "inactive", "gone"].map((s3) => element.getChild(s3)).find((child2) => child2?.attrs?.xmlns === "http://jabber.org/protocol/chatstates");
         if (chatStateEl) {
           this.ctx.emit("muc:chatstate", {
             room: roomName,
@@ -94460,7 +94526,7 @@ ${nested}
             chatState: chatStateEl.name
           });
         }
-        const markerEl = ["received", "displayed"].map((s3) => element.getChild(s3)).find((child) => child?.attrs?.xmlns === "urn:xmpp:chat-markers:0");
+        const markerEl = ["received", "displayed"].map((s3) => element.getChild(s3)).find((child2) => child2?.attrs?.xmlns === "urn:xmpp:chat-markers:0");
         if (markerEl) {
           this.ctx.emit("muc:marker", {
             room: roomName,
@@ -94479,14 +94545,14 @@ ${nested}
             const payloadEl = omemoEl.getChild("payload");
             const sid = Number(headerEl?.attrs.sid ?? 0);
             const ivEl = headerEl?.getChild("iv");
-            const keysEl = (headerEl?.children ?? []).filter((child) => child?.name === "keys");
+            const keysEl = (headerEl?.children ?? []).filter((child2) => child2?.name === "keys");
             const payload = payloadEl?.text().trim();
             const iv = ivEl?.text().trim();
             const rid = this.ctx.getOmemoDeviceIdOrThrow();
             const ourKeysEl = keysEl.find((k2) => k2.attrs.jid === this.ctx.jid);
-            const keyEl = ourKeysEl ? (ourKeysEl.children ?? []).find((child) => Number(child.attrs.rid ?? 0) === rid) : void 0;
+            const keyEl = ourKeysEl ? (ourKeysEl.children ?? []).find((child2) => Number(child2.attrs.rid ?? 0) === rid) : void 0;
             if (headerEl && payload && iv && keyEl && Number.isFinite(sid) && sid > 0) {
-              const omemo = await loadOmemoModule();
+              const omemo = await this.ctx.loadOmemoModule();
               const senderJid = `${fromPeerId}@p2p`;
               const remoteAddress = new omemo.OMEMOAddress(senderJid, sid);
               const encryptedKey = keyEl.text().trim();
@@ -94575,6 +94641,7 @@ ${nested}
   var OPENPGP_PUBSUB_XMLNS2 = "urn:xmpp:openpgp:pubsub:0";
   var XmppNode = class extends EventEmitter2 {
     httpUploadAvailable;
+    omemoModuleLoader;
     libp2p;
     streams = /* @__PURE__ */ new Map();
     peerAddrs = /* @__PURE__ */ new Map();
@@ -94636,16 +94703,17 @@ ${nested}
         this.rejectReady = reject;
       });
       this.libp2p = libp2p;
+      this.omemoModuleLoader = options.omemoModuleLoader ?? loadOmemoModule;
       this.httpUploadAvailable = options.httpUploadServer !== false;
       this.jid = `${this.libp2p.peerId.toString()}@p2p`;
       this.storage = storage2;
       this.uploadHost = (typeof process !== "undefined" ? "127.0.0.1" : void 0) ?? "127.0.0.1";
       this.uploadPort = Number.parseInt((typeof process !== "undefined" ? "0" : void 0) ?? "0", 10) || 0;
-      this.omemoStateManager = new XmppOmemoStateManager(storage2, options.omemoModuleLoader);
+      this.omemoStateManager = new XmppOmemoStateManager(storage2, this.omemoModuleLoader);
       this.openPgpStateManager = new XmppOpenPgpStateManager(storage2, this.jid);
       this.muc = new XmppMucManager(this.getMucContext());
       this.uploads = new XmppUploadManager(this);
-      this.clientBridge = new XmppClientBridge();
+      this.clientBridge = new XmppClientBridge(options.allowNativeXmppTcp);
       this.forwardClientBridgeEvents();
       this.chat = new XmppChatManager({
         libp2p: this.libp2p,
@@ -94844,6 +94912,7 @@ ${nested}
       return {
         jid: this.jid,
         ready: this.ready,
+        loadOmemoModule: this.omemoModuleLoader,
         getOrCreateStream: this.getOrCreateStream.bind(this),
         sendIqRequest: this.sendIqRequest.bind(this),
         emitMessage: (message4) => {
@@ -94869,6 +94938,7 @@ ${nested}
     getMucContext() {
       return {
         jid: this.jid,
+        loadOmemoModule: this.omemoModuleLoader,
         libp2p: this.libp2p,
         storage: this.storage,
         ready: this.ready,
@@ -95001,14 +95071,23 @@ ${nested}
     }
     getLocalPeerAddresses() {
       const peerId = this.libp2p.peerId.toString();
-      return this.libp2p.getMultiaddrs().map((address) => {
-        const value2 = address.toString();
-        if (value2.includes("/p2p-circuit")) {
-          const relayAddress = value2.split("/p2p-circuit")[0];
-          return `${relayAddress}/p2p-circuit/webrtc/p2p/${peerId}`;
+      const candidates = this.libp2p.getMultiaddrs().flatMap((address) => {
+        const value3 = address.toString();
+        const host = address.getComponents().find(({ name: name5 }) => name5 === "ip4" || name5 === "ip6")?.value?.toLowerCase();
+        if (host === "::" || host === "::1" || host === "0:0:0:0:0:0:0:0" || host === "0:0:0:0:0:0:0:1" || host === "0.0.0.0" || host?.startsWith("0.") || host?.startsWith("127.")) return [];
+        if (address.getComponents().some(({ name: name5, value: value4 }) => name5.startsWith("dns") && typeof value4 === "string" && (value4 === "localhost" || value4.endsWith(".localhost")))) return [];
+        if (isPrivate(address)) return [];
+        if (value3.includes("/p2p-circuit")) {
+          const relayAddress = value3.split("/p2p-circuit")[0];
+          return [{ value: `${relayAddress}/p2p-circuit/webrtc/p2p/${peerId}`, relay: true }];
         }
-        return value2.includes(`/p2p/${peerId}`) ? value2 : `${value2}/p2p/${peerId}`;
+        return [{
+          value: value3.includes(`/p2p/${peerId}`) ? value3 : `${value3}/p2p/${peerId}`,
+          relay: false
+        }];
       });
+      candidates.sort((a2, b2) => Number(b2.relay) - Number(a2.relay));
+      return [...new Set(candidates.map(({ value: value3 }) => value3))];
     }
     subscriptionToFlags(subscription) {
       return subscriptionToFlags(subscription);
@@ -95169,7 +95248,7 @@ ${nested}
             if (!itemsEl || itemsEl.attrs.node !== topic) {
               return;
             }
-            const itemEl = itemsEl.children.find((child) => child?.name === "item");
+            const itemEl = itemsEl.children.find((child2) => child2?.name === "item");
             if (!itemEl?.attrs.id) {
               return;
             }
@@ -95181,7 +95260,7 @@ ${nested}
                 return;
               }
               if (reactionsEl && reactionsEl.attrs.xmlns === ATTACHMENT_XMLNS && itemEl.attrs.targetId) {
-                const reactionEl = reactionsEl.children.find((child) => child?.name === "reaction");
+                const reactionEl = reactionsEl.children.find((child2) => child2?.name === "reaction");
                 if (reactionEl || reactionsEl.text()) {
                   valid = true;
                   return;
@@ -95334,14 +95413,14 @@ ${nested}
       );
     }
     parseFollowersQuery(query) {
-      return query.children.filter((child) => child?.name === "item").map((child) => this.normalizeFollower({
-        feedPeerId: child.attrs.feedPeerId,
-        followerPeerId: child.attrs.followerPeerId,
-        followerJid: child.attrs.followerJid,
-        feedTopic: this.feedTopicForPeer(child.attrs.feedPeerId),
-        visibility: child.attrs.visibility === "public" ? "public" : "private",
-        subscribedAt: child.attrs.subscribedAt,
-        updatedAt: child.attrs.updatedAt
+      return query.children.filter((child2) => child2?.name === "item").map((child2) => this.normalizeFollower({
+        feedPeerId: child2.attrs.feedPeerId,
+        followerPeerId: child2.attrs.followerPeerId,
+        followerJid: child2.attrs.followerJid,
+        feedTopic: this.feedTopicForPeer(child2.attrs.feedPeerId),
+        visibility: child2.attrs.visibility === "public" ? "public" : "private",
+        subscribedAt: child2.attrs.subscribedAt,
+        updatedAt: child2.attrs.updatedAt
       }));
     }
     setPeerClientState(peerId, state) {
@@ -95683,11 +95762,11 @@ ${nested}
       const peerId = this.parsePeerReference(peerAddr).peerId;
       const toJid = this.jidFromPeerId(peerId);
       const id2 = options.originId || Math.random().toString(36).substring(2, 15);
-      const children = [];
+      const children2 = [];
       if (body) {
-        children.push(xml("body", {}, body));
+        children2.push(xml("body", {}, body));
       }
-      children.push(...buildXepElements({
+      children2.push(...buildXepElements({
         ...options,
         nick: this.selfPresence.nickname,
         delay: options.delay ? {
@@ -95707,7 +95786,7 @@ ${nested}
           type: "chat",
           id: id2
         },
-        ...children
+        ...children2
       );
       await this.sendOrBufferStanza(peerId, msg, peerAddr);
       void this.recordChatMessage({
@@ -95767,27 +95846,81 @@ ${nested}
     async discoverServerMucRooms() {
       return this.clientBridge.discoverMucRooms();
     }
-    getServerMicroblogContactJid(jid2, requireRosterEntry = true) {
+    getServerMicroblogContactJid(jid2) {
       if (!this.clientBridge.isConnected) throw new Error("Connect your XMPP account before managing microblogs.");
       const bareJid = jid2.trim().split("/")[0].toLowerCase();
       if (!bareJid.includes("@") || bareJid.endsWith("@p2p")) {
-        throw new Error("Choose a contact from your XMPP server roster.");
+        throw new Error("Choose a valid XMPP account JID.");
       }
       if (bareJid === this.clientBridge.accountJid?.toLowerCase().split("/")[0]) {
         throw new Error("Choose another account to follow its microblog.");
       }
-      if (requireRosterEntry && !this.rosterManager.getRosterEntry(bareJid)) {
-        throw new Error("Add this XMPP contact to your roster before following its microblog.");
-      }
       return bareJid;
+    }
+    serverMicroblogSubscriptionKey(jid2) {
+      const accountJid = this.clientBridge.accountJid?.toLowerCase().split("/")[0];
+      if (!accountJid) throw new Error("Your XMPP account JID is unavailable.");
+      return `${encodeURIComponent(accountJid)}::${encodeURIComponent(jid2.toLowerCase())}`;
     }
     async subscribeServerMicroblog(jid2) {
       const contactJid = this.getServerMicroblogContactJid(jid2);
-      return this.clientBridge.pubsubSubscribe(contactJid, "urn:xmpp:microblog:0");
+      const status = await this.clientBridge.pubsubSubscribe(contactJid, "urn:xmpp:microblog:0");
+      if (status !== "unconfigured") {
+        const updatedAt = (/* @__PURE__ */ new Date()).toISOString();
+        try {
+          await this.storage.putRecord("server_microblog_subscriptions", this.serverMicroblogSubscriptionKey(contactJid), JSON.stringify({
+            accountJid: this.clientBridge.accountJid?.toLowerCase().split("/")[0],
+            jid: contactJid,
+            node: "urn:xmpp:microblog:0",
+            status,
+            updatedAt
+          }), updatedAt);
+        } catch (error) {
+          try {
+            await this.clientBridge.pubsubUnsubscribe(contactJid, "urn:xmpp:microblog:0");
+          } catch {
+          }
+          throw error;
+        }
+      }
+      return status;
     }
     async unsubscribeServerMicroblog(jid2) {
-      const contactJid = this.getServerMicroblogContactJid(jid2, false);
-      await this.clientBridge.pubsubUnsubscribe(contactJid, "urn:xmpp:microblog:0");
+      const contactJid = this.getServerMicroblogContactJid(jid2);
+      const key = this.serverMicroblogSubscriptionKey(contactJid);
+      const raw = await this.storage.getRecord("server_microblog_subscriptions", key);
+      let status;
+      try {
+        status = raw ? JSON.parse(raw).status : void 0;
+      } catch {
+        status = void 0;
+      }
+      if (status !== "polling") await this.clientBridge.pubsubUnsubscribe(contactJid, "urn:xmpp:microblog:0");
+      await this.storage.deleteRecord("server_microblog_subscriptions", key);
+    }
+    async getServerMicroblogSubscriptions() {
+      await this.ready;
+      const accountJid = this.clientBridge.accountJid?.toLowerCase().split("/")[0];
+      if (!accountJid) return [];
+      const records = await this.storage.listRecords("server_microblog_subscriptions");
+      return records.flatMap(({ key, value: value3, updatedAt }) => {
+        try {
+          const parsed = JSON.parse(value3);
+          if (typeof parsed.accountJid !== "string" || parsed.accountJid.toLowerCase() !== accountJid) return [];
+          if (typeof parsed.jid !== "string" || !parsed.jid.includes("@")) return [];
+          const status = parsed.status;
+          if (status !== "subscribed" && status !== "pending" && status !== "polling") return [];
+          const subscriptionStatus = status;
+          return [{
+            jid: parsed.jid || key,
+            node: typeof parsed.node === "string" ? parsed.node : "urn:xmpp:microblog:0",
+            status: subscriptionStatus,
+            updatedAt: typeof parsed.updatedAt === "string" ? parsed.updatedAt : updatedAt
+          }];
+        } catch {
+          return [];
+        }
+      }).sort((a2, b2) => a2.jid.localeCompare(b2.jid));
     }
     async refreshServerMicroblog(jid2) {
       const contactJid = this.getServerMicroblogContactJid(jid2);
@@ -96102,8 +96235,8 @@ ${nested}
     async publishCollection(id2, body, options = {}) {
       return await this.collectionManager.publishCollection(id2, body, options);
     }
-    async notice(topic, targetId, value2) {
-      return await this.collectionManager.publishAttachment(topic, targetId, "noticed", value2);
+    async notice(topic, targetId, value3) {
+      return await this.collectionManager.publishAttachment(topic, targetId, "noticed", value3);
     }
     async react(topic, targetId, reaction) {
       return await this.collectionManager.publishAttachment(topic, targetId, "reaction", reaction);
@@ -96387,11 +96520,425 @@ ${nested}
 
   // src/bridge/browser-runtime.ts
   init_globals();
+
+  // src/core/rss-feeds.ts
+  init_globals();
+  init_xml();
+  var SOURCE_NS = "rss-feed-sources";
+  var ITEM_NS = "rss-feed-items";
+  var MAX_RESPONSE_BYTES = 1e6;
+  var MAX_ENTRIES_PER_FEED = 30;
+  var MAX_SOURCES_PER_ACCOUNT = 100;
+  var MAX_STORED_ITEMS_PER_ACCOUNT = 1e3;
+  var FETCH_TIMEOUT_MS = 12e3;
+  function safeUrl(value3, base5) {
+    let url;
+    try {
+      url = new URL(value3.trim(), base5);
+    } catch {
+      throw new Error("Enter a valid website or feed URL.");
+    }
+    if (url.protocol !== "https:" && url.protocol !== "http:") throw new Error("Feeds must use an http or https URL.");
+    if (url.username || url.password) throw new Error("Feed URLs cannot include a username or password.");
+    const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+    if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local") || host.endsWith(".internal") || /^0\./.test(host) || /^127\./.test(host) || /^10\./.test(host) || /^192\.168\./.test(host) || /^169\.254\./.test(host) || /^172\.(1[6-9]|2\d|3[01])\./.test(host) || /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(host) || /^198\.(18|19)\./.test(host) || host === "::" || host === "::1" || /^f[cd][0-9a-f]{2}:/i.test(host) || /^fe80:/i.test(host) || /^ff/i.test(host)) {
+      throw new Error("Local network URLs cannot be used as feeds.");
+    }
+    url.hash = "";
+    return url.toString();
+  }
+  function child(el2, name5) {
+    return el2?.getChildren?.().find((item) => item?.getName?.().toLowerCase() === name5.toLowerCase());
+  }
+  function children(el2, name5) {
+    return (el2?.getChildren?.() ?? []).filter((item) => item?.getName?.().toLowerCase() === name5.toLowerCase());
+  }
+  function value2(el2, name5) {
+    const text = child(el2, name5)?.getText?.();
+    return typeof text === "string" && text.trim() ? text.trim() : void 0;
+  }
+  function plainText(input) {
+    if (!input) return "";
+    return input.replace(/<[^>]*>/g, " ").replace(/&nbsp;/gi, " ").replace(/&#160;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/\s+/g, " ").trim().slice(0, 2e4);
+  }
+  function parseFeed(xmlText) {
+    if (/<!DOCTYPE|<!ENTITY/i.test(xmlText)) throw new Error("This feed uses unsupported XML declarations.");
+    let root2;
+    let parseError;
+    let closed = false;
+    const parser2 = new Parser_default();
+    parser2.on("start", (el2) => {
+      root2 = el2;
+    });
+    parser2.on("end", () => {
+      closed = true;
+    });
+    parser2.on("error", (error) => {
+      parseError = error;
+    });
+    parser2.write(xmlText);
+    if (parseError || !closed) return void 0;
+    const rootName = root2?.getName?.().toLowerCase();
+    const isAtom = rootName === "feed";
+    const rssChannel = rootName === "rss" ? child(root2, "channel") : rootName === "rdf" ? child(root2, "channel") : void 0;
+    if (!isAtom && !rssChannel) return void 0;
+    const container = isAtom ? root2 : rssChannel;
+    const title = plainText(value2(container, "title")) || (isAtom ? "Atom feed" : "RSS feed");
+    const siteLink = isAtom ? children(container, "link").find((link) => !link.attrs?.rel || link.attrs.rel === "alternate")?.attrs?.href : value2(container, "link");
+    const rawEntries = children(rootName === "rdf" ? root2 : container, isAtom ? "entry" : "item").slice(0, MAX_ENTRIES_PER_FEED);
+    const entries = rawEntries.map((entry) => {
+      const links = children(entry, "link");
+      const href = isAtom ? links.find((link) => !link.attrs?.rel || link.attrs.rel === "alternate")?.attrs?.href : value2(entry, "link");
+      const date = value2(entry, isAtom ? "published" : "pubDate") || value2(entry, "updated") || value2(entry, "date");
+      const content = value2(entry, "encoded") || value2(entry, "content") || value2(entry, "description") || value2(entry, "summary") || "";
+      const categories = children(entry, "category").map(
+        (category) => String(category.attrs?.term ?? category.attrs?.label ?? category.getText?.() ?? "").trim().replace(/^#/, "")
+      ).filter(Boolean).slice(0, 20);
+      const authorEl = child(entry, "author");
+      const author = value2(authorEl, "name") || value2(entry, "creator") || (typeof authorEl?.getText?.() === "string" ? authorEl.getText().trim() : void 0);
+      const id2 = value2(entry, isAtom ? "id" : "guid") || href || `${title}:${date ?? ""}:${value2(entry, "title") ?? ""}`;
+      const entryTitle = plainText(value2(entry, "title")) || "Untitled entry";
+      const summary = plainText(content);
+      const hashtags = `${entryTitle} ${summary}`.match(/#([\p{L}\p{N}_-]{2,64})/gu)?.map((tag) => tag.slice(1)) ?? [];
+      return {
+        id: id2,
+        title: entryTitle,
+        summary,
+        publishedAt: date && Number.isFinite(Date.parse(date)) ? new Date(date).toISOString() : void 0,
+        url: href,
+        author: plainText(author),
+        categories: [...new Map([...categories, ...hashtags].map((tag) => [tag.toLowerCase(), tag])).values()].slice(0, 20)
+      };
+    });
+    return { title, siteUrl: siteLink, format: isAtom ? "atom" : "rss", entries };
+  }
+  function htmlFeedLinks(html, pageUrl) {
+    const found = /* @__PURE__ */ new Set();
+    for (const match of html.matchAll(/<link\b[^>]*>/gi)) {
+      const attrs = {};
+      for (const attr of match[0].matchAll(/([\w:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/g)) {
+        attrs[attr[1].toLowerCase()] = attr[2] ?? attr[3] ?? attr[4] ?? "";
+      }
+      const rels = (attrs.rel ?? "").toLowerCase().split(/\s+/);
+      const type2 = (attrs.type ?? "").toLowerCase();
+      if (rels.includes("alternate") && (type2.includes("rss+xml") || type2.includes("atom+xml")) && attrs.href) {
+        try {
+          found.add(safeUrl(attrs.href, pageUrl));
+        } catch {
+        }
+      }
+    }
+    return [...found].slice(0, 10);
+  }
+  function toFeedPost(source, entry, receivedAt = (/* @__PURE__ */ new Date()).toISOString()) {
+    const escapedId = encodeURIComponent(entry.id).slice(0, 180);
+    const itemId = `rss:${source.id}:${escapedId}`;
+    return {
+      id: itemId,
+      atomId: entry.id,
+      topic: `rss:${source.id}`,
+      from: source.url,
+      body: entry.summary || entry.title,
+      title: entry.title,
+      summary: entry.summary,
+      author: entry.author || source.title,
+      categories: entry.categories,
+      links: safeOptionalUrl(entry.url, source.url) ? [{ rel: "alternate", href: safeOptionalUrl(entry.url, source.url), title: "Open original entry" }] : [],
+      publishedAt: entry.publishedAt ?? receivedAt,
+      updatedAt: receivedAt,
+      receivedAt,
+      sourceProtocol: "rss",
+      sourceName: source.title,
+      sourceUrl: source.url
+    };
+  }
+  var RssFeedManager = class {
+    constructor(storage2, accountId, fetcher = (url, init) => fetch(url, init)) {
+      this.storage = storage2;
+      this.sourceKey = accountId.toLowerCase();
+      this.itemKey = `${this.sourceKey}:`;
+      this.fetcher = fetcher;
+    }
+    storage;
+    sourceKey;
+    itemKey;
+    fetcher;
+    listeners = /* @__PURE__ */ new Set();
+    inFlight = /* @__PURE__ */ new Map();
+    onPost(listener2) {
+      this.listeners.add(listener2);
+      return () => this.listeners.delete(listener2);
+    }
+    async listSources() {
+      const rows = await this.storage.listRecords(SOURCE_NS);
+      return rows.flatMap((row) => {
+        if (!row.key.startsWith(`${this.sourceKey}:`)) return [];
+        try {
+          return [JSON.parse(row.value)];
+        } catch {
+          return [];
+        }
+      }).sort((a2, b2) => a2.title.localeCompare(b2.title));
+    }
+    async listPosts() {
+      const rows = await this.storage.listRecords(ITEM_NS);
+      return rows.flatMap((row) => {
+        if (!row.key.startsWith(this.itemKey)) return [];
+        try {
+          return [JSON.parse(row.value)];
+        } catch {
+          return [];
+        }
+      }).sort((a2, b2) => b2.publishedAt.localeCompare(a2.publishedAt));
+    }
+    async discover(inputUrl) {
+      const url = safeUrl(inputUrl);
+      const response2 = await this.request(url);
+      const direct = parseFeed(response2.text);
+      if (direct) return [this.preview(response2.url, direct)];
+      const links = htmlFeedLinks(response2.text, response2.url);
+      const previews = [];
+      for (const feedUrl of links) {
+        try {
+          const feedResponse = await this.request(feedUrl);
+          const feed = parseFeed(feedResponse.text);
+          if (feed) previews.push(this.preview(feedResponse.url, feed));
+        } catch {
+        }
+      }
+      if (previews.length) return previews;
+      throw new Error("No RSS or Atom feed was found at that URL. Try a direct feed URL or a website that advertises one.");
+    }
+    async subscribe(inputUrl) {
+      const url = safeUrl(inputUrl);
+      const response2 = await this.request(url);
+      const feed = parseFeed(response2.text);
+      if (!feed) throw new Error("That URL does not return a valid RSS or Atom feed.");
+      const id2 = await this.idForUrl(response2.url);
+      const now = (/* @__PURE__ */ new Date()).toISOString();
+      const source = {
+        id: id2,
+        url: response2.url,
+        title: feed.title,
+        siteUrl: safeOptionalUrl(feed.siteUrl, response2.url),
+        format: feed.format,
+        status: "active",
+        lastFetchedAt: now,
+        updatedAt: now,
+        etag: response2.headers.get("etag") ?? void 0,
+        lastModified: response2.headers.get("last-modified") ?? void 0
+      };
+      const existing = (await this.listSources()).find((item) => item.id === id2);
+      if (existing) return existing;
+      if ((await this.listSources()).length >= MAX_SOURCES_PER_ACCOUNT) throw new Error(`You can follow up to ${MAX_SOURCES_PER_ACCOUNT} RSS/Atom feeds.`);
+      await this.saveSource(source);
+      await this.saveEntries(source, feed.entries);
+      return source;
+    }
+    async refresh(id2) {
+      const pending = this.inFlight.get(id2);
+      if (pending) return pending;
+      const task = this.doRefresh(id2).finally(() => this.inFlight.delete(id2));
+      this.inFlight.set(id2, task);
+      return task;
+    }
+    async setPaused(id2, paused) {
+      const source = await this.findSource(id2);
+      if (!source) throw new Error("Feed source was removed.");
+      source.status = paused ? "paused" : "active";
+      source.lastError = void 0;
+      source.retryAt = void 0;
+      source.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
+      await this.saveSource(source);
+    }
+    async remove(id2, keepEntries) {
+      await this.storage.deleteRecord(SOURCE_NS, `${this.sourceKey}:${id2}`);
+      if (!keepEntries) {
+        for (const row of await this.storage.listRecords(ITEM_NS)) {
+          if (row.key.startsWith(`${this.itemKey}${id2}:`)) await this.storage.deleteRecord(ITEM_NS, row.key);
+        }
+      }
+    }
+    async doRefresh(id2) {
+      const source = await this.findSource(id2);
+      if (!source) throw new Error("Feed source was removed.");
+      if (source.status === "paused") throw new Error("This feed is paused. Resume it to refresh.");
+      try {
+        const response2 = await this.request(source.url, {
+          ...source.etag ? { "If-None-Match": source.etag } : {},
+          ...source.lastModified ? { "If-Modified-Since": source.lastModified } : {}
+        });
+        const now = (/* @__PURE__ */ new Date()).toISOString();
+        if (response2.status === 304) {
+          source.status = "active";
+          source.lastFetchedAt = now;
+          source.lastError = void 0;
+          source.retryAt = void 0;
+          source.failureCount = 0;
+          source.updatedAt = now;
+          await this.saveSource(source);
+          return 0;
+        }
+        const feed = parseFeed(response2.text);
+        if (!feed) throw new Error("The source no longer returns a valid RSS or Atom feed.");
+        source.title = feed.title;
+        source.siteUrl = safeOptionalUrl(feed.siteUrl, source.url);
+        source.format = feed.format;
+        source.status = "active";
+        source.lastFetchedAt = now;
+        source.lastError = void 0;
+        source.retryAt = void 0;
+        source.failureCount = 0;
+        source.etag = response2.headers.get("etag") ?? source.etag;
+        source.lastModified = response2.headers.get("last-modified") ?? source.lastModified;
+        source.updatedAt = now;
+        await this.saveSource(source);
+        return this.saveEntries(source, feed.entries);
+      } catch (error) {
+        source.status = "error";
+        source.lastError = error instanceof Error ? error.message : "Feed refresh failed.";
+        source.failureCount = (source.failureCount ?? 0) + 1;
+        source.retryAt = new Date(Date.now() + Math.min(6 * 60 * 6e4, 15 * 6e4 * 2 ** Math.min(source.failureCount - 1, 5))).toISOString();
+        source.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
+        await this.saveSource(source);
+        throw error;
+      }
+    }
+    async saveEntries(source, entries) {
+      const existing = new Set((await this.storage.listRecords(ITEM_NS)).map((row) => row.key));
+      let added = 0;
+      for (const entry of entries) {
+        const post = toFeedPost(source, entry);
+        const key = `${this.itemKey}${source.id}:${encodeURIComponent(entry.id).slice(0, 180)}`;
+        const isNew = !existing.has(key);
+        await this.storage.putRecord(ITEM_NS, key, JSON.stringify(post), post.updatedAt);
+        if (isNew) {
+          added += 1;
+          for (const listener2 of this.listeners) {
+            try {
+              listener2(post);
+            } catch {
+            }
+          }
+        }
+      }
+      const accountItems = (await this.storage.listRecords(ITEM_NS)).filter((row) => row.key.startsWith(this.itemKey));
+      if (accountItems.length > MAX_STORED_ITEMS_PER_ACCOUNT) {
+        const oldest = accountItems.flatMap((row) => {
+          try {
+            const post = JSON.parse(row.value);
+            return [{ key: row.key, publishedAt: post.publishedAt }];
+          } catch {
+            return [{ key: row.key, publishedAt: "" }];
+          }
+        }).sort((a2, b2) => a2.publishedAt.localeCompare(b2.publishedAt));
+        for (const item of oldest.slice(0, accountItems.length - MAX_STORED_ITEMS_PER_ACCOUNT)) {
+          await this.storage.deleteRecord(ITEM_NS, item.key);
+        }
+      }
+      return added;
+    }
+    async request(url, headers = {}) {
+      const safe = safeUrl(url);
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+      try {
+        let target = safe;
+        let response2;
+        for (let redirects = 0; redirects <= 5; redirects += 1) {
+          response2 = await this.fetcher(target, { headers, signal: controller.signal, redirect: "manual", credentials: "omit" });
+          if (response2.type === "opaqueredirect") throw new Error("This feed redirects. Enter the final feed URL directly in browser builds.");
+          if (response2.status < 300 || response2.status >= 400) break;
+          const location = response2.headers.get("location");
+          if (!location) throw new Error("This feed redirects. Enter the final feed URL directly in browser builds.");
+          if (redirects === 5) throw new Error("This feed redirected too many times.");
+          target = safeUrl(location, target);
+        }
+        if (!response2) throw new Error("Could not fetch this feed.");
+        const finalUrl = safeUrl(response2.url || target);
+        if (!response2.ok && response2.status !== 304) throw new Error(`Feed server returned HTTP ${response2.status}.`);
+        const text = response2.status === 304 ? "" : await readLimitedResponse(response2, MAX_RESPONSE_BYTES);
+        return { status: response2.status, headers: response2.headers, text, url: finalUrl };
+      } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") throw new Error("Feed request timed out.");
+        throw error;
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+    preview(url, feed) {
+      return {
+        url,
+        title: feed.title,
+        siteUrl: safeOptionalUrl(feed.siteUrl, url),
+        format: feed.format,
+        entries: feed.entries.slice(0, 3).map((entry) => ({ title: entry.title, summary: entry.summary.slice(0, 500), publishedAt: entry.publishedAt, url: safeOptionalUrl(entry.url, url) }))
+      };
+    }
+    async findSource(id2) {
+      const raw = await this.storage.getRecord(SOURCE_NS, `${this.sourceKey}:${id2}`);
+      if (!raw) return void 0;
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return void 0;
+      }
+    }
+    async saveSource(source) {
+      await this.storage.putRecord(SOURCE_NS, `${this.sourceKey}:${source.id}`, JSON.stringify(source), source.updatedAt);
+    }
+    async idForUrl(url) {
+      const digest4 = await globalThis.crypto.subtle.digest("SHA-256", new TextEncoder().encode(url));
+      return [...new Uint8Array(digest4)].slice(0, 16).map((byte) => byte.toString(16).padStart(2, "0")).join("");
+    }
+  };
+  async function readLimitedResponse(response2, limit) {
+    if (!response2.body) {
+      const text = await response2.text();
+      if (new TextEncoder().encode(text).byteLength > limit) throw new Error("Feed response exceeds the 1 MB size limit.");
+      return text;
+    }
+    const reader2 = response2.body.getReader();
+    const chunks = [];
+    let total = 0;
+    try {
+      while (true) {
+        const { done, value: chunk } = await reader2.read();
+        if (done) break;
+        total += chunk.byteLength;
+        if (total > limit) {
+          await reader2.cancel();
+          throw new Error("Feed response exceeds the 1 MB size limit.");
+        }
+        chunks.push(chunk);
+      }
+    } finally {
+      reader2.releaseLock();
+    }
+    const bytes = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    return new TextDecoder().decode(bytes);
+  }
+  function safeOptionalUrl(value3, base5) {
+    if (!value3) return void 0;
+    try {
+      return safeUrl(value3, base5);
+    } catch {
+      return void 0;
+    }
+  }
+
+  // src/bridge/browser-runtime.ts
   var BrowserXmppRuntimeBridge = class {
     constructor(xmppNode, stopNetwork = async () => {
-    }) {
+    }, rssFeedFetcher) {
       this.xmppNode = xmppNode;
       this.stopNetwork = stopNetwork;
+      this.rssFeeds = new RssFeedManager(xmppNode.storage, xmppNode.jid, rssFeedFetcher);
       this.hookEvents();
     }
     xmppNode;
@@ -96414,6 +96961,7 @@ ${nested}
     mucChatStateListeners = /* @__PURE__ */ new Set();
     mucMarkerListeners = /* @__PURE__ */ new Set();
     activeConnections = /* @__PURE__ */ new Set();
+    rssFeeds;
     hookEvents() {
       this.xmppNode.on("upload:available", (cid) => {
         if (typeof window !== "undefined") {
@@ -96601,7 +97149,11 @@ ${nested}
     }
     onFeedPost(cb) {
       this.feedPostListeners.add(cb);
-      return () => this.feedPostListeners.delete(cb);
+      const removeRssListener = this.rssFeeds.onPost((post) => cb(post));
+      return () => {
+        this.feedPostListeners.delete(cb);
+        removeRssListener();
+      };
     }
     onCollectionPost(cb) {
       this.collectionPostListeners.add(cb);
@@ -96683,6 +97235,10 @@ ${nested}
       await this.xmppNode.ready;
       return this.xmppNode.subscribeServerMicroblog(jid2);
     }
+    async getServerMicroblogSubscriptions() {
+      await this.xmppNode.ready;
+      return this.xmppNode.getServerMicroblogSubscriptions();
+    }
     async unsubscribeServerMicroblog(jid2) {
       await this.xmppNode.ready;
       return this.xmppNode.unsubscribeServerMicroblog(jid2);
@@ -96695,8 +97251,9 @@ ${nested}
       await this.xmppNode.ready;
       return this.xmppNode.publishServerMicroblog(body, options);
     }
-    getFeedPosts() {
-      return this.xmppNode.getFeedPosts();
+    async getFeedPosts() {
+      const [xmppPosts, rssPosts] = await Promise.all([this.xmppNode.getFeedPosts(), this.rssFeeds.listPosts()]);
+      return [...xmppPosts, ...rssPosts].sort((a2, b2) => b2.publishedAt.localeCompare(a2.publishedAt));
     }
     publishFeed(body, options) {
       return this.xmppNode.publishFeed(body, options);
@@ -96712,6 +97269,67 @@ ${nested}
     }
     getFeedSubscriptions() {
       return this.xmppNode.getFeedSubscriptions();
+    }
+    async getFollowedFeedSources() {
+      const [p2p, xmpp] = await Promise.all([
+        this.xmppNode.getFeedSubscriptions(),
+        this.xmppNode.getServerMicroblogSubscriptions()
+      ]);
+      return [
+        ...p2p.map((subscription) => ({
+          id: `p2p:${subscription.peerId}`,
+          protocol: "p2p",
+          owner: subscription.peerId,
+          node: subscription.topic,
+          status: "subscribed",
+          updatedAt: subscription.updatedAt
+        })),
+        ...xmpp.map((subscription) => ({
+          id: `xmpp:${subscription.jid}:${subscription.node}`,
+          protocol: "xmpp",
+          owner: subscription.jid,
+          node: subscription.node,
+          status: subscription.status,
+          updatedAt: subscription.updatedAt
+        })),
+        ...(await this.rssFeeds.listSources()).map((source) => ({
+          id: `rss:${source.id}`,
+          protocol: "rss",
+          owner: source.url,
+          node: source.title,
+          status: source.status,
+          updatedAt: source.updatedAt
+        }))
+      ];
+    }
+    discoverRssFeeds(url) {
+      return this.rssFeeds.discover(url);
+    }
+    addRssFeed(url) {
+      return this.rssFeeds.subscribe(url);
+    }
+    getRssFeeds() {
+      return this.rssFeeds.listSources();
+    }
+    refreshRssFeed(id2) {
+      return this.rssFeeds.refresh(id2);
+    }
+    setRssFeedPaused(id2, paused) {
+      return this.rssFeeds.setPaused(id2, paused);
+    }
+    removeRssFeed(id2, keepEntries = true) {
+      return this.rssFeeds.remove(id2, keepEntries);
+    }
+    async followFeedSource(source) {
+      if (source.protocol === "p2p") {
+        await this.xmppNode.subscribeFeed(source.owner);
+        return "subscribed";
+      }
+      return this.xmppNode.subscribeServerMicroblog(source.owner);
+    }
+    async unfollowFeedSource(source) {
+      if (source.protocol === "p2p") return this.xmppNode.unsubscribeFeed(source.owner);
+      return this.xmppNode.unsubscribeServerMicroblog(source.owner);
     }
     getPublicFeedSubscriptions() {
       return this.xmppNode.getPublicFeedSubscriptions();
@@ -96743,8 +97361,8 @@ ${nested}
     react(topic, targetId, reaction) {
       return this.xmppNode.react(topic, targetId, reaction);
     }
-    notice(topic, targetId, value2) {
-      return this.xmppNode.notice(topic, targetId, value2);
+    notice(topic, targetId, value3) {
+      return this.xmppNode.notice(topic, targetId, value3);
     }
     getVCard() {
       return this.xmppNode.getVCard();
@@ -96904,8 +97522,8 @@ ${nested}
     // survive page reloads.
     async saveComponentConfig(domain, secret, host, port) {
       const key = `component-config:${domain}`;
-      const value2 = JSON.stringify({ domain, host, port, secret, createdAt: (/* @__PURE__ */ new Date()).toISOString(), updatedAt: (/* @__PURE__ */ new Date()).toISOString() });
-      await this.xmppNode.storage.putRecord("component-configs", key, value2, (/* @__PURE__ */ new Date()).toISOString());
+      const value3 = JSON.stringify({ domain, host, port, secret, createdAt: (/* @__PURE__ */ new Date()).toISOString(), updatedAt: (/* @__PURE__ */ new Date()).toISOString() });
+      await this.xmppNode.storage.putRecord("component-configs", key, value3, (/* @__PURE__ */ new Date()).toISOString());
     }
     async listSavedComponentConfigs() {
       try {
@@ -97109,9 +97727,9 @@ ${nested}
       return null;
     }
   }
-  function writeStorageMarker(key, value2) {
+  function writeStorageMarker(key, value3) {
     try {
-      if (typeof localStorage !== "undefined") localStorage.setItem(key, value2);
+      if (typeof localStorage !== "undefined") localStorage.setItem(key, value3);
     } catch {
     }
   }

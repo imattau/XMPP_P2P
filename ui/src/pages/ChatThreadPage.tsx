@@ -11,7 +11,7 @@ import { getPeerAddress } from '../lib/peer-addresses'
 import MediaViewer from '../components/MediaViewer'
 import { emitToast } from '../lib/toast-events'
 import {
-  ArrowLeft, Info, X, Send, Smile, Paperclip,
+  ArrowLeft, Info, X, Send, Smile, Paperclip, ChevronDown,
   Mic, Shield, Lock, BellOff, Bell, Trash2, LogOut, Users,
   Hash, Globe, EyeOff, UserMinus,
   CheckCheck, Check, FileText, MoreHorizontal,

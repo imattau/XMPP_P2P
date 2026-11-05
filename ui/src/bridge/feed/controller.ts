@@ -10,12 +10,22 @@ import { getActiveAccountStorageId, getAccountScopedStorageKey } from '../../lib
 
 type Listener = (state: FeedViewState) => void
 const BOOKMARKS_KEY = 'xmpp-p2p:feed-bookmarks'
+const FOLLOWED_TOPICS_KEY = 'nexus_followed_topics'
 const bookmarksStorageKey = () => getAccountScopedStorageKey(BOOKMARKS_KEY)
+const followedTopicsStorageKey = () => getAccountScopedStorageKey(FOLLOWED_TOPICS_KEY)
 
 function readBookmarkedIds(): string[] {
   try {
     const raw = localStorage.getItem(bookmarksStorageKey())
     return raw ? JSON.parse(raw) as string[] : []
+  } catch { return [] }
+}
+
+function readFollowedTopics(): string[] {
+  try {
+    const raw = localStorage.getItem(followedTopicsStorageKey())
+    const parsed = raw ? JSON.parse(raw) : []
+    return Array.isArray(parsed) ? parsed.filter((topic): topic is string => typeof topic === 'string') : []
   } catch { return [] }
 }
 
@@ -235,7 +245,7 @@ export class FeedBridgeController {
   }
 
   getFilteredPosts() {
-    let posts = filterFeedPosts(this.state.posts, this.state.activeFilter, this.state.searchQuery)
+    let posts = filterFeedPosts(this.state.posts, this.state.activeFilter, this.state.searchQuery, readFollowedTopics())
     posts = posts.filter(post => !post.replyTo)
     const sortBy = this.state.sortBy
     if (sortBy === 'popular') {
