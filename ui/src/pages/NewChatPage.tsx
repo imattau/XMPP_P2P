@@ -260,11 +260,13 @@ function GroupFlow() {
 }
 
 function MucFlow() {
+  const roomPageSize = 50
   const navigate = useNavigate()
   const [roomInput, setRoomInput] = useState('')
   const [joining, setJoining] = useState(false)
   const [discoveringRooms, setDiscoveringRooms] = useState(false)
   const [serverRooms, setServerRooms] = useState<Array<{ roomJid: string; name: string; serviceJid: string }>>([])
+  const [visibleServerRoomCount, setVisibleServerRoomCount] = useState(roomPageSize)
   const [browseMessage, setBrowseMessage] = useState('')
   const [error, setError] = useState('')
   const input = roomInput.trim()
@@ -341,7 +343,8 @@ function MucFlow() {
     setBrowseMessage('')
     try {
       const rooms = await bridge.discoverServerMucRooms()
-      setServerRooms(rooms.slice(0, 50))
+      setServerRooms(rooms)
+      setVisibleServerRoomCount(roomPageSize)
       setBrowseMessage(rooms.length ? '' : 'No public rooms were listed by this server. You can still enter a full room JID above.')
     } catch (browseError) {
       setBrowseMessage(browseError instanceof Error ? browseError.message : 'Could not browse XMPP rooms.')
@@ -387,8 +390,10 @@ function MucFlow() {
             {browseMessage && <p role="status" className="text-xs leading-relaxed text-muted-foreground">{browseMessage}</p>}
             {discoveringRooms && <p role="status" className="text-xs text-muted-foreground">Loading rooms…</p>}
             {serverRooms.length > 0 && (
+              <>
+              <p className="text-[10px] text-muted-foreground">Showing {Math.min(visibleServerRoomCount, serverRooms.length)} of {serverRooms.length} rooms</p>
               <div className="rounded-lg border border-border" aria-label="XMPP rooms">
-                {serverRooms.map((room) => (
+                {serverRooms.slice(0, visibleServerRoomCount).map((room) => (
                   <button key={`${room.serviceJid}:${room.roomJid}`} type="button" onClick={() => { setRoomInput(room.roomJid); void handleJoin(room.roomJid) }} disabled={joining}
                     className="flex w-full items-center gap-3 border-b border-border px-3 py-2.5 text-left last:border-b-0 hover:bg-secondary disabled:cursor-wait disabled:opacity-60">
                     <Hash size={14} className="text-primary flex-shrink-0" />
@@ -400,6 +405,13 @@ function MucFlow() {
                   </button>
                 ))}
               </div>
+              {visibleServerRoomCount < serverRooms.length && (
+                <button type="button" onClick={() => setVisibleServerRoomCount((count) => count + roomPageSize)}
+                  className="min-h-11 w-full rounded-lg border border-border px-3 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground">
+                  Show {Math.min(roomPageSize, serverRooms.length - visibleServerRoomCount)} more rooms
+                </button>
+              )}
+              </>
             )}
           </div>
         </details>
