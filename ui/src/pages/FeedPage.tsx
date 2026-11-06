@@ -1115,12 +1115,13 @@ export default function FeedPage() {
                           </div>
                           <button type="button" disabled={rssFeedActions[source.id] || source.status === 'paused'} onClick={() => void refreshRssSource(source)}
                             className="min-h-11 rounded-md border border-border px-2.5 text-[11px] font-medium text-muted-foreground hover:text-foreground disabled:opacity-40">Refresh</button>
+                          <button type="button" disabled={rssFeedActions[source.id]} onClick={() => void toggleRssSourcePaused(source)}
+                            className="min-h-11 rounded-md border border-border px-2.5 text-[11px] font-medium text-muted-foreground hover:text-foreground disabled:opacity-40">
+                            {source.status === 'paused' ? 'Resume' : 'Pause'}
+                          </button>
                           <details className="relative">
                             <summary aria-label={`Manage ${source.title}`} className="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary">•••</summary>
                             <div className="absolute right-0 top-full z-20 min-w-48 rounded-xl border border-border bg-card p-1 shadow-xl">
-                              <button type="button" disabled={rssFeedActions[source.id]} onClick={() => void toggleRssSourcePaused(source)} className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-xs hover:bg-secondary">
-                                {source.status === 'paused' ? 'Resume updates' : 'Pause updates'}
-                              </button>
                               <button type="button" disabled={rssFeedActions[source.id]} onClick={() => void toggleRssSourceSharing(source)} className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-xs hover:bg-secondary">
                                 {source.shareToP2P ? 'Stop sharing new posts' : 'Share posts over P2P'}
                               </button>
