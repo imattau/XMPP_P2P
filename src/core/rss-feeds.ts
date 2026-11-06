@@ -76,7 +76,10 @@ const FETCH_TIMEOUT_MS = 12_000
 
 function safeUrl(value: string, base?: string): string {
   let url: URL
-  try { url = new URL(value.trim(), base) } catch { throw new Error('Enter a valid website or feed URL.') }
+  let input = value.trim()
+  // Allow "itsfoss.com/feed" without a scheme.
+  if (!base && !/^[a-z][a-z\d+.-]*:/i.test(input) && /^[^\s/]+\.[^\s/]+/.test(input)) input = `https://${input}`
+  try { url = new URL(input, base) } catch { throw new Error('Enter a valid website or feed URL.') }
   if (url.protocol !== 'https:' && url.protocol !== 'http:') throw new Error('Feeds must use an http or https URL.')
   if (url.username || url.password) throw new Error('Feed URLs cannot include a username or password.')
   const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, '')
@@ -87,6 +90,7 @@ function safeUrl(value: string, base?: string): string {
     || host === '::' || host === '::1' || /^f[cd][0-9a-f]{2}:/i.test(host) || /^fe80:/i.test(host) || /^ff/i.test(host)) {
     throw new Error('Local network URLs cannot be used as feeds.')
   }
+  if (!host.includes('.') && !host.includes(':')) throw new Error(`"${host}" is not a full website address. Include the domain, e.g. https://${host}.com/feed.`)
   url.hash = ''
   return url.toString()
 }
@@ -454,6 +458,10 @@ export class RssFeedManager {
       return { status: response.status, headers: response.headers, text, url: finalUrl }
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') throw new Error('Feed request timed out.')
+      const code = error as { code?: string; cause?: { code?: string }; message?: string } | undefined
+      if ((code?.code ?? code?.cause?.code) === 'ENOTFOUND' || /ENOTFOUND/.test(String(code?.message))) {
+        throw new Error(`Could not find the server for ${new URL(safe).hostname}. Check the address.`)
+      }
       throw error
     } finally { clearTimeout(timer) }
   }

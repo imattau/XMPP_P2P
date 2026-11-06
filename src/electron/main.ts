@@ -8,6 +8,7 @@
 
 import { app, BrowserWindow, dialog, ipcMain, Menu, safeStorage, shell } from 'electron'
 import path from 'node:path'
+import { setDefaultAutoSelectFamilyAttemptTimeout } from 'node:net'
 import { fileURLToPath } from 'node:url'
 import { Buffer } from 'node:buffer'
 import { generateKeyPair, privateKeyFromProtobuf, privateKeyToProtobuf } from '@libp2p/crypto/keys'
@@ -21,6 +22,10 @@ import { IpcBridgeHost } from './bridge-ipc.js'
 import { IPC, type NativeStartOptions } from './bridge-contract.js'
 import { rendererRoot, startStaticServer } from './static-server.js'
 import { fetchRssFeed } from './rss-feed-fetch.js'
+
+// Node's 250 ms per-address dual-stack timeout aborts slow IPv4 connects when
+// IPv6 is unroutable, so XMPP TCP/TLS fails with an empty AggregateError.
+setDefaultAutoSelectFamilyAttemptTimeout(5000)
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 

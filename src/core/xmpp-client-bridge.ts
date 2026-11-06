@@ -426,6 +426,13 @@ export class XmppClientBridge extends EventEmitter {
    */
   private describeConnectionError(error: unknown): Error {
     const err = error instanceof Error ? error : new Error(String(error))
+    if (!err.message) {
+      // Node's dual-stack AggregateError has no message of its own.
+      const parts = [err, ...((err as Error & { errors?: Error[] }).errors ?? [])]
+        .map((e) => (e as Error & { code?: string }).code || e.message)
+        .filter(Boolean)
+      return new Error(parts.length ? `Connection failed (${[...new Set(parts)].join(', ')})` : err.name || 'Connection failed')
+    }
     if (err.name !== 'SASLError') return err
     const { condition, application, text } = err as Error & { condition?: string; application?: { name?: string }; text?: string }
     const real = condition === 'text' ? application?.name : condition
