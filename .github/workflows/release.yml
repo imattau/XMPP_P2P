@@ -85,7 +85,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           rustup toolchain install stable --profile minimal
-          cargo +stable install --locked --git https://github.com/imattau/npack.git --tag v0.4.2 npack-cli
+          cargo +stable install --locked --git https://github.com/imattau/npack.git --tag v0.4.2 npack
       - name: Build npack package
         if: runner.os == 'Linux'
         env:
@@ -174,7 +174,7 @@ jobs:
       - name: Install npack
         run: |
           rustup toolchain install stable --profile minimal
-          cargo +stable install --locked --git https://github.com/imattau/npack.git --tag v0.4.2 npack-cli
+          cargo +stable install --locked --git https://github.com/imattau/npack.git --tag v0.4.2 npack
       - name: Publish npack package
         env:
           NOSTR_SECRET_KEY: ${{ secrets.NOSTR_SECRET_KEY }}
