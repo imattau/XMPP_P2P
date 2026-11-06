@@ -1,8 +1,8 @@
 import { registerPlugin, type Plugin, type PluginListenerHandle } from '@capacitor/core'
-import { serviceCapabilities, transportSymbol, type Connection, type DialTransportOptions, type Logger, type MultiaddrConnection, type Transport } from '@libp2p/interface'
+import { serviceCapabilities, transportSymbol, type Connection, type CreateListenerOptions, type DialTransportOptions, type Logger, type MultiaddrConnection, type Transport } from '@libp2p/interface'
 import { AbstractMultiaddrConnection } from '@libp2p/utils'
 import { TCP as TCPMatcher } from '@multiformats/multiaddr-matcher'
-import type { Multiaddr } from '@multiformats/multiaddr'
+import { multiaddr, type Multiaddr } from '@multiformats/multiaddr'
 import { Buffer } from 'buffer'
 import { isAndroidNative } from './native-platform.js'
 
@@ -12,16 +12,27 @@ interface NativeTcpEvent {
   error?: string
 }
 
+interface NativeTcpAcceptedEvent extends NativeTcpEvent {
+  listenerId: string
+  remoteHost: string
+  remotePort: number
+}
+
 interface NativeTcpPlugin extends Plugin {
   open(options: { host: string; port: number; timeoutMs: number }): Promise<{ socketId: string }>
+  listen(options: { host: string; port: number }): Promise<{ listenerId: string; port: number; addresses: string[] }>
+  stopListening(options: { listenerId: string }): Promise<void>
   write(options: { socketId: string; data: string }): Promise<void>
   close(options: { socketId: string }): Promise<void>
   addListener(eventName: 'tcpData' | 'tcpClosed', listener: (event: NativeTcpEvent) => void): Promise<PluginListenerHandle>
+  addListener(eventName: 'tcpAccepted', listener: (event: NativeTcpAcceptedEvent) => void): Promise<PluginListenerHandle>
 }
 
 const nativeTcp = registerPlugin<NativeTcpPlugin>('NativeTcp')
 const connections = new Map<string, NativeTcpMultiaddrConnection>()
 const earlyEvents = new Map<string, NativeTcpEvent[]>()
+const acceptedListeners = new Map<string, (event: NativeTcpAcceptedEvent) => void>()
+const earlyAccepted = new Map<string, NativeTcpAcceptedEvent[]>()
 let listenersReady: Promise<void> | undefined
 let dataListener: PluginListenerHandle | undefined
 let closeListener: PluginListenerHandle | undefined
@@ -31,6 +42,7 @@ function ensureNativeListeners(): Promise<void> {
     listenersReady = Promise.all([
       nativeTcp.addListener('tcpData', (event) => dispatchNativeEvent(event)),
       nativeTcp.addListener('tcpClosed', (event) => dispatchNativeEvent(event)),
+      nativeTcp.addListener('tcpAccepted', (event) => dispatchAcceptedEvent(event)),
     ]).then(([data, closed]) => {
       dataListener = data
       closeListener = closed
@@ -53,6 +65,17 @@ function dispatchNativeEvent(event: NativeTcpEvent): void {
   earlyEvents.set(event.socketId, pending)
 }
 
+function dispatchAcceptedEvent(event: NativeTcpAcceptedEvent): void {
+  const listener = acceptedListeners.get(event.listenerId)
+  if (listener) {
+    listener(event)
+    return
+  }
+  const pending = earlyAccepted.get(event.listenerId) ?? []
+  pending.push(event)
+  earlyAccepted.set(event.listenerId, pending)
+}
+
 function activateConnection(socketId: string, connection: NativeTcpMultiaddrConnection): void {
   connections.set(socketId, connection)
   for (const event of earlyEvents.get(socketId) ?? []) connection.receive(event)
@@ -69,8 +92,8 @@ class NativeTcpMultiaddrConnection extends AbstractMultiaddrConnection {
   private writeQueue: Promise<void> = Promise.resolve()
   private queuedBytes = 0
 
-  constructor(socketId: string, remoteAddr: Multiaddr, log: Logger) {
-    super({ direction: 'outbound', remoteAddr, log })
+  constructor(socketId: string, remoteAddr: Multiaddr, log: Logger, direction: 'inbound' | 'outbound' = 'outbound', localAddr?: Multiaddr) {
+    super({ direction, remoteAddr, localAddr, log })
     this.socketId = socketId
   }
 
@@ -148,19 +171,70 @@ class NativeTcpTransport implements Transport {
     }
   }
 
-  createListener() {
+  createListener({ upgrader }: CreateListenerOptions) {
+    const events = new EventTarget()
+    let listenerId: string | undefined
+    let addresses: Multiaddr[] = []
+    let abortController: AbortController | undefined
+
+    const onAccepted = (event: NativeTcpAcceptedEvent) => {
+      let remoteAddr: Multiaddr
+      try {
+        const remoteHost = event.remoteHost.includes(':')
+          ? `/ip6/${event.remoteHost.split('%', 2)[0]}`
+          : `/ip4/${event.remoteHost}`
+        remoteAddr = multiaddr(`${remoteHost}/tcp/${event.remotePort}`)
+      } catch {
+        void nativeTcp.close({ socketId: event.socketId })
+        return
+      }
+
+      const connection = new NativeTcpMultiaddrConnection(event.socketId, remoteAddr, this.logger, 'inbound', addresses[0])
+      activateConnection(event.socketId, connection)
+      void upgrader.upgradeInbound(connection, { signal: abortController?.signal ?? new AbortController().signal })
+        .catch((error: unknown) => connection.abort(error instanceof Error ? error : new Error(String(error))))
+    }
+
     return {
-      listen: async () => { throw new Error('Android native TCP transport supports outbound connections only') },
-      getAddrs: () => [],
-      close: async () => {},
-      updateAnnounceAddrs: () => {},
-      addEventListener: () => {},
-      removeEventListener: () => {},
-      dispatchEvent: () => true,
+      async listen(address: Multiaddr) {
+        if (listenerId) throw new Error('Android TCP listener is already open')
+        await ensureNativeListeners()
+        const host = address.getComponents().find(({ name }) => ['ip4', 'ip6'].includes(name))?.value ?? '0.0.0.0'
+        const port = Number(address.getComponents().find(({ name }) => name === 'tcp')?.value ?? '0')
+        const result = await nativeTcp.listen({ host, port })
+        listenerId = result.listenerId
+        addresses = result.addresses.map((value) => multiaddr(value))
+        abortController = new AbortController()
+        acceptedListeners.set(listenerId, onAccepted)
+        for (const event of earlyAccepted.get(listenerId) ?? []) onAccepted(event)
+        earlyAccepted.delete(listenerId)
+        events.dispatchEvent(new Event('listening'))
+      },
+      getAddrs() { return addresses },
+      async close() {
+        const currentId = listenerId
+        if (!currentId) return
+        acceptedListeners.delete(currentId)
+        earlyAccepted.delete(currentId)
+        abortController?.abort(new Error('Android TCP listener closed'))
+        abortController = undefined
+        listenerId = undefined
+        addresses = []
+        await nativeTcp.stopListening({ listenerId: currentId })
+        events.dispatchEvent(new Event('close'))
+      },
+      updateAnnounceAddrs() {},
+      addEventListener(type: string, listener: EventListenerOrEventListenerObject | null, options?: boolean | AddEventListenerOptions) {
+        events.addEventListener(type, listener, options)
+      },
+      removeEventListener(type: string, listener: EventListenerOrEventListenerObject | null, options?: boolean | EventListenerOptions) {
+        events.removeEventListener(type, listener, options)
+      },
+      dispatchEvent(event: Event) { return events.dispatchEvent(event) },
     } as any
   }
 
-  listenFilter(): Multiaddr[] { return [] }
+  listenFilter(multiaddrs: Multiaddr[]): Multiaddr[] { return multiaddrs.filter((ma) => TCPMatcher.exactMatch(ma)) }
   dialFilter(multiaddrs: Multiaddr[]): Multiaddr[] { return multiaddrs.filter((ma) => TCPMatcher.exactMatch(ma)) }
 }
 
