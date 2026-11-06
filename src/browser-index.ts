@@ -41,7 +41,13 @@ const rssFeedFetcher: RssFeedFetcher = async (url, init) => {
     // Android's HttpURLConnection includes a null-key HTTP status line.
     if (name.toLowerCase() !== 'null') headers.set(name, value)
   }
-  const nativeResponse = new Response(typeof response.data === 'string' ? response.data : String(response.data ?? ''), {
+  // Fetch Response forbids bodies for these statuses. Native HTTP plugins may
+  // still return an empty string (or status-line text), so discard it here.
+  const bodyForbidden = response.status === 204 || response.status === 205 || response.status === 304
+  const body = bodyForbidden
+    ? null
+    : typeof response.data === 'string' ? response.data : String(response.data ?? '')
+  const nativeResponse = new Response(body, {
     status: response.status,
     headers,
   })
