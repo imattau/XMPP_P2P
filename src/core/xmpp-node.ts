@@ -360,16 +360,7 @@ export class XmppNode extends EventEmitter {
     void this.ready.then(() => this.flushDhtMailboxWhenActive()).catch(() => {})
 
     this.discoveredPeerListener = (event: Event) => {
-      const detail = (event as CustomEvent<any>).detail
-      const peerId = detail?.id?.toString?.()
-      if (!peerId || peerId === this.libp2p.peerId.toString()) return
-      const localAddress = (detail.multiaddrs ?? []).find((address: Multiaddr) => isPrivate(address))
-      if (!localAddress) return
-      const address = localAddress.toString()
-      const peerAddress = address.includes('/p2p/') ? address : `${address}/p2p/${peerId}`
-      void this.ready
-        .then(() => this.feedManager.previewDiscoveredFeed(peerId, peerAddress))
-        .catch(error => console.warn(`[XMPP] Could not preview nearby peer feed ${peerId}:`, error))
+      this.handleDiscoveredPeer((event as CustomEvent<any>).detail)
     }
     this.disconnectedPeerListener = (event: Event) => {
       const detail = (event as CustomEvent<any>).detail
@@ -2471,6 +2462,23 @@ export class XmppNode extends EventEmitter {
 
   async disconnectServer(): Promise<void> {
     await this.clientBridge.disconnect()
+  }
+
+  /** Process peer discoveries received while the runtime wrapper was starting. */
+  public replayDiscoveredPeers(peers: any[]): void {
+    for (const peer of peers) this.handleDiscoveredPeer(peer)
+  }
+
+  private handleDiscoveredPeer(detail: any): void {
+    const peerId = detail?.id?.toString?.()
+    if (!peerId || peerId === this.libp2p.peerId.toString()) return
+    const localAddress = (detail.multiaddrs ?? []).find((address: Multiaddr) => isPrivate(address))
+    if (!localAddress) return
+    const address = localAddress.toString()
+    const peerAddress = address.includes('/p2p/') ? address : `${address}/p2p/${peerId}`
+    void this.ready
+      .then(() => this.feedManager.previewDiscoveredFeed(peerId, peerAddress))
+      .catch(error => console.warn(`[XMPP] Could not preview nearby peer feed ${peerId}:`, error))
   }
 
   isServerConnected(): boolean {

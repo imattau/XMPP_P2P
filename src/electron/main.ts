@@ -103,6 +103,7 @@ async function startXmpp(options: NativeStartOptions): Promise<{ jid: string }> 
     // The desktop peer must accept connections from other devices. The UI
     // renderer itself remains isolated on its own localhost HTTP server.
     host: '0.0.0.0',
+    enableMdns: true,
     enableDht: true,
     enableWebRTC: true,
     bootstrapAddrs: options.bootstrapAddrs,

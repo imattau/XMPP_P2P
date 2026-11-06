@@ -49,6 +49,8 @@ export async function createBrowserP2PNode(options: CreateBrowserP2PNodeOptions)
   if (androidMdns) peerDiscovery.push(androidMdns)
 
   const node = await createLibp2p({
+    // Let the caller attach startup listeners before discovery services begin.
+    start: false,
     privateKey: options.privateKey,
     // A configured browser relay should provide a routable circuit address.
     // Some bootstrap peers are ordinary WebSocket nodes, though, so their

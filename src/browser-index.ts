@@ -190,6 +190,13 @@ export async function createBrowserXmppClient(
 
   const libp2p = await createBrowserP2PNode({ bootstrapAddrs: options.bootstrapAddrs, privateKey, dhtClientMode: options.dhtClientMode })
   let xmppNode: XmppNode | undefined
+  const discoveriesDuringStartup = new Map<string, any>()
+  const captureStartupDiscovery = (event: Event) => {
+    const detail = (event as CustomEvent<any>).detail
+    const peerId = detail?.id?.toString?.()
+    if (peerId) discoveriesDuringStartup.set(peerId, detail)
+  }
+  libp2p.addEventListener('peer:discovery', captureStartupDiscovery)
   try {
     await libp2p.start()
 
@@ -200,6 +207,8 @@ export async function createBrowserXmppClient(
     }
     xmppNode = new XmppNode(libp2p, storage, nodeOptions)
     await xmppNode.ready
+    libp2p.removeEventListener('peer:discovery', captureStartupDiscovery)
+    xmppNode.replayDiscoveredPeers([...discoveriesDuringStartup.values()])
 
     const bridge = new BrowserXmppRuntimeBridge(xmppNode, async () => {
       await libp2p.stop()
@@ -212,6 +221,7 @@ export async function createBrowserXmppClient(
 
     return { libp2p, xmppNode, bridge }
   } catch (error) {
+    libp2p.removeEventListener('peer:discovery', captureStartupDiscovery)
     // A rejected initialization must not leave transports and handlers alive;
     // the UI exposes retry and can otherwise create a second P2P node.
     if (xmppNode) {
