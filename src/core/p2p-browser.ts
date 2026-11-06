@@ -21,6 +21,7 @@ import { nativeMdnsAndroid } from './native-mdns.js'
 export interface CreateBrowserP2PNodeOptions {
   bootstrapAddrs: string[]
   privateKey?: PrivateKey
+  enableDht?: boolean
   /** Mobile WebViews should run KadDHT as a client, not a routing server. */
   dhtClientMode?: boolean
 }
@@ -41,7 +42,7 @@ export async function createBrowserP2PNode(options: CreateBrowserP2PNodeOptions)
     address.includes('/ws/') || address.includes('/wss/') || Boolean(nativeTcpTransport && /\/tcp\//.test(address))
   )
 
-  const services = createBaseLibp2pServices({ enableDht: true, dhtClientMode: options.dhtClientMode === true })
+  const services = createBaseLibp2pServices({ enableDht: options.enableDht !== false, dhtClientMode: options.dhtClientMode === true })
 
   const peerDiscovery: Array<(components: any) => PeerDiscovery> = []
   if (bootstrapAddrs.length > 0) peerDiscovery.push(bootstrap({ list: bootstrapAddrs }))

@@ -1,7 +1,7 @@
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router'
 import { Home, Hash, PlusSquare, MessageCircle, User, Zap, FileText, Users, Settings, MoreHorizontal } from 'lucide-react'
-import { ensureBrowserXmppClient, getBootstrapAddrs, getBrowserXmppBridge, useBrowserXmppBridge, watchBootstrapAddrs } from '../bridge/runtime'
+import { ensureBrowserXmppClient, getBootstrapAddrs, getBrowserXmppBridge, getDesktopRelayConfig, getDhtEnabled, getNostrBootstrapConfig, useBrowserXmppBridge, watchBootstrapAddrs } from '../bridge/runtime'
 import NavigationSidebar from '../components/NavigationSidebar'
 import { useConnectionBridge } from '../bridge/useConnectionBridge'
 import { identityController } from '../bridge/identity/controller'
@@ -222,10 +222,14 @@ export default function Root() {
     void (async () => {
       try {
         const bootstrapAddrs = await getBootstrapAddrs()
+        const [relay, nostrConfig] = await Promise.all([getDesktopRelayConfig(), getNostrBootstrapConfig()])
         const startedBridge = await ensureBrowserXmppClient({
           bootstrapAddrs,
           dbName: 'xmpp-p2p',
           recoveryPhrase: identity?.recoveryPhraseKeyed ? identity.recoveryPhrase : undefined,
+          relay,
+          nostrRelayUrls: nostrConfig.relayUrls,
+          dhtEnabled: getDhtEnabled(),
         })
         if (!active || !identityController.isOnboardingComplete()) {
           await startedBridge.disconnect()

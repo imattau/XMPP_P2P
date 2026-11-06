@@ -4,6 +4,64 @@ import { discoverNostrBootstrapAddrs, normalizeNostrBootstrapConfig, type NostrB
 
 export type BridgeVisibility = 'public' | 'private'
 
+export interface DesktopRelayConfig {
+  enabled: boolean
+  listenPort: number
+  publicHost: string
+  publicPort: number
+  maxReservations: number
+  publishToNostr: boolean
+}
+
+export interface DesktopRelayStatus {
+  enabled: boolean
+  running: boolean
+  reservations: number
+  publishing: boolean
+}
+
+const DESKTOP_RELAY_KEY = 'xmpp-p2p:desktop-relay'
+const DHT_ENABLED_KEY = 'xmpp-p2p:dht-enabled'
+
+export function getDhtEnabled(): boolean {
+  if (typeof window === 'undefined') return true
+  try { return window.localStorage.getItem(DHT_ENABLED_KEY) !== 'false' } catch { return true }
+}
+
+export function saveDhtEnabled(enabled: boolean): void {
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem(DHT_ENABLED_KEY, String(enabled))
+  window.dispatchEvent(new Event('xmpp-p2p:bootstrap-config-changed'))
+}
+
+export function getDesktopRelayConfig(): DesktopRelayConfig {
+  const defaults: DesktopRelayConfig = { enabled: false, listenPort: 4001, publicHost: '', publicPort: 4001, maxReservations: 32, publishToNostr: false }
+  if (typeof window === 'undefined') return defaults
+  try {
+    const value = JSON.parse(window.localStorage.getItem(DESKTOP_RELAY_KEY) ?? 'null') as Partial<DesktopRelayConfig> | null
+    if (!value) return defaults
+    return {
+      enabled: value.enabled === true,
+      listenPort: Number.isInteger(value.listenPort) && value.listenPort! >= 1 && value.listenPort! <= 64535 ? value.listenPort! : defaults.listenPort,
+      publicHost: typeof value.publicHost === 'string' ? value.publicHost.trim().replace(/^\[|\]$/g, '') : '',
+      publicPort: Number.isInteger(value.publicPort) && value.publicPort! >= 1 && value.publicPort! <= 65535 ? value.publicPort! : defaults.publicPort,
+      maxReservations: Number.isInteger(value.maxReservations) && value.maxReservations! >= 1 && value.maxReservations! <= 256 ? value.maxReservations! : defaults.maxReservations,
+      publishToNostr: value.publishToNostr === true,
+    }
+  } catch { return defaults }
+}
+
+export function saveDesktopRelayConfig(config: DesktopRelayConfig): void {
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem(DESKTOP_RELAY_KEY, JSON.stringify(config))
+  window.dispatchEvent(new Event('xmpp-p2p:bootstrap-config-changed'))
+}
+
+export async function getDesktopRelayStatus(): Promise<DesktopRelayStatus | undefined> {
+  const native = (window as Window & { __XMPP_P2P_NATIVE__?: { getRelayStatus?: () => Promise<DesktopRelayStatus> } }).__XMPP_P2P_NATIVE__
+  return await native?.getRelayStatus?.()
+}
+
 export type BridgeFeedPostRecord = {
   id: string
   topic: string
@@ -360,7 +418,10 @@ declare global {
         passphrase?: string
         recoveryPhrase?: string[]
         dhtClientMode?: boolean
+        dhtEnabled?: boolean
         keyStore?: { get(): Promise<string | undefined>; set(value: string): Promise<void> }
+        relay?: DesktopRelayConfig
+        nostrRelayUrls?: string[]
       }) => Promise<{ bridge: XmppRuntimeBridge }>
     }
     __XMPP_P2P_CONFIG__?: {
@@ -396,7 +457,10 @@ export function ensureBrowserXmppClient(options: {
   passphrase?: string
   recoveryPhrase?: string[]
   dhtClientMode?: boolean
+  dhtEnabled?: boolean
   keyStore?: { get(): Promise<string | undefined>; set(value: string): Promise<void> }
+  relay?: DesktopRelayConfig
+  nostrRelayUrls?: string[]
 }): Promise<XmppRuntimeBridge> {
   const existingBridge = getBrowserXmppBridge()
   if (existingBridge) return Promise.resolve(existingBridge)
@@ -407,6 +471,7 @@ export function ensureBrowserXmppClient(options: {
   const startup = createClient({
     ...options,
     dhtClientMode: options.dhtClientMode ?? isCapacitorNative(),
+    dhtEnabled: options.dhtEnabled ?? getDhtEnabled(),
     keyStore: options.keyStore ?? getNativeIdentityKeyStore()
   }).then(({ bridge }) => bridge)
   browserClientStartup = startup

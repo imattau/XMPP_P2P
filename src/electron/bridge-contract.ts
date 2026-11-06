@@ -136,4 +136,14 @@ export interface NativeStartOptions {
   nickname?: string
   dbName?: string
   bootstrapAddrs?: string[]
+  dhtEnabled?: boolean
+  relay?: {
+    enabled: boolean
+    listenPort: number
+    publicHost?: string
+    publicPort: number
+    maxReservations: number
+    publishToNostr: boolean
+  }
+  nostrRelayUrls?: string[]
 }

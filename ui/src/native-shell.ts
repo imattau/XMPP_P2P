@@ -14,11 +14,22 @@ type NativeClientResult = {
 }
 
 type NativeShellApi = {
+  getRelayStatus?: () => Promise<{ enabled: boolean; running: boolean; reservations: number; publishing: boolean }>
   createClient: (options: {
     recoveryPhrase?: string[]
     nickname?: string
     dbName?: string
     bootstrapAddrs?: string[]
+    dhtEnabled?: boolean
+    relay?: {
+      enabled: boolean
+      listenPort: number
+      publicHost?: string
+      publicPort: number
+      maxReservations: number
+      publishToNostr: boolean
+    }
+    nostrRelayUrls?: string[]
   }) => Promise<NativeClientResult>
 }
 
@@ -56,7 +67,10 @@ export function installNativeShell(): void {
         recoveryPhrase: options.recoveryPhrase,
         nickname: options.nickname,
         dbName: options.dbName,
-        bootstrapAddrs: options.bootstrapAddrs
+        bootstrapAddrs: options.bootstrapAddrs,
+        dhtEnabled: options.dhtEnabled,
+        relay: options.relay,
+        nostrRelayUrls: options.nostrRelayUrls
       })
 
       const raw = result.bridge

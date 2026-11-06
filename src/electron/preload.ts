@@ -74,6 +74,7 @@ function createBridge(): Record<string, unknown> {
 }
 
 contextBridge.exposeInMainWorld('__XMPP_P2P_NATIVE__', {
+  getRelayStatus: async () => await ipcRenderer.invoke('xmpp:relay-status'),
   getXmppCredentials: async () => await ipcRenderer.invoke('xmpp-credentials:get'),
   saveXmppCredentials: async (credentials: { jid: string; password: string; service?: string }) =>
     await ipcRenderer.invoke('xmpp-credentials:save', credentials),

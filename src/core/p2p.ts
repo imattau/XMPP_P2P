@@ -22,6 +22,8 @@ export interface CreateP2PNodeOptions {
   enableMdns?: boolean
   enableDht?: boolean
   enableRelay?: boolean
+  relayMaxReservations?: number
+  relayPublicAddress?: string
   enableWebRTC?: boolean
   host?: string
   maxConnections?: number
@@ -56,7 +58,15 @@ export async function createP2PNode(port?: number, options: CreateP2PNodeOptions
   const services = createBaseLibp2pServices({ enableDht: options.enableDht })
 
   if (options.enableRelay) {
-    services.relay = circuitRelayServer({ reservations: { maxReservations: 256 } })
+    services.relay = circuitRelayServer({
+      reservations: {
+        maxReservations: Math.max(1, Math.min(256, options.relayMaxReservations ?? 32)),
+        applyDefaultLimit: true,
+        reservationTtl: 2 * 60 * 60_000,
+        defaultDurationLimit: 15 * 60_000,
+        defaultDataLimit: 256n * 1024n * 1024n,
+      },
+    })
   }
 
   const listenAddresses: string[] = []
@@ -102,7 +112,8 @@ export async function createP2PNode(port?: number, options: CreateP2PNodeOptions
       // Configured bootstrap peers may provide circuit relay reservations.
       // Treat failed reservations as optional so an ordinary bootstrap node
       // does not prevent direct TCP/WebSocket startup.
-      listen: [...listenAddresses, ...relayListenAddresses]
+      listen: [...listenAddresses, ...relayListenAddresses],
+      ...(options.enableRelay && options.relayPublicAddress ? { announce: [options.relayPublicAddress] } : {}),
     },
     ...(relayListenAddresses.length > 0 ? { transportManager: { faultTolerance: FaultTolerance.NO_FATAL } } : {}),
     transports,

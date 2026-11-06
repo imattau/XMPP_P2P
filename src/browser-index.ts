@@ -22,7 +22,9 @@ const rssFeedFetcher: RssFeedFetcher = async (url, init) => {
   // Check at request time because the Capacitor bridge may initialize after this
   // module is evaluated in the WebView.
   if (!Capacitor.isNativePlatform()) {
-    return fetch(url, init)
+    // Browser fetch hides manual redirect responses behind an opaque response,
+    // so RSS refreshes must follow redirects and use the final response URL.
+    return fetch(url, { ...init, redirect: 'follow' })
   }
 
   const requestHeaders = Object.fromEntries(new Headers(init.headers).entries())
@@ -34,7 +36,7 @@ const rssFeedFetcher: RssFeedFetcher = async (url, init) => {
     responseType: 'text',
     connectTimeout: 12_000,
     readTimeout: 12_000,
-    disableRedirects: true,
+    disableRedirects: false,
   })
   const headers = new Headers()
   for (const [name, value] of Object.entries(response.headers)) {
@@ -64,8 +66,19 @@ export interface CreateBrowserXmppClientOptions {
   passphrase?: string
   recoveryPhrase?: string[]
   dhtClientMode?: boolean
+  dhtEnabled?: boolean
   /** Native secure-storage mirror used when IndexedDB has no key. */
   keyStore?: IdentityKeyStore
+  /** Desktop-only relay settings forwarded through the Electron preload. */
+  relay?: {
+    enabled: boolean
+    listenPort: number
+    publicHost: string
+    publicPort: number
+    maxReservations: number
+    publishToNostr: boolean
+  }
+  nostrRelayUrls?: string[]
 }
 
 function storageMarkerKey(dbName: string, marker: 'active-peer-id' | 'legacy-owner-peer-id'): string {
@@ -188,7 +201,7 @@ export async function createBrowserXmppClient(
     }
   }
 
-  const libp2p = await createBrowserP2PNode({ bootstrapAddrs: options.bootstrapAddrs, privateKey, dhtClientMode: options.dhtClientMode })
+  const libp2p = await createBrowserP2PNode({ bootstrapAddrs: options.bootstrapAddrs, privateKey, dhtClientMode: options.dhtClientMode, enableDht: options.dhtEnabled })
   let xmppNode: XmppNode | undefined
   const discoveriesDuringStartup = new Map<string, any>()
   const captureStartupDiscovery = (event: Event) => {

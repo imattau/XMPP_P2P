@@ -6,7 +6,7 @@ import {
   Server, Plus, Check, Loader, Wifi, WifiOff,
   ChevronDown,
 } from 'lucide-react'
-import { getBootstrapAddrs, getBrowserXmppBridge, getNostrBootstrapConfig, saveBootstrapAddrs, saveNostrBootstrapConfig } from '../bridge/runtime'
+import { getBootstrapAddrs, getBrowserXmppBridge, getDesktopRelayConfig, getDesktopRelayStatus, getDhtEnabled, getNostrBootstrapConfig, saveBootstrapAddrs, saveDesktopRelayConfig, saveDhtEnabled, saveNostrBootstrapConfig, type DesktopRelayConfig, type DesktopRelayStatus } from '../bridge/runtime'
 import { useServerBridge } from '../bridge/useServerBridge'
 import { useConnectionBridge } from '../bridge/useConnectionBridge'
 import { identityController } from '../bridge/identity/controller'
@@ -64,6 +64,10 @@ export default function SettingsPage() {
   const [bootstrapPeersConfigured, setBootstrapPeersConfigured] = useState<boolean | null>(null)
   const [nostrRelays, setNostrRelays] = useState('')
   const [nostrSaved, setNostrSaved] = useState(false)
+  const [desktopRelay, setDesktopRelay] = useState<DesktopRelayConfig>(() => getDesktopRelayConfig())
+  const [desktopRelaySaved, setDesktopRelaySaved] = useState(false)
+  const [dhtEnabled, setDhtEnabled] = useState(() => getDhtEnabled())
+  const [desktopRelayStatus, setDesktopRelayStatus] = useState<DesktopRelayStatus>()
   const signOutTriggerRef = useRef<HTMLButtonElement>(null)
   const signOutDialogWasOpen = useRef(false)
 
@@ -193,6 +197,15 @@ export default function SettingsPage() {
   }, [])
 
   useEffect(() => {
+    if (!isElectronShell()) return
+    let active = true
+    const refresh = () => { void getDesktopRelayStatus().then(status => { if (active && status) setDesktopRelayStatus(status) }) }
+    refresh()
+    const timer = window.setInterval(refresh, 2500)
+    return () => { active = false; window.clearInterval(timer) }
+  }, [])
+
+  useEffect(() => {
     let active = true
     void getNostrBootstrapConfig().then((config) => {
       if (active) setNostrRelays(config.relayUrls.join('\n'))
@@ -216,6 +229,31 @@ export default function SettingsPage() {
     saveNostrBootstrapConfig(normalizedNostrConfig)
     setNostrRelays(normalizedNostrConfig.relayUrls.join('\n'))
     setNostrSaved(true)
+  }
+
+  const relayPortValid = Number.isInteger(desktopRelay.listenPort) && desktopRelay.listenPort > 0 && desktopRelay.listenPort <= 64535
+  const relayPublicPortValid = Number.isInteger(desktopRelay.publicPort) && desktopRelay.publicPort > 0 && desktopRelay.publicPort <= 65535
+  const publicHost = desktopRelay.publicHost.trim().replace(/^\[|\]$/g, '').toLowerCase()
+  const privateIpv4 = (() => {
+    const parts = publicHost.split('.').map(Number)
+    if (parts.length !== 4 || parts.some(part => !Number.isInteger(part) || part < 0 || part > 255)) return false
+    return parts[0] === 0 || parts[0] === 10 || parts[0] === 127 || parts[0] >= 224
+      || (parts[0] === 169 && parts[1] === 254)
+      || (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31)
+      || (parts[0] === 192 && parts[1] === 168)
+      || (parts[0] === 100 && parts[1] >= 64 && parts[1] <= 127)
+  })()
+  const privateIpv6 = publicHost === '::' || publicHost === '::1' || /^(fc|fd|fe80:|ff)/.test(publicHost)
+  const publicHostValid = Boolean(publicHost) && !privateIpv4 && !privateIpv6
+    && !publicHost.endsWith('.localhost') && !publicHost.endsWith('.local')
+  const relayHostValid = !desktopRelay.publishToNostr || publicHostValid
+  const relayLimitsValid = Number.isInteger(desktopRelay.maxReservations) && desktopRelay.maxReservations >= 1 && desktopRelay.maxReservations <= 256
+  const handleSaveDesktopRelay = (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!relayPortValid || !relayPublicPortValid || !relayHostValid || !relayLimitsValid) return
+    saveDesktopRelayConfig(desktopRelay)
+    setDesktopRelaySaved(true)
+    window.setTimeout(() => setDesktopRelaySaved(false), 5000)
   }
 
   return (
@@ -251,6 +289,14 @@ export default function SettingsPage() {
           </div>
         </div>
 
+        <div className="flex items-center gap-3 border-b border-border bg-card px-4 py-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-medium text-foreground">Distributed hash table (DHT)</p>
+            <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">Supports peer discovery and features such as offline message delivery. Changing this restarts the peer network.</p>
+          </div>
+          <Toggle label="Enable distributed hash table" checked={dhtEnabled} onChange={enabled => { setDhtEnabled(enabled); saveDhtEnabled(enabled) }} />
+        </div>
+
         <details className="border-b border-border bg-card">
           <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 px-4 py-3 text-sm font-medium text-foreground">
             <Globe size={15} className="text-primary" />
@@ -275,6 +321,51 @@ export default function SettingsPage() {
           </div>
           </form>
         </details>
+
+        {isElectronShell() && <details className="border-b border-border bg-card">
+          <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 px-4 py-3 text-sm font-medium text-foreground">
+            <Wifi size={15} className="text-primary" />
+            <span className="flex-1">Relay from this desktop</span>
+            <span className="text-[11px] font-normal text-muted-foreground">{desktopRelayStatus?.running ? `${desktopRelayStatus.reservations} reserved` : desktopRelay.enabled ? 'Starting' : 'Off'}</span>
+            <ChevronDown size={14} className="text-muted-foreground/50" />
+          </summary>
+          <form onSubmit={handleSaveDesktopRelay} className="space-y-3 px-4 pb-4">
+            <div className="flex items-center gap-3 rounded-lg bg-background px-3 py-2">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium text-foreground">Allow this desktop to relay peer connections</p>
+                <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">Forwards end-to-end encrypted peer traffic. Your connection uses bandwidth while peers are relayed.</p>
+              </div>
+              <Toggle label="Allow this desktop to relay peer connections" checked={desktopRelay.enabled} onChange={enabled => { setDesktopRelay(current => ({ ...current, enabled })); setDesktopRelaySaved(false) }} />
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <label className="space-y-1 text-xs text-muted-foreground">Local TCP port
+                <input type="number" min={1} max={64535} value={desktopRelay.listenPort} onChange={event => { setDesktopRelay(current => ({ ...current, listenPort: Number(event.target.value) })); setDesktopRelaySaved(false) }} className="min-h-11 w-full rounded-lg border border-border bg-background px-3 py-2 font-mono text-xs text-foreground" />
+              </label>
+              <label className="space-y-1 text-xs text-muted-foreground">Maximum peer reservations
+                <input type="number" min={1} max={256} value={desktopRelay.maxReservations} onChange={event => { setDesktopRelay(current => ({ ...current, maxReservations: Number(event.target.value) })); setDesktopRelaySaved(false) }} className="min-h-11 w-full rounded-lg border border-border bg-background px-3 py-2 font-mono text-xs text-foreground" />
+              </label>
+              <label className="space-y-1 text-xs text-muted-foreground sm:col-span-2">Public DNS name or IP address (optional)
+                <input value={desktopRelay.publicHost} onChange={event => { setDesktopRelay(current => ({ ...current, publicHost: event.target.value })); setDesktopRelaySaved(false) }} placeholder="relay.example.org" autoComplete="off" spellCheck={false} className="min-h-11 w-full rounded-lg border border-border bg-background px-3 py-2 font-mono text-xs text-foreground placeholder:text-muted-foreground" />
+              </label>
+              <label className="space-y-1 text-xs text-muted-foreground sm:col-span-2">Public TCP port
+                <input type="number" min={1} max={65535} value={desktopRelay.publicPort} onChange={event => { setDesktopRelay(current => ({ ...current, publicPort: Number(event.target.value) })); setDesktopRelaySaved(false) }} className="min-h-11 w-full rounded-lg border border-border bg-background px-3 py-2 font-mono text-xs text-foreground" />
+              </label>
+            </div>
+            <p className="text-[11px] leading-relaxed text-muted-foreground">Public relaying requires this TCP port to be reachable through your firewall and router. The app cannot verify port forwarding automatically. Relayed connections are limited to 15 minutes and 256 MB per connection.</p>
+            <div className="flex items-center gap-3 rounded-lg bg-background px-3 py-2">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium text-foreground">Advertise this relay through Nostr</p>
+                <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">Publishes a signed, expiring address announcement to your configured Nostr relays. Nostr helps peers find the address; peer traffic still goes through this desktop. When switched off, an existing announcement can remain visible for up to 24 hours.</p>
+              </div>
+              <Toggle label="Advertise this relay through Nostr" checked={desktopRelay.publishToNostr} onChange={publishToNostr => { setDesktopRelay(current => ({ ...current, publishToNostr })); setDesktopRelaySaved(false) }} />
+            </div>
+            {desktopRelay.publishToNostr && !publicHostValid && <p role="status" className="text-[11px] text-destructive">Enter a public DNS name or globally reachable IP address before publishing.</p>}
+            {desktopRelayStatus?.enabled && !desktopRelayStatus.running && <p role="status" className="text-[11px] text-destructive">The relay service did not start. Check that the local TCP port is available.</p>}
+            {desktopRelaySaved && <p role="status" className="text-[11px] text-accent">Saved. Restarting the peer network…</p>}
+            {desktopRelayStatus?.publishing && <p className="text-[11px] text-muted-foreground">Nostr address publishing is active.</p>}
+            <button type="submit" disabled={!relayPortValid || !relayPublicPortValid || !relayHostValid || !relayLimitsValid} className="min-h-11 w-full rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40">Save and restart peer network</button>
+          </form>
+        </details>}
 
         <details className="border-b border-border bg-card">
           <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 px-4 py-3 text-sm font-medium text-foreground">

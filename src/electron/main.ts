@@ -8,7 +8,7 @@
 
 import { app, BrowserWindow, dialog, ipcMain, Menu, safeStorage, shell } from 'electron'
 import path from 'node:path'
-import { setDefaultAutoSelectFamilyAttemptTimeout } from 'node:net'
+import { isIP, setDefaultAutoSelectFamilyAttemptTimeout } from 'node:net'
 import { fileURLToPath } from 'node:url'
 import { Buffer } from 'node:buffer'
 import { generateKeyPair, privateKeyFromProtobuf, privateKeyToProtobuf } from '@libp2p/crypto/keys'
@@ -22,6 +22,10 @@ import { IpcBridgeHost } from './bridge-ipc.js'
 import { IPC, type NativeStartOptions } from './bridge-contract.js'
 import { rendererRoot, startStaticServer } from './static-server.js'
 import { fetchRssFeed } from './rss-feed-fetch.js'
+import { loadOrCreateNostrBootstrapSecretKey } from '../core/node-nostr-bootstrap-key.js'
+import { startNostrBootstrapPublisher } from '../core/nostr-bootstrap.js'
+import { isPrivate } from '@libp2p/utils'
+import { multiaddr } from '@multiformats/multiaddr'
 
 // Node's 250 ms per-address dual-stack timeout aborts slow IPv4 connects when
 // IPv6 is unroutable, so XMPP TCP/TLS fails with an empty AggregateError.
@@ -40,6 +44,19 @@ let xmppNode: XmppNode | undefined
 let bridge: BrowserXmppRuntimeBridge | undefined
 let bridgeHost: IpcBridgeHost | undefined
 let stopping = false
+let stopRelayPublisher: (() => void) | undefined
+
+function publicRelayAddress(hostValue: string | undefined, port: number): string | undefined {
+  const host = hostValue?.trim().replace(/^\[|\]$/g, '')
+  if (!host || host === 'localhost' || host.endsWith('.localhost')) return undefined
+  const ipVersion = isIP(host)
+  const protocol = ipVersion === 4 ? 'ip4' : ipVersion === 6 ? 'ip6' : 'dns4'
+  try {
+    const address = multiaddr(`/${protocol}/${host}/tcp/${port}`)
+    if (isPrivate(address)) return undefined
+    return address.toString()
+  } catch { return undefined }
+}
 
 const storagePath = () => path.join(app.getPath('userData'), 'state.sqlite')
 const xmppCredentialPath = () => path.join(app.getPath('userData'), 'xmpp-credentials.enc')
@@ -98,14 +115,27 @@ async function startXmpp(options: NativeStartOptions): Promise<{ jid: string }> 
 
   const storage = new NodeSqliteStorage(storagePath())
   const privateKey = await loadIdentityKey(storage, options.recoveryPhrase)
+  const relayInput = options.relay
+  const relay = {
+    enabled: relayInput?.enabled === true,
+    listenPort: Number.isInteger(relayInput?.listenPort) && relayInput!.listenPort >= 1 && relayInput!.listenPort <= 64535 ? relayInput!.listenPort : 4001,
+    publicHost: relayInput?.publicHost,
+    publicPort: Number.isInteger(relayInput?.publicPort) && relayInput!.publicPort >= 1 && relayInput!.publicPort <= 65535 ? relayInput!.publicPort : 4001,
+    maxReservations: Number.isInteger(relayInput?.maxReservations) && relayInput!.maxReservations >= 1 && relayInput!.maxReservations <= 256 ? relayInput!.maxReservations : 32,
+    publishToNostr: relayInput?.publishToNostr === true,
+  }
+  const announcedRelayAddress = relay.enabled ? publicRelayAddress(relay.publicHost, relay.publicPort) : undefined
 
-  const node = await createP2PNode(0, {
+  const node = await createP2PNode(relay.enabled ? relay.listenPort : 0, {
     // The desktop peer must accept connections from other devices. The UI
     // renderer itself remains isolated on its own localhost HTTP server.
     host: '0.0.0.0',
     enableMdns: true,
-    enableDht: true,
+    enableDht: options.dhtEnabled !== false,
     enableWebRTC: true,
+    enableRelay: relay.enabled,
+    relayMaxReservations: relay.maxReservations,
+    relayPublicAddress: announcedRelayAddress,
     bootstrapAddrs: options.bootstrapAddrs,
     privateKey
   }) as Libp2p
@@ -122,7 +152,25 @@ async function startXmpp(options: NativeStartOptions): Promise<{ jid: string }> 
       allowNativeXmppTcp: true
     })
     await xmpp.ready
-    const runtimeBridge = new BrowserXmppRuntimeBridge(xmpp, async () => { await node.stop() }, fetchRssFeed)
+    if (relay.enabled && relay.publishToNostr && announcedRelayAddress) {
+      const { secretKey } = await loadOrCreateNostrBootstrapSecretKey(path.join(app.getPath('userData'), 'nostr-relay-publisher-key'))
+      const nostrRelays = options.nostrRelayUrls ?? []
+      if (nostrRelays.length) {
+        stopRelayPublisher = startNostrBootstrapPublisher({
+          relayUrls: nostrRelays,
+          secretKey,
+          peerId: node.peerId.toString(),
+          bootstrapAddrs: [`${announcedRelayAddress}/p2p/${node.peerId.toString()}`],
+          onPublished: () => console.info('[Relay] Published this desktop relay address to Nostr'),
+          onError: error => console.warn(`[Relay] Could not publish relay address to Nostr: ${error.message}`),
+        })
+      }
+    }
+    const runtimeBridge = new BrowserXmppRuntimeBridge(xmpp, async () => {
+      stopRelayPublisher?.()
+      stopRelayPublisher = undefined
+      await node.stop()
+    }, fetchRssFeed)
 
     libp2p = node
     xmppNode = xmpp
@@ -130,6 +178,8 @@ async function startXmpp(options: NativeStartOptions): Promise<{ jid: string }> 
 
     return { jid: runtimeBridge.getLocalJid() }
   } catch (error) {
+    stopRelayPublisher?.()
+    stopRelayPublisher = undefined
     try { await node.stop() } catch { /* already stopped */ }
     throw error
   }
@@ -220,6 +270,16 @@ function registerIpc(): void {
     const window = BrowserWindow.fromWebContents(event.sender) ?? mainWindow
     if (window) attachBridgeToWindow(window)
     return result
+  })
+
+  ipcMain.handle('xmpp:relay-status', () => {
+    const relay = (libp2p as any)?.services?.relay
+    return {
+      enabled: Boolean(relay),
+      running: relay?.isStarted?.() === true,
+      reservations: Number(relay?.reservations?.size ?? 0),
+      publishing: Boolean(stopRelayPublisher),
+    }
   })
 
   ipcMain.handle(IPC.call, async (_event, method: string, args: unknown[] = []) => {
