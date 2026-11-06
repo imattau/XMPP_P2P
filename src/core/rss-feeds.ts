@@ -101,12 +101,17 @@ function elementChildren(el: any): any[] {
   return (el?.children ?? []).filter((item: any) => typeof item === 'object' && item?.getName)
 }
 
+function localName(el: any): string {
+  const name = String(el?.getName?.() ?? '').toLowerCase()
+  return name.slice(name.lastIndexOf(':') + 1)
+}
+
 function child(el: any, name: string): any | undefined {
-  return elementChildren(el).find((item: any) => item?.getName?.().toLowerCase() === name.toLowerCase())
+  return elementChildren(el).find((item: any) => localName(item) === name.toLowerCase())
 }
 
 function children(el: any, name: string): any[] {
-  return elementChildren(el).filter((item: any) => item?.getName?.().toLowerCase() === name.toLowerCase())
+  return elementChildren(el).filter((item: any) => localName(item) === name.toLowerCase())
 }
 
 function value(el: any, name: string): string | undefined {
