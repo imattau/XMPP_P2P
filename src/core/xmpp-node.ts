@@ -236,6 +236,7 @@ export class XmppNode extends EventEmitter {
   private libp2p: Libp2p
   private streams = new Map<string, XmppStream>()
   private peerAddrs = new Map<string, Multiaddr>()
+  private discoveredPeerAddresses = new Map<string, string>()
   private reconnectTimers = new Map<string, ReturnType<typeof setTimeout>>()
   private reconnectAttempts = new Map<string, number>()
   private readonly maxReconnectDelay = 30000
@@ -2476,9 +2477,15 @@ export class XmppNode extends EventEmitter {
     if (!localAddress) return
     const address = localAddress.toString()
     const peerAddress = address.includes('/p2p/') ? address : `${address}/p2p/${peerId}`
+    this.discoveredPeerAddresses.set(peerId, peerAddress)
+    this.emit('peer-discovered', { peerId, address: peerAddress })
     void this.ready
       .then(() => this.feedManager.previewDiscoveredFeed(peerId, peerAddress))
       .catch(error => console.warn(`[XMPP] Could not preview nearby peer feed ${peerId}:`, error))
+  }
+
+  getDiscoveredPeers(): Array<{ peerId: string; address: string }> {
+    return [...this.discoveredPeerAddresses].map(([peerId, address]) => ({ peerId, address }))
   }
 
   isServerConnected(): boolean {
@@ -2524,6 +2531,7 @@ export class XmppNode extends EventEmitter {
     this.reconnectTimers.clear()
     this.reconnectAttempts.clear()
     this.peerAddrs.clear()
+    this.discoveredPeerAddresses.clear()
 
     for (const stream of this.streams.values()) {
       await stream.close()

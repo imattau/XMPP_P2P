@@ -16,6 +16,7 @@ export class BrowserXmppRuntimeBridge {
   private collectionPostListeners = new Set<Listener<[XmppCollectionPost]>>()
   private attachmentSummaryListeners = new Set<Listener<[XmppAttachmentSummary]>>()
   private connectionListeners = new Set<Listener<[string, boolean]>>()
+  private discoveredPeerListeners = new Set<Listener<[{ peerId: string; address: string }]>>()
   private serverConnectionListeners = new Set<Listener<[ServerConnectionInfo]>>()
   private serverRosterListeners = new Set<Listener<[]>>()
   private serverPresenceRequestListeners = new Set<Listener<[{ jid: string; server: string }]>>()
@@ -36,7 +37,12 @@ export class BrowserXmppRuntimeBridge {
     private readonly stopNetwork: () => Promise<void> = async () => {},
     rssFeedFetcher?: RssFeedFetcher
   ) {
-    this.rssFeeds = new RssFeedManager(xmppNode.storage, xmppNode.jid, rssFeedFetcher, async (post, itemId) => {
+    // Browser fetch cannot expose a redirect's Location header when using
+    // `redirect: 'manual'` (it returns an opaque redirect). Let the browser
+    // follow redirects and use Response.url as the canonical feed URL.
+    const browserFeedFetcher: RssFeedFetcher = rssFeedFetcher ?? ((url, init) =>
+      fetch(url, { ...init, redirect: 'follow' }))
+    this.rssFeeds = new RssFeedManager(xmppNode.storage, xmppNode.jid, browserFeedFetcher, async (post, itemId) => {
       const originalUrl = post.links?.find((link) => link.rel === 'alternate')?.href ?? post.sourceUrl
       await xmppNode.publishFeed(post.body, {
         itemId,
@@ -54,6 +60,12 @@ export class BrowserXmppRuntimeBridge {
   }
 
   private hookEvents() {
+    this.xmppNode.on('peer-discovered', (peer: { peerId: string; address: string }) => {
+      for (const cb of this.discoveredPeerListeners) {
+        try { cb(peer) } catch { /* swallow */ }
+      }
+    })
+
     this.xmppNode.on('upload:available', (cid: string) => {
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('xmpp-p2p:upload-available', { detail: cid }))
@@ -750,6 +762,15 @@ export class BrowserXmppRuntimeBridge {
     return Array.from(this.activeConnections)
   }
 
+  getDiscoveredPeers(): Array<{ peerId: string; address: string }> {
+    return this.xmppNode.getDiscoveredPeers()
+  }
+
+  onDiscoveredPeer(cb: Listener<[{ peerId: string; address: string }]>): () => void {
+    this.discoveredPeerListeners.add(cb)
+    return () => this.discoveredPeerListeners.delete(cb)
+  }
+
   getLocalJid(): string {
     return this.xmppNode.jid
   }
@@ -768,6 +789,7 @@ export class BrowserXmppRuntimeBridge {
     this.feedPostListeners.clear()
     this.attachmentSummaryListeners.clear()
     this.connectionListeners.clear()
+    this.discoveredPeerListeners.clear()
     this.serverConnectionListeners.clear()
     this.serverRosterListeners.clear()
     this.serverPresenceRequestListeners.clear()

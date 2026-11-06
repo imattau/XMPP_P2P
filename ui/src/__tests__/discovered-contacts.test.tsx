@@ -40,14 +40,13 @@ describe('discovered contacts', () => {
     }
   })
 
-  it('shows connected peers separately and adds one to saved contacts on request', async () => {
+  it('shows available peers immediately and adds one to saved contacts on request', async () => {
     render(<ContactsPage />)
 
     const availablePeersSummary = screen.getByText('Available on P2P').closest('summary')
     expect(availablePeersSummary).toBeVisible()
     expect(availablePeersSummary).toHaveTextContent('Available on P2P1')
-    fireEvent.click(availablePeersSummary!)
-    expect(screen.getByText('Connected peers you haven’t added to your contacts.')).toBeVisible()
+    expect(screen.getByText('Nearby or connected peers you haven’t added to your contacts.')).toBeVisible()
     expect(screen.getByText('peer-123@p2p')).toBeVisible()
 
     fireEvent.click(screen.getByRole('button', { name: 'Add peer-123 to contacts' }))

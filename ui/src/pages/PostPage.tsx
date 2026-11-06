@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useState, useEffect } from 'react'
-import { useLocation, useNavigate, useParams } from 'react-router'
+import { NavLink, useLocation, useNavigate, useParams } from 'react-router'
 import {
   ArrowLeft, Heart, MessageCircle, Repeat2, Share2,
   Bookmark, Hash, Users, Globe, Lock, Shield,
@@ -11,6 +11,7 @@ import { getBrowserXmppBridge, useBrowserXmppBridge } from '../bridge/runtime'
 import { useFeedBridge } from '../bridge/feed/useFeedBridge'
 import { useIdentityBridge } from '../bridge/identity/useIdentityBridge'
 import { emitToast } from '../lib/toast-events'
+import { authorProfileUrl } from '../lib/author-profile'
 
 interface Author {
   name: string
@@ -79,7 +80,7 @@ function PrivacyIcon({ privacy }: { privacy?: string }) {
   return <Globe size={11} className="text-muted-foreground" />
 }
 
-function ReplyThread({ reply, onLike, onRepost, onReplySubmit }: { reply: Reply; onLike: (id: string) => void; onRepost: (id: string) => void; onReplySubmit: (id: string, text: string, depth: number) => Promise<boolean> }) {
+function ReplyThread({ reply, sourceProtocol, onLike, onRepost, onReplySubmit }: { reply: Reply; sourceProtocol?: 'p2p' | 'xmpp' | 'rss'; onLike: (id: string) => void; onRepost: (id: string) => void; onReplySubmit: (id: string, text: string, depth: number) => Promise<boolean> }) {
   const [collapsed, setCollapsed] = useState(false)
   const [isReplying, setIsReplying] = useState(false)
   const [localReplyText, setLocalReplyText] = useState('')
@@ -91,9 +92,9 @@ function ReplyThread({ reply, onLike, onRepost, onReplySubmit }: { reply: Reply;
     <div className={`${depth === 1 ? 'ml-2 border-l-2 border-border pl-2 sm:ml-8 sm:pl-3' : depth === 2 ? 'border-l-2 border-border pl-1 sm:pl-3' : ''}`}>
       <div className={`flex ${depth >= 2 ? 'gap-0' : 'gap-2.5'} py-3 ${rowPaddingClass}`}>
         {depth < 2 && <div className="relative flex flex-shrink-0 flex-col items-center gap-0">
-          <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded-full border border-border bg-secondary">
+          <NavLink to={authorProfileUrl(reply.author, sourceProtocol)} aria-label={`Open ${reply.author.name}'s profile`} className="h-8 w-8 flex-shrink-0 overflow-hidden rounded-full border border-border bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             <img src={reply.author.avatar} alt={reply.author.name} className="h-full w-full object-cover" />
-          </div>
+          </NavLink>
           {hasChildren && !collapsed && (
             <div className="mt-1 min-h-[12px] w-px flex-1 bg-border" />
           )}
@@ -101,9 +102,9 @@ function ReplyThread({ reply, onLike, onRepost, onReplySubmit }: { reply: Reply;
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
-            <span className="break-words font-semibold text-[13px] text-foreground leading-tight">{reply.author.name}</span>
+            <NavLink to={authorProfileUrl(reply.author, sourceProtocol)} className="break-words font-semibold text-[13px] text-foreground leading-tight hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{reply.author.name}</NavLink>
             {reply.author.verified && <Shield size={11} className="text-primary flex-shrink-0" />}
-            <span className="break-all font-mono text-[11px] text-muted-foreground">@{reply.author.handle}</span>
+            <NavLink to={authorProfileUrl(reply.author, sourceProtocol)} className="break-all font-mono text-[11px] text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">@{reply.author.handle}</NavLink>
             <span className="text-muted-foreground/40 text-xs">·</span>
             <span className="font-mono text-[11px] text-muted-foreground">{reply.timestamp}</span>
           </div>
@@ -178,7 +179,7 @@ function ReplyThread({ reply, onLike, onRepost, onReplySubmit }: { reply: Reply;
       {hasChildren && !collapsed && (
         <div>
           {reply.replies!.map((child) => (
-            <ReplyThread key={child.id} reply={{ ...child, depth: (reply.depth ?? 0) + 1 }} onLike={onLike} onRepost={onRepost} onReplySubmit={onReplySubmit} />
+            <ReplyThread key={child.id} reply={{ ...child, depth: (reply.depth ?? 0) + 1 }} sourceProtocol={sourceProtocol} onLike={onLike} onRepost={onRepost} onReplySubmit={onReplySubmit} />
           ))}
         </div>
       )}
@@ -206,6 +207,7 @@ export default function PostPage() {
     if (!fp) return null
     return {
       id: fp.id,
+      sourceProtocol: fp.sourceProtocol,
       author: { name: fp.author.name, handle: fp.author.handle, avatar: fp.author.avatar, server: fp.author.server || '', verified: fp.author.verified },
       content: fp.content,
       title: fp.title,
@@ -222,7 +224,6 @@ export default function PostPage() {
       topicColor: fp.topicColor || '#3b82f6',
       privacy: fp.privacy,
       sourceTopic: fp.sourceTopic,
-      sourceProtocol: fp.sourceProtocol,
       externalUrl: fp.externalUrl,
       media: fp.media,
       sourceName: fp.sourceName,
@@ -575,11 +576,11 @@ export default function PostPage() {
       <main className="flex-1 overflow-y-auto">
         <div className="px-4 pt-4 pb-3 border-b border-border">
           <div className="flex items-center gap-3 mb-3">
-            <div className="relative flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-secondary text-sm font-semibold text-muted-foreground">
+            <NavLink to={authorProfileUrl(post.author, post.sourceProtocol)} aria-label={`Open ${post.author.name}'s profile`} className="relative flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-secondary text-sm font-semibold text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
               <span aria-hidden="true">{post.author.name.trim().charAt(0).toUpperCase() || '?'}</span>
               {post.author.avatar && <img src={post.author.avatar} alt="" onError={(event) => { event.currentTarget.style.display = 'none' }} className="absolute inset-0 h-full w-full object-cover" />}
-            </div>
-            <div className="flex-1 min-w-0">
+            </NavLink>
+            <NavLink to={authorProfileUrl(post.author, post.sourceProtocol)} aria-label={`Open ${post.author.name}'s profile`} className="flex-1 min-w-0 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
               <div className="flex min-w-0 items-center gap-1.5">
                 <span className="truncate font-semibold text-sm text-foreground">{post.author.name}</span>
                 {post.author.verified && <Shield size={12} className="text-primary" />}
@@ -592,7 +593,7 @@ export default function PostPage() {
                 <span className="hidden text-muted-foreground/40 sm:inline">·</span>
                 <span className="hidden min-w-0 truncate font-mono text-[11px] text-muted-foreground sm:inline">{post.author.server}</span>
               </div>
-            </div>
+            </NavLink>
               {canFollowAuthor && (
                 <button
                   type="button"
@@ -759,7 +760,7 @@ export default function PostPage() {
         {supportsSocialActions && <div>
           {replies.map((reply) => (
             <div key={reply.id} className="border-b border-border last:border-0">
-              <ReplyThread reply={reply} onLike={(replyId) => { void handleLikeReply(replyId) }} onRepost={(replyId) => { void handleRepostReply(replyId) }} onReplySubmit={handleSubmitNestedReply} />
+              <ReplyThread reply={reply} sourceProtocol={post.sourceProtocol} onLike={(replyId) => { void handleLikeReply(replyId) }} onRepost={(replyId) => { void handleRepostReply(replyId) }} onReplySubmit={handleSubmitNestedReply} />
             </div>
           ))}
         </div>}

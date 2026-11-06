@@ -59,7 +59,7 @@ export default function ContactsPage() {
   const discoveredPeers = useDiscoveredPeers()
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [showAvailablePeers, setShowAvailablePeers] = useState(false)
+  const [showAvailablePeers, setShowAvailablePeers] = useState(true)
   const [answeringRequest, setAnsweringRequest] = useState<string | null>(null)
   const [addingPeer, setAddingPeer] = useState<string | null>(null)
 
@@ -224,7 +224,7 @@ export default function ContactsPage() {
                   <span className="text-xs font-normal text-muted-foreground">{availablePeers.length}</span>
                   <ChevronDown size={15} className="ml-auto text-muted-foreground transition-transform group-open:rotate-180" aria-hidden="true" />
                 </summary>
-                <p className="px-4 pb-3 text-xs leading-relaxed text-muted-foreground">Connected peers you haven’t added to your contacts.</p>
+                <p className="px-4 pb-3 text-xs leading-relaxed text-muted-foreground">Nearby or connected peers you haven’t added to your contacts.</p>
                 <div>
                 {availablePeers.map((peer) => {
                   const label = peer.nickname || peer.peerId

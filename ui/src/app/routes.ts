@@ -8,6 +8,7 @@ const TopicsPage = lazy(() => import('../pages/TopicsPage'))
 const TopicFeedPage = lazy(() => import('../pages/TopicFeedPage'))
 const ComposePage = lazy(() => import('../pages/ComposePage'))
 const ProfilePage = lazy(() => import('../pages/ProfilePage'))
+const AuthorProfilePage = lazy(() => import('../pages/AuthorProfilePage'))
 const SettingsPage = lazy(() => import('../pages/SettingsPage'))
 const CreateCommunityPage = lazy(() => import('../pages/CreateCommunityPage'))
 const JoinCommunityPage = lazy(() => import('../pages/JoinCommunityPage'))
@@ -51,6 +52,7 @@ export const router = createBrowserRouter([
       { path: 'chats/new', Component: NewChatPage },
       { path: 'chat/:id', Component: ChatThreadPage },
       { path: 'chat', Component: ChatThreadPage },
+      { path: 'profile/author', Component: AuthorProfilePage },
       { path: 'profile', Component: ProfilePage },
       { path: 'settings', Component: SettingsPage },
       { path: 'settings/recovery', Component: RecoveryPage },

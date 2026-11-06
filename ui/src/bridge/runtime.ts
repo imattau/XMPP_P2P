@@ -297,6 +297,8 @@ export interface XmppRuntimeBridge {
   onCollectionPost?(cb: (post: BridgeCollectionPostRecord) => void): () => void
   onConnectionChange(cb: (peerId: string, connected: boolean) => void): () => void
   getConnectedPeers(): string[]
+  getDiscoveredPeers?(): Array<{ peerId: string; address: string }>
+  onDiscoveredPeer?(cb: (peer: { peerId: string; address: string }) => void): () => void
   getLocalJid(): string
   getServerJid?(): string | undefined
   getLocalPeerAddresses?(): string[]

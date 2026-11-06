@@ -1,4 +1,5 @@
 import { RichText } from '../components/RichText'
+import { authorProfileUrl } from '../lib/author-profile'
 import * as React from 'react'
 import { useState, useEffect, useRef } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router'
@@ -173,32 +174,30 @@ function PostCard({
       )}
       <div className="px-4 py-3">
         <div className="flex gap-3">
-        <div className="flex-shrink-0">
+        <NavLink to={authorProfileUrl(post.author, post.sourceProtocol)} aria-label={`Open ${post.author.name}'s profile`} className="flex-shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <div className="w-10 h-10 rounded-full overflow-hidden bg-secondary ring-1 ring-border">
-            <img src={post.author.avatar} alt={post.author.name} className="w-full h-full object-cover" />
+            <img src={post.author.avatar} alt="" className="w-full h-full object-cover" />
           </div>
-        </div>
-        <NavLink
-          to={`/post/${encodeURIComponent(post.id)}`}
-          aria-label={`Open post by ${post.author.name}`}
-          className="flex-1 min-w-0"
-        >
-          <div className="mb-0.5">
-            <div className="flex min-w-0 items-center gap-1.5">
-              <span className="truncate font-semibold text-sm leading-tight text-foreground">{post.author.name}</span>
-              {post.author.verified && <Shield size={12} className="flex-shrink-0 text-primary" />}
-              {isXmppMicroblog && <span className="flex-shrink-0 rounded border border-primary/20 px-1 py-0.5 font-mono text-[9px] text-primary">XMPP</span>}
-              {isRssFeed && <span className="flex-shrink-0 rounded border border-primary/20 px-1 py-0.5 font-mono text-[9px] text-primary">RSS/Atom</span>}
-              <PrivacyIcon privacy={post.privacy} />
-            </div>
-            <div className="flex min-w-0 items-center gap-1 font-mono text-[11px] text-muted-foreground">
-              <span className="min-w-0 truncate">@{post.author.handle}</span>
-              <span aria-hidden="true">·</span>
-              <span className="hidden truncate sm:inline">{post.author.server}</span>
-              <span className="hidden sm:inline" aria-hidden="true">·</span>
-              <span className="flex-shrink-0">{post.timestamp}</span>
-            </div>
+        </NavLink>
+        <div className="flex-1 min-w-0">
+          <div className="mb-0.5 flex min-w-0 items-start gap-2">
+            <NavLink to={authorProfileUrl(post.author, post.sourceProtocol)} aria-label={`Open ${post.author.name}'s profile`} className="block min-w-0 flex-1 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <div className="flex min-w-0 items-center gap-1.5">
+                <span className="truncate font-semibold text-sm leading-tight text-foreground">{post.author.name}</span>
+                {post.author.verified && <Shield size={12} className="flex-shrink-0 text-primary" />}
+                {isXmppMicroblog && <span className="flex-shrink-0 rounded border border-primary/20 px-1 py-0.5 font-mono text-[9px] text-primary">XMPP</span>}
+                {isRssFeed && <span className="flex-shrink-0 rounded border border-primary/20 px-1 py-0.5 font-mono text-[9px] text-primary">RSS/Atom</span>}
+                <PrivacyIcon privacy={post.privacy} />
+              </div>
+              <div className="flex min-w-0 items-center gap-1 font-mono text-[11px] text-muted-foreground">
+                <span className="min-w-0 truncate">@{post.author.handle}</span>
+                <span aria-hidden="true">·</span>
+                <span className="hidden truncate sm:inline">{post.author.server}</span>
+              </div>
+            </NavLink>
+            <NavLink to={`/post/${encodeURIComponent(post.id)}`} aria-label={`Open post by ${post.author.name}`} className="shrink-0 rounded-sm font-mono text-[11px] text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{post.timestamp}</NavLink>
           </div>
+          <NavLink to={`/post/${encodeURIComponent(post.id)}`} aria-label={`Open post by ${post.author.name}`} className="block min-w-0">
 
           {config.label ? (
             <div className="mb-1.5 flex min-w-0 items-center gap-1">
@@ -233,7 +232,8 @@ function PostCard({
               </span>
             </div>
           )}
-        </NavLink>
+            </NavLink>
+        </div>
         </div>
         {canExpand && (
           <NavLink to={`/post/${encodeURIComponent(post.id)}`} aria-label={`Show more of post by ${post.author.name}`}
