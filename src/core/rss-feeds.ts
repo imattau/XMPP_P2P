@@ -95,12 +95,16 @@ function safeUrl(value: string, base?: string): string {
   return url.toString()
 }
 
+function elementChildren(el: any): any[] {
+  return (el?.children ?? []).filter((item: any) => typeof item === 'object' && item?.getName)
+}
+
 function child(el: any, name: string): any | undefined {
-  return el?.getChildren?.().find((item: any) => item?.getName?.().toLowerCase() === name.toLowerCase())
+  return elementChildren(el).find((item: any) => item?.getName?.().toLowerCase() === name.toLowerCase())
 }
 
 function children(el: any, name: string): any[] {
-  return (el?.getChildren?.() ?? []).filter((item: any) => item?.getName?.().toLowerCase() === name.toLowerCase())
+  return elementChildren(el).filter((item: any) => item?.getName?.().toLowerCase() === name.toLowerCase())
 }
 
 function value(el: any, name: string): string | undefined {
@@ -116,12 +120,15 @@ function plainText(input: string | undefined): string {
 }
 
 function parseFeed(xmlText: string): ParsedFeed | undefined {
+  if (/^\s*(<\?xml[^>]*>\s*)?<!DOCTYPE\s+html/i.test(xmlText) || /^\s*<html[\s>]/i.test(xmlText)) return undefined
   if (/<!DOCTYPE|<!ENTITY/i.test(xmlText)) throw new Error('This feed uses unsupported XML declarations.')
   let root: any
   let parseError: Error | undefined
   let closed = false
   const parser = new Parser()
   parser.on('start', (el: any) => { root = el })
+  // The stream-style parser emits depth-1 elements separately instead of attaching them to the root.
+  parser.on('element', (el: any) => { root?.children?.push(el) })
   parser.on('end', () => { closed = true })
   parser.on('error', (error: Error) => { parseError = error })
   parser.write(xmlText)
