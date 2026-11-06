@@ -1,6 +1,6 @@
 {
   "name": "xmpp_p2p",
-  "version": "1.5.7",
+  "version": "1.5.8",
   "description": "XMPP over libp2p",
   "main": "dist/electron/main.js",
   "desktopName": "app.nexus.xmpp.desktop",
