@@ -1,3 +1,4 @@
+import { RichText } from '../components/RichText'
 import * as React from 'react'
 import { useState, useEffect, useRef } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router'
@@ -149,6 +150,7 @@ function PostCard({
     : post.type === 'community'
       ? { label: post.community, color: '#f59e0b' }
       : { label: null, color: null }
+  const canExpand = post.content.length > 320 || post.content.split('\n').length > 6
   const isXmppMicroblog = post.sourceProtocol === 'xmpp'
   const isRssFeed = post.sourceProtocol === 'rss'
   const supportsNativeSocialActions = !isXmppMicroblog && !isRssFeed
@@ -214,11 +216,11 @@ function PostCard({
           ) : null}
 
           {isRssFeed && post.title && <h3 className="mb-1.5 break-words text-sm font-semibold leading-snug text-foreground">{post.title}</h3>}
-          <p className="mb-2 break-words text-sm leading-relaxed text-foreground/90">{post.content}</p>
+          <p className={`mb-2 break-words whitespace-pre-line text-sm leading-relaxed text-foreground/90 ${canExpand ? 'line-clamp-6' : ''}`}><RichText text={post.content} /></p>
 
           {post.media && (
             <div className="mb-2.5 rounded overflow-hidden border border-border bg-secondary">
-              <img src={post.media.url} alt={post.media.alt} className="w-full h-36 object-cover" />
+              <img src={post.media.url} alt={post.media.alt} loading="lazy" referrerPolicy="no-referrer" className="w-full h-36 object-cover" />
             </div>
           )}
           {post.geoloc?.country && (
@@ -231,6 +233,12 @@ function PostCard({
           )}
         </NavLink>
         </div>
+        {canExpand && (
+          <NavLink to={`/post/${encodeURIComponent(post.id)}`} aria-label={`Show more of post by ${post.author.name}`}
+            className="-mt-1 ml-[52px] inline-flex min-h-11 items-center text-xs font-semibold text-primary hover:underline">
+            Show more
+          </NavLink>
+        )}
 
           <div className="mt-1 flex items-center justify-between ml-[52px]">
             {supportsNativeSocialActions && <NavLink to={`/post/${encodeURIComponent(post.id)}#reply`} aria-label={`Reply to post by ${post.author.name}, ${formatCount(post.comments)} comments`} title={`${formatCount(post.comments)} comments`}

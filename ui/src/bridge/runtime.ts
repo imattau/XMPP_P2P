@@ -19,6 +19,7 @@ export type BridgeFeedPostRecord = {
   author?: string
   categories?: string[]
   links?: Array<{ rel: string; href: string; type?: string; title?: string; ref?: string }>
+  image?: string
   geoloc?: { lat?: string; lon?: string; country?: string; countryCode?: string; region?: string }
   replyTo?: string
   sourceProtocol?: 'p2p' | 'xmpp' | 'rss'

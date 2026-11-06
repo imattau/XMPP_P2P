@@ -47,6 +47,7 @@ export type RssFeedPost = {
   author?: string
   categories?: string[]
   links?: Array<{ rel: string; href: string; type?: string; title?: string }>
+  image?: string
   sourceProtocol: 'rss'
   sourceName: string
   sourceUrl: string
@@ -59,6 +60,7 @@ type ParsedEntry = {
   publishedAt?: string
   url?: string
   author?: string
+  image?: string
   categories: string[]
 }
 type ParsedFeed = { title: string; siteUrl?: string; format: RssFeedFormat; entries: ParsedEntry[] }
@@ -119,6 +121,59 @@ function plainText(input: string | undefined): string {
     .replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/\s+/g, ' ').trim().slice(0, 20_000)
 }
 
+const NAMED_ENTITIES: Record<string, string> = {
+  nbsp: ' ', lt: '<', gt: '>', quot: '"', apos: "'", hellip: '…', mdash: '—', ndash: '–',
+  lsquo: '‘', rsquo: '’', ldquo: '“', rdquo: '”', bull: '•', copy: '©', amp: '&',
+}
+
+function decodeEntities(input: string): string {
+  return input.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (match, body: string) => {
+    if (body[0] === '#') {
+      const code = body[1].toLowerCase() === 'x' ? parseInt(body.slice(2), 16) : parseInt(body.slice(1), 10)
+      try { return Number.isFinite(code) ? String.fromCodePoint(code) : match } catch { return match }
+    }
+    return NAMED_ENTITIES[body.toLowerCase()] ?? match
+  })
+}
+
+/** Convert feed HTML to plain text while keeping paragraph, line-break and list structure. */
+function htmlToText(input: string | undefined): string {
+  if (!input) return ''
+  const text = decodeEntities(input
+    .replace(/<(script|style)\b[\s\S]*?<\/\1>/gi, '')
+    .replace(/<a\b[^>]*?\bhref\s*=\s*(?:"([^"]*)"|'([^']*)')[^>]*>([\s\S]*?)<\/a>/gi, (_m, d: string | undefined, sq: string | undefined, label: string) => {
+      const href = decodeEntities((d ?? sq ?? '').trim())
+      const text = label.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
+      if (!/^https?:\/\//i.test(href) || !text || text === href) return text || href
+      return `[${text.replace(/[\[\]]/g, '')}](${href.replace(/[()\s]/g, encodeURIComponent)})`
+    })
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<li\b[^>]*>/gi, '\n• ')
+    .replace(/<\/(p|div|h[1-6]|ul|ol|blockquote|pre|tr|table|figure|section|article)>/gi, '\n\n')
+    .replace(/<[^>]*>/g, ''))
+  return text.replace(/\r\n?/g, '\n').replace(/[ \t\u00a0]+/g, ' ')
+    .replace(/ ?\n ?/g, '\n').replace(/\n{3,}/g, '\n\n').trim().slice(0, 20_000)
+}
+
+function entryImage(entry: any, rawHtml: string): string | undefined {
+  const candidates: string[] = []
+  for (const el of elementChildren(entry)) {
+    const name = String(el.getName?.() ?? '').toLowerCase()
+    const attrs = el.attrs ?? {}
+    const type = String(attrs.type ?? '').toLowerCase()
+    const medium = String(attrs.medium ?? '').toLowerCase()
+    if ((name === 'thumbnail' || name === 'content' || name === 'enclosure') && attrs.url
+      && (name === 'thumbnail' || medium === 'image' || type.startsWith('image/') || (name === 'content' && !type && !medium && /\.(jpe?g|png|gif|webp|avif)(\?|$)/i.test(attrs.url)))) {
+      candidates.push(String(attrs.url))
+    } else if (name === 'link' && String(attrs.rel ?? '').toLowerCase() === 'enclosure' && type.startsWith('image/') && attrs.href) {
+      candidates.push(String(attrs.href))
+    }
+  }
+  const imgTag = rawHtml.match(/<img\b[^>]*?\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)')/i)
+  if (imgTag) candidates.push(decodeEntities(imgTag[1] ?? imgTag[2] ?? ''))
+  return candidates.find((url) => /^https?:\/\//i.test(url.trim()) || url.trim().startsWith('/'))?.trim()
+}
+
 function parseFeed(xmlText: string): ParsedFeed | undefined {
   if (/^\s*(<\?xml[^>]*>\s*)?<!DOCTYPE\s+html/i.test(xmlText) || /^\s*<html[\s>]/i.test(xmlText)) return undefined
   if (/<!DOCTYPE|<!ENTITY/i.test(xmlText)) throw new Error('This feed uses unsupported XML declarations.')
@@ -157,7 +212,7 @@ function parseFeed(xmlText: string): ParsedFeed | undefined {
     const author = value(authorEl, 'name') || value(entry, 'creator') || (typeof authorEl?.getText?.() === 'string' ? authorEl.getText().trim() : undefined)
     const id = value(entry, isAtom ? 'id' : 'guid') || href || `${title}:${date ?? ''}:${value(entry, 'title') ?? ''}`
     const entryTitle = plainText(value(entry, 'title')) || 'Untitled entry'
-    const summary = plainText(content)
+    const summary = htmlToText(content)
     const hashtags = `${entryTitle} ${summary}`.match(/#([\p{L}\p{N}_-]{2,64})/gu)?.map((tag) => tag.slice(1)) ?? []
     return {
       id,
@@ -165,6 +220,7 @@ function parseFeed(xmlText: string): ParsedFeed | undefined {
       summary,
       publishedAt: date && Number.isFinite(Date.parse(date)) ? new Date(date).toISOString() : undefined,
       url: href,
+      image: entryImage(entry, content),
       author: plainText(author),
       categories: [...new Map([...categories, ...hashtags].map((tag) => [tag.toLowerCase(), tag])).values()].slice(0, 20),
     }
@@ -201,6 +257,7 @@ function toFeedPost(source: RssFeedSource, entry: ParsedEntry, receivedAt = new 
     summary: entry.summary,
     author: entry.author || source.title,
     categories: entry.categories,
+    image: safeOptionalUrl(entry.image, source.url),
     links: safeOptionalUrl(entry.url, source.url) ? [{ rel: 'alternate', href: safeOptionalUrl(entry.url, source.url)!, title: 'Open original entry' }] : [],
     publishedAt: entry.publishedAt ?? receivedAt,
     updatedAt: receivedAt,

@@ -37,6 +37,7 @@ export function mapRuntimePost(record: BridgeFeedPostRecord): FeedPost {
     },
     content: getArticleFeedPreview(record.body) ?? record.body,
     title: record.title,
+    media: record.image && /^https?:\/\//i.test(record.image) ? { url: record.image, alt: record.title ?? '' } : undefined,
     timestamp: formatRelativeTime(record.publishedAt),
     publishedAt: record.publishedAt,
     topic,

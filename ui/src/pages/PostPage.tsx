@@ -6,6 +6,7 @@ import {
   Bookmark, Hash, Users, Globe, Lock, Shield,
   Zap, Image, Smile, AtSign, Send, ChevronDown, MoreHorizontal, Check, X, UserPlus, UserMinus, ExternalLink,
 } from 'lucide-react'
+import { RichText } from '../components/RichText'
 import { getBrowserXmppBridge, useBrowserXmppBridge } from '../bridge/runtime'
 import { useFeedBridge } from '../bridge/feed/useFeedBridge'
 import { useIdentityBridge } from '../bridge/identity/useIdentityBridge'
@@ -223,6 +224,7 @@ export default function PostPage() {
       sourceTopic: fp.sourceTopic,
       sourceProtocol: fp.sourceProtocol,
       externalUrl: fp.externalUrl,
+      media: fp.media,
       sourceName: fp.sourceName,
     }
   }, [id, feedPosts])
@@ -624,7 +626,7 @@ export default function PostPage() {
           )}
 
           {post.sourceProtocol === 'rss' && post.title && <h1 className="mb-2 break-words text-lg font-semibold leading-snug text-foreground">{post.title}</h1>}
-          <p className="mb-3 break-words whitespace-pre-line text-[15px] leading-relaxed text-foreground">{post.content}</p>
+          <p className="mb-3 break-words whitespace-pre-line text-[15px] leading-relaxed text-foreground"><RichText text={post.content} interactive /></p>
 
           {post.externalUrl && (
             <a href={post.externalUrl} target="_blank" rel="noopener noreferrer" className="mb-3 inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-border px-3 text-xs font-medium text-primary hover:bg-secondary">
@@ -634,7 +636,7 @@ export default function PostPage() {
 
           {post.media && (
             <div className="mb-3 rounded-lg overflow-hidden border border-border bg-secondary">
-              <img src={post.media.url} alt={post.media.alt} className="w-full object-cover max-h-72" />
+              <img src={post.media.url} alt={post.media.alt} loading="lazy" referrerPolicy="no-referrer" className="w-full object-cover max-h-72" />
             </div>
           )}
 
