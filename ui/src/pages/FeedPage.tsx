@@ -911,31 +911,33 @@ export default function FeedPage() {
 
         {showQuickComposer && (
           <div className="border-b border-border">
-          <div className="flex items-center gap-3 px-4 py-3">
+          <div className="flex items-start gap-3 px-4 py-3">
             <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-sm font-semibold text-muted-foreground flex-shrink-0">
               {userInitial}
             </div>
             <div className="flex-1 min-w-0">
-              <input
+              <textarea
+                rows={3}
                 aria-label={quickPostType === 'server' ? 'Post to XMPP microblog' : quickPostType === 'community' && selectedCommunity ? `Post to ${selectedCommunity}` : 'Write a post'}
                 value={quickPostText}
                 onChange={(e) => setQuickPostText(e.target.value)}
                 placeholder={quickPostType === 'server' ? 'Post to your XMPP microblog…' : quickPostType === 'community' && selectedCommunity ? `Post to ${selectedCommunity}…` : "What's on your mind?"}
-                className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
+                className="block w-full resize-none bg-transparent py-1.5 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground outline-none"
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && quickPostText.trim()) {
+                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && quickPostText.trim()) {
+                    e.preventDefault()
                     handleQuickPost()
                   }
                 }}
               />
-              <div className="flex flex-wrap items-center gap-2 mt-1">
+              <div className="-ml-12 mt-1 flex w-[calc(100%+3rem)] flex-wrap items-center gap-2 border-t border-border/60 pt-2">
                 <label className="relative">
                   <span className="sr-only">Post destination</span>
                   <select
                     aria-label="Post destination"
                     value={quickPostType}
                     onChange={(event) => setQuickPostType(event.target.value as 'post' | 'community' | 'server')}
-                    className="min-h-11 w-[116px] appearance-none rounded-lg bg-secondary pl-3 pr-8 text-[11px] font-mono text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    className="min-h-11 w-auto min-w-[9.5rem] appearance-none rounded-lg bg-secondary pl-3 pr-8 text-[11px] font-mono text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary"
                   >
                     <option value="post">Feed</option>
                     <option value="community">Community</option>
@@ -943,19 +945,6 @@ export default function FeedPage() {
                   </select>
                   <ChevronDown size={13} aria-hidden="true" className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 </label>
-                {quickPostType === 'community' && collections.length === 0 && !selectedCommunity && (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[11px] text-muted-foreground">You aren't in a community yet.</span>
-                    <button type="button" onClick={() => navigate('/communities/new')}
-                      className="inline-flex min-h-11 items-center gap-1 rounded-lg bg-secondary px-3 text-[11px] font-semibold text-primary hover:bg-secondary/80">
-                      <Plus size={12} />Create one
-                    </button>
-                    <button type="button" onClick={() => navigate('/communities/join')}
-                      className="inline-flex min-h-11 items-center gap-1 rounded-lg bg-secondary px-3 text-[11px] font-semibold text-foreground hover:bg-secondary/80">
-                      <Hash size={12} />Join by ID
-                    </button>
-                  </div>
-                )}
                 {quickPostType === 'community' && (collections.length > 0 || Boolean(selectedCommunity)) && (
                   <div ref={communityRef} className="relative">
                     <button
@@ -1020,17 +1009,30 @@ export default function FeedPage() {
                     )}
                   </div>
                 )}
+                <button
+                  type="button"
+                  onClick={handleQuickPost}
+                  disabled={!quickPostText.trim() || quickPosting || (quickPostType === 'community' && !selectedCommunity) || (quickPostType === 'server' && !serverConnected)}
+                  className="ml-auto flex min-h-11 items-center gap-1.5 rounded-lg bg-primary px-4 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
+                >
+                  <Send size={12} />
+                  {quickPosting ? 'Posting…' : 'Post'}
+                </button>
               </div>
+              {quickPostType === 'community' && collections.length === 0 && !selectedCommunity && (
+                  <div className="-ml-12 flex w-[calc(100%+3rem)] flex-wrap items-center gap-2 pt-1">
+                    <span className="w-full text-[11px] text-muted-foreground">You aren't in a community yet.</span>
+                    <button type="button" onClick={() => navigate('/communities/new')}
+                      className="inline-flex min-h-11 items-center gap-1 rounded-lg bg-secondary px-3 text-[11px] font-semibold text-primary hover:bg-secondary/80">
+                      <Plus size={12} />Create one
+                    </button>
+                    <button type="button" onClick={() => navigate('/communities/join')}
+                      className="inline-flex min-h-11 items-center gap-1 rounded-lg bg-secondary px-3 text-[11px] font-semibold text-foreground hover:bg-secondary/80">
+                      <Hash size={12} />Join by ID
+                    </button>
+                  </div>
+                )}
             </div>
-            <button
-              type="button"
-              onClick={handleQuickPost}
-              disabled={!quickPostText.trim() || quickPosting || (quickPostType === 'community' && !selectedCommunity) || (quickPostType === 'server' && !serverConnected)}
-              className="flex min-h-11 items-center gap-1.5 rounded-lg bg-primary px-4 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
-            >
-              <Send size={12} />
-              {quickPosting ? 'Posting…' : 'Post'}
-            </button>
           </div>
           </div>
         )}
