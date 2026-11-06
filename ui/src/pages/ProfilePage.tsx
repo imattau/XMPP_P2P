@@ -3,8 +3,8 @@ import { useState, useRef, useEffect } from 'react'
 import { NavLink, useNavigate } from 'react-router'
 import {
   Shield, Lock, Hash, Users, Heart,
-  MessageCircle, Repeat2, Bookmark, Edit3, Link2,
-  MapPin, Calendar, ChevronRight, Copy, Check, MoreHorizontal,
+  MessageCircle, Bookmark, Edit3, Link2,
+  MapPin, Calendar, ChevronRight, Copy, Check,
   QrCode, Camera, Loader2,
 } from 'lucide-react'
 import { useProfileBridge, type EditableVCard } from '../bridge/useProfileBridge'
@@ -15,6 +15,8 @@ import type { BridgeFeedSubscriptionRecord, BridgeCollectionNode } from '../brid
 import { InlineEdit } from '../components/InlineEdit'
 import QRCode from '../components/QRCode'
 import { emitToast } from '../lib/toast-events'
+import { RichText } from '../components/RichText'
+import type { FeedPost } from '../bridge/feed/types'
 
 type ProfileTab = 'posts' | 'topics' | 'communities' | 'bookmarks'
 
@@ -27,6 +29,41 @@ function formatJoinDate(iso?: string) {
   if (!iso) return null
   const date = new Date(iso)
   return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+}
+
+function ProfilePostCard({ post, saved = false }: { post: FeedPost; saved?: boolean }) {
+  return (
+    <article className="border-b border-border px-4 py-3 transition-colors hover:bg-white/[0.02]">
+      <NavLink to={`/post/${encodeURIComponent(post.id)}`} aria-label={`Open post by ${post.author.name}`} className="block min-w-0">
+        <div className="mb-2 flex min-w-0 items-center gap-2">
+          <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full bg-secondary ring-1 ring-border">
+            <img src={post.author.avatar} alt="" className="h-full w-full object-cover" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm font-semibold leading-tight text-foreground">{post.author.name}</div>
+            <div className="truncate font-mono text-[11px] text-muted-foreground">@{post.author.handle} · {post.timestamp}</div>
+          </div>
+        </div>
+        {(post.topic || post.community) && (
+          <span className="mb-1.5 inline-flex max-w-full items-center gap-1 rounded px-1.5 py-0.5 font-mono text-[11px] font-medium"
+            style={post.topic ? { color: post.topicColor || '#3b82f6', backgroundColor: (post.topicColor || '#3b82f6') + '1a' } : undefined}>
+            {post.topic ? <><Hash size={9} />{post.topic}</> : post.community}
+          </span>
+        )}
+        {post.title && <h3 className="mb-1.5 break-words text-sm font-semibold leading-snug text-foreground">{post.title}</h3>}
+        <p className="mb-2 break-words whitespace-pre-line text-sm leading-relaxed text-foreground/90"><RichText text={post.content} /></p>
+        {post.media && <div className="mb-2.5 overflow-hidden rounded border border-border bg-secondary"><img src={post.media.url} alt={post.media.alt} loading="lazy" referrerPolicy="no-referrer" className="h-36 w-full object-cover" /></div>}
+      </NavLink>
+      <div className="flex items-center gap-3 pl-1 text-muted-foreground">
+        <span className="inline-flex min-h-11 items-center gap-1" title={`${formatCount(post.comments)} replies`}>
+          <MessageCircle size={14} aria-hidden="true" /><span className="font-mono text-[11px] tabular-nums">{formatCount(post.comments)}</span>
+        </span>
+        <span className="inline-flex min-h-11 items-center gap-1"><Heart size={14} fill={post.liked ? 'currentColor' : 'none'} className={post.liked ? 'text-liked' : ''} /><span className="font-mono text-[11px] tabular-nums">{formatCount(post.likes)}</span></span>
+        {saved && <span className="ml-auto inline-flex items-center gap-1 font-mono text-[10px]"><Bookmark size={12} className="text-primary" />Saved</span>}
+        {!saved && <span className="ml-auto font-mono text-[10px]">{post.reposts ? `${formatCount(post.reposts)} reposts` : ''}</span>}
+      </div>
+    </article>
+  )
 }
 
 const TABS: { id: ProfileTab; label: string }[] = [
@@ -391,51 +428,7 @@ export default function ProfilePage() {
                 <p className="text-sm text-muted-foreground">No posts yet</p>
               </div>
             ) : (
-              myPosts.map((post) => (
-                <article key={post.id} className="border-b border-border px-4 py-3 hover:bg-white/[0.02] transition-colors">
-                  <NavLink to={`/post/${encodeURIComponent(post.id)}`} aria-label="Open post" className="block">
-                  {post.topic && (
-                    <span className="inline-flex items-center gap-0.5 text-[11px] font-mono font-medium px-1.5 py-0.5 rounded mb-2"
-                      style={{ color: post.topicColor, backgroundColor: post.topicColor + '1a' }}>
-                      <Hash size={9} />{post.topic}
-                    </span>
-                  )}
-                  <p className="mb-2 break-words text-sm leading-relaxed text-foreground/90">{post.content}</p>
-                  </NavLink>
-                  <div className="flex items-center justify-between -ml-1">
-                    <span className="inline-flex min-h-11 items-center gap-1 px-1.5 text-muted-foreground" title={`${formatCount(post.comments)} replies`}>
-                      <MessageCircle size={14} aria-hidden="true" />
-                      <span className="font-mono text-[11px] tabular-nums">{formatCount(post.comments)}</span>
-                      <span className="sr-only">replies</span>
-                    </span>
-                    <button
-                      onClick={(event) => { event.stopPropagation(); void feedBridge.repostPost(post.id) }}
-                      aria-label={post.reposted ? `Reposted ${formatCount(post.reposts)} times` : `Repost, ${formatCount(post.reposts)} reposts`} className={`hidden min-h-11 min-w-11 items-center justify-center gap-1 rounded-lg px-1.5 transition-all md:flex ${post.reposted ? 'text-success' : 'text-muted-foreground hover:text-success hover:bg-success/10'}`}
-                    >
-                      <Repeat2 size={14} />
-                      <span className="hidden font-mono text-[11px] sm:inline">{formatCount(post.reposts)}</span>
-                    </button>
-                    <button onClick={(event) => { event.stopPropagation(); void feedBridge.likePost(post.id) }}
-                      aria-label={post.liked ? `Liked, ${formatCount(post.likes)} likes` : `Like, ${formatCount(post.likes)} likes`} className={`flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-lg px-1.5 transition-all ${post.liked ? 'text-liked' : 'text-muted-foreground hover:text-liked hover:bg-liked/10'}`}>
-                      <Heart size={14} fill={post.liked ? 'currentColor' : 'none'} />
-                      <span className="hidden font-mono text-[11px] sm:inline">{formatCount(post.likes)}</span>
-                    </button>
-                    <details className="relative md:hidden">
-                      <summary aria-label="More post actions" className="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground">
-                        <MoreHorizontal size={16} />
-                      </summary>
-                      <div className="absolute bottom-full right-0 z-20 mb-1 min-w-40 rounded-xl border border-border bg-card p-1 shadow-xl">
-                        <button type="button" onClick={(event) => { event.stopPropagation(); event.currentTarget.closest('details')?.removeAttribute('open'); void feedBridge.repostPost(post.id) }}
-                          aria-label={post.reposted ? `Reposted ${formatCount(post.reposts)} times` : `Repost, ${formatCount(post.reposts)} reposts`}
-                          className={`flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-left text-sm hover:bg-secondary ${post.reposted ? 'text-success' : 'text-foreground'}`}>
-                          <Repeat2 size={15} />{post.reposted ? `Reposted · ${formatCount(post.reposts)}` : `Repost · ${formatCount(post.reposts)}`}
-                        </button>
-                      </div>
-                    </details>
-                    <span className="font-mono text-[10px] text-muted-foreground ml-auto">{post.timestamp}</span>
-                  </div>
-                </article>
-              ))
+              myPosts.map((post) => <ProfilePostCard key={post.id} post={post} />)
             )}
           </div>
         )}
@@ -500,15 +493,7 @@ export default function ProfilePage() {
                 <p className="text-sm text-muted-foreground">No saved posts</p>
               </div>
             ) : (
-              bookmarkedPosts.map((post) => (
-                <button key={post.id} onClick={() => navigate(`/post/${encodeURIComponent(post.id)}`)} className="w-full border-b border-border px-4 py-3 hover:bg-white/[0.02] transition-colors text-left">
-                  <p className="mb-2 break-words text-sm leading-relaxed text-foreground/90">{post.content}</p>
-                  <div className="flex items-center gap-2">
-                    <Bookmark size={12} className="text-primary" />
-                    <span className="font-mono text-[10px] text-muted-foreground">Saved {post.timestamp} ago</span>
-                  </div>
-                </button>
-              ))
+              bookmarkedPosts.map((post) => <ProfilePostCard key={post.id} post={post} saved />)
             )}
           </div>
         )}
