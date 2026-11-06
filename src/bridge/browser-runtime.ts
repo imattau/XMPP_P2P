@@ -44,7 +44,10 @@ export class BrowserXmppRuntimeBridge {
         summary: post.summary,
         author: post.author || post.sourceName,
         categories: post.categories,
-        links: [{ rel: 'related', href: originalUrl, title: `Original from ${post.sourceName}` }],
+        links: [
+          { rel: 'related', href: originalUrl, title: `Original from ${post.sourceName}` },
+          ...(post.image ? [{ rel: 'enclosure', href: post.image, type: 'image/*', title: post.title }] : []),
+        ],
       })
     })
     this.hookEvents()

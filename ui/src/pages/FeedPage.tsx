@@ -16,6 +16,8 @@ import { useConnectionBridge } from '../bridge/useConnectionBridge'
 import { useIdentityBridge } from '../bridge/identity/useIdentityBridge'
 import { useRosterBridge } from '../bridge/useRosterBridge'
 import ArticleCard from '../components/article/ArticleCard'
+import { PullToRefreshIndicator, usePullToRefresh } from '../components/PullToRefresh'
+import { refreshExternalFeeds } from '../bridge/refreshExternalFeeds'
 import { emitToast } from '../lib/toast-events'
 import { getBootstrapAddrs } from '../bridge/runtime'
 import { getAccountScopedStorageKey } from '../lib/account-storage'
@@ -718,6 +720,10 @@ export default function FeedPage() {
   } = useFeedBridge()
   const { articles, toggleBookmark, getFollowedTopics } = useArticleBridge()
   const followedTopicNames = getFollowedTopics()
+  const pullRefresh = usePullToRefresh(async () => {
+    await refreshExternalFeeds()
+    await refresh()
+  }, loading)
 
   useEffect(() => {
     const query = new URLSearchParams(routeSearch).get('q')
@@ -1264,7 +1270,8 @@ export default function FeedPage() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto">
+      <main className="relative flex-1 overflow-y-auto" {...pullRefresh.touchHandlers}>
+        <PullToRefreshIndicator pullDistance={pullRefresh.pullDistance} refreshing={pullRefresh.refreshing} ready={pullRefresh.ready} />
         {searchQuery && (
           <div className="border-b border-border px-4 py-2">
             <span className="block truncate font-mono text-xs text-muted-foreground">{filteredPosts.length} results for "{searchQuery}"</span>

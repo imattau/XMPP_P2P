@@ -5,6 +5,9 @@ import { getArticleFeedPreview } from '../article/serialization'
 export function mapRuntimePost(record: BridgeFeedPostRecord): FeedPost {
   const topics = [...new Set((record.categories ?? []).map((category) => category.trim().replace(/^#/, '')).filter(Boolean))]
   const topic = topics[0]
+  const enclosureImage = record.links?.find((link) => link.rel.toLowerCase() === 'enclosure'
+    && (link.type?.toLowerCase().startsWith('image/') || /\.(?:jpe?g|png|gif|webp|avif|svg)(?:[?#]|$)/i.test(link.href)))?.href
+  const imageUrl = record.image ?? enclosureImage
   const community = record.topic.startsWith('xmpp-collection:') ? record.topic.replace('xmpp-collection:', '') : undefined
   const repostLink = record.links?.find((link) => link.rel === 'related' && link.title === 'Repost of')
   const repostItem = repostLink?.href.match(/[?;&]item=([^;&]+)/)?.[1]
@@ -37,7 +40,7 @@ export function mapRuntimePost(record: BridgeFeedPostRecord): FeedPost {
     },
     content: getArticleFeedPreview(record.body) ?? record.body,
     title: record.title,
-    media: record.image && /^https?:\/\//i.test(record.image) ? { url: record.image, alt: record.title ?? '' } : undefined,
+    media: imageUrl && /^https?:\/\//i.test(imageUrl) ? { url: imageUrl, alt: record.title ?? '' } : undefined,
     timestamp: formatRelativeTime(record.publishedAt),
     publishedAt: record.publishedAt,
     topic,

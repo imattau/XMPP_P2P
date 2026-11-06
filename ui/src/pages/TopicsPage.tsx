@@ -4,16 +4,22 @@ import { Check, Hash, Plus, Search, X } from 'lucide-react'
 import { useArticleBridge } from '../bridge/article/useArticleBridge'
 import { useFeedBridge } from '../bridge/feed/useFeedBridge'
 import ArticleCard from '../components/article/ArticleCard'
+import { PullToRefreshIndicator, usePullToRefresh } from '../components/PullToRefresh'
+import { refreshExternalFeeds } from '../bridge/refreshExternalFeeds'
 
 type TopicFilter = 'for-you' | 'following' | 'latest'
 
 export default function TopicsPage() {
   const navigate = useNavigate()
   const { toggleBookmark, articles, getFollowedTopics, toggleFollowedTopic, loading, loadError, refresh } = useArticleBridge()
-  const { posts, loading: feedLoading } = useFeedBridge()
+  const { posts, loading: feedLoading, refresh: refreshFeed } = useFeedBridge()
   const [activeFilter, setActiveFilter] = useState<TopicFilter>('for-you')
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const pullRefresh = usePullToRefresh(async () => {
+    await refreshExternalFeeds()
+    await Promise.all([refresh(), refreshFeed()])
+  }, loading || feedLoading)
 
   const published = articles.filter((a) => a.status === 'published')
   const followedTopics = getFollowedTopics()
@@ -153,7 +159,8 @@ export default function TopicsPage() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
+      <main className="relative flex-1 overflow-y-auto px-4 py-4 space-y-6" {...pullRefresh.touchHandlers}>
+        <PullToRefreshIndicator pullDistance={pullRefresh.pullDistance} refreshing={pullRefresh.refreshing} ready={pullRefresh.ready} />
         {!loading && !feedLoading && topics.length > 0 && (
           <section aria-labelledby="discover-topics-heading">
             <div className="mb-3 flex items-end justify-between gap-3">
