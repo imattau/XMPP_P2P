@@ -1023,7 +1023,7 @@ export default function FeedPage() {
               <ChevronDown size={13} className={`ml-auto text-muted-foreground transition-transform ${showServerMicroblogs ? 'rotate-180' : ''}`} />
             </button>
             {showServerMicroblogs && (
-              <div id="server-microblogs-panel" className="space-y-2 border-t border-border px-4 py-3">
+              <div id="server-microblogs-panel" className="max-h-[55dvh] space-y-2 overflow-y-auto overscroll-contain border-t border-border px-4 py-3">
                 <p className="text-[11px] leading-relaxed text-muted-foreground">
                   Follow author feeds or add an RSS/Atom source. Topic follows are local filters; adding a feed subscribes to that external source.
                 </p>
