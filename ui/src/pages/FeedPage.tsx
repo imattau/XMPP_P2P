@@ -233,11 +233,11 @@ function PostCard({
         </div>
 
           <div className="mt-1 flex items-center justify-between ml-[52px]">
-            {supportsNativeSocialActions && <span className="inline-flex min-h-11 items-center gap-1 px-1.5 text-muted-foreground" title={`${formatCount(post.comments)} comments`}>
+            {supportsNativeSocialActions && <NavLink to={`/post/${encodeURIComponent(post.id)}#reply`} aria-label={`Reply to post by ${post.author.name}, ${formatCount(post.comments)} comments`} title={`${formatCount(post.comments)} comments`}
+              className="inline-flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-lg px-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
               <MessageCircle size={15} aria-hidden="true" />
               <span className="font-mono text-[11px] tabular-nums">{formatCount(post.comments)}</span>
-              <span className="sr-only">comments</span>
-            </span>}
+            </NavLink>}
             {supportsNativeSocialActions && <div ref={reactionRef} className="relative">
               <button
                 aria-label={post.liked ? 'React to post; already liked' : 'React to post'}
@@ -252,7 +252,7 @@ function PostCard({
                 <span className="hidden font-mono text-[11px] tabular-nums sm:inline">{formatCount(post.likes)}</span>
               </button>
               {showReactions && (
-                <div className="absolute bottom-full left-0 z-50 mb-1 grid max-w-[188px] grid-cols-4 gap-1 rounded-xl border border-border bg-background p-1.5 shadow-lg sm:flex sm:max-w-none sm:gap-0.5">
+                <div className="absolute bottom-full left-0 z-50 mb-1 grid w-max max-w-[calc(100vw-4rem)] grid-cols-4 gap-1 rounded-xl border border-border bg-background p-1.5 shadow-lg sm:flex sm:max-w-none sm:gap-0.5">
                   {REACTIONS.map((emoji) => (
                     <button
                       key={emoji}
@@ -263,7 +263,7 @@ function PostCard({
                         onReact(post.id, emoji)
                         setShowReactions(false)
                       }}
-                      className="flex h-11 w-11 items-center justify-center rounded-lg text-lg transition-colors hover:bg-secondary"
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-lg transition-colors hover:bg-secondary"
                     >
                       {emoji}
                     </button>

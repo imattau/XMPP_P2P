@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useState, useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router'
+import { useLocation, useNavigate, useParams } from 'react-router'
 import {
   ArrowLeft, Heart, MessageCircle, Repeat2, Share2,
   Bookmark, Hash, Users, Globe, Lock, Shield,
@@ -250,6 +250,7 @@ export default function PostPage() {
   const [authorFollowStatus, setAuthorFollowStatus] = useState<'subscribed' | 'pending' | 'polling' | undefined>()
   const [changingFollow, setChangingFollow] = useState(false)
   const replyTextareaRef = React.useRef<HTMLTextAreaElement>(null)
+  const { hash } = useLocation()
   // Replies are populated from feed records after the current post is resolved.
   // Start empty so demo fixtures can never be mistaken for live replies.
   const [replies, setReplies] = useState<Reply[]>([])
@@ -363,6 +364,13 @@ export default function PostPage() {
       textarea.setSelectionRange(nextCursor, nextCursor)
     })
   }
+
+  useEffect(() => {
+    if (hash !== '#reply' || loading) return
+    const textarea = replyTextareaRef.current
+    textarea?.scrollIntoView({ block: 'center' })
+    textarea?.focus({ preventScroll: true })
+  }, [hash, loading])
 
   useEffect(() => {
     if (!bridgePost) return
