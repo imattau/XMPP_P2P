@@ -242,6 +242,8 @@ export class XmppNode extends EventEmitter {
   private readonly minReconnectDelay = 1000
   private reliabilityManager = new XmppReliabilityManager()
   private dhtMailboxPeerListener?: EventListener
+  private discoveredPeerListener?: EventListener
+  private disconnectedPeerListener?: EventListener
   public readonly rosterManager: XmppRosterManager
   public get roster() {
     return this.rosterManager.entries
@@ -356,6 +358,29 @@ export class XmppNode extends EventEmitter {
     this.dhtMailboxPeerListener = () => this.flushDhtMailboxWhenActive()
     this.libp2p.addEventListener('peer:connect', this.dhtMailboxPeerListener)
     void this.ready.then(() => this.flushDhtMailboxWhenActive()).catch(() => {})
+
+    this.discoveredPeerListener = (event: Event) => {
+      const detail = (event as CustomEvent<any>).detail
+      const peerId = detail?.id?.toString?.()
+      if (!peerId || peerId === this.libp2p.peerId.toString()) return
+      const localAddress = (detail.multiaddrs ?? []).find((address: Multiaddr) => isPrivate(address))
+      if (!localAddress) return
+      const address = localAddress.toString()
+      const peerAddress = address.includes('/p2p/') ? address : `${address}/p2p/${peerId}`
+      void this.ready
+        .then(() => this.feedManager.previewDiscoveredFeed(peerId, peerAddress))
+        .catch(error => console.warn(`[XMPP] Could not preview nearby peer feed ${peerId}:`, error))
+    }
+    this.disconnectedPeerListener = (event: Event) => {
+      const detail = (event as CustomEvent<any>).detail
+      const peerId = detail?.toString?.() ?? detail?.id?.toString?.()
+      if (!peerId || peerId === this.libp2p.peerId.toString()) return
+      void this.ready
+        .then(() => this.feedManager.stopPreviewingDiscoveredFeed(peerId))
+        .catch(error => console.warn(`[XMPP] Could not stop nearby peer feed preview ${peerId}:`, error))
+    }
+    this.libp2p.addEventListener('peer:discovery', this.discoveredPeerListener)
+    this.libp2p.addEventListener('peer:disconnect', this.disconnectedPeerListener)
 
     // Register protocol handler for inbound connections.
     // libp2p StreamHandler signature: (stream: Stream, connection: Connection)
@@ -2468,6 +2493,14 @@ export class XmppNode extends EventEmitter {
       this.libp2p.removeEventListener('peer:connect', this.dhtMailboxPeerListener)
       this.dhtMailboxPeerListener = undefined
     }
+    if (this.discoveredPeerListener) {
+      this.libp2p.removeEventListener('peer:discovery', this.discoveredPeerListener)
+      this.discoveredPeerListener = undefined
+    }
+    if (this.disconnectedPeerListener) {
+      this.libp2p.removeEventListener('peer:disconnect', this.disconnectedPeerListener)
+      this.disconnectedPeerListener = undefined
+    }
 
     await this.clientBridge.disconnect().catch(() => {})
 
@@ -2490,6 +2523,7 @@ export class XmppNode extends EventEmitter {
     this.streams.clear()
 
     await this.rosterManager.close()
+    await this.feedManager.stopAllDiscoveredFeedPreviews()
     await this.feedManager.close()
     await this.collectionManager.close()
     await this.chat.flushSaveQueue()

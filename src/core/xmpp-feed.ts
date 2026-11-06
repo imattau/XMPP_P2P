@@ -69,6 +69,7 @@ export class XmppFeedManager {
   public readonly feedSubscriptions = new Map<string, XmppFeedSubscriptionRecord>()
   public readonly followers = new Map<string, XmppFeedFollower>()
   public readonly followerWatches = new Map<string, XmppFollowerWatch>()
+  private readonly discoveredFeedPeers = new Map<string, string>()
   private feedSaveQueue: Promise<void> = Promise.resolve()
   private subscriptionSaveQueue: Promise<void> = Promise.resolve()
   private followerSaveQueue: Promise<void> = Promise.resolve()
@@ -186,6 +187,50 @@ export class XmppFeedManager {
       await pubsub.subscribe(topic)
     } catch (err) {
       console.error('[XMPP] Failed to subscribe to own follower topic:', err)
+    }
+  }
+
+  /**
+   * Temporarily subscribe to a nearby peer's public feed so its posts can
+   * appear in the timeline before the user chooses to follow or add them.
+   */
+  public async previewDiscoveredFeed(peerId: string, peerAddr: string | Multiaddr): Promise<void> {
+    await this.ctx.ready
+    const topic = feedTopicForPeer(peerId)
+    if (this.feedSubscriptions.has(topic)) return
+    if (this.discoveredFeedPeers.has(peerId)) {
+      this.discoveredFeedPeers.set(peerId, peerAddr.toString())
+      return
+    }
+
+    const pubsub = this.ctx.getPubSubService()
+    this.ctx.ensureTopicValidator(topic, 'feed')
+    this.ctx.ensureTopicValidator(topic, 'attachment')
+    await pubsub.subscribe(topic)
+    this.discoveredFeedPeers.set(peerId, peerAddr.toString())
+
+    try {
+      await this.syncFeedHistory(peerAddr, peerId, topic)
+    } catch (error) {
+      // Live public posts still arrive through PubSub when history sync fails.
+      console.warn(`[XMPP] Could not preview recent feed history for ${peerId}:`, error)
+    }
+  }
+
+  public async stopPreviewingDiscoveredFeed(peerId: string): Promise<void> {
+    if (!this.discoveredFeedPeers.delete(peerId)) return
+    const topic = feedTopicForPeer(peerId)
+    if (this.feedSubscriptions.has(topic)) return
+    await this.ctx.getPubSubService().unsubscribe(topic)
+  }
+
+  public async stopAllDiscoveredFeedPreviews(): Promise<void> {
+    for (const peerId of [...this.discoveredFeedPeers.keys()]) {
+      try {
+        await this.stopPreviewingDiscoveredFeed(peerId)
+      } catch (error) {
+        console.warn(`[XMPP] Could not stop nearby peer feed preview ${peerId}:`, error)
+      }
     }
   }
 

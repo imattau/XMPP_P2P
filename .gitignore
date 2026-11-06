@@ -7,6 +7,7 @@ node_modules/
 .superpowers/
 .agents/
 .codex/
+.secrets/
 output/
 data/
 scripts/__pycache__/
