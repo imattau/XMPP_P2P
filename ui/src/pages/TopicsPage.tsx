@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { Check, Hash, Plus, Search, X } from 'lucide-react'
+import { Check, Hash, Plus, Search, UserRound, X } from 'lucide-react'
 import { useArticleBridge } from '../bridge/article/useArticleBridge'
 import { useFeedBridge } from '../bridge/feed/useFeedBridge'
+import { useBrowserXmppBridge, type BridgeFollowedFeedSource } from '../bridge/runtime'
 import ArticleCard from '../components/article/ArticleCard'
 import { PullToRefreshIndicator, usePullToRefresh } from '../components/PullToRefresh'
 import { refreshExternalFeeds } from '../bridge/refreshExternalFeeds'
@@ -13,6 +14,8 @@ export default function TopicsPage() {
   const navigate = useNavigate()
   const { toggleBookmark, articles, getFollowedTopics, toggleFollowedTopic, loading, loadError, refresh } = useArticleBridge()
   const { posts, loading: feedLoading, refresh: refreshFeed } = useFeedBridge()
+  const runtime = useBrowserXmppBridge()
+  const [followedAuthorFeeds, setFollowedAuthorFeeds] = useState<BridgeFollowedFeedSource[]>([])
   const [activeFilter, setActiveFilter] = useState<TopicFilter>('for-you')
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -20,6 +23,38 @@ export default function TopicsPage() {
     await refreshExternalFeeds()
     await Promise.all([refresh(), refreshFeed()])
   }, loading || feedLoading)
+
+  useEffect(() => {
+    if (!runtime) {
+      setFollowedAuthorFeeds([])
+      return
+    }
+    let active = true
+    const loadSubscriptions = async () => {
+      try {
+        const sources = runtime.getFollowedFeedSources
+          ? await runtime.getFollowedFeedSources()
+          : (await runtime.getFeedSubscriptions()).map((subscription) => ({
+              id: `p2p:${subscription.peerId}`,
+              protocol: 'p2p' as const,
+              owner: subscription.peerId,
+              node: subscription.topic,
+              status: 'subscribed' as const,
+              updatedAt: subscription.updatedAt,
+            }))
+        if (active) setFollowedAuthorFeeds(sources.filter((source) => source.protocol !== 'rss'))
+      } catch {
+        if (active) setFollowedAuthorFeeds([])
+      }
+    }
+    void loadSubscriptions()
+    const refreshOnFocus = () => { void loadSubscriptions() }
+    window.addEventListener('focus', refreshOnFocus)
+    return () => {
+      active = false
+      window.removeEventListener('focus', refreshOnFocus)
+    }
+  }, [runtime])
 
   const published = articles.filter((a) => a.status === 'published')
   const followedTopics = getFollowedTopics()
@@ -161,6 +196,31 @@ export default function TopicsPage() {
 
       <main className="relative flex-1 overflow-y-auto px-4 py-4 space-y-6" {...pullRefresh.touchHandlers}>
         <PullToRefreshIndicator pullDistance={pullRefresh.pullDistance} refreshing={pullRefresh.refreshing} ready={pullRefresh.ready} />
+        {followedAuthorFeeds.length > 0 && (
+          <section aria-labelledby="followed-author-feeds-heading">
+            <div className="mb-3">
+              <h2 id="followed-author-feeds-heading" className="text-base font-semibold text-foreground">Followed author feeds</h2>
+              <p className="mt-1 text-xs text-muted-foreground">Feeds you follow from Profile or a post.</p>
+            </div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {followedAuthorFeeds.map((source) => (
+                <button
+                  key={`${source.protocol}:${source.owner}`}
+                  type="button"
+                  onClick={() => navigate(`/?q=${encodeURIComponent(source.owner)}`)}
+                  className="flex min-h-16 min-w-0 items-center gap-3 rounded-xl border border-border bg-card p-3 text-left transition-colors hover:bg-white/[0.02]"
+                  aria-label={`View ${source.protocol.toUpperCase()} feed from ${source.owner}`}
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue2 text-primary"><UserRound size={17} /></span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold text-foreground">{source.owner}</span>
+                    <span className="block text-xs text-muted-foreground">{source.protocol.toUpperCase()} · {source.status === 'pending' ? 'Request pending' : source.status === 'polling' ? 'Syncing' : 'Following'}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
         {!loading && !feedLoading && topics.length > 0 && (
           <section aria-labelledby="discover-topics-heading">
             <div className="mb-3 flex items-end justify-between gap-3">
