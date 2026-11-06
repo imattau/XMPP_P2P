@@ -626,6 +626,10 @@ export default function FeedPage() {
   }, [])
 
   useEffect(() => {
+    if (quickPostType === 'community' && !selectedCommunity && collections.length === 1) setSelectedCommunity(collections[0].id)
+  }, [quickPostType, selectedCommunity, collections])
+
+  useEffect(() => {
     let active = true
     const loadCollections = () => {
       const bridge = getBrowserXmppBridge()
@@ -939,7 +943,20 @@ export default function FeedPage() {
                   </select>
                   <ChevronDown size={13} aria-hidden="true" className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 </label>
-                {quickPostType === 'community' && (
+                {quickPostType === 'community' && collections.length === 0 && !selectedCommunity && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[11px] text-muted-foreground">You aren't in a community yet.</span>
+                    <button type="button" onClick={() => navigate('/communities/new')}
+                      className="inline-flex min-h-11 items-center gap-1 rounded-lg bg-secondary px-3 text-[11px] font-semibold text-primary hover:bg-secondary/80">
+                      <Plus size={12} />Create one
+                    </button>
+                    <button type="button" onClick={() => navigate('/communities/join')}
+                      className="inline-flex min-h-11 items-center gap-1 rounded-lg bg-secondary px-3 text-[11px] font-semibold text-foreground hover:bg-secondary/80">
+                      <Hash size={12} />Join by ID
+                    </button>
+                  </div>
+                )}
+                {quickPostType === 'community' && (collections.length > 0 || Boolean(selectedCommunity)) && (
                   <div ref={communityRef} className="relative">
                     <button
                       type="button"
