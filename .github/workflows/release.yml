@@ -94,14 +94,16 @@ jobs:
           set -euo pipefail
           VERSION=$(node -p "require('./package.json').version")
           STAGING="$RUNNER_TEMP/nexus-npack-root"
-          mkdir -p "$STAGING/opt/nexus" "$STAGING/usr/bin" "$STAGING/usr/share/applications" "$STAGING/usr/share/icons/hicolor/512x512/apps"
-          cp -a release/linux-unpacked/. "$STAGING/opt/nexus/"
-          cat > "$STAGING/usr/bin/nexus" <<'EOF'
+          mkdir -p "$STAGING/lib/nexus" "$STAGING/bin" "$STAGING/share/applications" "$STAGING/share/icons/hicolor/512x512/apps"
+          cp -a release/linux-unpacked/. "$STAGING/lib/nexus/"
+          cat > "$STAGING/bin/nexus" <<'EOF'
           #!/bin/sh
-          exec /opt/nexus/nexus "$@"
+          SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+          PREFIX=$(dirname "$SCRIPT_DIR")
+          exec "$PREFIX/lib/nexus/nexus" "$@"
           EOF
-          chmod 755 "$STAGING/usr/bin/nexus"
-          cat > "$STAGING/usr/share/applications/app.nexus.xmpp.desktop" <<'EOF'
+          chmod 755 "$STAGING/bin/nexus"
+          cat > "$STAGING/share/applications/app.nexus.xmpp.desktop" <<'EOF'
           [Desktop Entry]
           Type=Application
           Name=Nexus
@@ -112,7 +114,7 @@ jobs:
           Terminal=false
           StartupWMClass=nexus
           EOF
-          install -m 644 assets/zapstore-icon.png "$STAGING/usr/share/icons/hicolor/512x512/apps/app.nexus.xmpp.png"
+          install -m 644 assets/zapstore-icon.png "$STAGING/share/icons/hicolor/512x512/apps/app.nexus.xmpp.png"
           npack init "$STAGING" --name nexus --version "$VERSION" --publisher "$NPACK_PUBLISHER"
           python3 - "$STAGING/.npack/manifest.json" <<'PY'
           import json, sys
@@ -126,10 +128,10 @@ jobs:
               "homepage": "https://github.com/imattau/XMPP_P2P",
               "license": "LGPL-2.1-or-later",
               "categories": ["Network", "Chat"],
-              "icon": "usr/share/icons/hicolor/512x512/apps/app.nexus.xmpp.png",
-              "desktop_file": "usr/share/applications/app.nexus.xmpp.desktop",
+              "icon": "share/icons/hicolor/512x512/apps/app.nexus.xmpp.png",
+              "desktop_file": "share/applications/app.nexus.xmpp.desktop",
               "release_date": date.today().isoformat(),
-              "release_notes": "Improves the Nexus listing in Npack catalogs with richer signed release metadata.",
+              "release_notes": "Fixes Npack's install layout so Nexus desktop files work for system and user installs.",
               "support_url": "https://github.com/imattau/XMPP_P2P/issues"
           }
           with open(path, "w", encoding="utf-8") as f:
