@@ -1,9 +1,9 @@
 import * as React from 'react'
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router'
+import { useLocation, useNavigate } from 'react-router'
 import {
-  Bell, Lock, Moon, LogOut, ChevronRight, ArrowLeft, Globe,
-  Server, Plus, Check, Loader, Wifi, WifiOff,
+  Bell, Lock, Moon, LogOut, ChevronRight, ArrowLeft, Globe, Copy, Check, Camera,
+  Server, Plus, Loader, Wifi, WifiOff,
   ChevronDown,
 } from 'lucide-react'
 import { getBootstrapAddrs, getBrowserXmppBridge, getDesktopRelayConfig, getDesktopRelayStatus, getDhtEnabled, getNostrBootstrapConfig, saveBootstrapAddrs, saveDesktopRelayConfig, saveDhtEnabled, saveNostrBootstrapConfig, type DesktopRelayConfig, type DesktopRelayStatus } from '../bridge/runtime'
@@ -12,6 +12,8 @@ import { useConnectionBridge } from '../bridge/useConnectionBridge'
 import { identityController } from '../bridge/identity/controller'
 import { useIdentityBridge } from '../bridge/identity/useIdentityBridge'
 import Toggle from '../components/onboarding/Toggle'
+import QRCode from '../components/QRCode'
+import QRScanner from '../components/QRScanner'
 import XmppConnectionError from '../components/XmppConnectionError'
 import { requestNotificationPermission } from '../bridge/useNotifications'
 import { getOptionalWebSocketUrl, normalizeXmppJid } from '../lib/xmpp-input'
@@ -37,6 +39,8 @@ function loadXmppAccountSettings(): { jid: string; serviceUrl: string } | undefi
 
 export default function SettingsPage() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const searchParams = new URLSearchParams(location.search)
   const {
     connections, connecting, disconnecting,
     gatewayOnline, gatewayConnections,
@@ -61,6 +65,10 @@ export default function SettingsPage() {
   const [signOutError, setSignOutError] = useState('')
   const [bootstrapAddress, setBootstrapAddress] = useState('')
   const [bootstrapSaved, setBootstrapSaved] = useState(false)
+  const [relayLinkCopied, setRelayLinkCopied] = useState(false)
+  const [relayLinkStatus, setRelayLinkStatus] = useState('')
+  const [showRelayScanner, setShowRelayScanner] = useState(false)
+  const incomingRelayLinkRef = useRef(searchParams.has('relay'))
   const [bootstrapPeersConfigured, setBootstrapPeersConfigured] = useState<boolean | null>(null)
   const [nostrRelays, setNostrRelays] = useState('')
   const [nostrSaved, setNostrSaved] = useState(false)
@@ -186,7 +194,7 @@ export default function SettingsPage() {
     }
     void getBootstrapAddrs().then((addresses) => {
       if (!active) return
-      setBootstrapAddress(addresses[0] ?? '')
+      if (!incomingRelayLinkRef.current) setBootstrapAddress(addresses[0] ?? '')
       setBootstrapPeersConfigured(addresses.length > 0)
     })
     window.addEventListener('xmpp-p2p:bootstrap-config-changed', refreshBootstrapStatus)
@@ -195,6 +203,23 @@ export default function SettingsPage() {
       window.removeEventListener('xmpp-p2p:bootstrap-config-changed', refreshBootstrapStatus)
     }
   }, [])
+
+  useEffect(() => {
+    const sharedAddress = searchParams.get('relay')
+    if (!sharedAddress) return
+    const normalized = normalizeBootstrapAddress(sharedAddress, nativeTcpAvailable)
+    if (!normalized) {
+      setRelayLinkStatus('This relay link is invalid or unsupported.')
+    } else {
+      saveBootstrapAddrs([normalized])
+      setBootstrapAddress(normalized)
+      setBootstrapSaved(true)
+      setRelayLinkStatus('Relay added. Reconnecting to the peer network…')
+    }
+    const next = new URLSearchParams(searchParams)
+    next.delete('relay')
+    navigate(`/settings${next.size ? `?${next.toString()}` : ''}`, { replace: true })
+  }, [nativeTcpAvailable, location.search])
 
   useEffect(() => {
     if (!isElectronShell()) return
@@ -220,6 +245,38 @@ export default function SettingsPage() {
     setBootstrapAddress(normalizedBootstrapAddress)
     setBootstrapSaved(true)
   }
+
+  const relayShareLink = normalizedBootstrapAddress && typeof window !== 'undefined'
+    ? `${window.location.origin}/settings?relay=${encodeURIComponent(normalizedBootstrapAddress)}`
+    : ''
+  const copyRelayShareLink = async () => {
+    if (!relayShareLink) return
+    try {
+      await navigator.clipboard.writeText(relayShareLink)
+      setRelayLinkCopied(true)
+      window.setTimeout(() => setRelayLinkCopied(false), 2000)
+    } catch {
+      setRelayLinkStatus('Could not copy the link. Select and copy it manually.')
+    }
+  }
+  const handleRelayQrScan = useCallback((value: string) => {
+    let address = value.trim()
+    try {
+      const parsedUrl = new URL(address)
+      address = parsedUrl.searchParams.get('relay') ?? address
+    } catch { /* QR may contain a raw multiaddress. */ }
+    const normalized = normalizeBootstrapAddress(address, nativeTcpAvailable)
+    if (!normalized) {
+      setRelayLinkStatus('That QR code does not contain a valid relay address.')
+      setShowRelayScanner(false)
+      return
+    }
+    saveBootstrapAddrs([normalized])
+    setBootstrapAddress(normalized)
+    setBootstrapSaved(true)
+    setRelayLinkStatus('Relay added. Reconnecting to the peer network…')
+    setShowRelayScanner(false)
+  }, [nativeTcpAvailable])
 
   const normalizedNostrConfig = normalizeNostrBootstrapConfig({ relayUrls: nostrRelays })
   const nostrConfigHasInvalidEntries = nostrRelays.split(/[\n,;]+/).some((entry) => entry.trim() && !normalizeNostrRelayUrl(entry))
@@ -305,20 +362,36 @@ export default function SettingsPage() {
             <ChevronDown size={14} className="text-muted-foreground/50" />
           </summary>
           <form onSubmit={handleSaveBootstrap} className="space-y-3 px-4 pb-3">
+          {relayLinkStatus && <p role="status" className="text-xs text-accent">{relayLinkStatus}</p>}
+          {relayShareLink && <div className="rounded-lg bg-background p-3">
+            <p className="text-xs font-medium text-foreground">Share this relay</p>
+            <p className="mt-1 text-[11px] text-muted-foreground">Friends can scan this code or open the link to add your relay.</p>
+            <div className="my-3 flex justify-center rounded-lg bg-black p-2"><QRCode value={relayShareLink} size={180} /></div>
+            <div className="flex gap-2">
+              <input readOnly aria-label="Relay invite link" value={relayShareLink} className="min-h-10 min-w-0 flex-1 rounded-lg border border-border bg-card px-2 font-mono text-[10px] text-foreground" />
+              <button type="button" onClick={() => void copyRelayShareLink()} className="flex min-h-10 shrink-0 items-center gap-1 rounded-lg border border-border px-3 text-xs font-medium text-foreground">
+                {relayLinkCopied ? <Check size={14} /> : <Copy size={14} />}{relayLinkCopied ? 'Copied' : 'Copy link'}
+              </button>
+            </div>
+          </div>}
+          <button type="button" onClick={() => { setRelayLinkStatus(''); setShowRelayScanner(true) }} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-border bg-background px-3 text-xs font-semibold text-foreground hover:bg-secondary">
+            <Camera size={15} /> Scan QR code
+          </button>
           <details>
-            <summary className="min-h-11 cursor-pointer py-3 text-xs font-medium text-primary">Relay address requirements</summary>
-            <p className="pb-2 text-xs leading-relaxed text-muted-foreground">{nativeTcpAvailable ? 'Use a root TCP or WebSocket multiaddress from your network operator. Native transports can dial TCP peers directly; WebSocket addresses also support browser clients.' : 'Use a root WebSocket multiaddress from your network operator. Addresses with an HTTP path such as /ws cannot route WebRTC peer connections.'} Saving restarts the peer network; active XMPP sessions may need to reconnect.</p>
-          </details>
+            <summary className="min-h-11 cursor-pointer py-3 text-xs font-medium text-primary">Advanced relay address</summary>
+            <p className="pb-2 text-xs leading-relaxed text-muted-foreground">{nativeTcpAvailable ? 'Use a root TCP or WebSocket multiaddress from your network operator. Native transports can dial TCP peers directly; browsers need WebSockets.' : 'Use a root WebSocket multiaddress from your network operator. Addresses with an HTTP path such as /ws cannot route peer connections.'} Saving restarts the peer network; active XMPP sessions may need to reconnect.</p>
           <input value={bootstrapAddress} onChange={(event) => { setBootstrapAddress(event.target.value); setBootstrapSaved(false) }}
             type="text" autoComplete="off" spellCheck={false} placeholder="/dns4/relay.example/tcp/443/wss/p2p/…" aria-label="Peer network relay address"
             className="min-h-11 w-full rounded-lg border border-border bg-background px-3 py-2.5 font-mono text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50" />
           {bootstrapAddressError && <p role="status" className="text-[11px] text-destructive">{bootstrapAddressError}</p>}
+          </details>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
             <p className="min-w-0 text-[11px] text-muted-foreground">{bootstrapSaved
               ? 'Saved. Reconnecting to the peer network…'
               : <>Current: <span className="break-all">{normalizedBootstrapAddress ?? 'no relay configured'}</span></>}</p>
             <button type="submit" disabled={!validBootstrapAddress || bootstrapSaved} className="min-h-11 w-full shrink-0 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto">Save and reconnect</button>
           </div>
+          {showRelayScanner && <QRScanner onScan={handleRelayQrScan} onClose={() => setShowRelayScanner(false)} />}
           </form>
         </details>
 
