@@ -85,7 +85,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           rustup toolchain install stable --profile minimal
-          cargo +stable install --locked --git https://github.com/imattau/npack.git --tag v0.4.2 npack
+          cargo +stable install --locked --git https://github.com/imattau/npack.git --tag v0.6.1 npack
       - name: Build npack package
         if: runner.os == 'Linux'
         env:
@@ -116,6 +116,7 @@ jobs:
           npack init "$STAGING" --name nexus --version "$VERSION" --publisher "$NPACK_PUBLISHER"
           python3 - "$STAGING/.npack/manifest.json" <<'PY'
           import json, sys
+          from datetime import date
           path = sys.argv[1]
           with open(path, encoding="utf-8") as f:
               manifest = json.load(f)
@@ -126,7 +127,10 @@ jobs:
               "license": "LGPL-2.1-or-later",
               "categories": ["Network", "Chat"],
               "icon": "usr/share/icons/hicolor/512x512/apps/app.nexus.xmpp.png",
-              "desktop_file": "usr/share/applications/app.nexus.xmpp.desktop"
+              "desktop_file": "usr/share/applications/app.nexus.xmpp.desktop",
+              "release_date": date.today().isoformat(),
+              "release_notes": "Improves the Nexus listing in Npack catalogs with richer signed release metadata.",
+              "support_url": "https://github.com/imattau/XMPP_P2P/issues"
           }
           with open(path, "w", encoding="utf-8") as f:
               json.dump(manifest, f, indent=2)
@@ -174,7 +178,7 @@ jobs:
       - name: Install npack
         run: |
           rustup toolchain install stable --profile minimal
-          cargo +stable install --locked --git https://github.com/imattau/npack.git --tag v0.4.2 npack
+          cargo +stable install --locked --git https://github.com/imattau/npack.git --tag v0.6.1 npack
       - name: Publish npack package
         env:
           NOSTR_SECRET_KEY: ${{ secrets.NOSTR_SECRET_KEY }}
